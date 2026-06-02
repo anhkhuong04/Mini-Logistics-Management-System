@@ -1,0 +1,380 @@
+@page "/shipments/{Id:guid}"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Shop")]
+@using System.Security.Claims
+@using MiniLogistics.Application.Shipments
+@using MiniLogistics.Application.Shipments.CancelShipmentForCurrentShop
+@using MiniLogistics.Application.Shipments.GetShipmentDetailForCurrentShop
+@using MiniLogistics.Domain.Shipments
+@inject ICancelShipmentForCurrentShopService CancelShipmentForCurrentShopService
+@inject IGetShipmentDetailForCurrentShopService GetShipmentDetailForCurrentShopService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Shipment detail</PageTitle>
+
+<div class="shipment-detail-page">
+    <div class="page-heading">
+        <div>
+            <a class="back-link" href="/shipments">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m15 6-6 6 6 6 1.4-1.4-4.6-4.6 4.6-4.6L15 6Z" />
+                </svg>
+                <span>Danh sách đơn</span>
+            </a>
+            <h1>Chi tiết đơn hàng</h1>
+            @if (Shipment is not null)
+            {
+                <p>@Shipment.TrackingCode</p>
+            }
+        </div>
+
+        @if (Shipment is not null)
+        {
+            <span class="status-pill @GetStatusClass(Shipment.Status)">
+                @FormatStatus(Shipment.Status)
+            </span>
+        }
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@ErrorMessage</div>
+    }
+    else if (IsLoading)
+    {
+        <section class="content-card state-card" aria-live="polite">
+            <strong>Đang tải chi tiết đơn hàng</strong>
+        </section>
+    }
+    else if (Shipment is not null)
+    {
+        @if (!string.IsNullOrWhiteSpace(ActionSuccessMessage))
+        {
+            <div class="alert alert-success" role="status">@ActionSuccessMessage</div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(ActionErrorMessage))
+        {
+            <div class="alert alert-danger" role="alert">@ActionErrorMessage</div>
+        }
+
+        <div class="detail-grid">
+            <section class="content-card detail-main">
+                <div class="section-heading">
+                    <span class="section-icon blue">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" />
+                        </svg>
+                    </span>
+                    <h2>Thông tin vận đơn</h2>
+                </div>
+
+                <dl class="info-grid">
+                    <div>
+                        <dt>Tracking code</dt>
+                        <dd>@Shipment.TrackingCode</dd>
+                    </div>
+                    <div>
+                        <dt>Tuyến đường</dt>
+                        <dd>@FormatRouteType(Shipment.RouteType)</dd>
+                    </div>
+                    <div>
+                        <dt>Khối lượng</dt>
+                        <dd>@Shipment.WeightKg.ToString("N3") kg</dd>
+                    </div>
+                    <div>
+                        <dt>Kích thước</dt>
+                        <dd>@Shipment.ParcelLengthCm.ToString("N2") x @Shipment.ParcelWidthCm.ToString("N2") x @Shipment.ParcelHeightCm.ToString("N2") cm</dd>
+                    </div>
+                    <div>
+                        <dt>Khối lượng quy đổi</dt>
+                        <dd>@Shipment.VolumetricWeightKg.ToString("N3") kg</dd>
+                    </div>
+                    <div>
+                        <dt>Cân tính phí</dt>
+                        <dd>@Shipment.ChargeableWeightKg.ToString("N3") kg</dd>
+                    </div>
+                    <div>
+                        <dt>Ngày tạo</dt>
+                        <dd>@FormatDate(Shipment.CreatedAtUtc)</dd>
+                    </div>
+                    <div>
+                        <dt>Giá trị hàng hóa</dt>
+                        <dd>@FormatMoney(Shipment.GoodsValueAmount, Shipment.Currency)</dd>
+                    </div>
+                    <div>
+                        <dt>Phí vận chuyển</dt>
+                        <dd>@FormatMoney(Shipment.ShippingFeeAmount, Shipment.Currency)</dd>
+                    </div>
+                    <div>
+                        <dt>Phí dịch vụ chính</dt>
+                        <dd>@FormatMoney(Shipment.BaseFeeAmount, Shipment.Currency)</dd>
+                    </div>
+                    <div>
+                        <dt>Phí vượt cân</dt>
+                        <dd>@FormatMoney(Shipment.ExtraWeightFeeAmount, Shipment.Currency)</dd>
+                    </div>
+                    <div>
+                        <dt>Phí bảo hiểm</dt>
+                        <dd>@FormatMoney(Shipment.InsuranceFeeAmount, Shipment.Currency)</dd>
+                    </div>
+                    <div>
+                        <dt>Phí hoàn hàng</dt>
+                        <dd>@FormatMoney(Shipment.ReturnFeeAmount, Shipment.Currency)</dd>
+                    </div>
+                </dl>
+
+                <div class="party-grid">
+                    <article class="party-panel">
+                        <h3>Người gửi</h3>
+                        <strong>@Shipment.SenderName</strong>
+                        <span>@Shipment.SenderPhone</span>
+                        <p>@Shipment.PickupAddress.FullAddress</p>
+                    </article>
+
+                    <article class="party-panel">
+                        <h3>Người nhận</h3>
+                        <strong>@Shipment.ReceiverName</strong>
+                        <span>@Shipment.ReceiverPhone</span>
+                        <p>@Shipment.DeliveryAddress.FullAddress</p>
+                    </article>
+                </div>
+
+                @if (!string.IsNullOrWhiteSpace(Shipment.Note))
+                {
+                    <div class="note-panel">
+                        <h3>Ghi chú</h3>
+                        <p>@Shipment.Note</p>
+                    </div>
+                }
+            </section>
+
+            <aside class="side-stack">
+                <section class="content-card total-card">
+                    <span>COD cần thu</span>
+                    <strong>@FormatMoney(Shipment.CodAmount, Shipment.Currency)</strong>
+                    <small>Vị trí sẵn sàng cho quản lý COD.</small>
+                </section>
+
+                @if (CanCancelShipment(Shipment.Status))
+                {
+                    <section class="content-card cancel-card">
+                        <div class="section-heading compact">
+                            <span class="section-icon red">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="m12 10.6 3.5-3.5 1.4 1.4-3.5 3.5 3.5 3.5-1.4 1.4-3.5-3.5-3.5 3.5-1.4-1.4 3.5-3.5-3.5-3.5 1.4-1.4 3.5 3.5Z" />
+                                </svg>
+                            </span>
+                            <h2>Hủy đơn hàng</h2>
+                        </div>
+
+                        <form class="cancel-form" @onsubmit="CancelShipmentAsync" @onsubmit:preventDefault="true">
+                            <label for="cancel-reason">Lý do hủy</label>
+                            <textarea id="cancel-reason"
+                                      maxlength="500"
+                                      required
+                                      rows="3"
+                                      @bind="CancelReason"
+                                      @bind:event="oninput"></textarea>
+                            <button type="submit" disabled="@IsCancelling">
+                                @(IsCancelling ? "Đang hủy..." : "Xác nhận hủy đơn")
+                            </button>
+                        </form>
+                    </section>
+                }
+
+                <section class="content-card">
+                    <div class="section-heading compact">
+                        <span class="section-icon green">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm4 7.4-5 5-3-3 1.4-1.4 1.6 1.6 3.6-3.6L16 10.4Z" />
+                            </svg>
+                        </span>
+                        <h2>Tracking history</h2>
+                    </div>
+
+                    <ol class="timeline">
+                        @foreach (var history in Shipment.TrackingHistory)
+                        {
+                            <li>
+                                <span class="timeline-dot"></span>
+                                <div>
+                                    <strong>@FormatStatus(history.Status)</strong>
+                                    <time>@FormatDate(history.ChangedAtUtc)</time>
+                                    @if (!string.IsNullOrWhiteSpace(history.Note))
+                                    {
+                                        <p>@history.Note</p>
+                                    }
+                                </div>
+                            </li>
+                        }
+                    </ol>
+                </section>
+            </aside>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private bool IsLoading { get; set; } = true;
+
+    private bool IsCancelling { get; set; }
+
+    private string? ErrorMessage { get; set; }
+
+    private string? ActionErrorMessage { get; set; }
+
+    private string? ActionSuccessMessage { get; set; }
+
+    private string CancelReason { get; set; } = string.Empty;
+
+    private ShipmentDetailResponse? Shipment { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadShipmentAsync(clearActionMessages: true);
+    }
+
+    private async Task LoadShipmentAsync(bool clearActionMessages)
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+
+        if (clearActionMessages)
+        {
+            ActionErrorMessage = null;
+            ActionSuccessMessage = null;
+        }
+
+        var userId = await GetCurrentUserIdAsync();
+        if (userId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var result = await GetShipmentDetailForCurrentShopService.GetAsync(userId.Value, Id);
+        if (result.IsFailure)
+        {
+            ErrorMessage = result.Error.Description;
+            Shipment = null;
+        }
+        else
+        {
+            Shipment = result.Value;
+        }
+
+        IsLoading = false;
+    }
+
+    private async Task CancelShipmentAsync()
+    {
+        ActionErrorMessage = null;
+        ActionSuccessMessage = null;
+
+        if (string.IsNullOrWhiteSpace(CancelReason))
+        {
+            ActionErrorMessage = "Vui lòng nhập lý do hủy đơn.";
+            return;
+        }
+
+        var userId = await GetCurrentUserIdAsync();
+        if (userId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        IsCancelling = true;
+
+        var result = await CancelShipmentForCurrentShopService.CancelAsync(new CancelShipmentCommand(
+            userId.Value,
+            Id,
+            CancelReason));
+
+        IsCancelling = false;
+
+        if (result.IsFailure)
+        {
+            ActionErrorMessage = result.Error.Description;
+            return;
+        }
+
+        CancelReason = string.Empty;
+        ActionSuccessMessage = "Đã hủy đơn hàng.";
+
+        await LoadShipmentAsync(clearActionMessages: false);
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userIdValue = authenticationState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(userIdValue, out var userId)
+            ? userId
+            : null;
+    }
+
+    private static string FormatDate(DateTimeOffset value)
+    {
+        return value.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+    }
+
+    private static string FormatMoney(decimal amount, string currency)
+    {
+        return $"{amount.ToString("N0")} {currency}";
+    }
+
+    private static string FormatRouteType(RouteType routeType)
+    {
+        return routeType switch
+        {
+            RouteType.IntraProvince => "Nội tỉnh",
+            RouteType.IntraRegion => "Nội vùng",
+            RouteType.InterRegion => "Liên vùng",
+            _ => routeType.ToString()
+        };
+    }
+
+    private static string FormatStatus(ShipmentStatus status)
+    {
+        return status switch
+        {
+            ShipmentStatus.PendingPickup => "Chờ lấy hàng",
+            ShipmentStatus.Assigned => "Đã phân công",
+            ShipmentStatus.PickingUp => "Đang lấy hàng",
+            ShipmentStatus.PickedUp => "Đã lấy hàng",
+            ShipmentStatus.InTransit => "Đang vận chuyển",
+            ShipmentStatus.Delivering => "Đang giao",
+            ShipmentStatus.Delivered => "Đã giao",
+            ShipmentStatus.DeliveryFailed => "Giao thất bại",
+            ShipmentStatus.Returned => "Đã hoàn",
+            ShipmentStatus.Cancelled => "Đã hủy",
+            _ => status.ToString()
+        };
+    }
+
+    private static string GetStatusClass(ShipmentStatus status)
+    {
+        return status switch
+        {
+            ShipmentStatus.Delivered => "success",
+            ShipmentStatus.Cancelled or ShipmentStatus.DeliveryFailed or ShipmentStatus.Returned => "danger",
+            ShipmentStatus.InTransit or ShipmentStatus.Delivering or ShipmentStatus.PickedUp => "info",
+            _ => "warning"
+        };
+    }
+
+    private static bool CanCancelShipment(ShipmentStatus status)
+    {
+        return status is ShipmentStatus.Draft
+            or ShipmentStatus.PendingPickup
+            or ShipmentStatus.Assigned
+            or ShipmentStatus.PickingUp;
+    }
+}

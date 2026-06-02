@@ -1,0 +1,37 @@
+# Build output
+bin/
+obj/
+out/
+publish/
+
+# User and IDE files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Local tooling and agent artifacts
+.agent/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test and coverage output
+TestResults/
+coverage/
+coverage.*
+*.trx
+
+# NuGet
+*.nupkg
+packages/
+
+# ASP.NET generated static web assets cache
+*.StaticWebAssets.xml

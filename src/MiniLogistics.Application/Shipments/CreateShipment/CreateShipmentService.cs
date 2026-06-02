@@ -1,0 +1,157 @@
+using FluentValidation;
+using MiniLogistics.Application.CashOnDelivery;
+using MiniLogistics.Application.Common;
+using MiniLogistics.Application.Fees;
+using MiniLogistics.Application.Routing;
+using MiniLogistics.Application.Shops;
+using MiniLogistics.Domain.CashOnDelivery;
+using MiniLogistics.Domain.Common;
+using MiniLogistics.Domain.Shipments;
+using MiniLogistics.Domain.ValueObjects;
+
+namespace MiniLogistics.Application.Shipments.CreateShipment;
+
+public sealed class CreateShipmentService : ICreateShipmentService
+{
+    private const int MaxTrackingCodeGenerationAttempts = 5;
+
+    private readonly IValidator<CreateShipmentCommand> _validator;
+    private readonly IShippingFeeService _shippingFeeService;
+    private readonly IRouteClassificationService _routeClassificationService;
+    private readonly IShipmentRepository _shipmentRepository;
+    private readonly IShopRepository _shopRepository;
+    private readonly ICodTransactionRepository _codTransactionRepository;
+
+    public CreateShipmentService(
+        IValidator<CreateShipmentCommand> validator,
+        IShippingFeeService shippingFeeService,
+        IRouteClassificationService routeClassificationService,
+        IShipmentRepository shipmentRepository,
+        IShopRepository shopRepository,
+        ICodTransactionRepository codTransactionRepository)
+    {
+        _validator = validator;
+        _shippingFeeService = shippingFeeService;
+        _routeClassificationService = routeClassificationService;
+        _shipmentRepository = shipmentRepository;
+        _shopRepository = shopRepository;
+        _codTransactionRepository = codTransactionRepository;
+    }
+
+    public async Task<Result<CreateShipmentResponse>> CreateAsync(
+        CreateShipmentCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = await _validator.ValidateAsync(command, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            var description = string.Join("; ", validationResult.Errors.Select(error => error.ErrorMessage));
+            return Result<CreateShipmentResponse>.Failure(ApplicationErrors.ValidationFailed(description));
+        }
+
+        var shop = await _shopRepository.GetByOwnerUserIdAsync(command.CreatedByUserId, cancellationToken);
+        if (shop is null)
+        {
+            return Result<CreateShipmentResponse>.Failure(ApplicationErrors.NotFound("Shop was not found for current user."));
+        }
+
+        if (!shop.IsActive)
+        {
+            return Result<CreateShipmentResponse>.Failure(ApplicationErrors.Forbidden("Shop account is not active."));
+        }
+
+        var weight = new Weight(command.WeightKg);
+        var parcelDimensions = new ParcelDimensions(
+            command.LengthCm,
+            command.WidthCm,
+            command.HeightCm);
+        var goodsValue = new Money(command.GoodsValueAmount, command.Currency);
+        var codAmount = new Money(command.CodAmount, command.Currency);
+        var routeClassificationResult = _routeClassificationService.Classify(
+            command.PickupAddress.Province,
+            command.DeliveryAddress.Province);
+
+        if (routeClassificationResult.IsFailure)
+        {
+            return Result<CreateShipmentResponse>.Failure(routeClassificationResult.Error);
+        }
+
+        var routeType = routeClassificationResult.Value.RouteType;
+
+        var shippingFeeResult = await _shippingFeeService.CalculateAsync(
+            routeType,
+            weight,
+            parcelDimensions,
+            goodsValue,
+            cancellationToken);
+
+        if (shippingFeeResult.IsFailure)
+        {
+            return Result<CreateShipmentResponse>.Failure(shippingFeeResult.Error);
+        }
+
+        var trackingCode = await GenerateUniqueTrackingCodeAsync(cancellationToken);
+        var shipment = Shipment.Create(
+            shop.Id,
+            command.SenderName,
+            new PhoneNumber(command.SenderPhone),
+            command.ReceiverName,
+            new PhoneNumber(command.ReceiverPhone),
+            ToAddress(command.PickupAddress),
+            ToAddress(command.DeliveryAddress),
+            weight,
+            parcelDimensions,
+            new Weight(shippingFeeResult.Value.ChargeableWeightKg),
+            goodsValue,
+            codAmount,
+            shippingFeeResult.Value.Breakdown,
+            routeType,
+            command.CreatedByUserId,
+            command.Note,
+            trackingCode);
+        var codTransaction = CodTransaction.Create(shipment.Id, codAmount);
+
+        await _shipmentRepository.AddAsync(shipment, cancellationToken);
+        await _codTransactionRepository.AddAsync(codTransaction, cancellationToken);
+        await _shipmentRepository.SaveChangesAsync(cancellationToken);
+
+        return Result<CreateShipmentResponse>.Success(new CreateShipmentResponse(
+            shipment.Id,
+            shipment.TrackingCode.Value,
+            shipment.Weight.Kilograms,
+            parcelDimensions.CalculateVolumetricWeightKg(),
+            shipment.ChargeableWeight.Kilograms,
+            shipment.ShippingFeeBreakdown.BaseFee.Amount,
+            shipment.ShippingFeeBreakdown.ExtraWeightFee.Amount,
+            shipment.ShippingFeeBreakdown.InsuranceFee.Amount,
+            shipment.ShippingFeeBreakdown.ReturnFee.Amount,
+            shipment.ShippingFee.Amount,
+            shipment.ShippingFee.Currency,
+            shipment.Status));
+    }
+
+    private async Task<TrackingCode> GenerateUniqueTrackingCodeAsync(CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < MaxTrackingCodeGenerationAttempts; attempt++)
+        {
+            var trackingCode = TrackingCode.Generate();
+            var exists = await _shipmentRepository.ExistsByTrackingCodeAsync(trackingCode, cancellationToken);
+
+            if (!exists)
+            {
+                return trackingCode;
+            }
+        }
+
+        throw new InvalidOperationException("Could not generate a unique tracking code.");
+    }
+
+    private static Address ToAddress(ShipmentAddressDto address)
+    {
+        return new Address(
+            address.Street,
+            address.Ward,
+            address.Province,
+            address.Country);
+    }
+}

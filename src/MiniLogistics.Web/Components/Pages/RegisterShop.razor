@@ -1,0 +1,117 @@
+@page "/register-shop"
+@layout MiniLogistics.Web.Components.Layout.LandingLayout
+@attribute [AllowAnonymous]
+
+<PageTitle>Register Shop</PageTitle>
+
+<main class="register-page">
+    <section class="register-hero" aria-label="Register shop">
+        <div class="register-brand">
+            <img src="/images/landing%20page/logo.svg" alt="MiniLogistics" />
+            <div>
+                <strong>MiniLogistics</strong>
+                <span>Merchant onboarding</span>
+            </div>
+        </div>
+
+        <div class="register-copy">
+            <h1>Launch your shop with a cleaner shipping workspace.</h1>
+            <p>
+                Create a merchant account, configure your pickup address, and move straight into shipment creation,
+                COD tracking, and operations reporting.
+            </p>
+        </div>
+
+        <div class="register-highlights" aria-label="Platform highlights">
+            <article>
+                <strong>Fast setup</strong>
+                <p>Account, shop profile, and address details in one pass.</p>
+            </article>
+            <article>
+                <strong>Operational clarity</strong>
+                <p>Dashboard, shipment flow, and COD overview stay in the same system.</p>
+            </article>
+            <article>
+                <strong>Scales down well</strong>
+                <p>Balanced layout for desktop, laptop, and smaller viewport widths.</p>
+            </article>
+        </div>
+    </section>
+
+    <section class="register-panel" aria-label="Create merchant account">
+        <div class="panel-head">
+            <a class="back-link" href="/login">Back to sign in</a>
+            <span class="panel-badge">Merchant account</span>
+        </div>
+
+        <div class="register-card">
+            <div class="card-copy">
+                <h2>Create your shop account</h2>
+                <p>Use business contact details that will manage orders and settlement.</p>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(Error))
+            {
+                <div class="register-error" role="alert">@Error</div>
+            }
+
+            <form method="post" action="/auth/register-shop" class="register-form">
+                <AntiforgeryToken />
+
+                <div class="form-grid">
+                    <label class="field-group" for="full-name">
+                        <span>Full name</span>
+                        <input id="full-name" name="FullName" autocomplete="name" required maxlength="150" />
+                    </label>
+
+                    <label class="field-group" for="email">
+                        <span>Email</span>
+                        <input id="email" name="Email" type="email" autocomplete="email" required maxlength="256" />
+                    </label>
+
+                    <label class="field-group" for="password">
+                        <span>Password</span>
+                        <input id="password" name="Password" type="password" autocomplete="new-password" required minlength="6" maxlength="100" />
+                    </label>
+
+                    <label class="field-group" for="phone-number">
+                        <span>Phone number</span>
+                        <input id="phone-number" name="PhoneNumber" type="tel" autocomplete="tel" required maxlength="20" />
+                    </label>
+
+                    <label class="field-group field-span-2" for="shop-name">
+                        <span>Shop name</span>
+                        <input id="shop-name" name="ShopName" required maxlength="200" />
+                    </label>
+
+                    <label class="field-group" for="province">
+                        <span>Province</span>
+                        <input id="province" name="Province" required maxlength="100" />
+                    </label>
+
+                    <label class="field-group" for="ward">
+                        <span>Ward</span>
+                        <input id="ward" name="Ward" required maxlength="100" />
+                    </label>
+
+                    <label class="field-group field-span-2" for="address-line">
+                        <span>Address line</span>
+                        <input id="address-line" name="AddressLine" required maxlength="300" />
+                    </label>
+                </div>
+
+                <input type="hidden" name="Country" value="Vietnam" />
+
+                <div class="form-actions register-actions">
+                    <button type="submit" class="submit-button">Create account</button>
+                    <a class="secondary-link" href="/login">Already have an account?</a>
+                </div>
+            </form>
+        </div>
+    </section>
+</main>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? Error { get; set; }
+}

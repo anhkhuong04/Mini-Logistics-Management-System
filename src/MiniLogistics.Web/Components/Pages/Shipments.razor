@@ -1,0 +1,196 @@
+@page "/shipments"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Shop")]
+@using System.Security.Claims
+@using MiniLogistics.Application.Shipments.GetShipmentsForCurrentShop
+@using MiniLogistics.Domain.Shipments
+@inject IGetShipmentsForCurrentShopService GetShipmentsForCurrentShopService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Shipments</PageTitle>
+
+<div class="shipments-page">
+    <div class="page-heading">
+        <div>
+            <h1>Danh sách đơn hàng</h1>
+            <p>Theo dõi các vận đơn thuộc shop đang đăng nhập.</p>
+        </div>
+
+        <a class="btn btn-primary action-button" href="/shipments/create">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" />
+            </svg>
+            <span>Tạo đơn hàng</span>
+        </a>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@ErrorMessage</div>
+    }
+    else if (IsLoading)
+    {
+        <section class="content-card state-card" aria-live="polite">
+            <span class="state-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-8-8V2Z" />
+                </svg>
+            </span>
+            <strong>Đang tải danh sách đơn hàng</strong>
+        </section>
+    }
+    else if (ShipmentItems.Count == 0)
+    {
+        <section class="content-card state-card">
+            <span class="state-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" />
+                </svg>
+            </span>
+            <strong>Chưa có đơn hàng</strong>
+            <p>Tạo vận đơn đầu tiên để bắt đầu theo dõi giao hàng.</p>
+            <a class="btn btn-primary" href="/shipments/create">Tạo đơn hàng</a>
+        </section>
+    }
+    else
+    {
+        <section class="content-card">
+            <div class="table-shell">
+                <table class="shipments-table">
+                    <thead>
+                        <tr>
+                            <th>Tracking code</th>
+                            <th>Receiver</th>
+                            <th>Route type</th>
+                            <th>Chargeable weight</th>
+                            <th>Shipping fee</th>
+                            <th>Status</th>
+                            <th>Created date</th>
+                            <th aria-label="Actions"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var shipment in ShipmentItems)
+                        {
+                            <tr>
+                                <td>
+                                    <a class="tracking-link" href="@($"/shipments/{shipment.ShipmentId}")">
+                                        @shipment.TrackingCode
+                                    </a>
+                                </td>
+                                <td>@shipment.ReceiverName</td>
+                                <td>@FormatRouteType(shipment.RouteType)</td>
+                                <td>@shipment.ChargeableWeightKg.ToString("N3") kg</td>
+                                <td>@FormatMoney(shipment.ShippingFeeAmount, shipment.Currency)</td>
+                                <td>
+                                    <span class="status-pill @GetStatusClass(shipment.Status)">
+                                        @FormatStatus(shipment.Status)
+                                    </span>
+                                </td>
+                                <td>@FormatDate(shipment.CreatedAtUtc)</td>
+                                <td>
+                                    <a class="icon-link" href="@($"/shipments/{shipment.ShipmentId}")" aria-label="Xem chi tiết">
+                                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                                            <path d="m9 6 6 6-6 6-1.4-1.4 4.6-4.6-4.6-4.6L9 6Z" />
+                                        </svg>
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+</div>
+
+@code {
+    private bool IsLoading { get; set; } = true;
+
+    private string? ErrorMessage { get; set; }
+
+    private IReadOnlyList<ShipmentListItemResponse> ShipmentItems { get; set; } = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userId = await GetCurrentUserIdAsync();
+        if (userId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var result = await GetShipmentsForCurrentShopService.GetAsync(userId.Value);
+        if (result.IsFailure)
+        {
+            ErrorMessage = result.Error.Description;
+        }
+        else
+        {
+            ShipmentItems = result.Value;
+        }
+
+        IsLoading = false;
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userIdValue = authenticationState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(userIdValue, out var userId)
+            ? userId
+            : null;
+    }
+
+    private static string FormatDate(DateTimeOffset value)
+    {
+        return value.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+    }
+
+    private static string FormatMoney(decimal amount, string currency)
+    {
+        return $"{amount.ToString("N0")} {currency}";
+    }
+
+    private static string FormatRouteType(RouteType routeType)
+    {
+        return routeType switch
+        {
+            RouteType.IntraProvince => "Nội tỉnh",
+            RouteType.IntraRegion => "Nội vùng",
+            RouteType.InterRegion => "Liên vùng",
+            _ => routeType.ToString()
+        };
+    }
+
+    private static string FormatStatus(ShipmentStatus status)
+    {
+        return status switch
+        {
+            ShipmentStatus.PendingPickup => "Chờ lấy hàng",
+            ShipmentStatus.Assigned => "Đã phân công",
+            ShipmentStatus.PickingUp => "Đang lấy hàng",
+            ShipmentStatus.PickedUp => "Đã lấy hàng",
+            ShipmentStatus.InTransit => "Đang vận chuyển",
+            ShipmentStatus.Delivering => "Đang giao",
+            ShipmentStatus.Delivered => "Đã giao",
+            ShipmentStatus.DeliveryFailed => "Giao thất bại",
+            ShipmentStatus.Returned => "Đã hoàn",
+            ShipmentStatus.Cancelled => "Đã hủy",
+            _ => status.ToString()
+        };
+    }
+
+    private static string GetStatusClass(ShipmentStatus status)
+    {
+        return status switch
+        {
+            ShipmentStatus.Delivered => "success",
+            ShipmentStatus.Cancelled or ShipmentStatus.DeliveryFailed or ShipmentStatus.Returned => "danger",
+            ShipmentStatus.InTransit or ShipmentStatus.Delivering or ShipmentStatus.PickedUp => "info",
+            _ => "warning"
+        };
+    }
+}

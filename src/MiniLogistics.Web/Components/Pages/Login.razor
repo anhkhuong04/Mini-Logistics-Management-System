@@ -1,0 +1,125 @@
+@page "/login"
+@layout MiniLogistics.Web.Components.Layout.LandingLayout
+@attribute [AllowAnonymous]
+
+<PageTitle>Đăng nhập - MiniLogistics</PageTitle>
+
+<main class="login-page">
+    <section class="login-hero" aria-label="MiniLogistics">
+        <div class="hero-brand">
+            <img src="/images/landing%20page/logo.svg" alt="MiniLogistics" />
+            <div>
+                <strong>MiniLogistics</strong>
+                <span>Ship Smart, Deliver Fast</span>
+            </div>
+        </div>
+
+        <div class="hero-copy">
+            <h1>Giải pháp vận chuyển thông minh & hiệu quả</h1>
+            <p>Quản lý đơn hàng, theo dõi vận đơn, COD và giao hàng trên một nền tảng duy nhất.</p>
+        </div>
+
+        <div class="hero-illustration">
+            <img src="/images/landing%20page/landing-hero-truck.png" alt="" />
+            <img class="package-art" src="/images/cta-packages.svg" alt="" />
+        </div>
+
+        <div class="hero-features">
+            <article>
+                <span class="feature-symbol">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 20 6.5v5.9c0 4.9-3.3 7.6-8 8.6-4.7-1-8-3.7-8-8.6V6.5L12 3Zm0 3.1L7 8.3v4.1c0 3.1 1.8 4.9 5 5.7 3.2-.8 5-2.6 5-5.7V8.3l-5-2.2Zm3.2 4.1 1.1 1.1-5.1 5.1-3-3 1.1-1.1 1.9 1.9 4-4Z"/></svg>
+                </span>
+                <h2>An toàn & tin cậy</h2>
+                <p>Bảo mật thông tin và dữ liệu tuyệt đối</p>
+            </article>
+            <article>
+                <span class="feature-symbol">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v9h1.4l2-3H21v6h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V8a2 2 0 0 1 1-2Zm2 2v7.8A3 3 0 0 1 8.8 17H13V8H5Zm10 2v5h.6l2-3H19v-2h-4ZM6 18a1 1 0 1 0 2 0 1 1 0 0 0-2 0Zm9 0a1 1 0 1 0 2 0 1 1 0 0 0-2 0Z"/></svg>
+                </span>
+                <h2>Theo dõi real-time</h2>
+                <p>Cập nhật trạng thái đơn hàng liên tục, chính xác</p>
+            </article>
+            <article>
+                <span class="feature-symbol">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20h3V10H5v10Zm5 0h4V4h-4v16Zm6 0h3v-7h-3v7Z"/></svg>
+                </span>
+                <h2>Hiệu quả tối ưu</h2>
+                <p>Tối ưu chi phí và thời gian cho doanh nghiệp</p>
+            </article>
+        </div>
+    </section>
+
+    <section class="login-panel" aria-label="Đăng nhập hệ thống">
+        <div class="language-switch">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm6.9 9h-3.1a15.7 15.7 0 0 0-1.2-5 8.1 8.1 0 0 1 4.3 5ZM12 4.1c.8 1.1 1.5 2.8 1.8 4.9h-3.6c.3-2.1 1-3.8 1.8-4.9ZM4.3 13h3.9c.1 1.8.5 3.5 1.1 4.9A8 8 0 0 1 4.3 13Zm3.9-2H4.3a8 8 0 0 1 5-4.9A15.2 15.2 0 0 0 8.2 11Zm3.8 8.9c-.8-1.1-1.5-2.8-1.8-4.9h3.6c-.3 2.1-1 3.8-1.8 4.9ZM14.2 13h-4.4a18 18 0 0 1 0-2h4.4a18 18 0 0 1 0 2Zm.5 4.9c.6-1.4 1-3.1 1.1-4.9h3.9a8 8 0 0 1-5 4.9Z"/></svg>
+            <span>Tiếng Việt</span>
+            <svg class="chevron" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 5 5-5 1.4 1.4L12 16.8l-6.4-6.4L7 9Z"/></svg>
+        </div>
+
+        <div class="login-card">
+            <h1>Đăng nhập hệ thống</h1>
+            <p>Chào mừng bạn quay trở lại MiniLogistics</p>
+
+            @if (!string.IsNullOrWhiteSpace(Error))
+            {
+                <div class="login-error" role="alert">@Error</div>
+            }
+
+            <form method="post" action="/auth/login">
+                <AntiforgeryToken />
+
+                <div class="field-group">
+                    <label for="email">Email hoặc số điện thoại</label>
+                    <div class="input-shell">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4.1 0-7 2.2-7 5.2V20h2v-.8c0-1.7 2-3.2 5-3.2s5 1.5 5 3.2V20h2v-.8c0-3-2.9-5.2-7-5.2Z"/></svg>
+                        <input id="email" name="Email" type="text" autocomplete="username" required maxlength="256" placeholder="Nhập email hoặc số điện thoại" />
+                    </div>
+                </div>
+
+                <div class="field-group">
+                    <label for="password">Mật khẩu</label>
+                    <div class="input-shell">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 9V7A5 5 0 0 0 7 7v2H5v12h14V9h-2ZM9 7a3 3 0 0 1 6 0v2H9V7Zm8 12H7v-8h10v8Zm-5-2a2 2 0 0 0 1-3.7V12h-2v1.3A2 2 0 0 0 12 17Z"/></svg>
+                        <input id="password" name="Password" type="password" autocomplete="current-password" required maxlength="100" placeholder="Nhập mật khẩu" />
+                        <svg class="suffix-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.3 3.7 3.7 2.3l18 18-1.4 1.4-3.1-3.1A11.7 11.7 0 0 1 12 20C7 20 3.1 17 1.4 12a12 12 0 0 1 4-5.7L2.3 3.7ZM7 7.9A9.8 9.8 0 0 0 3.6 12c1.5 3.8 4.4 6 8.4 6 1.3 0 2.5-.2 3.6-.8l-2-2A4 4 0 0 1 8.8 10.4L7 7.9ZM12 4c5 0 8.9 3 10.6 8a11.7 11.7 0 0 1-2.4 3.8l-1.4-1.4A9.8 9.8 0 0 0 20.4 12C18.9 8.2 16 6 12 6c-.8 0-1.6.1-2.3.3L8.2 4.8C9.4 4.3 10.6 4 12 4Zm0 4a4 4 0 0 1 4 4c0 .5-.1 1-.3 1.4L10.6 8.3A4 4 0 0 1 12 8Z"/></svg>
+                    </div>
+                </div>
+
+                <div class="form-options">
+                    <label class="remember-option" for="remember-me">
+                        <input id="remember-me" name="RememberMe" type="checkbox" />
+                        <span>Ghi nhớ đăng nhập</span>
+                    </label>
+                    <a href="/login">Quên mật khẩu?</a>
+                </div>
+
+                <button type="submit" class="login-button">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17v-3H3v-4h7V7l5 5-5 5Zm2 4v-2h7V5h-7V3h9v18h-9Z"/></svg>
+                    <span>Đăng nhập</span>
+                </button>
+            </form>
+
+            <div class="divider"><span>hoặc</span></div>
+
+            <a class="register-button" href="/register-shop">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10h16l-1.2-5H5.2L4 10Zm1 2v8h14v-8h-2v6h-4v-6h-2v6H7v-6H5Zm.6-9h12.8L21 12H3L5.6 3Z"/></svg>
+                <span>Đăng ký shop mới</span>
+            </a>
+        </div>
+
+        <div class="security-card">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 20 6.5v5.9c0 4.9-3.3 7.6-8 8.6-4.7-1-8-3.7-8-8.6V6.5L12 3Zm0 3.1L7 8.3v4.1c0 3.1 1.8 4.9 5 5.7 3.2-.8 5-2.6 5-5.7V8.3l-5-2.2Zm3.2 4.1 1.1 1.1-5.1 5.1-3-3 1.1-1.1 1.9 1.9 4-4Z"/></svg>
+            <div>
+                <strong>Bảo mật thông tin</strong>
+                <p>MiniLogistics cam kết bảo mật tuyệt đối thông tin của bạn theo tiêu chuẩn an toàn quốc tế.</p>
+            </div>
+        </div>
+
+        <p class="copyright">© 2024 MiniLogistics. All rights reserved.</p>
+    </section>
+</main>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? Error { get; set; }
+}

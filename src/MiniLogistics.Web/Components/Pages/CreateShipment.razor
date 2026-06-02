@@ -1,0 +1,805 @@
+@page "/shipments/create"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Shop")]
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@using MiniLogistics.Application.Fees
+@using MiniLogistics.Application.Routing
+@using MiniLogistics.Application.Shops.GetCurrentShop
+@using MiniLogistics.Application.Shipments.CreateShipment
+@using MiniLogistics.Domain.Shipments
+@using MiniLogistics.Domain.ValueObjects
+@using MiniLogistics.Web.Services
+@inject IGetCurrentShopService GetCurrentShopService
+@inject ICreateShipmentService CreateShipmentService
+@inject IShippingFeeService ShippingFeeService
+@inject IRouteClassificationService RouteClassificationService
+@inject VietnamAdministrativeDivisionService AdministrativeDivisionService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Tạo đơn hàng mới</PageTitle>
+
+<div class="shipment-page">
+    <div class="page-heading">
+        <div>
+            <h1>Tạo đơn hàng mới</h1>
+            <nav class="breadcrumb-line" aria-label="Breadcrumb">
+                <a href="/dashboard">Trang chủ</a>
+                <span>/</span>
+                <a href="/shipments">Đơn hàng</a>
+                <span>/</span>
+                <strong>Tạo đơn hàng</strong>
+            </nav>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@ErrorMessage</div>
+    }
+
+    @if (CreatedShipment is not null)
+    {
+        <div class="alert alert-success success-alert" role="status">
+            <span>
+                Đã tạo vận đơn <strong>@CreatedShipment.TrackingCode</strong>.
+                Phí vận chuyển: <strong>@FormatMoney(CreatedShipment.ShippingFeeAmount, CreatedShipment.Currency)</strong>.
+            </span>
+            <a class="fw-bold" href="@($"/shipments/{CreatedShipment.ShipmentId}")">Xem chi tiết</a>
+        </div>
+    }
+
+    <EditForm Model="Form" OnValidSubmit="HandleSubmitAsync" class="create-layout">
+        <DataAnnotationsValidator />
+
+        <div class="form-stack">
+            <section class="form-section">
+                <div class="section-heading">
+                    <span class="section-icon blue">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm0 2c-3.3 0-6 1.7-6 3.8V20h12v-2.2c0-2.1-2.7-3.8-6-3.8Z" />
+                        </svg>
+                    </span>
+                    <div>
+                        <h2>1. Thông tin người gửi</h2>
+                        <p>Lấy mặc định từ hồ sơ shop và được khóa khi tạo đơn.</p>
+                    </div>
+                    <span class="collapse-mark">⌃</span>
+                </div>
+
+                <div class="form-grid sender-grid">
+                    <div class="form-field">
+                        <label for="sender-name">Tên người gửi <span>*</span></label>
+                        <InputText id="sender-name" class="form-control" @bind-Value="Form.SenderName" disabled />
+                        <ValidationMessage For="() => Form.SenderName" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="sender-phone">Số điện thoại <span>*</span></label>
+                        <InputText id="sender-phone" class="form-control" @bind-Value="Form.SenderPhone" disabled />
+                        <ValidationMessage For="() => Form.SenderPhone" />
+                    </div>
+
+                    <div class="form-field wide">
+                        <label for="pickup-street">Địa chỉ lấy hàng <span>*</span></label>
+                        <InputText id="pickup-street" class="form-control" @bind-Value="Form.PickupStreet" disabled />
+                        <ValidationMessage For="() => Form.PickupStreet" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="pickup-province">Tỉnh / Thành <span>*</span></label>
+                        <InputSelect id="pickup-province" class="form-select" @bind-Value="Form.PickupProvince" disabled>
+                            @foreach (var province in Provinces)
+                            {
+                                <option value="@province.Name">@province.Name</option>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(Form.PickupProvince) && !Provinces.Any(province => province.Name == Form.PickupProvince))
+                            {
+                                <option value="@Form.PickupProvince">@Form.PickupProvince</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="() => Form.PickupProvince" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="pickup-ward">Phường / Xã <span>*</span></label>
+                        <InputSelect id="pickup-ward" class="form-select" @bind-Value="Form.PickupWard" disabled>
+                            @foreach (var ward in PickupWardOptions)
+                            {
+                                <option value="@ward.Name">@ward.Name</option>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(Form.PickupWard) && !PickupWardOptions.Any(ward => ward.Name == Form.PickupWard))
+                            {
+                                <option value="@Form.PickupWard">@Form.PickupWard</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="() => Form.PickupWard" />
+                    </div>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <div class="section-heading">
+                    <span class="section-icon green">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Zm7 8H5v-1.5C5 15.5 8.1 14 12 14s7 1.5 7 4.5V20Z" />
+                        </svg>
+                    </span>
+                    <h2>2. Thông tin người nhận</h2>
+                    <span class="collapse-mark">⌃</span>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="receiver-name">Tên người nhận <span>*</span></label>
+                        <InputText id="receiver-name" class="form-control" @bind-Value="Form.ReceiverName" />
+                        <ValidationMessage For="() => Form.ReceiverName" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="receiver-phone">Số điện thoại <span>*</span></label>
+                        <InputText id="receiver-phone" class="form-control" @bind-Value="Form.ReceiverPhone" />
+                        <ValidationMessage For="() => Form.ReceiverPhone" />
+                    </div>
+
+                    <div class="form-field wide">
+                        <label for="delivery-street">Địa chỉ giao hàng <span>*</span></label>
+                        <InputText id="delivery-street" class="form-control" @bind-Value="Form.DeliveryStreet" />
+                        <ValidationMessage For="() => Form.DeliveryStreet" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="delivery-province">Tỉnh / Thành <span>*</span></label>
+                        <InputSelect id="delivery-province" class="form-select" @bind-Value="Form.DeliveryProvince" @bind-Value:after="HandleDeliveryProvinceChanged">
+                            <option value="">Chọn Tỉnh / Thành</option>
+                            @foreach (var province in Provinces)
+                            {
+                                <option value="@province.Name">@province.Name</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="() => Form.DeliveryProvince" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="delivery-ward">Phường / Xã <span>*</span></label>
+                        <InputSelect id="delivery-ward" class="form-select" @bind-Value="Form.DeliveryWard" disabled="@(!DeliveryWardOptions.Any())">
+                            <option value="">Chọn Phường / Xã</option>
+                            @foreach (var ward in DeliveryWardOptions)
+                            {
+                                <option value="@ward.Name">@ward.Name</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="() => Form.DeliveryWard" />
+                    </div>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <div class="section-heading">
+                    <span class="section-icon orange">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" />
+                        </svg>
+                    </span>
+                    <h2>3. Thông tin hàng hóa</h2>
+                    <span class="collapse-mark">⌃</span>
+                </div>
+
+                <div class="form-grid package-grid">
+                    <div class="form-field">
+                        <label for="route-type">Tuyến đường <span>*</span></label>
+                        <input id="route-type" class="form-control" value="@FormatRouteType(Form.RouteType)" readonly />
+                        <ValidationMessage For="() => Form.RouteType" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="weight">Khối lượng (kg) <span>*</span></label>
+                        <InputNumber id="weight" class="form-control" @bind-Value="Form.WeightKg" @bind-Value:after="CalculateFeeEstimateAsync" />
+                        <ValidationMessage For="() => Form.WeightKg" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="length">Chiều dài (cm) <span>*</span></label>
+                        <InputNumber id="length" class="form-control" @bind-Value="Form.LengthCm" @bind-Value:after="CalculateFeeEstimateAsync" />
+                        <ValidationMessage For="() => Form.LengthCm" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="width">Chiều rộng (cm) <span>*</span></label>
+                        <InputNumber id="width" class="form-control" @bind-Value="Form.WidthCm" @bind-Value:after="CalculateFeeEstimateAsync" />
+                        <ValidationMessage For="() => Form.WidthCm" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="height">Chiều cao (cm) <span>*</span></label>
+                        <InputNumber id="height" class="form-control" @bind-Value="Form.HeightCm" @bind-Value:after="CalculateFeeEstimateAsync" />
+                        <ValidationMessage For="() => Form.HeightCm" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="goods-value">Giá trị hàng hóa (đ)</label>
+                        <InputNumber id="goods-value" class="form-control" @bind-Value="Form.GoodsValueAmount" @bind-Value:after="CalculateFeeEstimateAsync" />
+                        <ValidationMessage For="() => Form.GoodsValueAmount" />
+                    </div>
+
+                    <div class="chargeable-box">
+                        <span>Khối lượng quy đổi</span>
+                        <strong>@EstimatedVolumetricWeightKg.ToString("N3") kg</strong>
+                        <small>Cân tính phí: @EstimatedChargeableWeightKg.ToString("N3") kg</small>
+                    </div>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <div class="section-heading">
+                    <span class="section-icon purple">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm1 14h-2v-1.2a4 4 0 0 1-2.4-1.1l1.2-1.6c.8.7 1.5 1 2.5 1 .8 0 1.2-.3 1.2-.8s-.3-.8-1.8-1.1c-1.9-.5-3-1.2-3-2.8 0-1.4 1-2.4 2.3-2.8V5h2v1.4a4.4 4.4 0 0 1 2.1.9L14 8.9c-.7-.5-1.3-.7-2-.7-.7 0-1.1.3-1.1.8 0 .6.4.8 2 1.2 1.9.5 2.8 1.2 2.8 2.8 0 1.5-1 2.5-2.7 2.8V17Z" />
+                        </svg>
+                    </span>
+                    <h2>4. COD & Phí vận chuyển</h2>
+                    <span class="collapse-mark">⌃</span>
+                </div>
+
+                <div class="form-grid cod-grid">
+                    <div class="form-field">
+                        <label for="cod-amount">COD (đ)</label>
+                        <InputNumber id="cod-amount" class="form-control" @bind-Value="Form.CodAmount" />
+                        <ValidationMessage For="() => Form.CodAmount" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="cod-method">Hình thức COD</label>
+                        <input id="cod-method" class="form-control" value="Thu tiền mặt" disabled />
+                    </div>
+
+                    <div class="fee-box">
+                        <div>
+                            <span>Phí vận chuyển</span>
+                            <strong>@FormatMoney(CurrentShippingFeeAmount, CurrentCurrency)</strong>
+                        </div>
+                        <button type="button" class="recalculate-button" @onclick="CalculateFeeEstimateAsync" disabled="@IsFeeEstimateLoading">
+                            @(IsFeeEstimateLoading ? "Đang tính..." : "Tính lại")
+                        </button>
+                    </div>
+
+                    @if (!string.IsNullOrWhiteSpace(FeeEstimateMessage))
+                    {
+                        <p class="fee-note">@FeeEstimateMessage</p>
+                    }
+                    else
+                    {
+                        <p class="fee-note">Phí vận chuyển tính theo tuyến, cân thực tế và cân quy đổi từ kích thước.</p>
+                    }
+
+                    <dl class="fee-breakdown">
+                        <div>
+                            <dt>Phí dịch vụ chính</dt>
+                            <dd>@FormatMoney(CurrentBaseFeeAmount, CurrentCurrency)</dd>
+                        </div>
+                        <div>
+                            <dt>Phí vượt cân</dt>
+                            <dd>@FormatMoney(CurrentExtraWeightFeeAmount, CurrentCurrency)</dd>
+                        </div>
+                        <div>
+                            <dt>Phí bảo hiểm</dt>
+                            <dd>@FormatMoney(CurrentInsuranceFeeAmount, CurrentCurrency)</dd>
+                        </div>
+                        <div>
+                            <dt>Phí hoàn hàng</dt>
+                            <dd>@FormatMoney(CurrentReturnFeeAmount, CurrentCurrency)</dd>
+                        </div>
+                    </dl>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <div class="section-heading">
+                    <span class="section-icon blue">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M6 3h12v18H6V3Zm2 2v14h8V5H8Zm2 3h4v2h-4V8Zm0 4h4v2h-4v-2Z" />
+                        </svg>
+                    </span>
+                    <h2>5. Ghi chú đơn hàng</h2>
+                    <span class="collapse-mark">⌃</span>
+                </div>
+
+                <div class="form-field">
+                    <label for="note">Ghi chú cho đơn hàng</label>
+                    <InputTextArea id="note" class="form-control" rows="3" placeholder="Ví dụ: Hàng dễ vỡ, cần nhẹ tay..." @bind-Value="Form.Note" />
+                    <ValidationMessage For="() => Form.Note" />
+                </div>
+            </section>
+        </div>
+
+        <aside class="summary-card">
+            <h2>Tóm tắt đơn hàng</h2>
+
+            <div class="summary-code">
+                <span>Mã đơn hàng</span>
+                <strong>@(CreatedShipment?.TrackingCode ?? "Sẽ sinh sau khi tạo")</strong>
+            </div>
+
+            <dl class="summary-list">
+                <div>
+                    <dt>
+                        <span class="summary-icon blue">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 20h16L12 2Zm0 5.2 4.7 10.8H7.3L12 7.2Z" /></svg>
+                        </span>
+                        Tuyến đường
+                    </dt>
+                    <dd>@FormatRouteType(Form.RouteType)</dd>
+                </div>
+                <div>
+                    <dt>
+                        <span class="summary-icon cyan">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10l2 6v10H5V10l2-6Zm1.4 2-1 3h9.2l-1-3H8.4ZM7 11v7h10v-7H7Z" /></svg>
+                        </span>
+                        Khối lượng
+                    </dt>
+                    <dd>@Form.WeightKg.ToString("N3") kg</dd>
+                </div>
+                <div>
+                    <dt>
+                        <span class="summary-icon cyan">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" /></svg>
+                        </span>
+                        Cân tính phí
+                    </dt>
+                    <dd>@EstimatedChargeableWeightKg.ToString("N3") kg</dd>
+                </div>
+                <div>
+                    <dt>
+                        <span class="summary-icon green">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18Zm1 14h-2v-1.2a4 4 0 0 1-2.4-1.1l1.2-1.6c.8.7 1.5 1 2.5 1 .8 0 1.2-.3 1.2-.8s-.3-.8-1.8-1.1c-1.9-.5-3-1.2-3-2.8 0-1.4 1-2.4 2.3-2.8V5h2v1.4a4.4 4.4 0 0 1 2.1.9L14 8.9c-.7-.5-1.3-.7-2-.7-.7 0-1.1.3-1.1.8 0 .6.4.8 2 1.2 1.9.5 2.8 1.2 2.8 2.8 0 1.5-1 2.5-2.7 2.8V17Z" /></svg>
+                        </span>
+                        COD
+                    </dt>
+                    <dd>@FormatMoney(Form.CodAmount, CurrentCurrency)</dd>
+                </div>
+                <div>
+                    <dt>
+                        <span class="summary-icon blue">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v16H5V4Zm2 2v12h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Z" /></svg>
+                        </span>
+                        Phí vận chuyển
+                    </dt>
+                    <dd>@FormatMoney(CurrentShippingFeeAmount, CurrentCurrency)</dd>
+                </div>
+                <div>
+                    <dt>Phí dịch vụ chính</dt>
+                    <dd>@FormatMoney(CurrentBaseFeeAmount, CurrentCurrency)</dd>
+                </div>
+                <div>
+                    <dt>Phí vượt cân</dt>
+                    <dd>@FormatMoney(CurrentExtraWeightFeeAmount, CurrentCurrency)</dd>
+                </div>
+            </dl>
+
+            <div class="total-box">
+                <span>Tổng tiền thu hộ</span>
+                <strong>@FormatMoney(Form.CodAmount + CurrentShippingFeeAmount, CurrentCurrency)</strong>
+                <small>COD + Phí vận chuyển</small>
+            </div>
+
+            <div class="hint-box">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M11 18h2v-2h-2v2Zm1-16a8 8 0 0 0-5 14.2V21l5-2 5 2v-4.8A8 8 0 0 0 12 2Zm0 2a6 6 0 0 1 3.5 10.9l-.5.3v2.8l-3-1.2-3 1.2v-2.8l-.5-.3A6 6 0 0 1 12 4Zm-1 4h2v6h-2V8Z" />
+                </svg>
+                <span>Đơn hàng sẽ được xử lý ngay sau khi tạo.</span>
+            </div>
+
+            <button type="submit" class="btn btn-primary submit-button" disabled="@IsSubmitting">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M2 21 23 3 17 21l-5-7-7 7H2Zm13.7-4.8 2.8-8.4-9 7.7 3.2-3.2 3 3.9Z" />
+                </svg>
+                <span>@(IsSubmitting ? "Đang tạo..." : "Tạo đơn hàng")</span>
+            </button>
+
+            <button type="button" class="btn btn-outline-secondary reset-button" @onclick="ResetFormAsync" disabled="@IsSubmitting">
+                Hủy
+            </button>
+        </aside>
+    </EditForm>
+</div>
+
+@code {
+    private CreateShipmentFormModel Form { get; set; } = CreateDefaultForm();
+
+    private bool IsSubmitting { get; set; }
+
+    private bool IsFeeEstimateLoading { get; set; }
+
+    private string? ErrorMessage { get; set; }
+
+    private string? FeeEstimateMessage { get; set; }
+
+    private decimal EstimatedShippingFeeAmount { get; set; }
+
+    private decimal EstimatedBaseFeeAmount { get; set; }
+
+    private decimal EstimatedExtraWeightFeeAmount { get; set; }
+
+    private decimal EstimatedInsuranceFeeAmount { get; set; }
+
+    private decimal EstimatedReturnFeeAmount { get; set; }
+
+    private decimal EstimatedVolumetricWeightKg { get; set; }
+
+    private decimal EstimatedChargeableWeightKg { get; set; } = 1;
+
+    private string EstimatedShippingFeeCurrency { get; set; } = "VND";
+
+    private CreateShipmentResponse? CreatedShipment { get; set; }
+
+    private IReadOnlyList<ProvinceOption> Provinces { get; set; } = [];
+
+    private IReadOnlyList<WardOption> PickupWardOptions { get; set; } = [];
+
+    private IReadOnlyList<WardOption> DeliveryWardOptions { get; set; } = [];
+
+    private decimal CurrentShippingFeeAmount => CreatedShipment?.ShippingFeeAmount ?? EstimatedShippingFeeAmount;
+
+    private decimal CurrentBaseFeeAmount => CreatedShipment?.BaseFeeAmount ?? EstimatedBaseFeeAmount;
+
+    private decimal CurrentExtraWeightFeeAmount => CreatedShipment?.ExtraWeightFeeAmount ?? EstimatedExtraWeightFeeAmount;
+
+    private decimal CurrentInsuranceFeeAmount => CreatedShipment?.InsuranceFeeAmount ?? EstimatedInsuranceFeeAmount;
+
+    private decimal CurrentReturnFeeAmount => CreatedShipment?.ReturnFeeAmount ?? EstimatedReturnFeeAmount;
+
+    private string CurrentCurrency => CreatedShipment?.Currency ?? EstimatedShippingFeeCurrency;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Provinces = await AdministrativeDivisionService.GetProvincesAsync();
+
+        var userId = await GetCurrentUserIdAsync();
+        if (userId is null)
+        {
+            return;
+        }
+
+        var result = await GetCurrentShopService.GetAsync(userId.Value);
+        if (result.IsFailure)
+        {
+            ErrorMessage = result.Error.Description;
+            return;
+        }
+
+        Form.SenderName = result.Value.Name;
+        Form.SenderPhone = result.Value.PhoneNumber;
+        Form.PickupStreet = result.Value.AddressLine;
+        Form.PickupWard = result.Value.Ward;
+        Form.PickupProvince = result.Value.Province;
+        PickupWardOptions = GetWardOptions(Form.PickupProvince, Form.PickupWard);
+
+        await CalculateFeeEstimateAsync();
+    }
+
+    private async Task HandleSubmitAsync()
+    {
+        ErrorMessage = null;
+        CreatedShipment = null;
+        IsSubmitting = true;
+
+        try
+        {
+            var userId = await GetCurrentUserIdAsync();
+            if (userId is null)
+            {
+                NavigationManager.NavigateTo("/login", forceLoad: true);
+                return;
+            }
+
+            var command = new CreateShipmentCommand(
+                userId.Value,
+                Form.SenderName,
+                Form.SenderPhone,
+                Form.ReceiverName,
+                Form.ReceiverPhone,
+                new ShipmentAddressDto(
+                    Form.PickupStreet,
+                    Form.PickupWard,
+                Form.PickupProvince),
+                new ShipmentAddressDto(
+                    Form.DeliveryStreet,
+                    Form.DeliveryWard,
+                    Form.DeliveryProvince),
+                Form.WeightKg,
+                Form.LengthCm,
+                Form.WidthCm,
+                Form.HeightCm,
+                Form.GoodsValueAmount,
+                Form.CodAmount,
+                Note: Form.Note);
+
+            var result = await CreateShipmentService.CreateAsync(command);
+            if (result.IsFailure)
+            {
+                ErrorMessage = result.Error.Description;
+                return;
+            }
+
+            CreatedShipment = result.Value;
+            EstimatedShippingFeeAmount = result.Value.ShippingFeeAmount;
+            EstimatedBaseFeeAmount = result.Value.BaseFeeAmount;
+            EstimatedExtraWeightFeeAmount = result.Value.ExtraWeightFeeAmount;
+            EstimatedInsuranceFeeAmount = result.Value.InsuranceFeeAmount;
+            EstimatedReturnFeeAmount = result.Value.ReturnFeeAmount;
+            EstimatedVolumetricWeightKg = result.Value.VolumetricWeightKg;
+            EstimatedChargeableWeightKg = result.Value.ChargeableWeightKg;
+            EstimatedShippingFeeCurrency = result.Value.Currency;
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+
+    private async Task CalculateFeeEstimateAsync()
+    {
+        FeeEstimateMessage = null;
+        CreatedShipment = null;
+
+        if (!TryClassifyRoute())
+        {
+            EstimatedShippingFeeAmount = 0;
+            ResetFeeBreakdown();
+            FeeEstimateMessage ??= "Chọn đầy đủ tỉnh lấy hàng và tỉnh giao hàng để hệ thống tính tuyến.";
+            return;
+        }
+
+        if (Form.WeightKg <= 0)
+        {
+            EstimatedShippingFeeAmount = 0;
+            ResetFeeBreakdown();
+            FeeEstimateMessage = "Nhập khối lượng hợp lệ để hệ thống tính phí.";
+            return;
+        }
+
+        if (Form.LengthCm <= 0 || Form.WidthCm <= 0 || Form.HeightCm <= 0)
+        {
+            EstimatedShippingFeeAmount = 0;
+            ResetFeeBreakdown();
+            EstimatedVolumetricWeightKg = 0;
+            EstimatedChargeableWeightKg = Form.WeightKg;
+            FeeEstimateMessage = "Nhập đầy đủ kích thước kiện hàng để hệ thống tính phí.";
+            return;
+        }
+
+        IsFeeEstimateLoading = true;
+
+        try
+        {
+            var result = await ShippingFeeService.CalculateAsync(
+                Form.RouteType,
+                new Weight(Form.WeightKg),
+                new ParcelDimensions(Form.LengthCm, Form.WidthCm, Form.HeightCm),
+                new Money(Form.GoodsValueAmount, CurrentCurrency));
+
+            if (result.IsFailure)
+            {
+                EstimatedShippingFeeAmount = 0;
+                ResetFeeBreakdown();
+                FeeEstimateMessage = result.Error.Description;
+                return;
+            }
+
+            EstimatedShippingFeeAmount = result.Value.TotalFee.Amount;
+            EstimatedBaseFeeAmount = result.Value.BaseFee.Amount;
+            EstimatedExtraWeightFeeAmount = result.Value.ExtraWeightFee.Amount;
+            EstimatedInsuranceFeeAmount = result.Value.InsuranceFee.Amount;
+            EstimatedReturnFeeAmount = result.Value.ReturnFee.Amount;
+            EstimatedShippingFeeCurrency = result.Value.TotalFee.Currency;
+            EstimatedVolumetricWeightKg = result.Value.VolumetricWeightKg;
+            EstimatedChargeableWeightKg = result.Value.ChargeableWeightKg;
+        }
+        finally
+        {
+            IsFeeEstimateLoading = false;
+        }
+    }
+
+    private async Task HandleDeliveryProvinceChanged()
+    {
+        Form.DeliveryWard = string.Empty;
+        DeliveryWardOptions = GetWardOptions(Form.DeliveryProvince);
+        await CalculateFeeEstimateAsync();
+    }
+
+    private bool TryClassifyRoute()
+    {
+        if (string.IsNullOrWhiteSpace(Form.PickupProvince)
+            || string.IsNullOrWhiteSpace(Form.DeliveryProvince))
+        {
+            return false;
+        }
+
+        var routeClassificationResult = RouteClassificationService.Classify(
+            Form.PickupProvince,
+            Form.DeliveryProvince);
+
+        if (routeClassificationResult.IsFailure)
+        {
+            FeeEstimateMessage = routeClassificationResult.Error.Description;
+            return false;
+        }
+
+        Form.RouteType = routeClassificationResult.Value.RouteType;
+        return true;
+    }
+
+    private IReadOnlyList<WardOption> GetWardOptions(string provinceName, string? fallbackWard = null)
+    {
+        var province = Provinces.FirstOrDefault(province => province.Name == provinceName);
+        if (province is null)
+        {
+            return string.IsNullOrWhiteSpace(fallbackWard)
+                ? []
+                : [new WardOption(fallbackWard)];
+        }
+
+        if (!string.IsNullOrWhiteSpace(fallbackWard)
+            && !province.Wards.Any(ward => ward.Name == fallbackWard))
+        {
+            return province.Wards
+                .Append(new WardOption(fallbackWard))
+                .OrderBy(ward => ward.Name)
+                .ToList();
+        }
+
+        return province.Wards;
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userIdValue = authenticationState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(userIdValue, out var userId)
+            ? userId
+            : null;
+    }
+
+    private async Task ResetFormAsync()
+    {
+        ResetShipmentFields();
+        ErrorMessage = null;
+        CreatedShipment = null;
+        await CalculateFeeEstimateAsync();
+    }
+
+    private void ResetShipmentFields()
+    {
+        Form.ReceiverName = string.Empty;
+        Form.ReceiverPhone = string.Empty;
+        Form.DeliveryStreet = string.Empty;
+        Form.DeliveryWard = string.Empty;
+        Form.DeliveryProvince = string.Empty;
+        DeliveryWardOptions = [];
+        Form.WeightKg = 1;
+        Form.LengthCm = 20;
+        Form.WidthCm = 10;
+        Form.HeightCm = 10;
+        Form.GoodsValueAmount = 0;
+        Form.CodAmount = 0;
+        Form.RouteType = RouteType.IntraProvince;
+        Form.Note = null;
+    }
+
+    private static CreateShipmentFormModel CreateDefaultForm()
+    {
+        return new CreateShipmentFormModel
+        {
+            SenderName = string.Empty,
+            SenderPhone = string.Empty,
+            PickupStreet = string.Empty,
+            PickupWard = string.Empty,
+            PickupProvince = string.Empty,
+            ReceiverName = string.Empty,
+            ReceiverPhone = string.Empty,
+            DeliveryStreet = string.Empty,
+            DeliveryWard = string.Empty,
+            DeliveryProvince = string.Empty,
+            WeightKg = 1,
+            LengthCm = 20,
+            WidthCm = 10,
+            HeightCm = 10,
+            GoodsValueAmount = 0,
+            CodAmount = 0,
+            RouteType = RouteType.IntraProvince
+        };
+    }
+
+    private void ResetFeeBreakdown()
+    {
+        EstimatedBaseFeeAmount = 0;
+        EstimatedExtraWeightFeeAmount = 0;
+        EstimatedInsuranceFeeAmount = 0;
+        EstimatedReturnFeeAmount = 0;
+    }
+
+    private static string FormatMoney(decimal amount, string currency)
+    {
+        return $"{amount.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)} {currency}";
+    }
+
+    private static string FormatRouteType(RouteType routeType)
+    {
+        return routeType switch
+        {
+            RouteType.IntraProvince => "Nội tỉnh",
+            RouteType.IntraRegion => "Nội vùng",
+            RouteType.InterRegion => "Liên vùng",
+            _ => routeType.ToString()
+        };
+    }
+
+    private sealed class CreateShipmentFormModel
+    {
+        [Required]
+        [MaxLength(100)]
+        public string SenderName { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(20)]
+        public string SenderPhone { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(200)]
+        public string PickupStreet { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(100)]
+        public string PickupWard { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(100)]
+        public string PickupProvince { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(100)]
+        public string ReceiverName { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(20)]
+        public string ReceiverPhone { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(200)]
+        public string DeliveryStreet { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(100)]
+        public string DeliveryWard { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(100)]
+        public string DeliveryProvince { get; set; } = string.Empty;
+
+        [Range(typeof(decimal), "0.001", "9999")]
+        public decimal WeightKg { get; set; }
+
+        [Range(typeof(decimal), "0.01", "9999")]
+        public decimal LengthCm { get; set; }
+
+        [Range(typeof(decimal), "0.01", "9999")]
+        public decimal WidthCm { get; set; }
+
+        [Range(typeof(decimal), "0.01", "9999")]
+        public decimal HeightCm { get; set; }
+
+        [Range(typeof(decimal), "0", "999999999")]
+        public decimal GoodsValueAmount { get; set; }
+
+        [Range(typeof(decimal), "0", "999999999")]
+        public decimal CodAmount { get; set; }
+
+        public RouteType RouteType { get; set; } = RouteType.IntraProvince;
+
+        [MaxLength(500)]
+        public string? Note { get; set; }
+    }
+}

@@ -1,0 +1,174 @@
+.app-shell {
+    background: #f8fbff;
+    color: #071b4d;
+    display: flex;
+    min-width: 0;
+    min-height: 100vh;
+    overflow-x: clip;
+}
+
+.sidebar {
+    background: #fff;
+    border-right: 1px solid #e5eef8;
+    box-shadow: 6px 0 24px rgba(7, 27, 77, 0.04);
+    flex: 0 0 clamp(15.5rem, 17vw, 17rem);
+    min-height: 100vh;
+    position: sticky;
+    top: 0;
+    width: clamp(15.5rem, 17vw, 17rem);
+    z-index: 5;
+}
+
+.app-main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.app-topbar {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.92);
+    border-bottom: 1px solid #e5eef8;
+    display: flex;
+    gap: 1rem;
+    min-height: 5rem;
+    justify-content: space-between;
+    padding: 1rem clamp(1rem, 2vw, 2rem);
+    position: sticky;
+    top: 0;
+    z-index: 4;
+}
+
+.menu-button,
+.icon-button {
+    align-items: center;
+    background: #fff;
+    border: 1px solid #e5eef8;
+    border-radius: 12px;
+    color: #071b4d;
+    display: inline-flex;
+    height: 44px;
+    justify-content: center;
+    width: 44px;
+}
+
+.menu-button svg,
+.icon-button svg,
+.account-avatar svg,
+.account-chevron {
+    fill: currentColor;
+    height: 20px;
+    width: 20px;
+}
+
+.topbar-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-left: auto;
+}
+
+.account-chip {
+    align-items: center;
+    display: flex;
+    gap: 12px;
+}
+
+.account-avatar {
+    align-items: center;
+    background: #eaf4ff;
+    border-radius: 999px;
+    color: #0b63f6;
+    display: inline-flex;
+    height: 48px;
+    justify-content: center;
+    width: 48px;
+}
+
+.account-text {
+    display: grid;
+    line-height: 1.2;
+}
+
+.account-text strong {
+    color: #071b4d;
+    font-size: 0.95rem;
+    font-weight: 700;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-text small {
+    color: #64748b;
+    font-size: 0.78rem;
+    margin-top: 4px;
+}
+
+.account-chevron {
+    color: #071b4d;
+}
+
+.signin-link {
+    color: #0b63f6;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.app-content {
+    min-width: 0;
+    overflow-x: hidden;
+    padding: clamp(1rem, 2vw, 2rem);
+    width: 100%;
+}
+
+@media (max-width: 980px) {
+    .app-shell {
+        display: block;
+    }
+
+    .sidebar {
+        min-height: auto;
+        position: relative;
+        width: 100%;
+    }
+
+    .app-topbar {
+        padding-inline: 1.25rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .app-content {
+        padding: 20px 16px;
+    }
+
+    .account-text,
+    .account-chevron {
+        display: none;
+    }
+}
+
+#blazor-error-ui {
+    background: lightyellow;
+    bottom: 0;
+    box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
+    box-sizing: border-box;
+    color-scheme: light only;
+    display: none;
+    left: 0;
+    padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+    position: fixed;
+    width: 100%;
+    z-index: 1000;
+}
+
+#blazor-error-ui .dismiss {
+    cursor: pointer;
+    position: absolute;
+    right: 0.75rem;
+    top: 0.5rem;
+}

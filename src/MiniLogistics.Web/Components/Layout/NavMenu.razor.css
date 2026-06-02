@@ -1,0 +1,183 @@
+.nav-shell {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    padding: 28px 20px;
+}
+
+.brand {
+    align-items: center;
+    color: #0b63f6;
+    display: flex;
+    font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
+    font-size: 1.3rem;
+    font-weight: 800;
+    gap: 10px;
+    margin-bottom: 32px;
+    text-decoration: none;
+}
+
+.brand img {
+    height: 38px;
+    width: 38px;
+}
+
+.navbar-toggler {
+    appearance: none;
+    background: #fff;
+    border: 1px solid #e5eef8;
+    border-radius: 12px;
+    cursor: pointer;
+    display: none;
+    height: 42px;
+    position: absolute;
+    right: 18px;
+    top: 26px;
+    width: 42px;
+}
+
+.navbar-toggler::before {
+    color: #071b4d;
+    content: "☰";
+    display: grid;
+    font-size: 1.3rem;
+    height: 100%;
+    place-items: center;
+}
+
+.nav-scrollable {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.nav-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.nav-section {
+    color: #0b63f6;
+    display: block;
+    font-size: 0.76rem;
+    font-weight: 800;
+    letter-spacing: 0;
+    margin: 22px 10px 8px;
+    text-transform: uppercase;
+}
+
+.nav-link {
+    align-items: center;
+    border-radius: 8px;
+    color: #071b4d;
+    display: flex;
+    font-size: 0.94rem;
+    font-weight: 600;
+    gap: 14px;
+    min-height: 52px;
+    padding: 0 14px;
+    text-decoration: none;
+}
+
+.nav-link svg {
+    color: #243b75;
+    fill: currentColor;
+    flex: 0 0 20px;
+    height: 20px;
+    width: 20px;
+}
+
+.nav-link:hover,
+.nav-link.active {
+    background: #0b63f6;
+    color: #fff;
+}
+
+.nav-link:hover svg,
+.nav-link.active svg {
+    color: #fff;
+}
+
+.logout-form {
+    margin: 18px 0 0;
+}
+
+.logout-button {
+    background: transparent;
+    border: 0;
+    width: 100%;
+}
+
+.support-card {
+    align-items: center;
+    background: #eaf4ff;
+    border-radius: 8px;
+    color: #0b63f6;
+    display: grid;
+    gap: 3px;
+    margin-top: auto;
+    padding: 22px 18px;
+}
+
+.support-card span {
+    align-items: center;
+    background: #fff;
+    border-radius: 999px;
+    display: inline-flex;
+    height: 48px;
+    justify-content: center;
+    margin-bottom: 8px;
+    width: 48px;
+}
+
+.support-card svg {
+    fill: currentColor;
+    height: 26px;
+    width: 26px;
+}
+
+.support-card p,
+.support-card small {
+    margin: 0;
+}
+
+.support-card p {
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.support-card strong {
+    color: #071b4d;
+    font-size: 1.05rem;
+}
+
+.support-card small {
+    color: #64748b;
+    font-size: 0.82rem;
+}
+
+@media (max-width: 980px) {
+    .nav-shell {
+        min-height: auto;
+        padding: 22px 18px;
+    }
+
+    .navbar-toggler {
+        display: block;
+    }
+
+    .nav-scrollable {
+        display: none;
+        margin-top: 4px;
+    }
+
+    .navbar-toggler:checked ~ .nav-scrollable {
+        display: flex;
+    }
+
+    .support-card {
+        display: none;
+    }
+}

@@ -1,0 +1,187 @@
+@page "/tracking"
+@rendermode InteractiveServer
+@using System.ComponentModel.DataAnnotations
+@using MiniLogistics.Application.Shipments.GetPublicTracking
+@using MiniLogistics.Domain.Shipments
+@inject IGetPublicTrackingService GetPublicTrackingService
+
+<PageTitle>Tracking</PageTitle>
+
+<div class="tracking-page">
+    <div class="page-heading">
+        <div>
+            <h1>Tra cứu vận đơn</h1>
+            <p>Nhập tracking code để xem trạng thái hiện tại và timeline giao hàng.</p>
+        </div>
+    </div>
+
+    <div class="tracking-grid">
+        <section class="content-card search-card">
+            <div class="section-heading">
+                <span class="section-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M10.5 4a6.5 6.5 0 0 1 5.1 10.5l4 4-1.4 1.4-4-4A6.5 6.5 0 1 1 10.5 4Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" />
+                    </svg>
+                </span>
+                <h2>Tracking code</h2>
+            </div>
+
+            <EditForm Model="Form" OnValidSubmit="HandleSearchAsync" class="tracking-form">
+                <DataAnnotationsValidator />
+
+                <div class="form-field">
+                    <label for="tracking-code">Mã vận đơn</label>
+                    <InputText id="tracking-code" class="form-control" @bind-Value="Form.TrackingCode" />
+                    <ValidationMessage For="() => Form.TrackingCode" />
+                </div>
+
+                <button class="btn btn-primary search-button" type="submit" disabled="@IsSearching">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M10.5 4a6.5 6.5 0 0 1 5.1 10.5l4 4-1.4 1.4-4-4A6.5 6.5 0 1 1 10.5 4Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" />
+                    </svg>
+                    <span>@(IsSearching ? "Đang tra cứu..." : "Tra cứu")</span>
+                </button>
+            </EditForm>
+        </section>
+
+        <section class="content-card result-card">
+            @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+            {
+                <div class="empty-result">
+                    <span class="result-icon danger">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 15h-2v-2h2v2Zm0-4h-2V7h2v6Z" />
+                        </svg>
+                    </span>
+                    <strong>Không tìm thấy vận đơn</strong>
+                    <p>@ErrorMessage</p>
+                </div>
+            }
+            else if (TrackingResult is null)
+            {
+                <div class="empty-result">
+                    <span class="result-icon">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" />
+                        </svg>
+                    </span>
+                    <strong>Chưa có dữ liệu tra cứu</strong>
+                    <p>Thông tin vận đơn sẽ hiển thị sau khi nhập tracking code hợp lệ.</p>
+                </div>
+            }
+            else
+            {
+                <div class="tracking-summary">
+                    <span>Tracking code</span>
+                    <strong>@TrackingResult.TrackingCode</strong>
+                    <span class="status-pill @GetStatusClass(TrackingResult.CurrentStatus)">
+                        @FormatStatus(TrackingResult.CurrentStatus)
+                    </span>
+                </div>
+
+                <dl class="summary-grid">
+                    <div>
+                        <dt>Ngày tạo</dt>
+                        <dd>@FormatDate(TrackingResult.CreatedAtUtc)</dd>
+                    </div>
+                    <div>
+                        <dt>Trạng thái hiện tại</dt>
+                        <dd>@FormatStatus(TrackingResult.CurrentStatus)</dd>
+                    </div>
+                </dl>
+
+                <h2 class="timeline-title">Timeline</h2>
+                <ol class="timeline">
+                    @foreach (var item in TrackingResult.Timeline)
+                    {
+                        <li>
+                            <span class="timeline-dot"></span>
+                            <div>
+                                <strong>@FormatStatus(item.Status)</strong>
+                                <time>@FormatDate(item.ChangedAtUtc)</time>
+                                @if (!string.IsNullOrWhiteSpace(item.Note))
+                                {
+                                    <p>@item.Note</p>
+                                }
+                            </div>
+                        </li>
+                    }
+                </ol>
+            }
+        </section>
+    </div>
+</div>
+
+@code {
+    private TrackingFormModel Form { get; set; } = new();
+
+    private bool IsSearching { get; set; }
+
+    private string? ErrorMessage { get; set; }
+
+    private PublicTrackingResponse? TrackingResult { get; set; }
+
+    private async Task HandleSearchAsync()
+    {
+        IsSearching = true;
+        ErrorMessage = null;
+        TrackingResult = null;
+
+        try
+        {
+            var result = await GetPublicTrackingService.GetAsync(Form.TrackingCode);
+            if (result.IsFailure)
+            {
+                ErrorMessage = result.Error.Description;
+                return;
+            }
+
+            TrackingResult = result.Value;
+        }
+        finally
+        {
+            IsSearching = false;
+        }
+    }
+
+    private static string FormatDate(DateTimeOffset value)
+    {
+        return value.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+    }
+
+    private static string FormatStatus(ShipmentStatus status)
+    {
+        return status switch
+        {
+            ShipmentStatus.PendingPickup => "Chờ lấy hàng",
+            ShipmentStatus.Assigned => "Đã phân công",
+            ShipmentStatus.PickingUp => "Đang lấy hàng",
+            ShipmentStatus.PickedUp => "Đã lấy hàng",
+            ShipmentStatus.InTransit => "Đang vận chuyển",
+            ShipmentStatus.Delivering => "Đang giao",
+            ShipmentStatus.Delivered => "Đã giao",
+            ShipmentStatus.DeliveryFailed => "Giao thất bại",
+            ShipmentStatus.Returned => "Đã hoàn",
+            ShipmentStatus.Cancelled => "Đã hủy",
+            _ => status.ToString()
+        };
+    }
+
+    private static string GetStatusClass(ShipmentStatus status)
+    {
+        return status switch
+        {
+            ShipmentStatus.Delivered => "success",
+            ShipmentStatus.Cancelled or ShipmentStatus.DeliveryFailed or ShipmentStatus.Returned => "danger",
+            ShipmentStatus.InTransit or ShipmentStatus.Delivering or ShipmentStatus.PickedUp => "info",
+            _ => "warning"
+        };
+    }
+
+    private sealed class TrackingFormModel
+    {
+        [Required]
+        [MaxLength(30)]
+        public string TrackingCode { get; set; } = string.Empty;
+    }
+}

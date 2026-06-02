@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MiniLogistics.Application/MiniLogistics.Application.csproj" />
+    <Project Path="src/MiniLogistics.Domain/MiniLogistics.Domain.csproj" />
+    <Project Path="src/MiniLogistics.Infrastructure/MiniLogistics.Infrastructure.csproj" />
+    <Project Path="src/MiniLogistics.Web/MiniLogistics.Web.csproj" />
+  </Folder>
+</Solution>
