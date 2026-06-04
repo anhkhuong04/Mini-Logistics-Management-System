@@ -32,6 +32,46 @@ public sealed class ShipmentRepository : IShipmentRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Shipment>> GetByStatusAsync(
+        ShipmentStatus status,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Shipments
+            .AsNoTracking()
+            .Where(shipment => shipment.Status == status)
+            .OrderBy(shipment => shipment.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Shipment>> GetByStatusesAsync(
+        IReadOnlyCollection<ShipmentStatus> statuses,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Shipments
+            .AsNoTracking()
+            .Include(shipment => shipment.Assignments)
+            .Include(shipment => shipment.StatusHistory)
+            .Where(shipment => statuses.Contains(shipment.Status))
+            .OrderByDescending(shipment => shipment.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Shipment>> GetAssignedToShipperAsync(
+        Guid shipperId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Shipments
+            .AsNoTracking()
+            .Include(shipment => shipment.Assignments)
+            .Include(shipment => shipment.StatusHistory)
+            .Where(shipment => shipment.Assignments.Any(assignment =>
+                assignment.ShipperId == shipperId && assignment.UnassignedAtUtc == null))
+            .Where(shipment => shipment.Status != ShipmentStatus.Returned
+                && shipment.Status != ShipmentStatus.Cancelled)
+            .OrderByDescending(shipment => shipment.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<Shipment?> GetByIdAndShopIdAsync(
         Guid shipmentId,
         Guid shopId,

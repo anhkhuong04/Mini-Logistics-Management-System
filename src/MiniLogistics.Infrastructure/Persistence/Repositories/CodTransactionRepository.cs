@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using MiniLogistics.Application.CashOnDelivery;
 using MiniLogistics.Domain.CashOnDelivery;
 
@@ -12,8 +13,34 @@ public sealed class CodTransactionRepository : ICodTransactionRepository
         _dbContext = dbContext;
     }
 
+    public Task<CodTransaction?> GetByShipmentIdAsync(
+        Guid shipmentId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.CodTransactions
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                codTransaction => codTransaction.ShipmentId == shipmentId,
+                cancellationToken);
+    }
+
+    public Task<CodTransaction?> GetTrackedByShipmentIdAsync(
+        Guid shipmentId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.CodTransactions
+            .FirstOrDefaultAsync(
+                codTransaction => codTransaction.ShipmentId == shipmentId,
+                cancellationToken);
+    }
+
     public async Task AddAsync(CodTransaction codTransaction, CancellationToken cancellationToken = default)
     {
         await _dbContext.CodTransactions.AddAsync(codTransaction, cancellationToken);
+    }
+
+    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        return _dbContext.SaveChangesAsync(cancellationToken);
     }
 }

@@ -50,6 +50,11 @@ public sealed class CodTransaction : AuditableEntity
             return Result.Failure(CodErrors.CollectionNotRequired);
         }
 
+        if (Status != CodStatus.PendingCollection)
+        {
+            return Result.Failure(CodErrors.CannotCollect);
+        }
+
         if (shipmentStatus != ShipmentStatus.Delivered)
         {
             return Result.Failure(CodErrors.ShipmentMustBeDelivered);

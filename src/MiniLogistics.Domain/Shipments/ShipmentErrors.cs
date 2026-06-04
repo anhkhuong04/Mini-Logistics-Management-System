@@ -20,6 +20,10 @@ public static class ShipmentErrors
         "Shipment.InvalidStatusTransition",
         "Shipment status transition is not allowed.");
 
+    public static readonly Error DeliveryFailedNoteRequired = new(
+        "Shipment.DeliveryFailedNoteRequired",
+        "Delivery failure reason is required.");
+
     public static readonly Error CompletedShipmentCannotChange = new(
         "Shipment.CompletedShipmentCannotChange",
         "Completed shipments cannot be changed.");

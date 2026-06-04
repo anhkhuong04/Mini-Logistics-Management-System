@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Domain.Common;
 
@@ -45,6 +46,8 @@ public sealed class IdentityService : IIdentityService
         string role,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         var user = await _userManager.FindByIdAsync(userId.ToString());
         if (user is null)
         {
@@ -55,6 +58,66 @@ public sealed class IdentityService : IIdentityService
         return result.Succeeded
             ? Result.Success()
             : Result.Failure(IdentityErrors.RoleAssignmentFailed(FormatErrors(result.Errors)));
+    }
+
+    public async Task<IdentityUserRoleCheckResponse> CheckUserRoleAsync(
+        Guid userId,
+        string role,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return new IdentityUserRoleCheckResponse(userId, false, false, false);
+        }
+
+        var isInRole = await _userManager.IsInRoleAsync(user, role);
+
+        return new IdentityUserRoleCheckResponse(
+            user.Id,
+            true,
+            user.IsActive,
+            isInRole);
+    }
+
+    public async Task<IReadOnlyList<ActiveShipperResponse>> GetActiveShippersAsync(
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var shippers = await _userManager.GetUsersInRoleAsync("Shipper");
+
+        return shippers
+            .Where(shipper => shipper.IsActive)
+            .OrderBy(shipper => shipper.FullName)
+            .Select(shipper => new ActiveShipperResponse(
+                shipper.Id,
+                shipper.FullName,
+                shipper.Email ?? string.Empty,
+                shipper.PhoneNumber))
+            .ToList();
+    }
+
+    public async Task<IReadOnlyList<IdentityUserSummaryResponse>> GetUsersByIdsAsync(
+        IReadOnlyCollection<Guid> userIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (userIds.Count == 0)
+        {
+            return [];
+        }
+
+        return await _userManager.Users
+            .Where(user => userIds.Contains(user.Id))
+            .Select(user => new IdentityUserSummaryResponse(
+                user.Id,
+                user.FullName,
+                user.Email ?? string.Empty,
+                user.PhoneNumber,
+                user.IsActive))
+            .ToListAsync(cancellationToken);
     }
 
     private static string FormatErrors(IEnumerable<IdentityError> errors)

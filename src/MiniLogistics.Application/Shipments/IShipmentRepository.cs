@@ -12,6 +12,18 @@ public interface IShipmentRepository
         Guid shopId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<Shipment>> GetByStatusAsync(
+        ShipmentStatus status,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<Shipment>> GetByStatusesAsync(
+        IReadOnlyCollection<ShipmentStatus> statuses,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<Shipment>> GetAssignedToShipperAsync(
+        Guid shipperId,
+        CancellationToken cancellationToken = default);
+
     Task<Shipment?> GetByIdAndShopIdAsync(
         Guid shipmentId,
         Guid shopId,

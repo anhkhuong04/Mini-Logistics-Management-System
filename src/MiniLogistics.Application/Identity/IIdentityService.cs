@@ -15,4 +15,35 @@ public interface IIdentityService
         Guid userId,
         string role,
         CancellationToken cancellationToken = default);
+
+    Task<IdentityUserRoleCheckResponse> CheckUserRoleAsync(
+        Guid userId,
+        string role,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ActiveShipperResponse>> GetActiveShippersAsync(
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<IdentityUserSummaryResponse>> GetUsersByIdsAsync(
+        IReadOnlyCollection<Guid> userIds,
+        CancellationToken cancellationToken = default);
 }
+
+public sealed record IdentityUserRoleCheckResponse(
+    Guid UserId,
+    bool Exists,
+    bool IsActive,
+    bool IsInRole);
+
+public sealed record ActiveShipperResponse(
+    Guid UserId,
+    string FullName,
+    string Email,
+    string? PhoneNumber);
+
+public sealed record IdentityUserSummaryResponse(
+    Guid UserId,
+    string FullName,
+    string Email,
+    string? PhoneNumber,
+    bool IsActive);

@@ -183,6 +183,11 @@ public sealed class Shipment : AuditableEntity
             return Result.Failure(ShipmentErrors.CompletedShipmentCannotChange);
         }
 
+        if (newStatus == ShipmentStatus.DeliveryFailed && string.IsNullOrWhiteSpace(note))
+        {
+            return Result.Failure(ShipmentErrors.DeliveryFailedNoteRequired);
+        }
+
         if (!CanTransitionTo(Status, newStatus))
         {
             return Result.Failure(ShipmentErrors.InvalidStatusTransition);
@@ -194,6 +199,12 @@ public sealed class Shipment : AuditableEntity
         }
 
         ChangeStatus(newStatus, changedByUserId, note);
+
+        if (newStatus == ShipmentStatus.Returned
+            || (newStatus == ShipmentStatus.Delivered && CodAmount.IsZero))
+        {
+            DeactivateActiveAssignments();
+        }
 
         return Result.Success();
     }
@@ -211,14 +222,27 @@ public sealed class Shipment : AuditableEntity
             return Result.Failure(ShipmentErrors.CannotCancel);
         }
 
-        foreach (var assignment in _assignments.Where(assignment => assignment.IsActive))
-        {
-            assignment.Deactivate();
-        }
+        DeactivateActiveAssignments();
 
         ChangeStatus(ShipmentStatus.Cancelled, cancelledByUserId, reason);
 
         return Result.Success();
+    }
+
+    public void DeactivateActiveAssignments()
+    {
+        var deactivatedAny = false;
+
+        foreach (var assignment in _assignments.Where(assignment => assignment.IsActive))
+        {
+            assignment.Deactivate();
+            deactivatedAny = true;
+        }
+
+        if (deactivatedAny)
+        {
+            MarkUpdated();
+        }
     }
 
     private void ChangeStatus(ShipmentStatus newStatus, Guid changedByUserId, string? note)

@@ -1,30 +1,58 @@
-<div class="nav-shell">
-    <a class="brand" href="/dashboard">
+﻿<div class="nav-shell">
+    <a class="brand" href="/">
         <img src="/images/landing%20page/logo.svg" alt="MiniLogistics" />
     </a>
 
     <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
 
     <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler')?.click()">
-        <AuthorizeView>
+        <AuthorizeView Context="authContext">
             <Authorized>
-                <nav class="nav-group" aria-label="Shop navigation">
-                    <NavLink class="nav-link" href="dashboard" Match="NavLinkMatch.All">
-                        <svg viewBox="0 0 24 24"><path d="M4 11.2 12 4l8 7.2V20h-6v-5h-4v5H4v-8.8Z" /></svg>
-                        <span>Tổng quan</span>
-                    </NavLink>
+                <nav class="nav-group" aria-label="Authenticated navigation">
+                    <AuthorizeView Roles="Shop" Context="shopContext">
+                        <Authorized>
+                            <NavLink class="nav-link" href="dashboard" Match="NavLinkMatch.All">
+                                <svg viewBox="0 0 24 24"><path d="M4 11.2 12 4l8 7.2V20h-6v-5h-4v5H4v-8.8Z" /></svg>
+                                <span>Tổng quan</span>
+                            </NavLink>
 
-                    <span class="nav-section">Vận đơn</span>
+                            <span class="nav-section">Vận đơn</span>
 
-                    <NavLink class="nav-link" href="shipments/create">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" /></svg>
-                        <span>Tạo đơn mới</span>
-                    </NavLink>
+                            <NavLink class="nav-link" href="shipments/create">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" /></svg>
+                                <span>Tạo đơn mới</span>
+                            </NavLink>
 
-                    <NavLink class="nav-link muted-link" href="shipments">
-                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" /></svg>
-                        <span>Danh sách đơn</span>
-                    </NavLink>
+                            <NavLink class="nav-link muted-link" href="shipments">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" /></svg>
+                                <span>Danh sách đơn</span>
+                            </NavLink>
+                        </Authorized>
+                    </AuthorizeView>
+
+                    <AuthorizeView Roles="Admin,Operator" Context="operationsContext">
+                        <Authorized>
+                            <span class="nav-section">Điều phối</span>
+
+                            <NavLink class="nav-link" href="operations/assignments">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Zm11-6h3v4h-3v-4Z" /></svg>
+                                <span>Điều phối</span>
+                            </NavLink>
+                        </Authorized>
+                    </AuthorizeView>
+
+                    <AuthorizeView Roles="Shipper" Context="shipperContext">
+                        <Authorized>
+                            <span class="nav-section">Shipper</span>
+
+                            <NavLink class="nav-link" href="shipper/shipments">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h11v9h1.4l2-3H21v6h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V8a2 2 0 0 1 1-2Zm2 2v7.8A3 3 0 0 1 8.8 17H13V8H5Zm10 2v5h.6l2-3H19v-2h-4Z" /></svg>
+                                <span>Đơn được giao</span>
+                            </NavLink>
+                        </Authorized>
+                    </AuthorizeView>
+
+                    <span class="nav-section">Tra cứu</span>
 
                     <NavLink class="nav-link muted-link" href="tracking">
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 4a6.5 6.5 0 0 1 5.1 10.5l4 4-1.4 1.4-4-4A6.5 6.5 0 1 1 10.5 4Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" /></svg>

@@ -12,6 +12,10 @@ public static class CodErrors
         "COD.ShipmentMustBeDelivered",
         "COD can only be collected for delivered shipments.");
 
+    public static readonly Error CannotCollect = new(
+        "COD.CannotCollect",
+        "Only pending COD can be collected.");
+
     public static readonly Error CannotSettle = new(
         "COD.CannotSettle",
         "Only collected COD can be settled.");

@@ -5,4 +5,7 @@
     <Project Path="src/MiniLogistics.Infrastructure/MiniLogistics.Infrastructure.csproj" />
     <Project Path="src/MiniLogistics.Web/MiniLogistics.Web.csproj" />
   </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/MiniLogistics.Application.Tests/MiniLogistics.Application.Tests.csproj" />
+  </Folder>
 </Solution>

@@ -1,0 +1,544 @@
+﻿@page "/shipper/shipments"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Shipper")]
+@using System.Security.Claims
+@using MiniLogistics.Application.CashOnDelivery.MarkCodCollected
+@using MiniLogistics.Application.Shipments.GetAssignedShipmentsForShipper
+@using MiniLogistics.Application.Shipments.UpdateShipmentStatus
+@using MiniLogistics.Domain.CashOnDelivery
+@using MiniLogistics.Domain.Shipments
+@inject IGetAssignedShipmentsForShipperService GetAssignedShipmentsForShipperService
+@inject IMarkCodCollectedService MarkCodCollectedService
+@inject IUpdateShipmentStatusService UpdateShipmentStatusService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Không gian shipper - MiniLogistics</PageTitle>
+
+<div class="shipper-workspace-page">
+    <div class="page-heading">
+        <div>
+            <p class="eyebrow">Shipper workspace</p>
+            <h1>Đơn được phân công</h1>
+            <p>Xử lý các vận đơn đang active của tài khoản shipper hiện tại. Đơn Delivered còn COD chờ thu sẽ hiện cho đến khi xác nhận COD.</p>
+        </div>
+
+        <button type="button" class="refresh-button" disabled="@IsLoading" @onclick="RefreshAsync">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5a7 7 0 1 1-6.3 4H3.5A9 9 0 1 0 6 5.8V3H4v6h6V7H7.4A7 7 0 0 1 12 5Z" />
+            </svg>
+            <span>Làm mới</span>
+        </button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert-box danger" role="alert">@ErrorMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
+    {
+        <div class="alert-box success" role="status">@SuccessMessage</div>
+    }
+
+    @if (IsLoading)
+    {
+        <section class="content-card state-card" aria-live="polite">
+            <span class="state-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-8-8V2Z" />
+                </svg>
+            </span>
+            <strong>Đang tải danh sách vận đơn</strong>
+        </section>
+    }
+    else if (AssignedShipments.Count == 0)
+    {
+        <section class="content-card state-card">
+            <span class="state-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" />
+                </svg>
+            </span>
+            <strong>Không có đơn cần xử lý</strong>
+            <p>Đơn mới sau khi điều phối assign sẽ xuất hiện ở đây. Đơn Returned, Cancelled hoặc Delivered đã xong COD được ẩn khỏi workspace chính.</p>
+        </section>
+    }
+    else
+    {
+        <section class="stats-grid" aria-label="Tóm tắt vận đơn shipper">
+            <article>
+                <span>Tổng đơn active</span>
+                <strong>@AssignedShipments.Count.ToString("N0")</strong>
+            </article>
+            <article>
+                <span>Đang giao</span>
+                <strong>@AssignedShipments.Count(shipment => shipment.Status is ShipmentStatus.Delivering).ToString("N0")</strong>
+            </article>
+            <article>
+                <span>COD cần thu</span>
+                <strong>@FormatMoney(AssignedShipments.Where(shipment => shipment.CodStatus == CodStatus.PendingCollection).Sum(shipment => shipment.CodAmount), AssignedShipments.First().Currency)</strong>
+            </article>
+        </section>
+
+        <div class="shipment-grid">
+            @foreach (var shipment in AssignedShipments)
+            {
+                <article class="shipment-card">
+                    <header class="shipment-card-header">
+                        <div>
+                            <span class="tracking-code">@shipment.TrackingCode</span>
+                            <h2>@shipment.ReceiverName</h2>
+                            <p>@shipment.ReceiverPhone</p>
+                        </div>
+
+                        <span class="status-pill @GetStatusClass(shipment.Status)">
+                            @FormatStatus(shipment.Status)
+                        </span>
+                    </header>
+
+                    <div class="route-grid">
+                        <section>
+                            <span class="route-label">Lấy hàng</span>
+                            <strong>@shipment.SenderName</strong>
+                            <p>@shipment.SenderPhone</p>
+                            <p>@shipment.PickupAddress.FullAddress</p>
+                        </section>
+
+                        <section>
+                            <span class="route-label">Giao hàng</span>
+                            <strong>@shipment.ReceiverName</strong>
+                            <p>@shipment.ReceiverPhone</p>
+                            <p>@shipment.DeliveryAddress.FullAddress</p>
+                        </section>
+                    </div>
+
+                    <div class="money-strip">
+                        <div>
+                            <span>COD</span>
+                            <strong>@FormatMoney(shipment.CodAmount, shipment.Currency)</strong>
+                            <small class="cod-pill @GetCodStatusClass(shipment.CodStatus)">@FormatCodStatus(shipment.CodStatus)</small>
+                        </div>
+                        <div>
+                            <span>Phí ship</span>
+                            <strong>@FormatMoney(shipment.ShippingFeeAmount, shipment.Currency)</strong>
+                        </div>
+                        <div>
+                            <span>Ngày tạo</span>
+                            <strong>@FormatDate(shipment.CreatedAtUtc)</strong>
+                        </div>
+                    </div>
+
+                    @if (CanMarkCodCollected(shipment))
+                    {
+                        <section class="cod-action-card">
+                            <div>
+                                <span>Xác nhận COD</span>
+                                <strong>@FormatMoney(shipment.CodAmount, shipment.Currency)</strong>
+                                <p>Chỉ xác nhận sau khi đã thu đủ COD từ người nhận.</p>
+                            </div>
+                            <button type="button"
+                                    disabled="@IsCollectingCod(shipment.ShipmentId)"
+                                    @onclick="() => MarkCodCollectedAsync(shipment)">
+                                @(IsCollectingCod(shipment.ShipmentId) ? "Đang xác nhận..." : "Xác nhận đã thu COD")
+                            </button>
+                        </section>
+                    }
+
+                    <form class="status-form" @onsubmit="() => UpdateStatusAsync(shipment)" @onsubmit:preventDefault="true">
+                        <label for="@($"next-status-{shipment.ShipmentId}")">Cập nhật trạng thái</label>
+
+                        @if (GetNextStatuses(shipment.Status).Count == 0)
+                        {
+                            <div class="terminal-note">Không còn trạng thái tiếp theo cho đơn này.</div>
+                        }
+                        else
+                        {
+                            <div class="status-action-row">
+                                <select id="@($"next-status-{shipment.ShipmentId}")"
+                                        value="@GetSelectedStatusValue(shipment)"
+                                        disabled="@IsUpdating(shipment.ShipmentId)"
+                                        @onchange="eventArgs => SelectStatus(shipment.ShipmentId, eventArgs.Value?.ToString())">
+                                    @foreach (var status in GetNextStatuses(shipment.Status))
+                                    {
+                                        <option value="@status">@FormatStatus(status)</option>
+                                    }
+                                </select>
+
+                                <button type="submit" disabled="@IsUpdating(shipment.ShipmentId)">
+                                    @(IsUpdating(shipment.ShipmentId) ? "Đang cập nhật..." : "Cập nhật")
+                                </button>
+                            </div>
+
+                            @if (IsSelectedStatusNoteRequired(shipment))
+                            {
+                                <p class="field-hint danger">Bắt buộc ghi rõ lý do khi giao thất bại.</p>
+                            }
+
+                            <textarea rows="2"
+                                      maxlength="500"
+                                      placeholder="Ghi chú trạng thái, ví dụ: đã gọi người nhận, giao lại sau 18:00..."
+                                      @bind="StatusNotes[shipment.ShipmentId]"
+                                      @bind:event="oninput"></textarea>
+                        }
+
+                        @if (RowMessages.TryGetValue(shipment.ShipmentId, out var rowMessage))
+                        {
+                            <p class="row-message @rowMessage.Kind">@rowMessage.Text</p>
+                        }
+                    </form>
+
+                    <section class="timeline-section">
+                        <h3>Timeline</h3>
+                        <ol class="timeline">
+                            @foreach (var history in shipment.TrackingHistory)
+                            {
+                                <li>
+                                    <span class="timeline-dot"></span>
+                                    <div>
+                                        <strong>@FormatStatus(history.Status)</strong>
+                                        <time>@FormatDate(history.ChangedAtUtc)</time>
+                                        @if (!string.IsNullOrWhiteSpace(history.Note))
+                                        {
+                                            <p>@history.Note</p>
+                                        }
+                                    </div>
+                                </li>
+                            }
+                        </ol>
+                    </section>
+                </article>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private bool IsLoading { get; set; } = true;
+
+    private Guid? UpdatingShipmentId { get; set; }
+
+    private Guid? CollectingCodShipmentId { get; set; }
+
+    private string? ErrorMessage { get; set; }
+
+    private string? SuccessMessage { get; set; }
+
+    private IReadOnlyList<GetAssignedShipmentForShipperResponse> AssignedShipments { get; set; } = [];
+
+    private Dictionary<Guid, ShipmentStatus> SelectedStatuses { get; } = [];
+
+    private Dictionary<Guid, string> StatusNotes { get; } = [];
+
+    private Dictionary<Guid, RowMessage> RowMessages { get; } = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync(clearMessages: true);
+    }
+
+    private async Task RefreshAsync()
+    {
+        await LoadAsync(clearMessages: true);
+    }
+
+    private async Task LoadAsync(bool clearMessages)
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+
+        if (clearMessages)
+        {
+            SuccessMessage = null;
+            RowMessages.Clear();
+        }
+
+        var shipperUserId = await GetCurrentUserIdAsync();
+        if (shipperUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var result = await GetAssignedShipmentsForShipperService.GetAsync(shipperUserId.Value);
+        if (result.IsFailure)
+        {
+            ErrorMessage = result.Error.Description;
+            AssignedShipments = [];
+        }
+        else
+        {
+            AssignedShipments = result.Value;
+            SyncPerShipmentState();
+        }
+
+        IsLoading = false;
+    }
+
+    private async Task UpdateStatusAsync(GetAssignedShipmentForShipperResponse shipment)
+    {
+        SuccessMessage = null;
+        RowMessages.Remove(shipment.ShipmentId);
+
+        var nextStatuses = GetNextStatuses(shipment.Status);
+        if (nextStatuses.Count == 0)
+        {
+            RowMessages[shipment.ShipmentId] = new RowMessage("danger", "Đơn này không còn trạng thái tiếp theo.");
+            return;
+        }
+
+        if (!SelectedStatuses.TryGetValue(shipment.ShipmentId, out var nextStatus)
+            || !nextStatuses.Contains(nextStatus))
+        {
+            RowMessages[shipment.ShipmentId] = new RowMessage("danger", "Vui lòng chọn trạng thái hợp lệ.");
+            return;
+        }
+
+        if (nextStatus == ShipmentStatus.DeliveryFailed && string.IsNullOrWhiteSpace(GetNote(shipment.ShipmentId)))
+        {
+            RowMessages[shipment.ShipmentId] = new RowMessage("danger", "Giao thất bại cần có ghi chú lý do.");
+            return;
+        }
+
+        var shipperUserId = await GetCurrentUserIdAsync();
+        if (shipperUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        UpdatingShipmentId = shipment.ShipmentId;
+
+        var result = await UpdateShipmentStatusService.UpdateAsync(new UpdateShipmentStatusCommand(
+            shipment.ShipmentId,
+            shipperUserId.Value,
+            nextStatus,
+            GetNote(shipment.ShipmentId)));
+
+        UpdatingShipmentId = null;
+
+        if (result.IsFailure)
+        {
+            RowMessages[shipment.ShipmentId] = new RowMessage("danger", result.Error.Description);
+            return;
+        }
+
+        StatusNotes[shipment.ShipmentId] = string.Empty;
+        SuccessMessage = $"Đã cập nhật {shipment.TrackingCode} sang {FormatStatus(nextStatus)}.";
+        await LoadAsync(clearMessages: false);
+    }
+
+    private async Task MarkCodCollectedAsync(GetAssignedShipmentForShipperResponse shipment)
+    {
+        SuccessMessage = null;
+        RowMessages.Remove(shipment.ShipmentId);
+
+        if (!CanMarkCodCollected(shipment))
+        {
+            RowMessages[shipment.ShipmentId] = new RowMessage("danger", "COD chỉ được xác nhận khi đơn đã giao và COD đang chờ thu.");
+            return;
+        }
+
+        var shipperUserId = await GetCurrentUserIdAsync();
+        if (shipperUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        CollectingCodShipmentId = shipment.ShipmentId;
+
+        var result = await MarkCodCollectedService.MarkCollectedAsync(new MarkCodCollectedCommand(
+            shipment.ShipmentId,
+            shipperUserId.Value));
+
+        CollectingCodShipmentId = null;
+
+        if (result.IsFailure)
+        {
+            RowMessages[shipment.ShipmentId] = new RowMessage("danger", result.Error.Description);
+            return;
+        }
+
+        SuccessMessage = $"Đã xác nhận thu COD cho {shipment.TrackingCode}.";
+        await LoadAsync(clearMessages: false);
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userIdValue = authenticationState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(userIdValue, out var userId)
+            ? userId
+            : null;
+    }
+
+    private void SyncPerShipmentState()
+    {
+        var assignedIds = AssignedShipments
+            .Select(shipment => shipment.ShipmentId)
+            .ToHashSet();
+
+        foreach (var shipmentId in SelectedStatuses.Keys.ToList())
+        {
+            if (!assignedIds.Contains(shipmentId))
+            {
+                SelectedStatuses.Remove(shipmentId);
+            }
+        }
+
+        foreach (var shipmentId in StatusNotes.Keys.ToList())
+        {
+            if (!assignedIds.Contains(shipmentId))
+            {
+                StatusNotes.Remove(shipmentId);
+            }
+        }
+
+        foreach (var shipment in AssignedShipments)
+        {
+            var nextStatuses = GetNextStatuses(shipment.Status);
+            if (nextStatuses.Count == 0)
+            {
+                SelectedStatuses.Remove(shipment.ShipmentId);
+            }
+            else if (!SelectedStatuses.TryGetValue(shipment.ShipmentId, out var selectedStatus)
+                || !nextStatuses.Contains(selectedStatus))
+            {
+                SelectedStatuses[shipment.ShipmentId] = nextStatuses[0];
+            }
+
+            StatusNotes.TryAdd(shipment.ShipmentId, string.Empty);
+        }
+    }
+
+    private void SelectStatus(Guid shipmentId, string? value)
+    {
+        RowMessages.Remove(shipmentId);
+
+        if (Enum.TryParse<ShipmentStatus>(value, out var status))
+        {
+            SelectedStatuses[shipmentId] = status;
+        }
+    }
+
+    private string GetSelectedStatusValue(GetAssignedShipmentForShipperResponse shipment)
+    {
+        if (SelectedStatuses.TryGetValue(shipment.ShipmentId, out var status))
+        {
+            return status.ToString();
+        }
+
+        var nextStatuses = GetNextStatuses(shipment.Status);
+        return nextStatuses.Count > 0
+            ? nextStatuses[0].ToString()
+            : string.Empty;
+    }
+
+    private string? GetNote(Guid shipmentId)
+    {
+        return StatusNotes.TryGetValue(shipmentId, out var note) && !string.IsNullOrWhiteSpace(note)
+            ? note.Trim()
+            : null;
+    }
+
+    private bool IsSelectedStatusNoteRequired(GetAssignedShipmentForShipperResponse shipment)
+    {
+        return SelectedStatuses.TryGetValue(shipment.ShipmentId, out var status)
+            && status == ShipmentStatus.DeliveryFailed;
+    }
+
+    private bool IsUpdating(Guid shipmentId)
+    {
+        return UpdatingShipmentId == shipmentId;
+    }
+
+    private bool IsCollectingCod(Guid shipmentId)
+    {
+        return CollectingCodShipmentId == shipmentId;
+    }
+
+    private static bool CanMarkCodCollected(GetAssignedShipmentForShipperResponse shipment)
+    {
+        return shipment.Status == ShipmentStatus.Delivered
+            && shipment.CodStatus == CodStatus.PendingCollection;
+    }
+
+    private static IReadOnlyList<ShipmentStatus> GetNextStatuses(ShipmentStatus status)
+    {
+        return status switch
+        {
+            ShipmentStatus.Assigned => [ShipmentStatus.PickingUp, ShipmentStatus.Cancelled],
+            ShipmentStatus.PickingUp => [ShipmentStatus.PickedUp, ShipmentStatus.Cancelled],
+            ShipmentStatus.PickedUp => [ShipmentStatus.InTransit, ShipmentStatus.Returned],
+            ShipmentStatus.InTransit => [ShipmentStatus.Delivering, ShipmentStatus.Returned],
+            ShipmentStatus.Delivering => [ShipmentStatus.Delivered, ShipmentStatus.DeliveryFailed, ShipmentStatus.Returned],
+            ShipmentStatus.DeliveryFailed => [ShipmentStatus.Delivering, ShipmentStatus.Returned],
+            _ => []
+        };
+    }
+
+    private static string FormatDate(DateTimeOffset value)
+    {
+        return value.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+    }
+
+    private static string FormatMoney(decimal amount, string currency)
+    {
+        return $"{amount:N0} {currency}";
+    }
+
+    private static string FormatStatus(ShipmentStatus status)
+    {
+        return status switch
+        {
+            ShipmentStatus.PendingPickup => "Chờ lấy hàng",
+            ShipmentStatus.Assigned => "Đã phân công",
+            ShipmentStatus.PickingUp => "Đang lấy hàng",
+            ShipmentStatus.PickedUp => "Đã lấy hàng",
+            ShipmentStatus.InTransit => "Đang vận chuyển",
+            ShipmentStatus.Delivering => "Đang giao",
+            ShipmentStatus.Delivered => "Đã giao",
+            ShipmentStatus.DeliveryFailed => "Giao thất bại",
+            ShipmentStatus.Returned => "Đã hoàn",
+            ShipmentStatus.Cancelled => "Đã hủy",
+            _ => status.ToString()
+        };
+    }
+
+    private static string GetStatusClass(ShipmentStatus status)
+    {
+        return status switch
+        {
+            ShipmentStatus.Delivered => "success",
+            ShipmentStatus.Cancelled or ShipmentStatus.DeliveryFailed or ShipmentStatus.Returned => "danger",
+            ShipmentStatus.InTransit or ShipmentStatus.Delivering or ShipmentStatus.PickedUp => "info",
+            _ => "warning"
+        };
+    }
+
+    private static string FormatCodStatus(CodStatus status)
+    {
+        return status switch
+        {
+            CodStatus.NotRequired => "Không yêu cầu",
+            CodStatus.PendingCollection => "Chờ thu",
+            CodStatus.Collected => "Đã thu",
+            CodStatus.Settled => "Đã đối soát",
+            _ => status.ToString()
+        };
+    }
+
+    private static string GetCodStatusClass(CodStatus status)
+    {
+        return status switch
+        {
+            CodStatus.PendingCollection => "warning",
+            CodStatus.Collected or CodStatus.Settled => "success",
+            _ => "neutral"
+        };
+    }
+
+    private sealed record RowMessage(string Kind, string Text);
+}
