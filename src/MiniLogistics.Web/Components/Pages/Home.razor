@@ -16,6 +16,7 @@
         <nav class="main-nav" aria-label="Main navigation">
             <a class="active" href="/">Trang chủ</a>
             <a href="#services">Dịch vụ</a>
+            <a href="/tracking">Tra cứu</a>
             <a href="#pricing">Bảng giá</a>
             <a href="#about">Về chúng tôi</a>
             <a href="#support">Hỗ trợ</a>
@@ -44,19 +45,19 @@
                     <a class="btn btn-outline-primary btn-lg" href="#services">Tìm hiểu thêm</a>
                 </div>
 
-                <form class="tracking-card">
+                <form class="tracking-card" method="get" action="/tracking">
                     <label for="tracking-code">Theo dõi vận đơn</label>
                     <div class="tracking-row">
-                        <input id="tracking-code" name="tracking-code" placeholder="Nhập mã vận đơn (VD: ML123456789)" />
+                        <input id="tracking-code" name="code" maxlength="30" required placeholder="Nhập mã vận đơn (VD: ML123456789)" />
                         <button class="btn btn-primary" type="submit">Tra cứu</button>
                     </div>
-                    <small>Hỗ trợ nhiều đơn: cách nhau bởi dấu phẩy hoặc xuống dòng</small>
+                    <small>Nhập mã vận đơn để mở trang tracking công khai.</small>
                 </form>
             </div>
 
             <div class="hero-visual" aria-hidden="true">
                 <div class="hero-arc"></div>
-                <img src="/images/landing-hero-truck.png" alt="MiniLogistics Truck" />
+                <img src="/images/landing%20page/landing-hero-truck.png" alt="MiniLogistics Truck" />
             </div>
         </div>
     </section>
@@ -170,12 +171,12 @@
             <p>MiniLogistics là nền tảng quản lý vận chuyển thông minh, giúp kết nối người gửi, shipper và khách hàng một cách hiệu quả.</p>
         </div>
 
-        <div class="footer-links">
-            <h2>Dịch vụ</h2>
-            <a href="#services">Tạo đơn hàng</a>
-            <a href="#services">Theo dõi đơn hàng</a>
-            <a href="#pricing">Bảng giá</a>
-            <a href="#about">Đối tác</a>
+            <div class="footer-links">
+                <h2>Dịch vụ</h2>
+                <a href="#services">Tạo đơn hàng</a>
+                <a href="/tracking">Theo dõi đơn hàng</a>
+                <a href="#pricing">Bảng giá</a>
+                <a href="#about">Đối tác</a>
         </div>
 
         <div class="footer-links" id="support">

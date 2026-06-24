@@ -12,6 +12,9 @@ public sealed class ShipmentAssignmentConfiguration : IEntityTypeConfiguration<S
 
         builder.HasKey(assignment => assignment.Id);
 
+        builder.Property(assignment => assignment.Id)
+            .ValueGeneratedNever();
+
         builder.Property(assignment => assignment.ShipmentId)
             .IsRequired();
 

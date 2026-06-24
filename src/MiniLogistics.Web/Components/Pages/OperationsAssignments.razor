@@ -24,9 +24,9 @@
 <div class="operations-assignments-page">
     <div class="page-heading">
         <div>
-            <p class="eyebrow">Operations</p>
+            <p class="eyebrow">Vận hành</p>
             <h1>Điều phối vận hành</h1>
-            <p>Assign shipper, theo dõi đơn đang xử lý và hỗ trợ cập nhật trạng thái hoặc COD khi cần.</p>
+            <p>Phân công shipper, theo dõi đơn đang xử lý và hỗ trợ cập nhật trạng thái hoặc COD khi cần.</p>
         </div>
 
         <button type="button" class="refresh-button" disabled="@IsLoading" @onclick="RefreshAsync">
@@ -63,7 +63,7 @@
         <section class="content-card">
             <div class="summary-strip" aria-label="Tóm tắt điều phối">
                 <article>
-                    <span>Chờ assign</span>
+                    <span>Chờ phân công</span>
                     <strong>@PendingShipments.Count.ToString("N0")</strong>
                 </article>
                 <article>
@@ -84,7 +84,7 @@
         <section class="content-card workspace-section">
             <div class="section-heading">
                 <div>
-                    <p class="eyebrow">Assignment</p>
+                    <p class="eyebrow">Phân công</p>
                     <h2>Đơn chờ phân công</h2>
                 </div>
                 <span class="section-count">@PendingShipments.Count.ToString("N0") đơn</span>
@@ -169,7 +169,7 @@
                                                 class="assign-button"
                                                 disabled="@IsAssigning(shipment.ShipmentId)"
                                                 @onclick="() => AssignAsync(shipment)">
-                                            @(IsAssigning(shipment.ShipmentId) ? "Đang assign..." : "Assign")
+                                            @(IsAssigning(shipment.ShipmentId) ? "Đang phân công..." : "Phân công")
                                         </button>
                                     </td>
                                 </tr>
@@ -183,7 +183,7 @@
         <section class="content-card workspace-section">
             <div class="section-heading">
                 <div>
-                    <p class="eyebrow">Operations tracking</p>
+                    <p class="eyebrow">Theo dõi vận hành</p>
                     <h2>Đơn đang được xử lý</h2>
                 </div>
                 <span class="section-count">@OperationsShipments.Count.ToString("N0") đơn</span>
@@ -356,7 +356,7 @@
         var shippersResult = await GetActiveShippersService.GetAsync();
         if (shippersResult.IsFailure)
         {
-            ErrorMessage = shippersResult.Error.Description;
+            ErrorMessage = UiDisplay.ToErrorMessage(shippersResult.Error);
             IsLoading = false;
             return;
         }
@@ -364,7 +364,7 @@
         var pendingResult = await GetPendingPickupShipmentsService.GetAsync();
         if (pendingResult.IsFailure)
         {
-            ErrorMessage = pendingResult.Error.Description;
+            ErrorMessage = UiDisplay.ToErrorMessage(pendingResult.Error);
             IsLoading = false;
             return;
         }
@@ -372,7 +372,7 @@
         var operationsResult = await GetOperationsShipmentsService.GetAsync();
         if (operationsResult.IsFailure)
         {
-            ErrorMessage = operationsResult.Error.Description;
+            ErrorMessage = UiDisplay.ToErrorMessage(operationsResult.Error);
             IsLoading = false;
             return;
         }
@@ -415,7 +415,7 @@
 
         if (result.IsFailure)
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", result.Error.Description);
+            RowMessages[shipment.ShipmentId] = new RowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
             return;
         }
 
@@ -471,7 +471,7 @@
 
         if (result.IsFailure)
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", result.Error.Description);
+            RowMessages[shipment.ShipmentId] = new RowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
             return;
         }
 
@@ -508,7 +508,7 @@
 
         if (result.IsFailure)
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", result.Error.Description);
+            RowMessages[shipment.ShipmentId] = new RowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
             return;
         }
 
@@ -686,7 +686,7 @@
 
     private static string FormatDate(DateTimeOffset value)
     {
-        return value.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+        return UiDisplay.FormatLocalDateTime(value);
     }
 
     private static string FormatMoney(decimal amount, string currency)

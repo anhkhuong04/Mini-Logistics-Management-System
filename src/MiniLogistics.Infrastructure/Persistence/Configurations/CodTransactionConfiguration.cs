@@ -14,6 +14,9 @@ public sealed class CodTransactionConfiguration : IEntityTypeConfiguration<CodTr
 
         builder.HasKey(codTransaction => codTransaction.Id);
 
+        builder.Property(codTransaction => codTransaction.Id)
+            .ValueGeneratedNever();
+
         builder.Property(codTransaction => codTransaction.ShipmentId)
             .IsRequired();
 

@@ -62,7 +62,7 @@
 
             @if (!string.IsNullOrWhiteSpace(Error))
             {
-                <div class="login-error" role="alert">@Error</div>
+                <div class="login-error" role="alert">@UiDisplay.ToErrorMessage(Error)</div>
             }
 
             <form method="post" action="/auth/login">
@@ -120,6 +120,6 @@
 </main>
 
 @code {
-    [SupplyParameterFromQuery]
+    [SupplyParameterFromQuery(Name = "error")]
     public string? Error { get; set; }
 }

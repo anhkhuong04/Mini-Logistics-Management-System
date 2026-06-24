@@ -4,7 +4,11 @@
             <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
                 <NotAuthorized>
                     <LayoutView Layout="typeof(Layout.MainLayout)">
-                        <p>You are not authorized to view this page.</p>
+                        <section class="empty-page">
+                            <h1>Không có quyền truy cập</h1>
+                            <p>Tài khoản hiện tại không có quyền mở trang này. Vui lòng đăng nhập đúng vai trò demo.</p>
+                            <a class="btn btn-primary" href="/login">Đăng nhập lại</a>
+                        </section>
                     </LayoutView>
                 </NotAuthorized>
             </AuthorizeRouteView>

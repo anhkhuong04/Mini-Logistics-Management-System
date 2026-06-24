@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using MiniLogistics.Application.Shops.RegisterShop;
+using MiniLogistics.Domain.Users;
 using MiniLogistics.Infrastructure.Identity;
 
 namespace MiniLogistics.Web.Endpoints;
@@ -43,7 +44,7 @@ public static class AuthenticationEndpoints
         var user = await userManager.FindByIdAsync(result.Value.UserId.ToString());
         if (user is null)
         {
-            return RedirectWithError("/login", "Account was created. Please sign in.");
+            return RedirectWithError("/login", "Tài khoản đã được tạo. Vui lòng đăng nhập.");
         }
 
         await signInManager.SignInAsync(user, isPersistent: false);
@@ -53,7 +54,8 @@ public static class AuthenticationEndpoints
 
     private static async Task<IResult> LoginAsync(
         HttpContext httpContext,
-        SignInManager<ApplicationUser> signInManager)
+        SignInManager<ApplicationUser> signInManager,
+        UserManager<ApplicationUser> userManager)
     {
         var form = await httpContext.Request.ReadFormAsync(httpContext.RequestAborted);
         var email = GetValue(form, "Email");
@@ -68,10 +70,21 @@ public static class AuthenticationEndpoints
 
         if (!result.Succeeded)
         {
-            return RedirectWithError("/login", "Email or password is incorrect.");
+            return RedirectWithError("/login", "Email hoặc mật khẩu không đúng.");
         }
 
-        return Results.Redirect("/dashboard");
+        var user = await userManager.FindByEmailAsync(email);
+        user ??= await userManager.FindByNameAsync(email);
+
+        if (user is null)
+        {
+            await signInManager.SignOutAsync();
+            return RedirectWithError("/login", "Email hoặc mật khẩu không đúng.");
+        }
+
+        var roles = await userManager.GetRolesAsync(user);
+
+        return Results.Redirect(GetPostLoginRedirectPath(roles));
     }
 
     private static async Task<IResult> LogoutAsync(SignInManager<ApplicationUser> signInManager)
@@ -93,5 +106,30 @@ public static class AuthenticationEndpoints
         var encodedError = Uri.EscapeDataString(error);
 
         return Results.Redirect($"{path}?error={encodedError}");
+    }
+
+    private static string GetPostLoginRedirectPath(IList<string> roles)
+    {
+        if (HasRole(roles, UserRole.Admin) || HasRole(roles, UserRole.Operator))
+        {
+            return "/operations/assignments";
+        }
+
+        if (HasRole(roles, UserRole.Shipper))
+        {
+            return "/shipper/shipments";
+        }
+
+        if (HasRole(roles, UserRole.Shop))
+        {
+            return "/dashboard";
+        }
+
+        return "/";
+    }
+
+    private static bool HasRole(IEnumerable<string> roles, UserRole role)
+    {
+        return roles.Contains(role.ToString(), StringComparer.OrdinalIgnoreCase);
     }
 }

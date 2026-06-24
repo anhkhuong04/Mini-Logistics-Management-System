@@ -263,7 +263,7 @@
         var result = await GetAssignedShipmentsForShipperService.GetAsync(shipperUserId.Value);
         if (result.IsFailure)
         {
-            ErrorMessage = result.Error.Description;
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
             AssignedShipments = [];
         }
         else
@@ -319,7 +319,7 @@
 
         if (result.IsFailure)
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", result.Error.Description);
+            RowMessages[shipment.ShipmentId] = new RowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
             return;
         }
 
@@ -356,7 +356,7 @@
 
         if (result.IsFailure)
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", result.Error.Description);
+            RowMessages[shipment.ShipmentId] = new RowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
             return;
         }
 
@@ -481,7 +481,7 @@
 
     private static string FormatDate(DateTimeOffset value)
     {
-        return value.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+        return UiDisplay.FormatLocalDateTime(value);
     }
 
     private static string FormatMoney(decimal amount, string currency)

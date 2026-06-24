@@ -1,15 +1,22 @@
 ﻿using FluentValidation;
 using MiniLogistics.Application.CashOnDelivery;
 using MiniLogistics.Application.CashOnDelivery.MarkCodCollected;
+using MiniLogistics.Application.Fees;
 using MiniLogistics.Application.Identity;
+using MiniLogistics.Application.Routing;
+using MiniLogistics.Application.Shipments.CancelShipmentForCurrentShop;
+using MiniLogistics.Application.Shipments.CreateShipment;
 using MiniLogistics.Application.Shipments;
 using MiniLogistics.Application.Shipments.AssignShipperToShipment;
 using MiniLogistics.Application.Shipments.GetAssignedShipmentsForShipper;
+using MiniLogistics.Application.Shipments.GetOperationsShipments;
 using MiniLogistics.Application.Shipments.UpdateShipmentStatus;
+using MiniLogistics.Application.Shops;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Fees;
 using MiniLogistics.Domain.Shipments;
+using MiniLogistics.Domain.Shops;
 using MiniLogistics.Domain.Users;
 using MiniLogistics.Domain.ValueObjects;
 using Xunit;
@@ -222,6 +229,185 @@ public sealed class ShipmentBusinessRuleTests
         Assert.DoesNotContain(result.Value, response => response.ShipmentId == shipment.Id);
     }
 
+    [Fact]
+    public async Task GetOperationsShipments_FiltersTerminalAndCodCompletedShipments()
+    {
+        var activeShipment = CreateShipmentAtStatus(ShipmentStatus.InTransit, codAmount: 0m);
+        var deliveredPendingCodShipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 100_000m);
+        var deliveredCollectedCodShipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 100_000m);
+        var returnedShipment = CreateShipmentAtStatus(ShipmentStatus.Delivering, codAmount: 100_000m);
+        var cancelledShipment = CreateAssignedShipment(_shipperId, codAmount: 100_000m);
+        var returnedResult = returnedShipment.UpdateStatus(ShipmentStatus.Returned, _operatorId, "Recipient refused parcel.");
+        var cancelledResult = cancelledShipment.Cancel(_shopUserId, "Shop cancelled before pickup.");
+        var deliveredPendingCod = CodTransaction.Create(deliveredPendingCodShipment.Id, new Money(100_000m));
+        var deliveredCollectedCod = CodTransaction.Create(deliveredCollectedCodShipment.Id, new Money(100_000m));
+        var collectedResult = deliveredCollectedCod.MarkCollected(deliveredCollectedCodShipment.Status, _shipperId);
+        var service = new GetOperationsShipmentsService(
+            new FakeShipmentRepository([
+                activeShipment,
+                deliveredPendingCodShipment,
+                deliveredCollectedCodShipment,
+                returnedShipment,
+                cancelledShipment
+            ]),
+            new FakeCodTransactionRepository([
+                deliveredPendingCod,
+                deliveredCollectedCod,
+                CodTransaction.Create(activeShipment.Id, Money.Zero),
+                CodTransaction.Create(returnedShipment.Id, new Money(100_000m)),
+                CodTransaction.Create(cancelledShipment.Id, new Money(100_000m))
+            ]),
+            CreateIdentityService());
+
+        Assert.True(returnedResult.IsSuccess);
+        Assert.True(cancelledResult.IsSuccess);
+        Assert.True(collectedResult.IsSuccess);
+
+        var result = await service.GetAsync();
+
+        Assert.True(result.IsSuccess);
+        Assert.Contains(result.Value, response => response.ShipmentId == activeShipment.Id);
+        Assert.Contains(result.Value, response =>
+            response.ShipmentId == deliveredPendingCodShipment.Id
+            && response.CodStatus == CodStatus.PendingCollection);
+        Assert.DoesNotContain(result.Value, response => response.ShipmentId == deliveredCollectedCodShipment.Id);
+        Assert.DoesNotContain(result.Value, response => response.ShipmentId == returnedShipment.Id);
+        Assert.DoesNotContain(result.Value, response => response.ShipmentId == cancelledShipment.Id);
+    }
+
+    [Fact]
+    public async Task GetAssignedShipments_AfterMarkCodCollectedService_HidesShipmentFromShipper()
+    {
+        var shipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 100_000m);
+        var codTransaction = CodTransaction.Create(shipment.Id, new Money(100_000m));
+        var shipmentRepository = new FakeShipmentRepository([shipment]);
+        var codTransactionRepository = new FakeCodTransactionRepository([codTransaction]);
+        var collectService = CreateMarkCodCollectedService(shipmentRepository, codTransactionRepository);
+        var getAssignedService = new GetAssignedShipmentsForShipperService(
+            CreateIdentityService(),
+            shipmentRepository,
+            codTransactionRepository);
+
+        var collectResult = await collectService.MarkCollectedAsync(new MarkCodCollectedCommand(
+            shipment.Id,
+            _shipperId));
+        var assignedResult = await getAssignedService.GetAsync(_shipperId);
+
+        Assert.True(collectResult.IsSuccess);
+        Assert.Equal(CodStatus.Collected, codTransaction.Status);
+        Assert.DoesNotContain(shipment.Assignments, assignment => assignment.IsActive);
+        Assert.True(assignedResult.IsSuccess);
+        Assert.DoesNotContain(assignedResult.Value, response => response.ShipmentId == shipment.Id);
+    }
+
+    [Theory]
+    [InlineData(ShipmentStatus.Assigned)]
+    [InlineData(ShipmentStatus.PickingUp)]
+    public async Task CancelShipmentForCurrentShop_AssignedOrPickingUp_DeactivatesActiveAssignment(ShipmentStatus statusBeforeCancel)
+    {
+        var shop = CreateShop(_shopUserId);
+        var shipment = CreateShipmentForShop(shop.Id, _shopUserId, codAmount: 100_000m);
+        var assignResult = shipment.AssignShipper(_shipperId, _operatorId, "Assign before cancel test.");
+        var shipmentRepository = new FakeShipmentRepository([shipment]);
+        var service = new CancelShipmentForCurrentShopService(
+            new CancelShipmentCommandValidator(),
+            new FakeShopRepository([shop]),
+            shipmentRepository);
+
+        Assert.True(assignResult.IsSuccess);
+        if (statusBeforeCancel == ShipmentStatus.PickingUp)
+        {
+            var pickupResult = shipment.UpdateStatus(ShipmentStatus.PickingUp, _shipperId, "Pickup started.");
+            Assert.True(pickupResult.IsSuccess);
+        }
+
+        var result = await service.CancelAsync(new CancelShipmentCommand(
+            _shopUserId,
+            shipment.Id,
+            "Shop requested cancellation before pickup completion."));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ShipmentStatus.Cancelled, shipment.Status);
+        Assert.DoesNotContain(shipment.Assignments, assignment => assignment.IsActive);
+        Assert.Equal(1, shipmentRepository.SaveChangesCount);
+    }
+
+    [Theory]
+    [InlineData("Ho Chi Minh", "Ho Chi Minh", RouteType.IntraProvince)]
+    [InlineData("Thanh pho Ho Chi Minh", "Ho Chi Minh", RouteType.IntraProvince)]
+    [InlineData("Ha Noi", "Thanh pho Ha Noi", RouteType.IntraProvince)]
+    [InlineData("Thanh pho Ho Chi Minh", "Thanh pho Ha Noi", RouteType.InterRegion)]
+    public void RouteClassification_SupportsSeedAndAdministrativeProvinceAliases(
+        string pickupProvince,
+        string deliveryProvince,
+        RouteType expectedRouteType)
+    {
+        var service = new RouteClassificationService();
+
+        var result = service.Classify(pickupProvince, deliveryProvince);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(expectedRouteType, result.Value.RouteType);
+    }
+
+    [Fact]
+    public async Task CreateShipmentService_ActiveShopCreatesShipmentCodTransactionAndFeeBreakdown()
+    {
+        var shop = CreateShop(_shopUserId);
+        var shipmentRepository = new FakeShipmentRepository([]);
+        var codTransactionRepository = new FakeCodTransactionRepository([]);
+        var feeRule = new FeeRule(
+            RouteType.InterRegion,
+            baseWeightKg: 1m,
+            baseFee: new Money(35_000m),
+            extraWeightStepKg: 0.5m,
+            extraStepFee: new Money(8_000m));
+        var service = new CreateShipmentService(
+            new CreateShipmentCommandValidator(),
+            new ShippingFeeService(new FakeFeeRuleRepository([feeRule])),
+            new RouteClassificationService(),
+            shipmentRepository,
+            new FakeShopRepository([shop]),
+            codTransactionRepository);
+
+        var result = await service.CreateAsync(new CreateShipmentCommand(
+            _shopUserId,
+            "Demo Shop",
+            "0900000000",
+            "Demo Receiver",
+            "0911111111",
+            new ShipmentAddressDto("1 Nguyen Trai", "Ben Thanh", "Ho Chi Minh"),
+            new ShipmentAddressDto("9 Le Loi", "Hoan Kiem", "Thanh pho Ha Noi"),
+            WeightKg: 1.2m,
+            LengthCm: 20m,
+            WidthCm: 15m,
+            HeightCm: 10m,
+            GoodsValueAmount: 2_000_000m,
+            CodAmount: 150_000m,
+            Currency: "VND",
+            Note: "Create service E2E test."));
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(shipmentRepository.Shipments);
+        Assert.Single(codTransactionRepository.CodTransactions);
+
+        var shipment = shipmentRepository.Shipments.Single();
+        var codTransaction = codTransactionRepository.CodTransactions.Single();
+
+        Assert.Equal(shop.Id, shipment.ShopId);
+        Assert.Equal(ShipmentStatus.PendingPickup, shipment.Status);
+        Assert.Equal(RouteType.InterRegion, shipment.RouteType);
+        Assert.Equal(1.2m, result.Value.ChargeableWeightKg);
+        Assert.Equal(35_000m, result.Value.BaseFeeAmount);
+        Assert.Equal(8_000m, result.Value.ExtraWeightFeeAmount);
+        Assert.Equal(10_000m, result.Value.InsuranceFeeAmount);
+        Assert.Equal(53_000m, result.Value.ShippingFeeAmount);
+        Assert.Equal(shipment.Id, codTransaction.ShipmentId);
+        Assert.Equal(new Money(150_000m), codTransaction.Amount);
+        Assert.Equal(CodStatus.PendingCollection, codTransaction.Status);
+        Assert.Equal(1, shipmentRepository.SaveChangesCount);
+    }
+
     private AssignShipperToShipmentService CreateAssignService(IReadOnlyList<Shipment> shipments)
     {
         return CreateAssignService(new FakeShipmentRepository(shipments));
@@ -326,8 +512,16 @@ public sealed class ShipmentBusinessRuleTests
 
     private static Shipment CreateShipment(Guid createdByUserId, decimal codAmount = 100_000m)
     {
+        return CreateShipmentForShop(createdByUserId, createdByUserId, codAmount);
+    }
+
+    private static Shipment CreateShipmentForShop(
+        Guid shopId,
+        Guid createdByUserId,
+        decimal codAmount = 100_000m)
+    {
         return Shipment.Create(
-            Guid.NewGuid(),
+            shopId,
             "Shop Demo",
             new PhoneNumber("0900000000"),
             "Customer Demo",
@@ -343,6 +537,15 @@ public sealed class ShipmentBusinessRuleTests
             RouteType.IntraProvince,
             createdByUserId,
             "Test shipment.");
+    }
+
+    private static Shop CreateShop(Guid ownerUserId)
+    {
+        return new Shop(
+            ownerUserId,
+            "Demo Shop",
+            new PhoneNumber("0900000000"),
+            new Address("1 Nguyen Trai", "Ben Thanh", "Ho Chi Minh"));
     }
 
     private sealed class FakeIdentityService : IIdentityService
@@ -432,6 +635,8 @@ public sealed class ShipmentBusinessRuleTests
         }
 
         public int SaveChangesCount { get; private set; }
+
+        public IReadOnlyList<Shipment> Shipments => _shipments.AsReadOnly();
 
         public Task<bool> ExistsByTrackingCodeAsync(
             TrackingCode trackingCode,
@@ -525,6 +730,8 @@ public sealed class ShipmentBusinessRuleTests
 
         public int SaveChangesCount { get; private set; }
 
+        public IReadOnlyList<CodTransaction> CodTransactions => _codTransactions.AsReadOnly();
+
         public Task<CodTransaction?> GetByShipmentIdAsync(
             Guid shipmentId,
             CancellationToken cancellationToken = default)
@@ -549,6 +756,65 @@ public sealed class ShipmentBusinessRuleTests
         {
             SaveChangesCount++;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeShopRepository : IShopRepository
+    {
+        private readonly List<Shop> _shops;
+
+        public FakeShopRepository(IReadOnlyList<Shop> shops)
+        {
+            _shops = shops.ToList();
+        }
+
+        public int SaveChangesCount { get; private set; }
+
+        public Task<Shop?> GetByOwnerUserIdAsync(
+            Guid ownerUserId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_shops.FirstOrDefault(shop => shop.OwnerUserId == ownerUserId));
+        }
+
+        public Task<bool> ExistsByOwnerUserIdAsync(
+            Guid ownerUserId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_shops.Any(shop => shop.OwnerUserId == ownerUserId));
+        }
+
+        public Task AddAsync(Shop shop, CancellationToken cancellationToken = default)
+        {
+            _shops.Add(shop);
+            return Task.CompletedTask;
+        }
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            SaveChangesCount++;
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeFeeRuleRepository : IFeeRuleRepository
+    {
+        private readonly List<FeeRule> _feeRules;
+
+        public FakeFeeRuleRepository(IReadOnlyList<FeeRule> feeRules)
+        {
+            _feeRules = feeRules.ToList();
+        }
+
+        public Task<IReadOnlyCollection<FeeRule>> GetActiveRulesAsync(
+            RouteType routeType,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyCollection<FeeRule> rules = _feeRules
+                .Where(rule => rule.IsActive && rule.RouteType == routeType)
+                .ToList();
+
+            return Task.FromResult(rules);
         }
     }
 }

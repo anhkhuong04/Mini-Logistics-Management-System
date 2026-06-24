@@ -13,6 +13,9 @@ public sealed class ShopConfiguration : IEntityTypeConfiguration<Shop>
 
         builder.HasKey(shop => shop.Id);
 
+        builder.Property(shop => shop.Id)
+            .ValueGeneratedNever();
+
         builder.Property(shop => shop.OwnerUserId)
             .IsRequired();
 

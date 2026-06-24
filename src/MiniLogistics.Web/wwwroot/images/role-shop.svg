@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 160" role="img" aria-label="Shop role">
+  <rect width="260" height="160" rx="18" fill="#f8fbff"/>
+  <path d="M48 68h164v58a10 10 0 0 1-10 10H58a10 10 0 0 1-10-10V68Z" fill="#dbeafe"/>
+  <path d="M58 34h144l16 34H42l16-34Z" fill="#0b66e8"/>
+  <path d="M67 68c0 14 24 14 24 0h24c0 14 24 14 24 0h24c0 14 24 14 24 0h31v14H42V68h25Z" fill="#fff"/>
+  <rect x="82" y="92" width="38" height="44" rx="6" fill="#1e3a8a"/>
+  <rect x="140" y="92" width="48" height="28" rx="6" fill="#93c5fd"/>
+</svg>

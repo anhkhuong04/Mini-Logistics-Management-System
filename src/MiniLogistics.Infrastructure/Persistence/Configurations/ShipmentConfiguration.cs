@@ -14,6 +14,9 @@ public sealed class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
 
         builder.HasKey(shipment => shipment.Id);
 
+        builder.Property(shipment => shipment.Id)
+            .ValueGeneratedNever();
+
         builder.Property(shipment => shipment.ShopId)
             .IsRequired();
 

@@ -16,6 +16,9 @@ public sealed class FeeRuleConfiguration : IEntityTypeConfiguration<FeeRule>
 
         builder.HasKey(feeRule => feeRule.Id);
 
+        builder.Property(feeRule => feeRule.Id)
+            .ValueGeneratedNever();
+
         builder.Property(feeRule => feeRule.RouteType)
             .HasConversion<string>()
             .HasMaxLength(50)

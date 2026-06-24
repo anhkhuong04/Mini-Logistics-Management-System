@@ -260,7 +260,7 @@
         var result = await GetShipmentDetailForCurrentShopService.GetAsync(userId.Value, Id);
         if (result.IsFailure)
         {
-            ErrorMessage = result.Error.Description;
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
             Shipment = null;
         }
         else
@@ -300,7 +300,7 @@
 
         if (result.IsFailure)
         {
-            ActionErrorMessage = result.Error.Description;
+            ActionErrorMessage = UiDisplay.ToErrorMessage(result.Error);
             return;
         }
 
@@ -322,7 +322,7 @@
 
     private static string FormatDate(DateTimeOffset value)
     {
-        return value.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+        return UiDisplay.FormatLocalDateTime(value);
     }
 
     private static string FormatMoney(decimal amount, string currency)

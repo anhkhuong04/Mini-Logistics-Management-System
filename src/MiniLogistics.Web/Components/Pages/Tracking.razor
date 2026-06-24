@@ -1,6 +1,7 @@
 @page "/tracking"
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Components
 @using MiniLogistics.Application.Shipments.GetPublicTracking
 @using MiniLogistics.Domain.Shipments
 @inject IGetPublicTrackingService GetPublicTrackingService
@@ -117,11 +118,36 @@
 
     private bool IsSearching { get; set; }
 
+    private string? LoadedQueryCode { get; set; }
+
     private string? ErrorMessage { get; set; }
 
     private PublicTrackingResponse? TrackingResult { get; set; }
 
+    [SupplyParameterFromQuery(Name = "code")]
+    public string? QueryTrackingCode { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var normalizedCode = QueryTrackingCode?.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedCode)
+            || string.Equals(LoadedQueryCode, normalizedCode, StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        LoadedQueryCode = normalizedCode;
+        Form.TrackingCode = normalizedCode;
+
+        await SearchAsync(normalizedCode);
+    }
+
     private async Task HandleSearchAsync()
+    {
+        await SearchAsync(Form.TrackingCode);
+    }
+
+    private async Task SearchAsync(string trackingCode)
     {
         IsSearching = true;
         ErrorMessage = null;
@@ -129,10 +155,10 @@
 
         try
         {
-            var result = await GetPublicTrackingService.GetAsync(Form.TrackingCode);
+            var result = await GetPublicTrackingService.GetAsync(trackingCode.Trim());
             if (result.IsFailure)
             {
-                ErrorMessage = result.Error.Description;
+                ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
                 return;
             }
 
@@ -146,7 +172,7 @@
 
     private static string FormatDate(DateTimeOffset value)
     {
-        return value.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+        return UiDisplay.FormatLocalDateTime(value);
     }
 
     private static string FormatStatus(ShipmentStatus status)

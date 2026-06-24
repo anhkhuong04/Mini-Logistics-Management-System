@@ -432,3 +432,97 @@
         width: 100%;
     }
 }
+
+@media (max-width: 900px) {
+    .table-shell {
+        overflow-x: visible;
+    }
+
+    .assignments-table,
+    .operations-table {
+        border-collapse: separate;
+        border-spacing: 0;
+        min-width: 0;
+    }
+
+    .assignments-table thead {
+        display: none;
+    }
+
+    .assignments-table,
+    .assignments-table tbody,
+    .assignments-table tr,
+    .assignments-table td {
+        display: block;
+        width: 100%;
+    }
+
+    .assignments-table tr {
+        background: #fff;
+        border: 1px solid #e5eef8;
+        border-radius: 10px;
+        box-shadow: 0 10px 24px rgba(7, 27, 77, 0.05);
+        margin-bottom: 0.85rem;
+        overflow: hidden;
+    }
+
+    .assignments-table td {
+        align-items: start;
+        border-bottom: 1px solid #eef4fb;
+        display: grid;
+        gap: 0.5rem;
+        grid-template-columns: minmax(7rem, 0.42fr) minmax(0, 1fr);
+        padding: 0.85rem;
+    }
+
+    .assignments-table td:last-child {
+        border-bottom: 0;
+    }
+
+    .assignments-table td::before {
+        color: #64748b;
+        content: "";
+        font-size: 0.72rem;
+        font-weight: 900;
+        text-transform: uppercase;
+    }
+
+    .assignments-table:not(.operations-table) td:nth-child(1)::before { content: "Mã vận đơn"; }
+    .assignments-table:not(.operations-table) td:nth-child(2)::before { content: "Người nhận"; }
+    .assignments-table:not(.operations-table) td:nth-child(3)::before { content: "Tuyến"; }
+    .assignments-table:not(.operations-table) td:nth-child(4)::before { content: "COD"; }
+    .assignments-table:not(.operations-table) td:nth-child(5)::before { content: "Phí ship"; }
+    .assignments-table:not(.operations-table) td:nth-child(6)::before { content: "Ngày tạo"; }
+    .assignments-table:not(.operations-table) td:nth-child(7)::before { content: "Shipper"; }
+    .assignments-table:not(.operations-table) td:nth-child(8)::before { content: "Thao tác"; }
+
+    .operations-table td:nth-child(1)::before { content: "Mã vận đơn"; }
+    .operations-table td:nth-child(2)::before { content: "Người nhận"; }
+    .operations-table td:nth-child(3)::before { content: "Shipper"; }
+    .operations-table td:nth-child(4)::before { content: "Trạng thái"; }
+    .operations-table td:nth-child(5)::before { content: "COD"; }
+    .operations-table td:nth-child(6)::before { content: "Tuyến giao"; }
+    .operations-table td:nth-child(7)::before { content: "Hỗ trợ"; }
+
+    .route-text {
+        max-width: none;
+    }
+
+    .shipper-select,
+    .operations-actions {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .assign-button,
+    .cod-button,
+    .operations-status-form button {
+        width: 100%;
+    }
+}
+
+@media (max-width: 560px) {
+    .assignments-table td {
+        grid-template-columns: 1fr;
+    }
+}

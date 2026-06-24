@@ -4,19 +4,25 @@ Mục tiêu demo: Shop tạo đơn -> Operator assign -> Shipper giao hàng -> C
 
 ## 1. Chuẩn bị dữ liệu
 
-1. Chạy seed database:
+1. Chạy migration database:
+
+```powershell
+dotnet ef database update --project src/MiniLogistics.Infrastructure --startup-project src/MiniLogistics.Web
+```
+
+2. Chạy seed database:
 
 ```powershell
 dotnet run --project src/MiniLogistics.Web -- --seed
 ```
 
-2. Chạy web app:
+3. Chạy web app:
 
 ```powershell
 dotnet run --project src/MiniLogistics.Web
 ```
 
-3. Tài khoản demo:
+4. Tài khoản demo:
 
 | Role | Email | Password |
 | --- | --- | --- |

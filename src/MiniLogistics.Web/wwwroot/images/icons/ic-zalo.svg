@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" role="img" aria-label="Zalo">
+  <circle cx="12" cy="12" r="12" fill="#0b8cff"/>
+  <path d="M6 7h8.5L9.2 15H15v2H5.8v-1.7L11.1 9H6V7Zm10 3h2v7h-2v-7Zm0-3h2v2h-2V7Z" fill="#fff"/>
+</svg>

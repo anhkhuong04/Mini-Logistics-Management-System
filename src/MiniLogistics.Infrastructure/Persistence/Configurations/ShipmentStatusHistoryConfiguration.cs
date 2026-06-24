@@ -12,6 +12,9 @@ public sealed class ShipmentStatusHistoryConfiguration : IEntityTypeConfiguratio
 
         builder.HasKey(history => history.Id);
 
+        builder.Property(history => history.Id)
+            .ValueGeneratedNever();
+
         builder.Property(history => history.ShipmentId)
             .IsRequired();
 

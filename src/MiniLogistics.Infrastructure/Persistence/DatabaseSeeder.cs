@@ -14,6 +14,11 @@ public sealed class DatabaseSeeder
     private static readonly Guid DemoOperatorUserId = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");
     private static readonly Guid DemoShopUserId = Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
     private static readonly Guid DemoShipperUserId = Guid.Parse("dddddddd-dddd-dddd-dddd-dddddddddddd");
+    private const string DemoShopName = "Demo Mini Shop";
+    private const string DemoShopPhone = "0900000001";
+    private const string DemoShopAddressLine = "123 Nguyen Trai";
+    private const string DemoShopWard = "Phuong Ben Thanh";
+    private const string DemoShopProvince = "Ho Chi Minh";
 
     private readonly MiniLogisticsDbContext _dbContext;
     private readonly RoleManager<IdentityRole<Guid>> _roleManager;
@@ -80,35 +85,55 @@ public sealed class DatabaseSeeder
     {
         const string demoEmail = "shop@minilogistics.local";
         const string demoPassword = "Shop@123456";
-        const string demoPhone = "0900000001";
 
         var user = await SeedDemoUserAsync(
             DemoShopUserId,
             demoEmail,
             demoPassword,
-            demoPhone,
+            DemoShopPhone,
             "Demo Shop Owner",
             "Shop");
 
-        var shopExists = await _dbContext.Shops
-            .AnyAsync(shop => shop.OwnerUserId == user.Id, cancellationToken);
+        var existingShop = await _dbContext.Shops
+            .FirstOrDefaultAsync(shop => shop.OwnerUserId == user.Id, cancellationToken);
 
-        if (shopExists)
+        if (existingShop is not null)
         {
+            if (existingShop.Name != DemoShopName)
+            {
+                existingShop.Rename(DemoShopName);
+            }
+
+            if (existingShop.PhoneNumber.Value != DemoShopPhone
+                || existingShop.Address.Street != DemoShopAddressLine
+                || existingShop.Address.Ward != DemoShopWard
+                || existingShop.Address.Province != DemoShopProvince)
+            {
+                existingShop.UpdateContact(
+                    new PhoneNumber(DemoShopPhone),
+                    CreateDemoShopAddress());
+            }
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
             return;
         }
 
         var shop = new Shop(
             user.Id,
-            "Demo Mini Shop",
-            new PhoneNumber(demoPhone),
-            new Address(
-                "123 Nguyen Trai",
-                "Ben Thanh",
-                "Ho Chi Minh City"));
+            DemoShopName,
+            new PhoneNumber(DemoShopPhone),
+            CreateDemoShopAddress());
 
         await _dbContext.Shops.AddAsync(shop, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static Address CreateDemoShopAddress()
+    {
+        return new Address(
+            DemoShopAddressLine,
+            DemoShopWard,
+            DemoShopProvince);
     }
 
     private async Task<ApplicationUser> SeedDemoUserAsync(

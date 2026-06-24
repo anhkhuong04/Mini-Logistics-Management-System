@@ -124,7 +124,7 @@
         var result = await GetShipmentsForCurrentShopService.GetAsync(userId.Value);
         if (result.IsFailure)
         {
-            ErrorMessage = result.Error.Description;
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
         }
         else
         {
@@ -146,7 +146,7 @@
 
     private static string FormatDate(DateTimeOffset value)
     {
-        return value.ToLocalTime().ToString("dd/MM/yyyy HH:mm");
+        return UiDisplay.FormatLocalDateTime(value);
     }
 
     private static string FormatMoney(decimal amount, string currency)

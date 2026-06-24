@@ -464,7 +464,7 @@
         var result = await GetCurrentShopService.GetAsync(userId.Value);
         if (result.IsFailure)
         {
-            ErrorMessage = result.Error.Description;
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
             return;
         }
 
@@ -518,7 +518,7 @@
             var result = await CreateShipmentService.CreateAsync(command);
             if (result.IsFailure)
             {
-                ErrorMessage = result.Error.Description;
+                ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
                 return;
             }
 
@@ -583,7 +583,7 @@
             {
                 EstimatedShippingFeeAmount = 0;
                 ResetFeeBreakdown();
-                FeeEstimateMessage = result.Error.Description;
+                FeeEstimateMessage = UiDisplay.ToErrorMessage(result.Error);
                 return;
             }
 
@@ -623,7 +623,7 @@
 
         if (routeClassificationResult.IsFailure)
         {
-            FeeEstimateMessage = routeClassificationResult.Error.Description;
+            FeeEstimateMessage = UiDisplay.ToErrorMessage(routeClassificationResult.Error);
             return false;
         }
 

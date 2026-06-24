@@ -10,9 +10,12 @@ public sealed class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<Min
 
     public MiniLogisticsDbContext CreateDbContext(string[] args)
     {
+        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection")
+            ?? DefaultConnectionString;
+
         var optionsBuilder = new DbContextOptionsBuilder<MiniLogisticsDbContext>();
         optionsBuilder.UseSqlServer(
-            DefaultConnectionString,
+            connectionString,
             sqlOptions => sqlOptions.MigrationsAssembly(typeof(MiniLogisticsDbContext).Assembly.FullName));
 
         return new MiniLogisticsDbContext(optionsBuilder.Options);

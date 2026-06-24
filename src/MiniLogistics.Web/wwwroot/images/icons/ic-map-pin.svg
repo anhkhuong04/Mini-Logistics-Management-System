@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Map pin">
+  <rect width="64" height="64" rx="32" fill="#fff7ed"/>
+  <path d="M32 9c-9.4 0-17 7.4-17 16.6 0 11.6 13.2 25.5 17 29.2 3.8-3.7 17-17.6 17-29.2C49 16.4 41.4 9 32 9Z" fill="#f97316"/>
+  <path d="M32 32.5a7.2 7.2 0 1 0 0-14.4 7.2 7.2 0 0 0 0 14.4Z" fill="#fff"/>
+</svg>

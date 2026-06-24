@@ -202,6 +202,7 @@
     display: grid;
     gap: 1rem;
     padding: 1.25rem;
+    min-width: 0;
 }
 
 .shipment-card-header {
@@ -224,12 +225,14 @@
     font-size: 1.25rem;
     font-weight: 900;
     margin: 0 0 0.25rem;
+    overflow-wrap: anywhere;
 }
 
 .shipment-card-header p,
 .route-grid p {
     color: #64748b;
     margin: 0;
+    overflow-wrap: anywhere;
 }
 
 .status-pill {
@@ -282,6 +285,7 @@
     color: #071b4d;
     display: block;
     margin: 0.35rem 0 0.25rem;
+    overflow-wrap: anywhere;
 }
 
 .money-strip {
@@ -470,5 +474,25 @@
     .cod-action-card {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .cod-action-card button,
+    .status-form button {
+        width: 100%;
+    }
+
+    .shipment-card {
+        padding: 1rem;
+    }
+}
+
+@media (max-width: 560px) {
+    .status-action-row {
+        display: grid;
+    }
+
+    .status-form select {
+        min-width: 0;
+        width: 100%;
     }
 }
