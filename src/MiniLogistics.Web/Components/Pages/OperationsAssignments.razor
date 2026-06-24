@@ -2,7 +2,9 @@
 @rendermode InteractiveServer
 @attribute [Authorize(Roles = "Admin,Operator")]
 @using System.Security.Claims
+@using MiniLogistics.Application.CashOnDelivery.GetCodSettlementCandidates
 @using MiniLogistics.Application.CashOnDelivery.MarkCodCollected
+@using MiniLogistics.Application.CashOnDelivery.MarkCodSettled
 @using MiniLogistics.Application.Shipments.AssignShipperToShipment
 @using MiniLogistics.Application.Shipments.GetOperationsShipments
 @using MiniLogistics.Application.Shipments.GetPendingPickupShipments
@@ -11,10 +13,12 @@
 @using MiniLogistics.Domain.CashOnDelivery
 @using MiniLogistics.Domain.Shipments
 @inject IAssignShipperToShipmentService AssignShipperToShipmentService
+@inject IGetCodSettlementCandidatesService GetCodSettlementCandidatesService
 @inject IGetActiveShippersService GetActiveShippersService
 @inject IGetOperationsShipmentsService GetOperationsShipmentsService
 @inject IGetPendingPickupShipmentsService GetPendingPickupShipmentsService
 @inject IMarkCodCollectedService MarkCodCollectedService
+@inject IMarkCodSettledService MarkCodSettledService
 @inject IUpdateShipmentStatusService UpdateShipmentStatusService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
@@ -78,6 +82,13 @@
                     <span>COD cần hỗ trợ</span>
                     <strong>@OperationsShipments.Count(shipment => CanMarkCodCollected(shipment)).ToString("N0")</strong>
                 </article>
+                @if (IsAdminUser)
+                {
+                    <article>
+                        <span>COD chờ đối soát</span>
+                        <strong>@CodSettlementCandidates.Count.ToString("N0")</strong>
+                    </article>
+                }
             </div>
         </section>
 
@@ -302,6 +313,86 @@
                 </div>
             }
         </section>
+
+        @if (IsAdminUser)
+        {
+            <section class="content-card workspace-section">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Đối soát COD</p>
+                        <h2>COD đã thu chờ đối soát</h2>
+                    </div>
+                    <span class="section-count">@CodSettlementCandidates.Count.ToString("N0") khoản</span>
+                </div>
+
+                @if (CodSettlementCandidates.Count == 0)
+                {
+                    <div class="state-card compact">
+                        <span class="state-icon">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M5 4h14v16H5V4Zm2 2v12h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Z" />
+                            </svg>
+                        </span>
+                        <strong>Không có COD chờ đối soát</strong>
+                        <p>COD sau khi shipper hoặc vận hành xác nhận đã thu sẽ xuất hiện tại đây cho Admin chốt đối soát.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="table-shell">
+                        <table class="assignments-table settlement-table">
+                            <thead>
+                                <tr>
+                                    <th>Mã vận đơn</th>
+                                    <th>Người nhận</th>
+                                    <th>COD</th>
+                                    <th>Người thu</th>
+                                    <th>Ngày thu</th>
+                                    <th>Trạng thái</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var cod in CodSettlementCandidates)
+                                {
+                                    <tr>
+                                        <td><span class="tracking-code">@cod.TrackingCode</span></td>
+                                        <td>
+                                            <strong>@cod.ReceiverName</strong>
+                                            <small>@cod.ReceiverPhone</small>
+                                        </td>
+                                        <td><strong>@FormatMoney(cod.CodAmount, cod.Currency)</strong></td>
+                                        <td>
+                                            <strong>@FormatCollectedBy(cod)</strong>
+                                            @if (!string.IsNullOrWhiteSpace(cod.CollectedByEmail))
+                                            {
+                                                <small>@cod.CollectedByEmail</small>
+                                            }
+                                        </td>
+                                        <td>@FormatNullableDate(cod.CollectedAtUtc)</td>
+                                        <td>
+                                            <small class="cod-pill @GetCodStatusClass(cod.CodStatus)">@FormatCodStatus(cod.CodStatus)</small>
+                                        </td>
+                                        <td>
+                                            <button type="button"
+                                                    class="settlement-button"
+                                                    disabled="@IsSettlingCod(cod.ShipmentId)"
+                                                    @onclick="() => MarkCodSettledAsync(cod)">
+                                                @(IsSettlingCod(cod.ShipmentId) ? "Đang đối soát..." : "Đối soát COD")
+                                            </button>
+                                            @if (RowMessages.TryGetValue(cod.ShipmentId, out var rowMessage))
+                                            {
+                                                <p class="row-message @rowMessage.Kind">@rowMessage.Text</p>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </section>
+        }
     }
 </div>
 
@@ -314,13 +405,19 @@
 
     private Guid? CollectingCodShipmentId { get; set; }
 
+    private Guid? SettlingCodShipmentId { get; set; }
+
     private string? ErrorMessage { get; set; }
 
     private string? SuccessMessage { get; set; }
 
+    private bool IsAdminUser { get; set; }
+
     private IReadOnlyList<GetPendingPickupShipmentResponse> PendingShipments { get; set; } = [];
 
     private IReadOnlyList<GetOperationsShipmentResponse> OperationsShipments { get; set; } = [];
+
+    private IReadOnlyList<GetCodSettlementCandidateResponse> CodSettlementCandidates { get; set; } = [];
 
     private IReadOnlyList<GetActiveShipperResponse> ActiveShippers { get; set; } = [];
 
@@ -353,6 +450,8 @@
             RowMessages.Clear();
         }
 
+        IsAdminUser = await IsCurrentUserInRoleAsync("Admin");
+
         var shippersResult = await GetActiveShippersService.GetAsync();
         if (shippersResult.IsFailure)
         {
@@ -377,9 +476,24 @@
             return;
         }
 
+        IReadOnlyList<GetCodSettlementCandidateResponse> codSettlementCandidates = [];
+        if (IsAdminUser)
+        {
+            var settlementResult = await GetCodSettlementCandidatesService.GetAsync();
+            if (settlementResult.IsFailure)
+            {
+                ErrorMessage = UiDisplay.ToErrorMessage(settlementResult.Error);
+                IsLoading = false;
+                return;
+            }
+
+            codSettlementCandidates = settlementResult.Value;
+        }
+
         ActiveShippers = shippersResult.Value;
         PendingShipments = pendingResult.Value;
         OperationsShipments = operationsResult.Value;
+        CodSettlementCandidates = codSettlementCandidates;
         TrimSelectionsToCurrentShipments();
         SyncOperationState();
         IsLoading = false;
@@ -516,6 +630,36 @@
         await LoadAsync(clearMessages: false);
     }
 
+    private async Task MarkCodSettledAsync(GetCodSettlementCandidateResponse cod)
+    {
+        SuccessMessage = null;
+        RowMessages.Remove(cod.ShipmentId);
+
+        var settledByUserId = await GetCurrentUserIdAsync();
+        if (settledByUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        SettlingCodShipmentId = cod.ShipmentId;
+
+        var result = await MarkCodSettledService.MarkSettledAsync(new MarkCodSettledCommand(
+            cod.ShipmentId,
+            settledByUserId.Value));
+
+        SettlingCodShipmentId = null;
+
+        if (result.IsFailure)
+        {
+            RowMessages[cod.ShipmentId] = new RowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
+            return;
+        }
+
+        SuccessMessage = $"Đã đối soát COD cho {cod.TrackingCode}.";
+        await LoadAsync(clearMessages: false);
+    }
+
     private async Task<Guid?> GetCurrentUserIdAsync()
     {
         var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -524,6 +668,13 @@
         return Guid.TryParse(userIdValue, out var userId)
             ? userId
             : null;
+    }
+
+    private async Task<bool> IsCurrentUserInRoleAsync(string role)
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+
+        return authenticationState.User.IsInRole(role);
     }
 
     private void SelectShipper(Guid shipmentId, string? value)
@@ -591,6 +742,11 @@
         return CollectingCodShipmentId == shipmentId;
     }
 
+    private bool IsSettlingCod(Guid shipmentId)
+    {
+        return SettlingCodShipmentId == shipmentId;
+    }
+
     private string? GetNote(Guid shipmentId)
     {
         return StatusNotes.TryGetValue(shipmentId, out var note) && !string.IsNullOrWhiteSpace(note)
@@ -629,6 +785,17 @@
             if (!operationsShipmentIds.Contains(shipmentId))
             {
                 StatusNotes.Remove(shipmentId);
+            }
+        }
+
+        var settlementShipmentIds = CodSettlementCandidates.Select(candidate => candidate.ShipmentId).ToHashSet();
+        foreach (var shipmentId in RowMessages.Keys.ToList())
+        {
+            if (!pendingShipmentIds.Contains(shipmentId)
+                && !operationsShipmentIds.Contains(shipmentId)
+                && !settlementShipmentIds.Contains(shipmentId))
+            {
+                RowMessages.Remove(shipmentId);
             }
         }
     }
@@ -687,6 +854,25 @@
     private static string FormatDate(DateTimeOffset value)
     {
         return UiDisplay.FormatLocalDateTime(value);
+    }
+
+    private static string FormatNullableDate(DateTimeOffset? value)
+    {
+        return value.HasValue
+            ? UiDisplay.FormatLocalDateTime(value.Value)
+            : "Chưa ghi nhận";
+    }
+
+    private static string FormatCollectedBy(GetCodSettlementCandidateResponse cod)
+    {
+        if (!string.IsNullOrWhiteSpace(cod.CollectedByName))
+        {
+            return cod.CollectedByName;
+        }
+
+        return cod.CollectedByUserId.HasValue
+            ? cod.CollectedByUserId.Value.ToString()[..8]
+            : "Chưa rõ";
     }
 
     private static string FormatMoney(decimal amount, string currency)

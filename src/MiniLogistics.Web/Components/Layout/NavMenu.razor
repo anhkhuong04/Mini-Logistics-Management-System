@@ -30,6 +30,17 @@
                         </Authorized>
                     </AuthorizeView>
 
+                    <AuthorizeView Roles="Admin" Context="adminContext">
+                        <Authorized>
+                            <span class="nav-section">Quan tri</span>
+
+                            <NavLink class="nav-link" href="admin/users">
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4.1 0-7 2.2-7 5.2V20h14v-.8c0-3-2.9-5.2-7-5.2Zm7-2a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0 2c-.8 0-1.5.1-2.1.4 1.7 1.1 2.8 2.8 3 4.8H23v-.5c0-2.7-1.7-4.7-4-4.7Z" /></svg>
+                                <span>Nguoi dung</span>
+                            </NavLink>
+                        </Authorized>
+                    </AuthorizeView>
+
                     <AuthorizeView Roles="Admin,Operator" Context="operationsContext">
                         <Authorized>
                             <span class="nav-section">Điều phối</span>

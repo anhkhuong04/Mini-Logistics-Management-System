@@ -16,9 +16,25 @@ public interface IIdentityService
         string role,
         CancellationToken cancellationToken = default);
 
+    Task<Result<Guid>> CreateInternalUserAsync(
+        string fullName,
+        string email,
+        string phoneNumber,
+        string password,
+        string role,
+        CancellationToken cancellationToken = default);
+
+    Task<Result> SetUserActiveStatusAsync(
+        Guid userId,
+        bool isActive,
+        CancellationToken cancellationToken = default);
+
     Task<IdentityUserRoleCheckResponse> CheckUserRoleAsync(
         Guid userId,
         string role,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<IdentityUserWithRolesResponse>> ListUsersWithRolesAsync(
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<ActiveShipperResponse>> GetActiveShippersAsync(
@@ -47,3 +63,12 @@ public sealed record IdentityUserSummaryResponse(
     string Email,
     string? PhoneNumber,
     bool IsActive);
+
+public sealed record IdentityUserWithRolesResponse(
+    Guid UserId,
+    string FullName,
+    string Email,
+    string? PhoneNumber,
+    bool IsActive,
+    IReadOnlyList<string> Roles,
+    DateTimeOffset CreatedAtUtc);

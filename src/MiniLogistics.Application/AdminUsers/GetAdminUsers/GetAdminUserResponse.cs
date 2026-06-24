@@ -1,0 +1,10 @@
+namespace MiniLogistics.Application.AdminUsers.GetAdminUsers;
+
+public sealed record GetAdminUserResponse(
+    Guid UserId,
+    string FullName,
+    string Email,
+    string? PhoneNumber,
+    bool IsActive,
+    IReadOnlyList<string> Roles,
+    DateTimeOffset CreatedAtUtc);

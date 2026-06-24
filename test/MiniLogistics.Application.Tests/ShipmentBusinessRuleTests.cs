@@ -1,6 +1,12 @@
 ﻿using FluentValidation;
+using MiniLogistics.Application.AdminUsers.CreateInternalUser;
+using MiniLogistics.Application.AdminUsers.GetAdminUsers;
+using MiniLogistics.Application.AdminUsers.SetUserActiveStatus;
 using MiniLogistics.Application.CashOnDelivery;
+using MiniLogistics.Application.CashOnDelivery.GetCodSettlementCandidates;
 using MiniLogistics.Application.CashOnDelivery.MarkCodCollected;
+using MiniLogistics.Application.CashOnDelivery.MarkCodSettled;
+using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Fees;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.Routing;
@@ -10,7 +16,9 @@ using MiniLogistics.Application.Shipments;
 using MiniLogistics.Application.Shipments.AssignShipperToShipment;
 using MiniLogistics.Application.Shipments.GetAssignedShipmentsForShipper;
 using MiniLogistics.Application.Shipments.GetOperationsShipments;
+using MiniLogistics.Application.Shipments.GetPublicTracking;
 using MiniLogistics.Application.Shipments.UpdateShipmentStatus;
+using MiniLogistics.Application.Shippers.GetActiveShippers;
 using MiniLogistics.Application.Shops;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Common;
@@ -83,6 +91,99 @@ public sealed class ShipmentBusinessRuleTests
 
         Assert.True(result.IsFailure);
         Assert.Equal("Application.Forbidden", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task CreateInternalUser_AdminCreatesActiveShipperVisibleForAssignment()
+    {
+        var identityService = CreateIdentityService();
+        var createService = new CreateInternalUserService(
+            new CreateInternalUserCommandValidator(),
+            identityService);
+        var listService = new GetAdminUsersService(identityService);
+        var shippersService = new GetActiveShippersService(identityService);
+
+        var result = await createService.CreateAsync(new CreateInternalUserCommand(
+            _adminId,
+            "New Demo Shipper",
+            "new.shipper@example.test",
+            "0900000099",
+            "Password1",
+            nameof(UserRole.Shipper)));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(nameof(UserRole.Shipper), result.Value.Role);
+
+        var usersResult = await listService.GetAsync(_adminId);
+        Assert.True(usersResult.IsSuccess);
+        Assert.Contains(usersResult.Value, user =>
+            user.UserId == result.Value.UserId
+            && user.IsActive
+            && user.Roles.Contains(nameof(UserRole.Shipper)));
+
+        var shippersResult = await shippersService.GetAsync();
+        Assert.True(shippersResult.IsSuccess);
+        Assert.Contains(shippersResult.Value, shipper => shipper.UserId == result.Value.UserId);
+    }
+
+    [Fact]
+    public async Task CreateInternalUser_NonAdminUser_IsRejected()
+    {
+        var identityService = CreateIdentityService();
+        var createService = new CreateInternalUserService(
+            new CreateInternalUserCommandValidator(),
+            identityService);
+
+        var result = await createService.CreateAsync(new CreateInternalUserCommand(
+            _operatorId,
+            "Blocked Shipper",
+            "blocked.shipper@example.test",
+            "0900000098",
+            "Password1",
+            nameof(UserRole.Shipper)));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Application.Forbidden", result.Error.Code);
+        Assert.DoesNotContain(
+            await identityService.ListUsersWithRolesAsync(),
+            user => user.Email == "blocked.shipper@example.test");
+    }
+
+    [Fact]
+    public async Task SetUserActiveStatus_DeactivatedShipperDisappearsAndCannotBeAssigned()
+    {
+        var identityService = CreateIdentityService();
+        var managedShipperId = Guid.NewGuid();
+        identityService.AddUser(managedShipperId, true, nameof(UserRole.Shipper));
+        var setActiveService = new SetUserActiveStatusService(
+            new SetUserActiveStatusCommandValidator(),
+            identityService);
+
+        var deactivateResult = await setActiveService.SetAsync(new SetUserActiveStatusCommand(
+            _adminId,
+            managedShipperId,
+            false));
+
+        Assert.True(deactivateResult.IsSuccess);
+
+        var shippersResult = await new GetActiveShippersService(identityService).GetAsync();
+        Assert.True(shippersResult.IsSuccess);
+        Assert.DoesNotContain(shippersResult.Value, shipper => shipper.UserId == managedShipperId);
+
+        var shipment = CreateShipment(_shopUserId);
+        var assignService = new AssignShipperToShipmentService(
+            new AssignShipperCommandValidator(),
+            identityService,
+            new FakeShipmentRepository([shipment]));
+
+        var assignResult = await assignService.AssignAsync(new AssignShipperCommand(
+            shipment.Id,
+            managedShipperId,
+            _adminId,
+            "Assign to inactive shipper."));
+
+        Assert.True(assignResult.IsFailure);
+        Assert.Equal("Application.Forbidden", assignResult.Error.Code);
     }
 
     [Fact]
@@ -180,6 +281,113 @@ public sealed class ShipmentBusinessRuleTests
         Assert.Equal(_shipperId, codTransaction.CollectedByUserId);
         Assert.DoesNotContain(shipment.Assignments, assignment => assignment.IsActive);
         Assert.Equal(1, repository.SaveChangesCount);
+    }
+
+    [Fact]
+    public async Task MarkCodSettled_AdminCanSettleCollectedCod()
+    {
+        var shipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 100_000m);
+        var codTransaction = CodTransaction.Create(shipment.Id, new Money(100_000m));
+        var collectResult = codTransaction.MarkCollected(shipment.Status, _shipperId);
+        var repository = new FakeCodTransactionRepository([codTransaction]);
+        var service = CreateMarkCodSettledService(repository);
+
+        var result = await service.MarkSettledAsync(new MarkCodSettledCommand(
+            shipment.Id,
+            _adminId));
+
+        Assert.True(collectResult.IsSuccess);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(CodStatus.Settled, codTransaction.Status);
+        Assert.Equal(_adminId, codTransaction.SettledByUserId);
+        Assert.NotNull(codTransaction.SettledAtUtc);
+        Assert.Equal(1, repository.SaveChangesCount);
+    }
+
+    [Theory]
+    [InlineData(nameof(UserRole.Operator))]
+    [InlineData(nameof(UserRole.Shipper))]
+    public async Task MarkCodSettled_NonAdminUser_IsRejected(string role)
+    {
+        var settledByUserId = role == nameof(UserRole.Operator) ? _operatorId : _shipperId;
+        var shipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 100_000m);
+        var codTransaction = CodTransaction.Create(shipment.Id, new Money(100_000m));
+        var collectResult = codTransaction.MarkCollected(shipment.Status, _shipperId);
+        var repository = new FakeCodTransactionRepository([codTransaction]);
+        var service = CreateMarkCodSettledService(repository);
+
+        var result = await service.MarkSettledAsync(new MarkCodSettledCommand(
+            shipment.Id,
+            settledByUserId));
+
+        Assert.True(collectResult.IsSuccess);
+        Assert.True(result.IsFailure);
+        Assert.Equal("Application.Forbidden", result.Error.Code);
+        Assert.Equal(CodStatus.Collected, codTransaction.Status);
+        Assert.Equal(0, repository.SaveChangesCount);
+    }
+
+    [Theory]
+    [InlineData(CodStatus.PendingCollection)]
+    [InlineData(CodStatus.NotRequired)]
+    [InlineData(CodStatus.Settled)]
+    public async Task MarkCodSettled_WhenCodIsNotCollected_IsRejected(CodStatus initialStatus)
+    {
+        var shipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: initialStatus == CodStatus.NotRequired ? 0m : 100_000m);
+        var codTransaction = CodTransaction.Create(shipment.Id, new Money(initialStatus == CodStatus.NotRequired ? 0m : 100_000m));
+
+        if (initialStatus == CodStatus.Settled)
+        {
+            var collectResult = codTransaction.MarkCollected(shipment.Status, _shipperId);
+            var settleResult = codTransaction.MarkSettled(_adminId);
+            Assert.True(collectResult.IsSuccess);
+            Assert.True(settleResult.IsSuccess);
+        }
+
+        var repository = new FakeCodTransactionRepository([codTransaction]);
+        var service = CreateMarkCodSettledService(repository);
+
+        var result = await service.MarkSettledAsync(new MarkCodSettledCommand(
+            shipment.Id,
+            _adminId));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(CodErrors.CannotSettle.Code, result.Error.Code);
+        Assert.Equal(initialStatus, codTransaction.Status);
+        Assert.Equal(0, repository.SaveChangesCount);
+    }
+
+    [Fact]
+    public async Task GetCodSettlementCandidates_ReturnsOnlyCollectedCodWithCollector()
+    {
+        var collectedShipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 100_000m);
+        var pendingShipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 200_000m);
+        var settledShipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 300_000m);
+        var collectedCod = CodTransaction.Create(collectedShipment.Id, new Money(100_000m));
+        var pendingCod = CodTransaction.Create(pendingShipment.Id, new Money(200_000m));
+        var settledCod = CodTransaction.Create(settledShipment.Id, new Money(300_000m));
+        var collectResult = collectedCod.MarkCollected(collectedShipment.Status, _shipperId);
+        var settledCollectResult = settledCod.MarkCollected(settledShipment.Status, _shipperId);
+        var settleResult = settledCod.MarkSettled(_adminId);
+        var service = new GetCodSettlementCandidatesService(
+            new FakeCodTransactionRepository([collectedCod, pendingCod, settledCod]),
+            new FakeShipmentRepository([collectedShipment, pendingShipment, settledShipment]),
+            CreateIdentityService());
+
+        var result = await service.GetAsync();
+
+        Assert.True(collectResult.IsSuccess);
+        Assert.True(settledCollectResult.IsSuccess);
+        Assert.True(settleResult.IsSuccess);
+        Assert.True(result.IsSuccess);
+        var candidate = Assert.Single(result.Value);
+        Assert.Equal(collectedShipment.Id, candidate.ShipmentId);
+        Assert.Equal(collectedShipment.TrackingCode.Value, candidate.TrackingCode);
+        Assert.Equal(100_000m, candidate.CodAmount);
+        Assert.Equal(CodStatus.Collected, candidate.CodStatus);
+        Assert.Equal(_shipperId, candidate.CollectedByUserId);
+        Assert.Equal(FormatFakeUserName(_shipperId), candidate.CollectedByName);
+        Assert.Equal(FormatFakeUserEmail(_shipperId), candidate.CollectedByEmail);
     }
 
     [Fact]
@@ -408,6 +616,52 @@ public sealed class ShipmentBusinessRuleTests
         Assert.Equal(1, shipmentRepository.SaveChangesCount);
     }
 
+    [Fact]
+    public async Task GetPublicTracking_MapsTimelineActorsAndKeepsUnknownUsersVisible()
+    {
+        var inactiveOperatorId = Guid.NewGuid();
+        var unknownUserId = Guid.NewGuid();
+        var identityService = CreateIdentityService();
+        identityService.AddUser(inactiveOperatorId, false, nameof(UserRole.Operator));
+
+        var shipment = CreateAssignedShipment(_shipperId);
+        var pickupResult = shipment.UpdateStatus(ShipmentStatus.PickingUp, inactiveOperatorId, "Inactive operator support update.");
+        var pickedUpResult = shipment.UpdateStatus(ShipmentStatus.PickedUp, unknownUserId, "Legacy user update.");
+        var service = new GetPublicTrackingService(
+            identityService,
+            new FakeShipmentRepository([shipment]));
+
+        var result = await service.GetAsync(shipment.TrackingCode.Value);
+
+        Assert.True(pickupResult.IsSuccess);
+        Assert.True(pickedUpResult.IsSuccess);
+        Assert.True(result.IsSuccess);
+
+        var timeline = result.Value.Timeline;
+        Assert.Contains(timeline, history =>
+            history.Status == ShipmentStatus.PendingPickup
+            && history.ChangedByUserId == _shopUserId
+            && history.ChangedByUserFound
+            && history.ChangedByDisplayName == FormatFakeUserName(_shopUserId)
+            && history.ChangedByEmail == FormatFakeUserEmail(_shopUserId));
+        Assert.Contains(timeline, history =>
+            history.Status == ShipmentStatus.Assigned
+            && history.ChangedByUserId == _operatorId
+            && history.ChangedByUserFound
+            && history.ChangedByDisplayName == FormatFakeUserName(_operatorId));
+        Assert.Contains(timeline, history =>
+            history.Status == ShipmentStatus.PickingUp
+            && history.ChangedByUserId == inactiveOperatorId
+            && history.ChangedByUserFound
+            && history.ChangedByDisplayName == FormatFakeUserName(inactiveOperatorId));
+        Assert.Contains(timeline, history =>
+            history.Status == ShipmentStatus.PickedUp
+            && history.ChangedByUserId == unknownUserId
+            && !history.ChangedByUserFound
+            && history.ChangedByDisplayName == "Người dùng không xác định"
+            && history.ChangedByEmail is null);
+    }
+
     private AssignShipperToShipmentService CreateAssignService(IReadOnlyList<Shipment> shipments)
     {
         return CreateAssignService(new FakeShipmentRepository(shipments));
@@ -446,6 +700,14 @@ public sealed class ShipmentBusinessRuleTests
             new MarkCodCollectedCommandValidator(),
             CreateIdentityService(),
             shipmentRepository,
+            codTransactionRepository);
+    }
+
+    private MarkCodSettledService CreateMarkCodSettledService(FakeCodTransactionRepository codTransactionRepository)
+    {
+        return new MarkCodSettledService(
+            new MarkCodSettledCommandValidator(),
+            CreateIdentityService(),
             codTransactionRepository);
     }
 
@@ -548,13 +810,30 @@ public sealed class ShipmentBusinessRuleTests
             new Address("1 Nguyen Trai", "Ben Thanh", "Ho Chi Minh"));
     }
 
+    private static string FormatFakeUserName(Guid userId)
+    {
+        return $"User {userId.ToString()[..8]}";
+    }
+
+    private static string FormatFakeUserEmail(Guid userId)
+    {
+        return $"{userId:N}@example.test";
+    }
+
     private sealed class FakeIdentityService : IIdentityService
     {
         private readonly Dictionary<Guid, FakeUser> _users = [];
 
         public void AddUser(Guid userId, bool isActive, params string[] roles)
         {
-            _users[userId] = new FakeUser(userId, $"User {userId.ToString()[..8]}", $"{userId:N}@example.test", null, isActive, roles.ToHashSet());
+            _users[userId] = new FakeUser(
+                userId,
+                $"User {userId.ToString()[..8]}",
+                $"{userId:N}@example.test",
+                null,
+                isActive,
+                roles.ToHashSet(),
+                DateTimeOffset.UtcNow);
         }
 
         public Task<Result<Guid>> CreateUserAsync(
@@ -564,7 +843,17 @@ public sealed class ShipmentBusinessRuleTests
             string password,
             CancellationToken cancellationToken = default)
         {
-            throw new NotSupportedException();
+            var userId = Guid.NewGuid();
+            _users[userId] = new FakeUser(
+                userId,
+                fullName.Trim(),
+                email.Trim(),
+                phoneNumber.Trim(),
+                true,
+                [],
+                DateTimeOffset.UtcNow);
+
+            return Task.FromResult(Result<Guid>.Success(userId));
         }
 
         public Task<Result> AddToRoleAsync(
@@ -572,7 +861,58 @@ public sealed class ShipmentBusinessRuleTests
             string role,
             CancellationToken cancellationToken = default)
         {
-            throw new NotSupportedException();
+            if (!_users.TryGetValue(userId, out var user))
+            {
+                return Task.FromResult(Result.Failure(ApplicationErrors.NotFound("User was not found.")));
+            }
+
+            user.Roles.Add(role);
+            return Task.FromResult(Result.Success());
+        }
+
+        public async Task<Result<Guid>> CreateInternalUserAsync(
+            string fullName,
+            string email,
+            string phoneNumber,
+            string password,
+            string role,
+            CancellationToken cancellationToken = default)
+        {
+            if (_users.Values.Any(user => string.Equals(user.Email, email.Trim(), StringComparison.OrdinalIgnoreCase)))
+            {
+                return Result<Guid>.Failure(ApplicationErrors.Conflict("Email already exists."));
+            }
+
+            var createResult = await CreateUserAsync(
+                fullName,
+                email,
+                phoneNumber,
+                password,
+                cancellationToken);
+
+            if (createResult.IsFailure)
+            {
+                return createResult;
+            }
+
+            var roleResult = await AddToRoleAsync(createResult.Value, role, cancellationToken);
+            return roleResult.IsSuccess
+                ? createResult
+                : Result<Guid>.Failure(roleResult.Error);
+        }
+
+        public Task<Result> SetUserActiveStatusAsync(
+            Guid userId,
+            bool isActive,
+            CancellationToken cancellationToken = default)
+        {
+            if (!_users.TryGetValue(userId, out var user))
+            {
+                return Task.FromResult(Result.Failure(ApplicationErrors.NotFound("User was not found.")));
+            }
+
+            user.IsActive = isActive;
+            return Task.FromResult(Result.Success());
         }
 
         public Task<IdentityUserRoleCheckResponse> CheckUserRoleAsync(
@@ -603,6 +943,24 @@ public sealed class ShipmentBusinessRuleTests
             return Task.FromResult(shippers);
         }
 
+        public Task<IReadOnlyList<IdentityUserWithRolesResponse>> ListUsersWithRolesAsync(
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<IdentityUserWithRolesResponse> users = _users.Values
+                .OrderBy(user => user.FullName)
+                .Select(user => new IdentityUserWithRolesResponse(
+                    user.UserId,
+                    user.FullName,
+                    user.Email,
+                    user.PhoneNumber,
+                    user.IsActive,
+                    user.Roles.OrderBy(role => role).ToList(),
+                    user.CreatedAtUtc))
+                .ToList();
+
+            return Task.FromResult(users);
+        }
+
         public Task<IReadOnlyList<IdentityUserSummaryResponse>> GetUsersByIdsAsync(
             IReadOnlyCollection<Guid> userIds,
             CancellationToken cancellationToken = default)
@@ -616,13 +974,40 @@ public sealed class ShipmentBusinessRuleTests
             return Task.FromResult(users);
         }
 
-        private sealed record FakeUser(
-            Guid UserId,
-            string FullName,
-            string Email,
-            string? PhoneNumber,
-            bool IsActive,
-            HashSet<string> Roles);
+        private sealed class FakeUser
+        {
+            public FakeUser(
+                Guid userId,
+                string fullName,
+                string email,
+                string? phoneNumber,
+                bool isActive,
+                HashSet<string> roles,
+                DateTimeOffset createdAtUtc)
+            {
+                UserId = userId;
+                FullName = fullName;
+                Email = email;
+                PhoneNumber = phoneNumber;
+                IsActive = isActive;
+                Roles = roles;
+                CreatedAtUtc = createdAtUtc;
+            }
+
+            public Guid UserId { get; }
+
+            public string FullName { get; }
+
+            public string Email { get; }
+
+            public string? PhoneNumber { get; }
+
+            public bool IsActive { get; set; }
+
+            public HashSet<string> Roles { get; }
+
+            public DateTimeOffset CreatedAtUtc { get; }
+        }
     }
 
     private sealed class FakeShipmentRepository : IShipmentRepository
@@ -664,6 +1049,13 @@ public sealed class ShipmentBusinessRuleTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<Shipment>>(_shipments.Where(shipment => statuses.Contains(shipment.Status)).ToList());
+        }
+
+        public Task<IReadOnlyList<Shipment>> GetByIdsAsync(
+            IReadOnlyCollection<Guid> shipmentIds,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<Shipment>>(_shipments.Where(shipment => shipmentIds.Contains(shipment.Id)).ToList());
         }
 
         public Task<IReadOnlyList<Shipment>> GetAssignedToShipperAsync(
@@ -731,6 +1123,15 @@ public sealed class ShipmentBusinessRuleTests
         public int SaveChangesCount { get; private set; }
 
         public IReadOnlyList<CodTransaction> CodTransactions => _codTransactions.AsReadOnly();
+
+        public Task<IReadOnlyList<CodTransaction>> GetByStatusesAsync(
+            IReadOnlyCollection<CodStatus> statuses,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<CodTransaction>>(_codTransactions
+                .Where(codTransaction => statuses.Contains(codTransaction.Status))
+                .ToList());
+        }
 
         public Task<CodTransaction?> GetByShipmentIdAsync(
             Guid shipmentId,

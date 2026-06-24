@@ -50,6 +50,7 @@ public static class UiDisplay
             "Tài khoản đã được tạo. Vui lòng đăng nhập." => "Tài khoản đã được tạo. Vui lòng đăng nhập.",
             "Email or password is incorrect." => "Email hoặc mật khẩu không đúng.",
             "Account was created. Please sign in." => "Tài khoản đã được tạo. Vui lòng đăng nhập.",
+            "Account is inactive." => "Tai khoan dang bi khoa hoac chua active.",
             "Shop already exists for this user." => "Tài khoản này đã có shop.",
             "Shop account is not active." => "Shop đang bị khóa hoặc chưa active.",
             "Shop was not found for current user." => "Không tìm thấy shop cho tài khoản đang đăng nhập.",

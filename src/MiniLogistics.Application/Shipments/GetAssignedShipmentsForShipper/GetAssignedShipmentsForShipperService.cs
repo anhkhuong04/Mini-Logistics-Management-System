@@ -76,7 +76,12 @@ public sealed class GetAssignedShipmentsForShipperService : IGetAssignedShipment
                 continue;
             }
 
-            response.Add(ToResponse(shipment, codStatus));
+            var trackingHistory = await ShipmentStatusHistoryMapper.ToResponseAsync(
+                shipment.StatusHistory,
+                _identityService,
+                cancellationToken);
+
+            response.Add(ToResponse(shipment, codStatus, trackingHistory));
         }
 
         return Result<IReadOnlyList<GetAssignedShipmentForShipperResponse>>.Success(response);
@@ -84,7 +89,8 @@ public sealed class GetAssignedShipmentsForShipperService : IGetAssignedShipment
 
     private static GetAssignedShipmentForShipperResponse ToResponse(
         Shipment shipment,
-        CodStatus codStatus)
+        CodStatus codStatus,
+        IReadOnlyList<ShipmentStatusHistoryResponse> trackingHistory)
     {
         return new GetAssignedShipmentForShipperResponse(
             shipment.Id,
@@ -101,13 +107,7 @@ public sealed class GetAssignedShipmentsForShipperService : IGetAssignedShipment
             shipment.ShippingFee.Currency,
             shipment.Status,
             shipment.CreatedAtUtc,
-            shipment.StatusHistory
-                .OrderBy(history => history.ChangedAtUtc)
-                .Select(history => new ShipmentStatusHistoryResponse(
-                    history.Status,
-                    history.Note,
-                    history.ChangedAtUtc))
-                .ToList());
+            trackingHistory);
     }
 
     private static ShipmentAddressResponse ToAddressResponse(Address address)

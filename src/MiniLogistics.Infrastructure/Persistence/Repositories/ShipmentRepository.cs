@@ -56,6 +56,16 @@ public sealed class ShipmentRepository : IShipmentRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Shipment>> GetByIdsAsync(
+        IReadOnlyCollection<Guid> shipmentIds,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Shipments
+            .AsNoTracking()
+            .Where(shipment => shipmentIds.Contains(shipment.Id))
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Shipment>> GetAssignedToShipperAsync(
         Guid shipperId,
         CancellationToken cancellationToken = default)

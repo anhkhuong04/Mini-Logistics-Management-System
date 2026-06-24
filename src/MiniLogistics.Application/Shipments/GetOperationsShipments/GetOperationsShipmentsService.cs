@@ -69,7 +69,12 @@ public sealed class GetOperationsShipmentsService : IGetOperationsShipmentsServi
                 ? user
                 : null;
 
-            response.Add(ToResponse(shipment, codStatus, activeShipperId, activeShipper));
+            var trackingHistory = await ShipmentStatusHistoryMapper.ToResponseAsync(
+                shipment.StatusHistory,
+                _identityService,
+                cancellationToken);
+
+            response.Add(ToResponse(shipment, codStatus, activeShipperId, activeShipper, trackingHistory));
         }
 
         return Result<IReadOnlyList<GetOperationsShipmentResponse>>.Success(response);
@@ -79,7 +84,8 @@ public sealed class GetOperationsShipmentsService : IGetOperationsShipmentsServi
         Shipment shipment,
         CodStatus codStatus,
         Guid? activeShipperId,
-        IdentityUserSummaryResponse? activeShipper)
+        IdentityUserSummaryResponse? activeShipper,
+        IReadOnlyList<ShipmentStatusHistoryResponse> trackingHistory)
     {
         return new GetOperationsShipmentResponse(
             shipment.Id,
@@ -97,13 +103,7 @@ public sealed class GetOperationsShipmentsService : IGetOperationsShipmentsServi
             activeShipperId,
             activeShipper?.FullName,
             activeShipper?.PhoneNumber,
-            shipment.StatusHistory
-                .OrderBy(history => history.ChangedAtUtc)
-                .Select(history => new ShipmentStatusHistoryResponse(
-                    history.Status,
-                    history.Note,
-                    history.ChangedAtUtc))
-                .ToList());
+            trackingHistory);
     }
 
     private static ShipmentAddressResponse ToAddressResponse(Address address)

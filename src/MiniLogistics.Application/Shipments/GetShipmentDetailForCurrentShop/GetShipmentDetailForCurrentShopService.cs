@@ -1,4 +1,5 @@
 using MiniLogistics.Application.Common;
+using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.Shops;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Shipments;
@@ -8,13 +9,16 @@ namespace MiniLogistics.Application.Shipments.GetShipmentDetailForCurrentShop;
 
 public sealed class GetShipmentDetailForCurrentShopService : IGetShipmentDetailForCurrentShopService
 {
+    private readonly IIdentityService _identityService;
     private readonly IShopRepository _shopRepository;
     private readonly IShipmentRepository _shipmentRepository;
 
     public GetShipmentDetailForCurrentShopService(
+        IIdentityService identityService,
         IShopRepository shopRepository,
         IShipmentRepository shipmentRepository)
     {
+        _identityService = identityService;
         _shopRepository = shopRepository;
         _shipmentRepository = shipmentRepository;
     }
@@ -60,10 +64,17 @@ public sealed class GetShipmentDetailForCurrentShopService : IGetShipmentDetailF
                 ApplicationErrors.NotFound("Shipment was not found for current shop."));
         }
 
-        return Result<ShipmentDetailResponse>.Success(ToResponse(shipment));
+        var history = await ShipmentStatusHistoryMapper.ToResponseAsync(
+            shipment.StatusHistory,
+            _identityService,
+            cancellationToken);
+
+        return Result<ShipmentDetailResponse>.Success(ToResponse(shipment, history));
     }
 
-    private static ShipmentDetailResponse ToResponse(Shipment shipment)
+    private static ShipmentDetailResponse ToResponse(
+        Shipment shipment,
+        IReadOnlyList<ShipmentStatusHistoryResponse> trackingHistory)
     {
         return new ShipmentDetailResponse(
             shipment.Id,
@@ -92,7 +103,7 @@ public sealed class GetShipmentDetailForCurrentShopService : IGetShipmentDetailF
             shipment.Note,
             shipment.Status,
             shipment.CreatedAtUtc,
-            ToHistoryResponse(shipment.StatusHistory));
+            trackingHistory);
     }
 
     private static ShipmentAddressResponse ToAddressResponse(Address address)
@@ -105,15 +116,4 @@ public sealed class GetShipmentDetailForCurrentShopService : IGetShipmentDetailF
             address.FullAddress);
     }
 
-    private static IReadOnlyList<ShipmentStatusHistoryResponse> ToHistoryResponse(
-        IEnumerable<ShipmentStatusHistory> statusHistory)
-    {
-        return statusHistory
-            .OrderBy(history => history.ChangedAtUtc)
-            .Select(history => new ShipmentStatusHistoryResponse(
-                history.Status,
-                history.Note,
-                history.ChangedAtUtc))
-            .ToList();
-    }
 }

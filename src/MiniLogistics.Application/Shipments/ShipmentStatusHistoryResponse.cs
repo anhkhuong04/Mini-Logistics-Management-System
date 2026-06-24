@@ -5,4 +5,8 @@ namespace MiniLogistics.Application.Shipments;
 public sealed record ShipmentStatusHistoryResponse(
     ShipmentStatus Status,
     string Note,
-    DateTimeOffset ChangedAtUtc);
+    DateTimeOffset ChangedAtUtc,
+    Guid ChangedByUserId,
+    string ChangedByDisplayName,
+    string? ChangedByEmail,
+    bool ChangedByUserFound);

@@ -3,6 +3,7 @@
 @attribute [Authorize(Roles = "Shipper")]
 @using System.Security.Claims
 @using MiniLogistics.Application.CashOnDelivery.MarkCodCollected
+@using MiniLogistics.Application.Shipments
 @using MiniLogistics.Application.Shipments.GetAssignedShipmentsForShipper
 @using MiniLogistics.Application.Shipments.UpdateShipmentStatus
 @using MiniLogistics.Domain.CashOnDelivery
@@ -198,6 +199,7 @@
                                     <div>
                                         <strong>@FormatStatus(history.Status)</strong>
                                         <time>@FormatDate(history.ChangedAtUtc)</time>
+                                        <small class="timeline-actor">@FormatInternalActor(history)</small>
                                         @if (!string.IsNullOrWhiteSpace(history.Note))
                                         {
                                             <p>@history.Note</p>
@@ -482,6 +484,18 @@
     private static string FormatDate(DateTimeOffset value)
     {
         return UiDisplay.FormatLocalDateTime(value);
+    }
+
+    private static string FormatInternalActor(ShipmentStatusHistoryResponse history)
+    {
+        if (!history.ChangedByUserFound)
+        {
+            return "Cập nhật bởi người dùng không xác định";
+        }
+
+        return string.IsNullOrWhiteSpace(history.ChangedByEmail)
+            ? $"Cập nhật bởi {history.ChangedByDisplayName}"
+            : $"Cập nhật bởi {history.ChangedByDisplayName} ({history.ChangedByEmail})";
     }
 
     private static string FormatMoney(decimal amount, string currency)

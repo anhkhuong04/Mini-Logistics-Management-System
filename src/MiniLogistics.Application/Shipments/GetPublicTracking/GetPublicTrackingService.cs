@@ -1,4 +1,5 @@
 using MiniLogistics.Application.Common;
+using MiniLogistics.Application.Identity;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Shipments;
 
@@ -6,10 +7,14 @@ namespace MiniLogistics.Application.Shipments.GetPublicTracking;
 
 public sealed class GetPublicTrackingService : IGetPublicTrackingService
 {
+    private readonly IIdentityService _identityService;
     private readonly IShipmentRepository _shipmentRepository;
 
-    public GetPublicTrackingService(IShipmentRepository shipmentRepository)
+    public GetPublicTrackingService(
+        IIdentityService identityService,
+        IShipmentRepository shipmentRepository)
     {
+        _identityService = identityService;
         _shipmentRepository = shipmentRepository;
     }
 
@@ -33,13 +38,10 @@ public sealed class GetPublicTrackingService : IGetPublicTrackingService
                 ApplicationErrors.NotFound("Shipment was not found for tracking code."));
         }
 
-        var timeline = shipment.StatusHistory
-            .OrderBy(history => history.ChangedAtUtc)
-            .Select(history => new ShipmentStatusHistoryResponse(
-                history.Status,
-                history.Note,
-                history.ChangedAtUtc))
-            .ToList();
+        var timeline = await ShipmentStatusHistoryMapper.ToResponseAsync(
+            shipment.StatusHistory,
+            _identityService,
+            cancellationToken);
 
         return Result<PublicTrackingResponse>.Success(new PublicTrackingResponse(
             shipment.TrackingCode.Value,

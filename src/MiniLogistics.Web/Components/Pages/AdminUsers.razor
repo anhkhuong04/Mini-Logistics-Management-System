@@ -1,0 +1,382 @@
+@page "/admin/users"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@using System.Security.Claims
+@using MiniLogistics.Application.AdminUsers.CreateInternalUser
+@using MiniLogistics.Application.AdminUsers.GetAdminUsers
+@using MiniLogistics.Application.AdminUsers.SetUserActiveStatus
+@using MiniLogistics.Domain.Users
+@inject ICreateInternalUserService CreateInternalUserService
+@inject IGetAdminUsersService GetAdminUsersService
+@inject ISetUserActiveStatusService SetUserActiveStatusService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Quan ly nguoi dung - MiniLogistics</PageTitle>
+
+<div class="admin-users-page">
+    <div class="page-heading">
+        <div>
+            <p class="eyebrow">Quan tri</p>
+            <h1>Quan ly nguoi dung</h1>
+            <p>Tao nhanh tai khoan van hanh va bat/tat trang thai shipper cho demo dieu phoi.</p>
+        </div>
+
+        <button type="button" class="refresh-button" disabled="@IsLoading" @onclick="RefreshAsync">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5a7 7 0 1 1-6.3 4H3.5A9 9 0 1 0 6 5.8V3H4v6h6V7H7.4A7 7 0 0 1 12 5Z" />
+            </svg>
+            <span>Lam moi</span>
+        </button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert-box danger" role="alert">@ErrorMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
+    {
+        <div class="alert-box success" role="status">@SuccessMessage</div>
+    }
+
+    @if (IsLoading)
+    {
+        <section class="content-card state-card" aria-live="polite">
+            <strong>Dang tai danh sach nguoi dung</strong>
+        </section>
+    }
+    else
+    {
+        <section class="content-card">
+            <div class="summary-strip" aria-label="Tom tat nguoi dung">
+                <article>
+                    <span>Tong user</span>
+                    <strong>@Users.Count.ToString("N0")</strong>
+                </article>
+                <article>
+                    <span>Shipper active</span>
+                    <strong>@Users.Count(user => IsRole(user, UserRole.Shipper) && user.IsActive).ToString("N0")</strong>
+                </article>
+                <article>
+                    <span>Shipper inactive</span>
+                    <strong>@Users.Count(user => IsRole(user, UserRole.Shipper) && !user.IsActive).ToString("N0")</strong>
+                </article>
+                <article>
+                    <span>Operator</span>
+                    <strong>@Users.Count(user => IsRole(user, UserRole.Operator)).ToString("N0")</strong>
+                </article>
+            </div>
+        </section>
+
+        <section class="content-card create-section">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">Tai khoan noi bo</p>
+                    <h2>Tao shipper/operator</h2>
+                </div>
+            </div>
+
+            <form class="create-user-form" @onsubmit="CreateUserAsync" @onsubmit:preventDefault="true">
+                <label class="field-group" for="admin-user-full-name">
+                    <span>Ho ten</span>
+                    <input id="admin-user-full-name" maxlength="150" required @bind="CreateFullName" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group" for="admin-user-email">
+                    <span>Email</span>
+                    <input id="admin-user-email" type="email" maxlength="256" required @bind="CreateEmail" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group" for="admin-user-phone">
+                    <span>So dien thoai</span>
+                    <input id="admin-user-phone" type="tel" maxlength="20" required @bind="CreatePhoneNumber" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group" for="admin-user-password">
+                    <span>Mat khau</span>
+                    <input id="admin-user-password" type="password" minlength="6" maxlength="100" required @bind="CreatePassword" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group" for="admin-user-role">
+                    <span>Vai tro</span>
+                    <select id="admin-user-role" @bind="CreateRole">
+                        <option value="Shipper">Shipper</option>
+                        <option value="Operator">Operator</option>
+                    </select>
+                </label>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@IsCreating">
+                        @(IsCreating ? "Dang tao..." : "Tao tai khoan")
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section class="content-card users-section">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">Danh sach</p>
+                    <h2>Nguoi dung he thong</h2>
+                </div>
+                <span class="section-count">@Users.Count.ToString("N0") user</span>
+            </div>
+
+            @if (Users.Count == 0)
+            {
+                <div class="state-card compact">
+                    <strong>Chua co user</strong>
+                    <p>Seed demo hoac tao user noi bo de bat dau dieu phoi.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-shell">
+                    <table class="users-table">
+                        <thead>
+                            <tr>
+                                <th>Nguoi dung</th>
+                                <th>Lien he</th>
+                                <th>Vai tro</th>
+                                <th>Trang thai</th>
+                                <th>Ngay tao</th>
+                                <th>Thao tac</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var user in Users)
+                            {
+                                <tr>
+                                    <td data-label="Nguoi dung">
+                                        <strong>@user.FullName</strong>
+                                        <small>@user.UserId.ToString()[..8]</small>
+                                    </td>
+                                    <td data-label="Lien he">
+                                        <strong>@user.Email</strong>
+                                        @if (!string.IsNullOrWhiteSpace(user.PhoneNumber))
+                                        {
+                                            <small>@user.PhoneNumber</small>
+                                        }
+                                    </td>
+                                    <td data-label="Vai tro">
+                                        <div class="role-list">
+                                            @foreach (var role in user.Roles)
+                                            {
+                                                <span class="role-pill">@role</span>
+                                            }
+                                        </div>
+                                    </td>
+                                    <td data-label="Trang thai">
+                                        <span class="status-pill @(user.IsActive ? "active" : "inactive")">
+                                            @(user.IsActive ? "Active" : "Inactive")
+                                        </span>
+                                    </td>
+                                    <td data-label="Ngay tao">@FormatDate(user.CreatedAtUtc)</td>
+                                    <td data-label="Thao tac">
+                                        @if (CanToggleUser(user))
+                                        {
+                                            <button type="button"
+                                                    class="toggle-button @(user.IsActive ? "danger" : "success")"
+                                                    disabled="@IsToggling(user.UserId)"
+                                                    @onclick="() => ToggleUserAsync(user)">
+                                                @GetToggleButtonText(user)
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <span class="locked-note">Chi xem</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    private bool IsLoading { get; set; } = true;
+
+    private bool IsCreating { get; set; }
+
+    private Guid? TogglingUserId { get; set; }
+
+    private string? ErrorMessage { get; set; }
+
+    private string? SuccessMessage { get; set; }
+
+    private IReadOnlyList<GetAdminUserResponse> Users { get; set; } = [];
+
+    private string CreateFullName { get; set; } = string.Empty;
+
+    private string CreateEmail { get; set; } = string.Empty;
+
+    private string CreatePhoneNumber { get; set; } = string.Empty;
+
+    private string CreatePassword { get; set; } = string.Empty;
+
+    private string CreateRole { get; set; } = nameof(UserRole.Shipper);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync(clearMessages: true);
+    }
+
+    private async Task RefreshAsync()
+    {
+        await LoadAsync(clearMessages: true);
+    }
+
+    private async Task LoadAsync(bool clearMessages)
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+
+        if (clearMessages)
+        {
+            SuccessMessage = null;
+        }
+
+        var adminUserId = await GetCurrentUserIdAsync();
+        if (adminUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var result = await GetAdminUsersService.GetAsync(adminUserId.Value);
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            IsLoading = false;
+            return;
+        }
+
+        Users = result.Value;
+        IsLoading = false;
+    }
+
+    private async Task CreateUserAsync()
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        var adminUserId = await GetCurrentUserIdAsync();
+        if (adminUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        IsCreating = true;
+
+        var result = await CreateInternalUserService.CreateAsync(new CreateInternalUserCommand(
+            adminUserId.Value,
+            CreateFullName,
+            CreateEmail,
+            CreatePhoneNumber,
+            CreatePassword,
+            CreateRole));
+
+        IsCreating = false;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        SuccessMessage = $"Da tao {result.Value.Role} {result.Value.FullName}.";
+        ClearCreateForm();
+        await LoadAsync(clearMessages: false);
+    }
+
+    private async Task ToggleUserAsync(GetAdminUserResponse user)
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        var adminUserId = await GetCurrentUserIdAsync();
+        if (adminUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        TogglingUserId = user.UserId;
+
+        var targetActiveStatus = !user.IsActive;
+        var result = await SetUserActiveStatusService.SetAsync(new SetUserActiveStatusCommand(
+            adminUserId.Value,
+            user.UserId,
+            targetActiveStatus));
+
+        TogglingUserId = null;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        SuccessMessage = targetActiveStatus
+            ? $"Da kich hoat {user.FullName}."
+            : $"Da khoa {user.FullName}.";
+
+        await LoadAsync(clearMessages: false);
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userIdValue = authenticationState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(userIdValue, out var userId)
+            ? userId
+            : null;
+    }
+
+    private void ClearCreateForm()
+    {
+        CreateFullName = string.Empty;
+        CreateEmail = string.Empty;
+        CreatePhoneNumber = string.Empty;
+        CreatePassword = string.Empty;
+        CreateRole = nameof(UserRole.Shipper);
+    }
+
+    private bool IsToggling(Guid userId)
+    {
+        return TogglingUserId == userId;
+    }
+
+    private static bool CanToggleUser(GetAdminUserResponse user)
+    {
+        return IsRole(user, UserRole.Shipper)
+            || IsRole(user, UserRole.Operator);
+    }
+
+    private string GetToggleButtonText(GetAdminUserResponse user)
+    {
+        if (IsToggling(user.UserId))
+        {
+            return user.IsActive ? "Dang khoa..." : "Dang kich hoat...";
+        }
+
+        return user.IsActive ? "Khoa" : "Kich hoat";
+    }
+
+    private static bool IsRole(GetAdminUserResponse user, UserRole role)
+    {
+        return user.Roles.Contains(role.ToString(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string FormatDate(DateTimeOffset value)
+    {
+        return UiDisplay.FormatLocalDateTime(value);
+    }
+}

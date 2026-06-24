@@ -82,6 +82,12 @@ public static class AuthenticationEndpoints
             return RedirectWithError("/login", "Email hoặc mật khẩu không đúng.");
         }
 
+        if (!user.IsActive)
+        {
+            await signInManager.SignOutAsync();
+            return RedirectWithError("/login", "Account is inactive.");
+        }
+
         var roles = await userManager.GetRolesAsync(user);
 
         return Results.Redirect(GetPostLoginRedirectPath(roles));

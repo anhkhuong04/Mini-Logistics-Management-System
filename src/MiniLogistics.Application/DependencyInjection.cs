@@ -1,6 +1,11 @@
 using FluentValidation;
+using MiniLogistics.Application.AdminUsers.CreateInternalUser;
+using MiniLogistics.Application.AdminUsers.GetAdminUsers;
+using MiniLogistics.Application.AdminUsers.SetUserActiveStatus;
+using MiniLogistics.Application.CashOnDelivery.GetCodSettlementCandidates;
 using Microsoft.Extensions.DependencyInjection;
 using MiniLogistics.Application.CashOnDelivery.MarkCodCollected;
+using MiniLogistics.Application.CashOnDelivery.MarkCodSettled;
 using MiniLogistics.Application.Fees;
 using MiniLogistics.Application.Routing;
 using MiniLogistics.Application.Shippers.GetActiveShippers;
@@ -25,7 +30,12 @@ public static class DependencyInjection
     {
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
 
+        services.AddScoped<ICreateInternalUserService, CreateInternalUserService>();
+        services.AddScoped<IGetAdminUsersService, GetAdminUsersService>();
+        services.AddScoped<ISetUserActiveStatusService, SetUserActiveStatusService>();
         services.AddScoped<IMarkCodCollectedService, MarkCodCollectedService>();
+        services.AddScoped<IMarkCodSettledService, MarkCodSettledService>();
+        services.AddScoped<IGetCodSettlementCandidatesService, GetCodSettlementCandidatesService>();
         services.AddScoped<IShippingFeeService, ShippingFeeService>();
         services.AddScoped<IRouteClassificationService, RouteClassificationService>();
         services.AddScoped<IGetActiveShippersService, GetActiveShippersService>();

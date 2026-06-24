@@ -36,7 +36,8 @@
 }
 
 .refresh-button,
-.assign-button {
+.assign-button,
+.settlement-button {
     align-items: center;
     border: 0;
     border-radius: 10px;
@@ -165,6 +166,10 @@
     min-width: 1280px;
 }
 
+.settlement-table {
+    min-width: 1120px;
+}
+
 .assignments-table th {
     background: #f6f9fe;
     color: #64748b;
@@ -231,11 +236,20 @@
     border-color: #fca5a5;
 }
 
-.assign-button {
+.assign-button,
+.settlement-button {
     background: #0b63f6;
     color: #fff;
     padding: 0 1rem;
     white-space: nowrap;
+}
+
+.settlement-button {
+    border: 0;
+    border-radius: 10px;
+    cursor: pointer;
+    font-weight: 900;
+    min-height: 40px;
 }
 
 .cod-button {
@@ -251,6 +265,11 @@
 }
 
 .cod-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+.settlement-button:disabled {
     cursor: not-allowed;
     opacity: 0.65;
 }
@@ -487,14 +506,14 @@
         text-transform: uppercase;
     }
 
-    .assignments-table:not(.operations-table) td:nth-child(1)::before { content: "Mã vận đơn"; }
-    .assignments-table:not(.operations-table) td:nth-child(2)::before { content: "Người nhận"; }
-    .assignments-table:not(.operations-table) td:nth-child(3)::before { content: "Tuyến"; }
-    .assignments-table:not(.operations-table) td:nth-child(4)::before { content: "COD"; }
-    .assignments-table:not(.operations-table) td:nth-child(5)::before { content: "Phí ship"; }
-    .assignments-table:not(.operations-table) td:nth-child(6)::before { content: "Ngày tạo"; }
-    .assignments-table:not(.operations-table) td:nth-child(7)::before { content: "Shipper"; }
-    .assignments-table:not(.operations-table) td:nth-child(8)::before { content: "Thao tác"; }
+    .assignments-table:not(.operations-table):not(.settlement-table) td:nth-child(1)::before { content: "Mã vận đơn"; }
+    .assignments-table:not(.operations-table):not(.settlement-table) td:nth-child(2)::before { content: "Người nhận"; }
+    .assignments-table:not(.operations-table):not(.settlement-table) td:nth-child(3)::before { content: "Tuyến"; }
+    .assignments-table:not(.operations-table):not(.settlement-table) td:nth-child(4)::before { content: "COD"; }
+    .assignments-table:not(.operations-table):not(.settlement-table) td:nth-child(5)::before { content: "Phí ship"; }
+    .assignments-table:not(.operations-table):not(.settlement-table) td:nth-child(6)::before { content: "Ngày tạo"; }
+    .assignments-table:not(.operations-table):not(.settlement-table) td:nth-child(7)::before { content: "Shipper"; }
+    .assignments-table:not(.operations-table):not(.settlement-table) td:nth-child(8)::before { content: "Thao tác"; }
 
     .operations-table td:nth-child(1)::before { content: "Mã vận đơn"; }
     .operations-table td:nth-child(2)::before { content: "Người nhận"; }
@@ -503,6 +522,14 @@
     .operations-table td:nth-child(5)::before { content: "COD"; }
     .operations-table td:nth-child(6)::before { content: "Tuyến giao"; }
     .operations-table td:nth-child(7)::before { content: "Hỗ trợ"; }
+
+    .settlement-table td:nth-child(1)::before { content: "Mã vận đơn"; }
+    .settlement-table td:nth-child(2)::before { content: "Người nhận"; }
+    .settlement-table td:nth-child(3)::before { content: "COD"; }
+    .settlement-table td:nth-child(4)::before { content: "Người thu"; }
+    .settlement-table td:nth-child(5)::before { content: "Ngày thu"; }
+    .settlement-table td:nth-child(6)::before { content: "Trạng thái"; }
+    .settlement-table td:nth-child(7)::before { content: "Thao tác"; }
 
     .route-text {
         max-width: none;
@@ -516,6 +543,7 @@
 
     .assign-button,
     .cod-button,
+    .settlement-button,
     .operations-status-form button {
         width: 100%;
     }

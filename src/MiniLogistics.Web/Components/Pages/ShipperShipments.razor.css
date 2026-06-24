@@ -450,6 +450,15 @@
     margin-top: 0.15rem;
 }
 
+.timeline-actor {
+    color: #334b7a;
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-top: 0.15rem;
+    overflow-wrap: anywhere;
+}
+
 .timeline p {
     color: #64748b;
     margin: 0.25rem 0 0;

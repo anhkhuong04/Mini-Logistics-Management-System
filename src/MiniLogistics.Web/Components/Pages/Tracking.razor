@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Components
+@using MiniLogistics.Application.Shipments
 @using MiniLogistics.Application.Shipments.GetPublicTracking
 @using MiniLogistics.Domain.Shipments
 @inject IGetPublicTrackingService GetPublicTrackingService
@@ -100,6 +101,7 @@
                             <div>
                                 <strong>@FormatStatus(item.Status)</strong>
                                 <time>@FormatDate(item.ChangedAtUtc)</time>
+                                <small class="timeline-actor">Cập nhật bởi @FormatPublicActor(item)</small>
                                 @if (!string.IsNullOrWhiteSpace(item.Note))
                                 {
                                     <p>@item.Note</p>
@@ -173,6 +175,13 @@
     private static string FormatDate(DateTimeOffset value)
     {
         return UiDisplay.FormatLocalDateTime(value);
+    }
+
+    private static string FormatPublicActor(ShipmentStatusHistoryResponse history)
+    {
+        return history.ChangedByUserFound
+            ? history.ChangedByDisplayName
+            : "hệ thống";
     }
 
     private static string FormatStatus(ShipmentStatus status)

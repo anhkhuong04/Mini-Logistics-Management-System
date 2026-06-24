@@ -4,13 +4,13 @@ Mục tiêu demo: Shop tạo đơn -> Operator assign -> Shipper giao hàng -> C
 
 ## 1. Chuẩn bị dữ liệu
 
-1. Chạy migration database:
+1. Setup database mới từ đầu bằng command migrate + seed:
 
 ```powershell
-dotnet ef database update --project src/MiniLogistics.Infrastructure --startup-project src/MiniLogistics.Web
+dotnet run --project src/MiniLogistics.Web -- --migrate --seed
 ```
 
-2. Chạy seed database:
+2. Nếu chỉ cần seed lại dữ liệu demo trên schema đã có:
 
 ```powershell
 dotnet run --project src/MiniLogistics.Web -- --seed
@@ -85,4 +85,10 @@ dotnet run --project src/MiniLogistics.Web
 
 ```powershell
 dotnet test Mini-logistics-manegemant-system.slnx
+```
+
+6. Chạy riêng integration tests với SQL Server LocalDB khi cần kiểm tra EF/schema thật:
+
+```powershell
+dotnet test test/MiniLogistics.Infrastructure.Tests/MiniLogistics.Infrastructure.Tests.csproj
 ```

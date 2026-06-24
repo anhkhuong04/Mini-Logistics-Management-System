@@ -1,3 +1,4 @@
+using Microsoft.EntityFrameworkCore;
 using MiniLogistics.Application;
 using MiniLogistics.Infrastructure;
 using MiniLogistics.Infrastructure.Persistence;
@@ -19,9 +20,11 @@ builder.Services.AddRazorComponents()
 
 var app = builder.Build();
 
-await SeedDatabaseAsync(app);
-if (args.Contains("--seed", StringComparer.OrdinalIgnoreCase))
+var shouldMigrate = args.Contains("--migrate", StringComparer.OrdinalIgnoreCase);
+var shouldSeed = args.Contains("--seed", StringComparer.OrdinalIgnoreCase);
+if (shouldMigrate || shouldSeed)
 {
+    await RunDatabaseCommandsAsync(app, shouldMigrate, shouldSeed);
     return;
 }
 
@@ -46,10 +49,22 @@ app.MapRazorComponents<App>()
 
 app.Run();
 
-static async Task SeedDatabaseAsync(WebApplication app)
+static async Task RunDatabaseCommandsAsync(
+    WebApplication app,
+    bool shouldMigrate,
+    bool shouldSeed)
 {
     await using var scope = app.Services.CreateAsyncScope();
-    var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
 
-    await seeder.SeedAsync();
+    if (shouldMigrate)
+    {
+        var dbContext = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+        await dbContext.Database.MigrateAsync();
+    }
+
+    if (shouldSeed)
+    {
+        var seeder = scope.ServiceProvider.GetRequiredService<DatabaseSeeder>();
+        await seeder.SeedAsync();
+    }
 }

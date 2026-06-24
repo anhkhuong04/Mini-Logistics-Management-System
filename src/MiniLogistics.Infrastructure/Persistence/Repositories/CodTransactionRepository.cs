@@ -13,6 +13,18 @@ public sealed class CodTransactionRepository : ICodTransactionRepository
         _dbContext = dbContext;
     }
 
+    public async Task<IReadOnlyList<CodTransaction>> GetByStatusesAsync(
+        IReadOnlyCollection<CodStatus> statuses,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.CodTransactions
+            .AsNoTracking()
+            .Where(codTransaction => statuses.Contains(codTransaction.Status))
+            .OrderBy(codTransaction => codTransaction.CollectedAtUtc)
+            .ThenBy(codTransaction => codTransaction.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<CodTransaction?> GetByShipmentIdAsync(
         Guid shipmentId,
         CancellationToken cancellationToken = default)

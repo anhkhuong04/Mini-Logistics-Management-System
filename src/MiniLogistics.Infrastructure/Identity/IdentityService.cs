@@ -60,6 +60,58 @@ public sealed class IdentityService : IIdentityService
             : Result.Failure(IdentityErrors.RoleAssignmentFailed(FormatErrors(result.Errors)));
     }
 
+    public async Task<Result<Guid>> CreateInternalUserAsync(
+        string fullName,
+        string email,
+        string phoneNumber,
+        string password,
+        string role,
+        CancellationToken cancellationToken = default)
+    {
+        var userResult = await CreateUserAsync(
+            fullName,
+            email,
+            phoneNumber,
+            password,
+            cancellationToken);
+
+        if (userResult.IsFailure)
+        {
+            return userResult;
+        }
+
+        var roleResult = await AddToRoleAsync(userResult.Value, role, cancellationToken);
+        return roleResult.IsSuccess
+            ? Result<Guid>.Success(userResult.Value)
+            : Result<Guid>.Failure(roleResult.Error);
+    }
+
+    public async Task<Result> SetUserActiveStatusAsync(
+        Guid userId,
+        bool isActive,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return Result.Failure(IdentityErrors.UserNotFound(userId));
+        }
+
+        if (user.IsActive == isActive)
+        {
+            return Result.Success();
+        }
+
+        user.IsActive = isActive;
+        var result = await _userManager.UpdateAsync(user);
+
+        return result.Succeeded
+            ? Result.Success()
+            : Result.Failure(IdentityErrors.UserUpdateFailed(FormatErrors(result.Errors)));
+    }
+
     public async Task<IdentityUserRoleCheckResponse> CheckUserRoleAsync(
         Guid userId,
         string role,
@@ -80,6 +132,31 @@ public sealed class IdentityService : IIdentityService
             true,
             user.IsActive,
             isInRole);
+    }
+
+    public async Task<IReadOnlyList<IdentityUserWithRolesResponse>> ListUsersWithRolesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var users = await _userManager.Users
+            .OrderBy(user => user.FullName)
+            .ThenBy(user => user.Email)
+            .ToListAsync(cancellationToken);
+
+        var response = new List<IdentityUserWithRolesResponse>(users.Count);
+        foreach (var user in users)
+        {
+            var roles = await _userManager.GetRolesAsync(user);
+            response.Add(new IdentityUserWithRolesResponse(
+                user.Id,
+                user.FullName,
+                user.Email ?? string.Empty,
+                user.PhoneNumber,
+                user.IsActive,
+                roles.Order(StringComparer.OrdinalIgnoreCase).ToList(),
+                user.CreatedAtUtc));
+        }
+
+        return response;
     }
 
     public async Task<IReadOnlyList<ActiveShipperResponse>> GetActiveShippersAsync(

@@ -20,6 +20,10 @@ public interface IShipmentRepository
         IReadOnlyCollection<ShipmentStatus> statuses,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<Shipment>> GetByIdsAsync(
+        IReadOnlyCollection<Guid> shipmentIds,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<Shipment>> GetAssignedToShipperAsync(
         Guid shipperId,
         CancellationToken cancellationToken = default);
