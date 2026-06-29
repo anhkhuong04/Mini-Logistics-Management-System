@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Fees;
+using MiniLogistics.Domain.PartnerApi;
 using MiniLogistics.Domain.Shipments;
 using MiniLogistics.Domain.Shops;
 using MiniLogistics.Infrastructure.Identity;
@@ -27,6 +28,10 @@ public sealed class MiniLogisticsDbContext : IdentityDbContext<ApplicationUser, 
     public DbSet<CodTransaction> CodTransactions => Set<CodTransaction>();
 
     public DbSet<FeeRule> FeeRules => Set<FeeRule>();
+
+    public DbSet<ApiClient> ApiClients => Set<ApiClient>();
+
+    public DbSet<ExternalShipmentReference> ExternalShipmentReferences => Set<ExternalShipmentReference>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

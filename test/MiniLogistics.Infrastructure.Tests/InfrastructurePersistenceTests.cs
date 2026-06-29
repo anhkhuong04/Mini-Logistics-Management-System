@@ -5,6 +5,7 @@ using MiniLogistics.Application.CashOnDelivery;
 using MiniLogistics.Application.CashOnDelivery.GetCodSettlementCandidates;
 using MiniLogistics.Application.CashOnDelivery.MarkCodCollected;
 using MiniLogistics.Application.CashOnDelivery.MarkCodSettled;
+using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Shipments.AssignShipperToShipment;
 using MiniLogistics.Application.Shipments.CancelShipmentForCurrentShop;
 using MiniLogistics.Application.Shipments.CreateShipment;
@@ -51,8 +52,23 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
         Assert.Equal(4, initialCounts.Roles);
         Assert.Equal(4, initialCounts.Users);
         Assert.Equal(1, initialCounts.Shops);
+        Assert.Equal(1, initialCounts.ApiClients);
         Assert.True(initialCounts.FeeRules >= 3);
         Assert.Equal(initialCounts, repeatedCounts);
+
+        await _fixture.ExecuteAsync(async services =>
+        {
+            var dbContext = services.GetRequiredService<MiniLogisticsDbContext>();
+            var shop = await dbContext.Shops.SingleAsync(item => item.OwnerUserId == DemoShopUserId);
+            var apiClient = await dbContext.ApiClients.SingleAsync();
+
+            Assert.Equal(shop.Id, apiClient.ShopId);
+            Assert.True(apiClient.IsActive);
+            Assert.Equal("Demo E-commerce Integration", apiClient.Name);
+            Assert.Equal(ApiKeyHasher.GetPrefix(DatabaseSeeder.DemoPartnerApiKey), apiClient.ApiKeyPrefix);
+            Assert.Equal(ApiKeyHasher.Hash(DatabaseSeeder.DemoPartnerApiKey), apiClient.ApiKeyHash);
+            Assert.NotEqual(DatabaseSeeder.DemoPartnerApiKey, apiClient.ApiKeyHash);
+        });
     }
 
     [Fact]
@@ -312,6 +328,7 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
                 await dbContext.Roles.CountAsync(),
                 await dbContext.Users.CountAsync(),
                 await dbContext.Shops.CountAsync(),
+                await dbContext.ApiClients.CountAsync(),
                 await dbContext.FeeRules.CountAsync());
         });
     }
@@ -320,5 +337,6 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
         int Roles,
         int Users,
         int Shops,
+        int ApiClients,
         int FeeRules);
 }

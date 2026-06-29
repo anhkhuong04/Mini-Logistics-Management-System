@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using MiniLogistics.Application.PartnerApi;
+using MiniLogistics.Domain.PartnerApi;
 using MiniLogistics.Domain.Shops;
 using MiniLogistics.Domain.ValueObjects;
 using MiniLogistics.Infrastructure.Identity;
@@ -19,6 +21,8 @@ public sealed class DatabaseSeeder
     private const string DemoShopAddressLine = "123 Nguyen Trai";
     private const string DemoShopWard = "Phuong Ben Thanh";
     private const string DemoShopProvince = "Ho Chi Minh";
+    private const string DemoApiClientName = "Demo E-commerce Integration";
+    public const string DemoPartnerApiKey = "ml_demo_partner_key_123456";
 
     private readonly MiniLogisticsDbContext _dbContext;
     private readonly RoleManager<IdentityRole<Guid>> _roleManager;
@@ -115,6 +119,7 @@ public sealed class DatabaseSeeder
             }
 
             await _dbContext.SaveChangesAsync(cancellationToken);
+            await SeedDemoApiClientAsync(existingShop, cancellationToken);
             return;
         }
 
@@ -125,6 +130,39 @@ public sealed class DatabaseSeeder
             CreateDemoShopAddress());
 
         await _dbContext.Shops.AddAsync(shop, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        await SeedDemoApiClientAsync(shop, cancellationToken);
+    }
+
+    private async Task SeedDemoApiClientAsync(Shop shop, CancellationToken cancellationToken)
+    {
+        var apiKeyHash = ApiKeyHasher.Hash(DemoPartnerApiKey);
+        var existingClient = await _dbContext.ApiClients
+            .FirstOrDefaultAsync(apiClient => apiClient.ApiKeyHash == apiKeyHash, cancellationToken);
+
+        if (existingClient is not null)
+        {
+            if (!existingClient.IsActive)
+            {
+                existingClient.Activate();
+            }
+
+            if (existingClient.Name != DemoApiClientName)
+            {
+                existingClient.Rename(DemoApiClientName);
+            }
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        var apiClient = new ApiClient(
+            shop.Id,
+            DemoApiClientName,
+            ApiKeyHasher.GetPrefix(DemoPartnerApiKey),
+            apiKeyHash);
+
+        await _dbContext.ApiClients.AddAsync(apiClient, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 

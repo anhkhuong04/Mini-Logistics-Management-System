@@ -4,6 +4,10 @@ namespace MiniLogistics.Application.Shops;
 
 public interface IShopRepository
 {
+    Task<Shop?> GetByIdAsync(
+        Guid shopId,
+        CancellationToken cancellationToken = default);
+
     Task<Shop?> GetByOwnerUserIdAsync(
         Guid ownerUserId,
         CancellationToken cancellationToken = default);

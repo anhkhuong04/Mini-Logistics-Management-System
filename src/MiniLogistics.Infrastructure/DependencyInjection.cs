@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using MiniLogistics.Application.CashOnDelivery;
 using MiniLogistics.Application.Fees;
 using MiniLogistics.Application.Identity;
+using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Shops;
 using MiniLogistics.Application.Shipments;
 using MiniLogistics.Infrastructure.Identity;
@@ -46,6 +47,8 @@ public static class DependencyInjection
         services.AddScoped<IFeeRuleRepository, FeeRuleRepository>();
         services.AddScoped<IShopRepository, ShopRepository>();
         services.AddScoped<ICodTransactionRepository, CodTransactionRepository>();
+        services.AddScoped<IApiClientRepository, ApiClientRepository>();
+        services.AddScoped<IExternalShipmentReferenceRepository, ExternalShipmentReferenceRepository>();
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<DatabaseSeeder>();
 

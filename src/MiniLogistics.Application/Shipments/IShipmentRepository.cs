@@ -46,6 +46,16 @@ public interface IShipmentRepository
         TrackingCode trackingCode,
         CancellationToken cancellationToken = default);
 
+    Task<Shipment?> GetByTrackingCodeAndShopIdAsync(
+        TrackingCode trackingCode,
+        Guid shopId,
+        CancellationToken cancellationToken = default);
+
+    Task<Shipment?> GetTrackedByTrackingCodeAndShopIdAsync(
+        TrackingCode trackingCode,
+        Guid shopId,
+        CancellationToken cancellationToken = default);
+
     Task AddAsync(Shipment shipment, CancellationToken cancellationToken = default);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);

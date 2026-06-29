@@ -13,6 +13,14 @@ public sealed class ShopRepository : IShopRepository
         _dbContext = dbContext;
     }
 
+    public Task<Shop?> GetByIdAsync(
+        Guid shopId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.Shops
+            .FirstOrDefaultAsync(shop => shop.Id == shopId, cancellationToken);
+    }
+
     public Task<Shop?> GetByOwnerUserIdAsync(
         Guid ownerUserId,
         CancellationToken cancellationToken = default)

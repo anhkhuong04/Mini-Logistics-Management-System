@@ -128,6 +128,32 @@ public sealed class ShipmentRepository : IShipmentRepository
             .FirstOrDefaultAsync(shipment => shipment.TrackingCode == trackingCode, cancellationToken);
     }
 
+    public Task<Shipment?> GetByTrackingCodeAndShopIdAsync(
+        TrackingCode trackingCode,
+        Guid shopId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.Shipments
+            .AsNoTracking()
+            .Include(shipment => shipment.StatusHistory)
+            .FirstOrDefaultAsync(
+                shipment => shipment.TrackingCode == trackingCode && shipment.ShopId == shopId,
+                cancellationToken);
+    }
+
+    public Task<Shipment?> GetTrackedByTrackingCodeAndShopIdAsync(
+        TrackingCode trackingCode,
+        Guid shopId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.Shipments
+            .Include(shipment => shipment.Assignments)
+            .Include(shipment => shipment.StatusHistory)
+            .FirstOrDefaultAsync(
+                shipment => shipment.TrackingCode == trackingCode && shipment.ShopId == shopId,
+                cancellationToken);
+    }
+
     public async Task AddAsync(Shipment shipment, CancellationToken cancellationToken = default)
     {
         await _dbContext.Shipments.AddAsync(shipment, cancellationToken);

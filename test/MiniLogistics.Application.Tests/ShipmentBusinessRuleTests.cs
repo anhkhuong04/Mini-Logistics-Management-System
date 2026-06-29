@@ -1098,6 +1098,23 @@ public sealed class ShipmentBusinessRuleTests
             return Task.FromResult(_shipments.FirstOrDefault(shipment => shipment.TrackingCode == trackingCode));
         }
 
+        public Task<Shipment?> GetByTrackingCodeAndShopIdAsync(
+            TrackingCode trackingCode,
+            Guid shopId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_shipments.FirstOrDefault(shipment =>
+                shipment.TrackingCode == trackingCode && shipment.ShopId == shopId));
+        }
+
+        public Task<Shipment?> GetTrackedByTrackingCodeAndShopIdAsync(
+            TrackingCode trackingCode,
+            Guid shopId,
+            CancellationToken cancellationToken = default)
+        {
+            return GetByTrackingCodeAndShopIdAsync(trackingCode, shopId, cancellationToken);
+        }
+
         public Task AddAsync(Shipment shipment, CancellationToken cancellationToken = default)
         {
             _shipments.Add(shipment);
@@ -1170,6 +1187,13 @@ public sealed class ShipmentBusinessRuleTests
         }
 
         public int SaveChangesCount { get; private set; }
+
+        public Task<Shop?> GetByIdAsync(
+            Guid shopId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_shops.FirstOrDefault(shop => shop.Id == shopId));
+        }
 
         public Task<Shop?> GetByOwnerUserIdAsync(
             Guid ownerUserId,
