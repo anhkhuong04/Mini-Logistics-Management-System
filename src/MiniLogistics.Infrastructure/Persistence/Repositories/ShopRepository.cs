@@ -29,6 +29,14 @@ public sealed class ShopRepository : IShopRepository
             .FirstOrDefaultAsync(shop => shop.OwnerUserId == ownerUserId, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Shop>> GetAllAsync(CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Shops
+            .AsNoTracking()
+            .OrderBy(shop => shop.Name)
+            .ToListAsync(cancellationToken);
+    }
+
     public Task<bool> ExistsByOwnerUserIdAsync(
         Guid ownerUserId,
         CancellationToken cancellationToken = default)

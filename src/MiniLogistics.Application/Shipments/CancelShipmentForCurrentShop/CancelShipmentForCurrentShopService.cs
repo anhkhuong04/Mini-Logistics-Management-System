@@ -1,5 +1,6 @@
 using FluentValidation;
 using MiniLogistics.Application.Common;
+using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Shops;
 using MiniLogistics.Domain.Common;
 
@@ -10,15 +11,18 @@ public sealed class CancelShipmentForCurrentShopService : ICancelShipmentForCurr
     private readonly IValidator<CancelShipmentCommand> _validator;
     private readonly IShopRepository _shopRepository;
     private readonly IShipmentRepository _shipmentRepository;
+    private readonly IWebhookEventPublisher _webhookEventPublisher;
 
     public CancelShipmentForCurrentShopService(
         IValidator<CancelShipmentCommand> validator,
         IShopRepository shopRepository,
-        IShipmentRepository shipmentRepository)
+        IShipmentRepository shipmentRepository,
+        IWebhookEventPublisher? webhookEventPublisher = null)
     {
         _validator = validator;
         _shopRepository = shopRepository;
         _shipmentRepository = shipmentRepository;
+        _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
     }
 
     public async Task<Result> CancelAsync(
@@ -60,6 +64,10 @@ public sealed class CancelShipmentForCurrentShopService : ICancelShipmentForCurr
         }
 
         await _shipmentRepository.SaveChangesAsync(cancellationToken);
+        await _webhookEventPublisher.PublishShipmentAsync(
+            shipment,
+            WebhookEventTypes.ShipmentStatusChanged,
+            cancellationToken);
 
         return Result.Success();
     }

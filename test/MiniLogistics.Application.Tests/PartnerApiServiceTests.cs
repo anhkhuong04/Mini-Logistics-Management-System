@@ -1,15 +1,19 @@
+using System.Text.Json;
 using MiniLogistics.Application.CashOnDelivery;
 using MiniLogistics.Application.Fees;
+using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Routing;
 using MiniLogistics.Application.Shipments;
 using MiniLogistics.Application.Shipments.CreateShipment;
 using MiniLogistics.Application.Shops;
 using MiniLogistics.Domain.CashOnDelivery;
+using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Fees;
 using MiniLogistics.Domain.PartnerApi;
 using MiniLogistics.Domain.Shipments;
 using MiniLogistics.Domain.Shops;
+using MiniLogistics.Domain.Users;
 using MiniLogistics.Domain.ValueObjects;
 using Xunit;
 
@@ -389,6 +393,68 @@ public sealed class PartnerApiServiceTests
     }
 
     [Fact]
+    public async Task CancelShipment_WithWebhookEndpoint_EnqueuesStatusChangedDelivery()
+    {
+        var shop = CreateShop(_ownerUserId);
+        var apiClientId = Guid.NewGuid();
+        var endpoint = new WebhookEndpoint(
+            apiClientId,
+            "https://partner.example.test/webhooks/minilogistics",
+            "secret-for-signing");
+        var shipmentRepository = new FakeShipmentRepository([]);
+        var codTransactionRepository = new FakeCodTransactionRepository([]);
+        var referenceRepository = new FakeExternalShipmentReferenceRepository([]);
+        var endpointRepository = new FakeWebhookEndpointRepository([endpoint]);
+        var deliveryRepository = new FakeWebhookDeliveryRepository([]);
+        var publisher = new WebhookEventPublisher(
+            referenceRepository,
+            endpointRepository,
+            deliveryRepository);
+        var createService = CreateShipmentService(
+            shop,
+            shipmentRepository,
+            codTransactionRepository,
+            referenceRepository);
+        var createResult = await createService.CreateAsync(CreateShipmentCommand(apiClientId, shop.Id));
+        var cancelService = new PartnerCancelShipmentService(
+            new PartnerCancelShipmentCommandValidator(),
+            new FakeShopRepository([shop]),
+            shipmentRepository,
+            codTransactionRepository,
+            referenceRepository,
+            publisher);
+
+        var cancelResult = await cancelService.CancelAsync(new PartnerCancelShipmentCommand(
+            apiClientId,
+            shop.Id,
+            createResult.Value.Shipment.TrackingCode,
+            "Customer cancelled order"));
+
+        Assert.True(createResult.IsSuccess);
+        Assert.True(cancelResult.IsSuccess);
+        Assert.Single(deliveryRepository.Deliveries);
+        Assert.Equal(1, deliveryRepository.SaveChangesCount);
+
+        var delivery = deliveryRepository.Deliveries.Single();
+        Assert.Equal(endpoint.Id, delivery.WebhookEndpointId);
+        Assert.Equal(apiClientId, delivery.ApiClientId);
+        Assert.Equal(WebhookEventTypes.ShipmentStatusChanged, delivery.EventType);
+        Assert.Equal(shipmentRepository.Shipments.Single().Id, delivery.AggregateId);
+        Assert.Equal(WebhookDeliveryStatus.Pending, delivery.Status);
+        Assert.NotNull(delivery.NextAttemptAtUtc);
+
+        var payload = JsonSerializer.Deserialize<WebhookShipmentPayload>(
+            delivery.PayloadJson,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.NotNull(payload);
+        Assert.Equal(delivery.Id, payload.EventId);
+        Assert.Equal(WebhookEventTypes.ShipmentStatusChanged, payload.Event);
+        Assert.Equal("ECOM-10001", payload.ExternalOrderId);
+        Assert.Equal(createResult.Value.Shipment.TrackingCode, payload.TrackingCode);
+        Assert.Equal(nameof(ShipmentStatus.Cancelled), payload.Status);
+    }
+
+    [Fact]
     public async Task CancelShipment_WhenShipmentCannotBeCancelled_ReturnsConflict()
     {
         var shop = CreateShop(_ownerUserId);
@@ -424,6 +490,113 @@ public sealed class PartnerApiServiceTests
         Assert.Equal(ShipmentErrors.CannotCancel.Code, result.Error.Code);
         Assert.Equal(1, shipmentRepository.SaveChangesCount);
         Assert.Equal(ShipmentStatus.PickedUp, shipment.Status);
+    }
+
+    [Fact]
+    public void WebhookSignature_UsesTimestampPayloadAndSecret()
+    {
+        const string timestamp = "2026-06-29T10:30:00.0000000Z";
+        const string payload = "{\"event\":\"shipment.status_changed\"}";
+
+        var signature = WebhookSignature.Compute("secret", timestamp, payload);
+        var sameSignature = WebhookSignature.Compute("secret", timestamp, payload);
+        var changedPayloadSignature = WebhookSignature.Compute("secret", timestamp, "{\"event\":\"shipment.created\"}");
+
+        Assert.StartsWith("sha256=", signature);
+        Assert.Equal(signature, sameSignature);
+        Assert.NotEqual(signature, changedPayloadSignature);
+    }
+
+    [Fact]
+    public async Task IntegrationManagement_ShopCanCreateApiClientForOwnShop()
+    {
+        var shop = CreateShop(_ownerUserId);
+        var apiClientRepository = new FakeApiClientRepository([]);
+        var service = CreateIntegrationManagementService(
+            FakeIdentityService.For(_ownerUserId, UserRole.Shop),
+            new FakeShopRepository([shop]),
+            apiClientRepository,
+            new FakeWebhookEndpointRepository([]),
+            new FakeWebhookDeliveryRepository([]));
+
+        var result = await service.CreateApiClientAsync(new CreatePartnerApiClientCommand(
+            _ownerUserId,
+            shop.Id,
+            "WooCommerce Store"));
+
+        Assert.True(result.IsSuccess);
+        Assert.StartsWith("ml_live_", result.Value.ApiKey);
+        Assert.Single(apiClientRepository.ApiClients);
+        Assert.Equal(result.Value.ApiClientId, apiClientRepository.ApiClients.Single().Id);
+        Assert.Equal(ApiKeyHasher.Hash(result.Value.ApiKey), apiClientRepository.ApiClients.Single().ApiKeyHash);
+        Assert.Equal(1, apiClientRepository.SaveChangesCount);
+    }
+
+    [Fact]
+    public async Task IntegrationManagement_ShopCannotCreateApiClientForOtherShop()
+    {
+        var shop = CreateShop(_ownerUserId);
+        var otherShop = CreateShop(Guid.NewGuid());
+        var apiClientRepository = new FakeApiClientRepository([]);
+        var service = CreateIntegrationManagementService(
+            FakeIdentityService.For(_ownerUserId, UserRole.Shop),
+            new FakeShopRepository([shop, otherShop]),
+            apiClientRepository,
+            new FakeWebhookEndpointRepository([]),
+            new FakeWebhookDeliveryRepository([]));
+
+        var result = await service.CreateApiClientAsync(new CreatePartnerApiClientCommand(
+            _ownerUserId,
+            otherShop.Id,
+            "Forbidden store"));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Application.Forbidden", result.Error.Code);
+        Assert.Empty(apiClientRepository.ApiClients);
+    }
+
+    [Fact]
+    public async Task IntegrationManagement_CanRotateRevokeConfigureAndTestWebhook()
+    {
+        var shop = CreateShop(_ownerUserId);
+        var apiClient = CreateApiClient(shop.Id);
+        var apiClientRepository = new FakeApiClientRepository([apiClient]);
+        var endpointRepository = new FakeWebhookEndpointRepository([]);
+        var deliveryRepository = new FakeWebhookDeliveryRepository([]);
+        var service = CreateIntegrationManagementService(
+            FakeIdentityService.For(_ownerUserId, UserRole.Shop),
+            new FakeShopRepository([shop]),
+            apiClientRepository,
+            endpointRepository,
+            deliveryRepository);
+
+        var rotateResult = await service.RotateApiClientKeyAsync(new RotatePartnerApiClientKeyCommand(
+            _ownerUserId,
+            apiClient.Id));
+        var revokeResult = await service.SetApiClientActiveStatusAsync(new SetPartnerApiClientActiveStatusCommand(
+            _ownerUserId,
+            apiClient.Id,
+            IsActive: false));
+        var webhookResult = await service.UpsertWebhookEndpointAsync(new UpsertPartnerWebhookEndpointCommand(
+            _ownerUserId,
+            apiClient.Id,
+            "https://partner.example.test/webhooks/minilogistics",
+            "secret-for-signing"));
+        var testResult = await service.TestWebhookAsync(new TestPartnerWebhookCommand(
+            _ownerUserId,
+            apiClient.Id));
+
+        Assert.True(rotateResult.IsSuccess);
+        Assert.NotEqual(RawApiKey, rotateResult.Value.ApiKey);
+        Assert.Equal(ApiKeyHasher.Hash(rotateResult.Value.ApiKey), apiClient.ApiKeyHash);
+        Assert.True(revokeResult.IsSuccess);
+        Assert.False(apiClient.IsActive);
+        Assert.True(webhookResult.IsSuccess);
+        Assert.Single(endpointRepository.Endpoints);
+        Assert.True(testResult.IsSuccess);
+        Assert.Single(deliveryRepository.Deliveries);
+        Assert.Equal(WebhookEventTypes.WebhookTest, deliveryRepository.Deliveries.Single().EventType);
+        Assert.Equal(WebhookDeliveryStatus.Pending, deliveryRepository.Deliveries.Single().Status);
     }
 
     private static PartnerQuoteService CreateQuoteService(Shop shop)
@@ -476,6 +649,21 @@ public sealed class PartnerApiServiceTests
             shipmentRepository,
             codTransactionRepository,
             referenceRepository);
+    }
+
+    private static PartnerIntegrationManagementService CreateIntegrationManagementService(
+        IIdentityService identityService,
+        FakeShopRepository shopRepository,
+        FakeApiClientRepository apiClientRepository,
+        FakeWebhookEndpointRepository endpointRepository,
+        FakeWebhookDeliveryRepository deliveryRepository)
+    {
+        return new PartnerIntegrationManagementService(
+            identityService,
+            shopRepository,
+            apiClientRepository,
+            endpointRepository,
+            deliveryRepository);
     }
 
     private static PartnerCancelShipmentService CreateCancelShipmentService(
@@ -562,6 +750,95 @@ public sealed class PartnerApiServiceTests
             Note: "Hang de vo, giao gio hanh chinh");
     }
 
+    private sealed class FakeIdentityService : IIdentityService
+    {
+        private readonly Dictionary<Guid, (bool IsActive, HashSet<string> Roles)> _users = [];
+
+        private FakeIdentityService()
+        {
+        }
+
+        public static FakeIdentityService For(Guid userId, params UserRole[] roles)
+        {
+            var service = new FakeIdentityService();
+            service._users[userId] = (true, roles.Select(role => role.ToString()).ToHashSet(StringComparer.OrdinalIgnoreCase));
+            return service;
+        }
+
+        public Task<Result<Guid>> CreateUserAsync(
+            string fullName,
+            string email,
+            string phoneNumber,
+            string password,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<Result> AddToRoleAsync(
+            Guid userId,
+            string role,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<Result<Guid>> CreateInternalUserAsync(
+            string fullName,
+            string email,
+            string phoneNumber,
+            string password,
+            string role,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<Result> SetUserActiveStatusAsync(
+            Guid userId,
+            bool isActive,
+            CancellationToken cancellationToken = default)
+        {
+            throw new NotSupportedException();
+        }
+
+        public Task<IdentityUserRoleCheckResponse> CheckUserRoleAsync(
+            Guid userId,
+            string role,
+            CancellationToken cancellationToken = default)
+        {
+            if (!_users.TryGetValue(userId, out var user))
+            {
+                return Task.FromResult(new IdentityUserRoleCheckResponse(userId, false, false, false));
+            }
+
+            return Task.FromResult(new IdentityUserRoleCheckResponse(
+                userId,
+                true,
+                user.IsActive,
+                user.Roles.Contains(role)));
+        }
+
+        public Task<IReadOnlyList<IdentityUserWithRolesResponse>> ListUsersWithRolesAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<IdentityUserWithRolesResponse>>([]);
+        }
+
+        public Task<IReadOnlyList<ActiveShipperResponse>> GetActiveShippersAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<ActiveShipperResponse>>([]);
+        }
+
+        public Task<IReadOnlyList<IdentityUserSummaryResponse>> GetUsersByIdsAsync(
+            IReadOnlyCollection<Guid> userIds,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<IdentityUserSummaryResponse>>([]);
+        }
+    }
+
     private sealed class FakeApiClientRepository : IApiClientRepository
     {
         private readonly List<ApiClient> _apiClients;
@@ -571,13 +848,31 @@ public sealed class PartnerApiServiceTests
             _apiClients = apiClients.ToList();
         }
 
+        public IReadOnlyList<ApiClient> ApiClients => _apiClients.AsReadOnly();
+
         public int SaveChangesCount { get; private set; }
+
+        public Task<ApiClient?> GetByIdAsync(
+            Guid apiClientId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_apiClients.FirstOrDefault(apiClient => apiClient.Id == apiClientId));
+        }
 
         public Task<ApiClient?> GetByApiKeyHashAsync(
             string apiKeyHash,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(_apiClients.FirstOrDefault(apiClient => apiClient.ApiKeyHash == apiKeyHash));
+        }
+
+        public Task<IReadOnlyList<ApiClient>> GetByShopIdsAsync(
+            IReadOnlyCollection<Guid> shopIds,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<ApiClient>>(_apiClients
+                .Where(apiClient => shopIds.Contains(apiClient.ShopId))
+                .ToList());
         }
 
         public Task AddAsync(ApiClient apiClient, CancellationToken cancellationToken = default)
@@ -634,6 +929,14 @@ public sealed class PartnerApiServiceTests
                 && reference.ShipmentId == shipmentId));
         }
 
+        public Task<ExternalShipmentReference?> GetByShipmentIdAsync(
+            Guid shipmentId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_references.FirstOrDefault(reference =>
+                reference.ShipmentId == shipmentId));
+        }
+
         public Task AddAsync(ExternalShipmentReference reference, CancellationToken cancellationToken = default)
         {
             _references.Add(reference);
@@ -664,6 +967,11 @@ public sealed class PartnerApiServiceTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(_shops.FirstOrDefault(shop => shop.OwnerUserId == ownerUserId));
+        }
+
+        public Task<IReadOnlyList<Shop>> GetAllAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<Shop>>(_shops.ToList());
         }
 
         public Task<bool> ExistsByOwnerUserIdAsync(
@@ -868,6 +1176,119 @@ public sealed class PartnerApiServiceTests
                 .ToList();
 
             return Task.FromResult(rules);
+        }
+    }
+
+    private sealed class FakeWebhookEndpointRepository : IWebhookEndpointRepository
+    {
+        private readonly List<WebhookEndpoint> _endpoints;
+
+        public FakeWebhookEndpointRepository(IReadOnlyList<WebhookEndpoint> endpoints)
+        {
+            _endpoints = endpoints.ToList();
+        }
+
+        public IReadOnlyList<WebhookEndpoint> Endpoints => _endpoints.AsReadOnly();
+
+        public Task<IReadOnlyList<WebhookEndpoint>> GetActiveByApiClientIdAsync(
+            Guid apiClientId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<WebhookEndpoint>>(_endpoints
+                .Where(endpoint => endpoint.ApiClientId == apiClientId && endpoint.IsActive)
+                .ToList());
+        }
+
+        public Task<IReadOnlyList<WebhookEndpoint>> GetByApiClientIdsAsync(
+            IReadOnlyCollection<Guid> apiClientIds,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<WebhookEndpoint>>(_endpoints
+                .Where(endpoint => apiClientIds.Contains(endpoint.ApiClientId))
+                .ToList());
+        }
+
+        public Task<WebhookEndpoint?> GetByIdAsync(
+            Guid endpointId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_endpoints.FirstOrDefault(endpoint => endpoint.Id == endpointId));
+        }
+
+        public Task<WebhookEndpoint?> GetLatestByApiClientIdAsync(
+            Guid apiClientId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_endpoints
+                .Where(endpoint => endpoint.ApiClientId == apiClientId)
+                .OrderByDescending(endpoint => endpoint.IsActive)
+                .ThenByDescending(endpoint => endpoint.UpdatedAtUtc ?? endpoint.CreatedAtUtc)
+                .FirstOrDefault());
+        }
+
+        public Task AddAsync(WebhookEndpoint endpoint, CancellationToken cancellationToken = default)
+        {
+            _endpoints.Add(endpoint);
+            return Task.CompletedTask;
+        }
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeWebhookDeliveryRepository : IWebhookDeliveryRepository
+    {
+        private readonly List<WebhookDelivery> _deliveries;
+
+        public FakeWebhookDeliveryRepository(IReadOnlyList<WebhookDelivery> deliveries)
+        {
+            _deliveries = deliveries.ToList();
+        }
+
+        public int SaveChangesCount { get; private set; }
+
+        public IReadOnlyList<WebhookDelivery> Deliveries => _deliveries.AsReadOnly();
+
+        public Task<IReadOnlyList<WebhookDelivery>> GetDueAsync(
+            DateTimeOffset dueAtUtc,
+            int batchSize,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<WebhookDelivery>>(_deliveries
+                .Where(delivery =>
+                    delivery.Status != WebhookDeliveryStatus.Succeeded
+                    && delivery.NextAttemptAtUtc is not null
+                    && delivery.NextAttemptAtUtc <= dueAtUtc)
+                .Take(batchSize)
+                .ToList());
+        }
+
+        public Task<IReadOnlyList<WebhookDelivery>> GetRecentByApiClientIdsAsync(
+            IReadOnlyCollection<Guid> apiClientIds,
+            int takePerClient,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<WebhookDelivery>>(_deliveries
+                .Where(delivery => apiClientIds.Contains(delivery.ApiClientId))
+                .GroupBy(delivery => delivery.ApiClientId)
+                .SelectMany(group => group
+                    .OrderByDescending(delivery => delivery.CreatedAtUtc)
+                    .Take(takePerClient))
+                .ToList());
+        }
+
+        public Task AddAsync(WebhookDelivery delivery, CancellationToken cancellationToken = default)
+        {
+            _deliveries.Add(delivery);
+            return Task.CompletedTask;
+        }
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            SaveChangesCount++;
+            return Task.CompletedTask;
         }
     }
 }

@@ -1,0 +1,574 @@
+@page "/partner/integrations"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Shop,Admin")]
+@using System.Security.Claims
+@using MiniLogistics.Application.PartnerApi
+@using MiniLogistics.Domain.PartnerApi
+@inject IPartnerIntegrationManagementService PartnerIntegrationManagementService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Partner integrations - MiniLogistics</PageTitle>
+
+<div class="partner-integrations-page">
+    <div class="page-heading">
+        <div>
+            <p class="eyebrow">Partner API</p>
+            <h1>Tich hop ban hang ben thu ba</h1>
+            <p>Quan ly API key, webhook URL va lich su delivery cho cac website ban hang lien ket.</p>
+        </div>
+
+        <button type="button" class="refresh-button" disabled="@IsLoading" @onclick="RefreshAsync">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5a7 7 0 1 1-6.3 4H3.5A9 9 0 1 0 6 5.8V3H4v6h6V7H7.4A7 7 0 0 1 12 5Z" />
+            </svg>
+            <span>Lam moi</span>
+        </button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert-box danger" role="alert">@ErrorMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
+    {
+        <div class="alert-box success" role="status">@SuccessMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(GeneratedApiKey))
+    {
+        <section class="content-card secret-card">
+            <div>
+                <p class="eyebrow">API key moi</p>
+                <h2>Luu lai key nay</h2>
+                <p>He thong chi hien thi API key goc sau khi tao hoac rotate.</p>
+            </div>
+            <div class="secret-row">
+                <code>@GeneratedApiKey</code>
+                <button type="button" class="secondary-button" @onclick="CopyGeneratedKeyAsync">Copy</button>
+            </div>
+        </section>
+    }
+
+    @if (IsLoading)
+    {
+        <section class="content-card state-card" aria-live="polite">
+            <strong>Dang tai cau hinh integration</strong>
+        </section>
+    }
+    else if (Dashboard.Shops.Count == 0)
+    {
+        <section class="content-card state-card">
+            <strong>Chua co shop kha dung</strong>
+            <p>Can tao shop active truoc khi cap API key cho website ben thu ba.</p>
+        </section>
+    }
+    else
+    {
+        <section class="content-card create-section">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">API client</p>
+                    <h2>Tao API key</h2>
+                </div>
+            </div>
+
+            <form class="create-client-form" @onsubmit="CreateApiClientAsync" @onsubmit:preventDefault="true">
+                <label class="field-group" for="integration-shop">
+                    <span>Shop</span>
+                    <select id="integration-shop" value="@SelectedShopId" @onchange="OnShopChangedAsync">
+                        @foreach (var shop in Dashboard.Shops)
+                        {
+                            <option value="@shop.ShopId">@shop.ShopName</option>
+                        }
+                    </select>
+                </label>
+
+                <label class="field-group" for="api-client-name">
+                    <span>Ten ung dung</span>
+                    <input id="api-client-name" maxlength="150" required @bind="CreateClientName" @bind:event="oninput" />
+                </label>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@IsCreatingClient">
+                        @(IsCreatingClient ? "Dang tao..." : "Tao API key")
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section class="content-card clients-section">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">Danh sach</p>
+                    <h2>API clients</h2>
+                </div>
+                <span class="section-count">@VisibleClients.Count.ToString("N0") client</span>
+            </div>
+
+            @if (VisibleClients.Count == 0)
+            {
+                <div class="state-card compact">
+                    <strong>Shop nay chua co API client</strong>
+                    <p>Tao API key de website ban hang co the goi quote va tao shipment.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-shell">
+                    <table class="clients-table">
+                        <thead>
+                            <tr>
+                                <th>Client</th>
+                                <th>Shop</th>
+                                <th>Key prefix</th>
+                                <th>Trang thai</th>
+                                <th>Lan dung cuoi</th>
+                                <th>Thao tac</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var client in VisibleClients)
+                            {
+                                <tr class="@(client.ApiClientId == SelectedClientId ? "selected-row" : null)">
+                                    <td data-label="Client">
+                                        <button type="button" class="text-button" @onclick="() => SelectClient(client.ApiClientId)">
+                                            @client.Name
+                                        </button>
+                                        <small>@client.ApiClientId.ToString()[..8]</small>
+                                    </td>
+                                    <td data-label="Shop">@client.ShopName</td>
+                                    <td data-label="Key prefix"><code>@client.ApiKeyPrefix</code></td>
+                                    <td data-label="Trang thai">
+                                        <span class="status-pill @(client.IsActive ? "active" : "inactive")">
+                                            @(client.IsActive ? "Active" : "Revoked")
+                                        </span>
+                                    </td>
+                                    <td data-label="Lan dung cuoi">@FormatNullableDate(client.LastUsedAtUtc)</td>
+                                    <td data-label="Thao tac">
+                                        <div class="row-actions">
+                                            <button type="button" class="secondary-button" disabled="@IsBusy" @onclick="() => RotateClientAsync(client.ApiClientId)">
+                                                Rotate
+                                            </button>
+                                            <button type="button"
+                                                    class="toggle-button @(client.IsActive ? "danger" : "success")"
+                                                    disabled="@IsBusy"
+                                                    @onclick="() => ToggleClientAsync(client)">
+                                                @(client.IsActive ? "Revoke" : "Kich hoat")
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+
+        @if (SelectedClient is not null)
+        {
+            <section class="integration-grid">
+                <article class="content-card webhook-card">
+                    <div class="section-heading">
+                        <div>
+                            <p class="eyebrow">Webhook</p>
+                            <h2>Cau hinh endpoint</h2>
+                        </div>
+                        <span class="status-pill @(SelectedClient.WebhookEndpoint?.IsActive == true ? "active" : "inactive")">
+                            @(SelectedClient.WebhookEndpoint?.IsActive == true ? "Active" : "Not configured")
+                        </span>
+                    </div>
+
+                    <form class="webhook-form" @onsubmit="SaveWebhookAsync" @onsubmit:preventDefault="true">
+                        <label class="field-group" for="webhook-url">
+                            <span>Webhook URL</span>
+                            <input id="webhook-url" type="url" maxlength="500" required placeholder="https://store.example.com/webhooks/logistics" @bind="WebhookUrl" @bind:event="oninput" />
+                        </label>
+
+                        <label class="field-group" for="webhook-secret">
+                            <span>Signing secret</span>
+                            <input id="webhook-secret" maxlength="200" required @bind="WebhookSigningSecret" @bind:event="oninput" />
+                        </label>
+
+                        <div class="form-actions split-actions">
+                            <button type="submit" class="primary-button" disabled="@IsSavingWebhook">
+                                @(IsSavingWebhook ? "Dang luu..." : "Luu webhook")
+                            </button>
+                            <button type="button" class="secondary-button" disabled="@IsTestingWebhook" @onclick="TestWebhookAsync">
+                                @(IsTestingWebhook ? "Dang test..." : "Test webhook")
+                            </button>
+                        </div>
+                    </form>
+                </article>
+
+                <article class="content-card delivery-section">
+                    <div class="section-heading">
+                        <div>
+                            <p class="eyebrow">Delivery log</p>
+                            <h2>Lich su webhook</h2>
+                        </div>
+                        <span class="section-count">@SelectedClient.RecentDeliveries.Count.ToString("N0") event</span>
+                    </div>
+
+                    @if (SelectedClient.RecentDeliveries.Count == 0)
+                    {
+                        <div class="state-card compact">
+                            <strong>Chua co delivery</strong>
+                            <p>Gui test webhook hoac cap nhat shipment de tao event.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-shell compact-table">
+                            <table class="deliveries-table">
+                                <thead>
+                                    <tr>
+                                        <th>Event</th>
+                                        <th>Status</th>
+                                        <th>HTTP</th>
+                                        <th>Retry</th>
+                                        <th>Last attempt</th>
+                                        <th>Error</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var delivery in SelectedClient.RecentDeliveries)
+                                    {
+                                        <tr>
+                                            <td data-label="Event">
+                                                <strong>@delivery.EventType</strong>
+                                                <small>@FormatDate(delivery.CreatedAtUtc)</small>
+                                            </td>
+                                            <td data-label="Status">
+                                                <span class="status-pill @GetDeliveryStatusClass(delivery.Status)">
+                                                    @delivery.Status
+                                                </span>
+                                            </td>
+                                            <td data-label="HTTP">@(delivery.LastResponseStatusCode?.ToString() ?? "-")</td>
+                                            <td data-label="Retry">@delivery.RetryCount</td>
+                                            <td data-label="Last attempt">@FormatNullableDate(delivery.LastAttemptAtUtc)</td>
+                                            <td data-label="Error" class="error-cell">@(delivery.LastError ?? "-")</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </article>
+            </section>
+        }
+    }
+</div>
+
+@code {
+    private PartnerIntegrationDashboardResponse Dashboard { get; set; } = new([], []);
+
+    private bool IsLoading { get; set; } = true;
+
+    private bool IsCreatingClient { get; set; }
+
+    private bool IsSavingWebhook { get; set; }
+
+    private bool IsTestingWebhook { get; set; }
+
+    private bool IsBusy => IsCreatingClient || IsSavingWebhook || IsTestingWebhook;
+
+    private Guid SelectedShopId { get; set; }
+
+    private Guid? SelectedClientId { get; set; }
+
+    private string CreateClientName { get; set; } = "Default partner app";
+
+    private string WebhookUrl { get; set; } = string.Empty;
+
+    private string WebhookSigningSecret { get; set; } = string.Empty;
+
+    private string? GeneratedApiKey { get; set; }
+
+    private string? ErrorMessage { get; set; }
+
+    private string? SuccessMessage { get; set; }
+
+    private IReadOnlyList<PartnerApiClientResponse> VisibleClients => Dashboard.ApiClients
+        .Where(client => client.ShopId == SelectedShopId)
+        .OrderBy(client => client.Name)
+        .ToList();
+
+    private PartnerApiClientResponse? SelectedClient => Dashboard.ApiClients
+        .FirstOrDefault(client => client.ApiClientId == SelectedClientId);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync(clearMessages: true);
+    }
+
+    private async Task RefreshAsync()
+    {
+        GeneratedApiKey = null;
+        await LoadAsync(clearMessages: true);
+    }
+
+    private async Task LoadAsync(bool clearMessages)
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+
+        if (clearMessages)
+        {
+            SuccessMessage = null;
+        }
+
+        var currentUserId = await GetCurrentUserIdAsync();
+        if (currentUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var previousShopId = SelectedShopId;
+        var previousClientId = SelectedClientId;
+        var result = await PartnerIntegrationManagementService.GetDashboardAsync(currentUserId.Value);
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            IsLoading = false;
+            return;
+        }
+
+        Dashboard = result.Value;
+        SelectedShopId = Dashboard.Shops.Any(shop => shop.ShopId == previousShopId)
+            ? previousShopId
+            : Dashboard.Shops.FirstOrDefault()?.ShopId ?? Guid.Empty;
+        SelectedClientId = Dashboard.ApiClients.Any(client => client.ApiClientId == previousClientId)
+            ? previousClientId
+            : VisibleClients.FirstOrDefault()?.ApiClientId;
+        SyncWebhookForm();
+        IsLoading = false;
+    }
+
+    private async Task CreateApiClientAsync()
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+        GeneratedApiKey = null;
+
+        var currentUserId = await GetCurrentUserIdAsync();
+        if (currentUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        IsCreatingClient = true;
+        var result = await PartnerIntegrationManagementService.CreateApiClientAsync(new CreatePartnerApiClientCommand(
+            currentUserId.Value,
+            SelectedShopId,
+            CreateClientName));
+        IsCreatingClient = false;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        GeneratedApiKey = result.Value.ApiKey;
+        SelectedClientId = result.Value.ApiClientId;
+        SuccessMessage = "Da tao API client.";
+        CreateClientName = "Default partner app";
+        await LoadAsync(clearMessages: false);
+    }
+
+    private async Task RotateClientAsync(Guid apiClientId)
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+        GeneratedApiKey = null;
+
+        var currentUserId = await GetCurrentUserIdAsync();
+        if (currentUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var result = await PartnerIntegrationManagementService.RotateApiClientKeyAsync(new RotatePartnerApiClientKeyCommand(
+            currentUserId.Value,
+            apiClientId));
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        GeneratedApiKey = result.Value.ApiKey;
+        SelectedClientId = apiClientId;
+        SuccessMessage = "Da rotate API key.";
+        await LoadAsync(clearMessages: false);
+    }
+
+    private async Task ToggleClientAsync(PartnerApiClientResponse client)
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+        GeneratedApiKey = null;
+
+        var currentUserId = await GetCurrentUserIdAsync();
+        if (currentUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var targetStatus = !client.IsActive;
+        var result = await PartnerIntegrationManagementService.SetApiClientActiveStatusAsync(new SetPartnerApiClientActiveStatusCommand(
+            currentUserId.Value,
+            client.ApiClientId,
+            targetStatus));
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        SelectedClientId = client.ApiClientId;
+        SuccessMessage = targetStatus ? "Da kich hoat API client." : "Da revoke API client.";
+        await LoadAsync(clearMessages: false);
+    }
+
+    private async Task SaveWebhookAsync()
+    {
+        if (SelectedClientId is null)
+        {
+            return;
+        }
+
+        ErrorMessage = null;
+        SuccessMessage = null;
+        GeneratedApiKey = null;
+
+        var currentUserId = await GetCurrentUserIdAsync();
+        if (currentUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        IsSavingWebhook = true;
+        var result = await PartnerIntegrationManagementService.UpsertWebhookEndpointAsync(new UpsertPartnerWebhookEndpointCommand(
+            currentUserId.Value,
+            SelectedClientId.Value,
+            WebhookUrl,
+            WebhookSigningSecret));
+        IsSavingWebhook = false;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        SuccessMessage = "Da luu webhook endpoint.";
+        await LoadAsync(clearMessages: false);
+    }
+
+    private async Task TestWebhookAsync()
+    {
+        if (SelectedClientId is null)
+        {
+            return;
+        }
+
+        ErrorMessage = null;
+        SuccessMessage = null;
+        GeneratedApiKey = null;
+
+        var currentUserId = await GetCurrentUserIdAsync();
+        if (currentUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        IsTestingWebhook = true;
+        var result = await PartnerIntegrationManagementService.TestWebhookAsync(new TestPartnerWebhookCommand(
+            currentUserId.Value,
+            SelectedClientId.Value));
+        IsTestingWebhook = false;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        SuccessMessage = $"Da enqueue {result.Value.EventType}. Worker se gui event trong dot xu ly gan nhat.";
+        await LoadAsync(clearMessages: false);
+    }
+
+    private async Task OnShopChangedAsync(ChangeEventArgs args)
+    {
+        if (Guid.TryParse(args.Value?.ToString(), out var shopId))
+        {
+            SelectedShopId = shopId;
+            SelectedClientId = VisibleClients.FirstOrDefault()?.ApiClientId;
+            SyncWebhookForm();
+        }
+
+        await Task.CompletedTask;
+    }
+
+    private void SelectClient(Guid apiClientId)
+    {
+        SelectedClientId = apiClientId;
+        SyncWebhookForm();
+    }
+
+    private async Task CopyGeneratedKeyAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(GeneratedApiKey))
+        {
+            await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", GeneratedApiKey);
+            SuccessMessage = "Da copy API key.";
+        }
+    }
+
+    private void SyncWebhookForm()
+    {
+        WebhookUrl = SelectedClient?.WebhookEndpoint?.Url ?? string.Empty;
+        WebhookSigningSecret = string.Empty;
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userIdValue = authenticationState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(userIdValue, out var userId)
+            ? userId
+            : null;
+    }
+
+    private static string FormatDate(DateTimeOffset value)
+    {
+        return UiDisplay.FormatLocalDateTime(value);
+    }
+
+    private static string FormatNullableDate(DateTimeOffset? value)
+    {
+        return value.HasValue ? UiDisplay.FormatLocalDateTime(value.Value) : "-";
+    }
+
+    private static string GetDeliveryStatusClass(WebhookDeliveryStatus status)
+    {
+        return status switch
+        {
+            WebhookDeliveryStatus.Succeeded => "active",
+            WebhookDeliveryStatus.Failed => "danger",
+            _ => "warning"
+        };
+    }
+}

@@ -49,6 +49,17 @@ public sealed class ExternalShipmentReferenceRepository : IExternalShipmentRefer
                 cancellationToken);
     }
 
+    public Task<ExternalShipmentReference?> GetByShipmentIdAsync(
+        Guid shipmentId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.ExternalShipmentReferences
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                reference => reference.ShipmentId == shipmentId,
+                cancellationToken);
+    }
+
     public async Task AddAsync(
         ExternalShipmentReference reference,
         CancellationToken cancellationToken = default)

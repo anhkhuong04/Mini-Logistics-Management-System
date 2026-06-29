@@ -1,0 +1,65 @@
+{
+  "info": {
+    "name": "MiniLogistics Partner API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5221" },
+    { "key": "apiKey", "value": "ml_demo_partner_key_123456" },
+    { "key": "trackingCode", "value": "ML202606290001" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{apiKey}}", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Quote shipping fee",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/partner/shipping/quote",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"externalOrderId\": \"ECOM-10001\",\n  \"pickupAddress\": null,\n  \"deliveryAddress\": {\n    \"street\": \"9 Le Loi\",\n    \"ward\": \"Hoan Kiem\",\n    \"province\": \"Ha Noi\",\n    \"country\": \"Vietnam\"\n  },\n  \"parcel\": {\n    \"weightKg\": 1.2,\n    \"lengthCm\": 20,\n    \"widthCm\": 15,\n    \"heightCm\": 10\n  },\n  \"goodsValueAmount\": 2000000,\n  \"codAmount\": 150000,\n  \"currency\": \"VND\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Create shipment",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" },
+          { "key": "Idempotency-Key", "value": "ECOM-10001" }
+        ],
+        "url": "{{baseUrl}}/api/v1/partner/shipments",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"externalOrderId\": \"ECOM-10001\",\n  \"sender\": null,\n  \"receiver\": {\n    \"name\": \"Nguyen Van A\",\n    \"phone\": \"0911111111\"\n  },\n  \"pickupAddress\": null,\n  \"deliveryAddress\": {\n    \"street\": \"9 Le Loi\",\n    \"ward\": \"Hoan Kiem\",\n    \"province\": \"Ha Noi\",\n    \"country\": \"Vietnam\"\n  },\n  \"parcel\": {\n    \"weightKg\": 1.2,\n    \"lengthCm\": 20,\n    \"widthCm\": 15,\n    \"heightCm\": 10\n  },\n  \"goodsValueAmount\": 2000000,\n  \"codAmount\": 150000,\n  \"currency\": \"VND\",\n  \"note\": \"Deliver during office hours\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Get tracking",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/partner/shipments/{{trackingCode}}"
+      }
+    },
+    {
+      "name": "Cancel shipment",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "url": "{{baseUrl}}/api/v1/partner/shipments/{{trackingCode}}/cancel",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"reason\": \"Customer cancelled order\"\n}"
+        }
+      }
+    }
+  ]
+}

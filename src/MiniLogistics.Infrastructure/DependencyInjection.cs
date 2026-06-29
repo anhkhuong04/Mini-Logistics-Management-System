@@ -9,6 +9,7 @@ using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Shops;
 using MiniLogistics.Application.Shipments;
 using MiniLogistics.Infrastructure.Identity;
+using MiniLogistics.Infrastructure.PartnerApi;
 using MiniLogistics.Infrastructure.Persistence;
 using MiniLogistics.Infrastructure.Persistence.Repositories;
 
@@ -42,6 +43,12 @@ public static class DependencyInjection
             })
             .AddEntityFrameworkStores<MiniLogisticsDbContext>()
             .AddDefaultTokenProviders();
+        services.ConfigureApplicationCookie(options =>
+        {
+            options.LoginPath = "/login";
+            options.AccessDeniedPath = "/login";
+            options.LogoutPath = "/auth/logout";
+        });
 
         services.AddScoped<IShipmentRepository, ShipmentRepository>();
         services.AddScoped<IFeeRuleRepository, FeeRuleRepository>();
@@ -49,8 +56,16 @@ public static class DependencyInjection
         services.AddScoped<ICodTransactionRepository, CodTransactionRepository>();
         services.AddScoped<IApiClientRepository, ApiClientRepository>();
         services.AddScoped<IExternalShipmentReferenceRepository, ExternalShipmentReferenceRepository>();
+        services.AddScoped<IWebhookEndpointRepository, WebhookEndpointRepository>();
+        services.AddScoped<IWebhookDeliveryRepository, WebhookDeliveryRepository>();
+        services.AddScoped<IPartnerApiRequestAuditRepository, PartnerApiRequestAuditRepository>();
         services.AddScoped<IIdentityService, IdentityService>();
         services.AddScoped<DatabaseSeeder>();
+        services.AddHttpClient<WebhookDeliveryDispatcher>(client =>
+        {
+            client.Timeout = TimeSpan.FromSeconds(10);
+        });
+        services.AddHostedService<WebhookDeliveryWorker>();
 
         return services;
     }

@@ -42,6 +42,8 @@ public static class DependencyInjection
         services.AddScoped<IPartnerCreateShipmentService, PartnerCreateShipmentService>();
         services.AddScoped<IPartnerShipmentQueryService, PartnerShipmentQueryService>();
         services.AddScoped<IPartnerCancelShipmentService, PartnerCancelShipmentService>();
+        services.AddScoped<IPartnerIntegrationManagementService, PartnerIntegrationManagementService>();
+        services.AddScoped<IWebhookEventPublisher, WebhookEventPublisher>();
         services.AddScoped<IShippingFeeService, ShippingFeeService>();
         services.AddScoped<IRouteClassificationService, RouteClassificationService>();
         services.AddScoped<IGetActiveShippersService, GetActiveShippersService>();

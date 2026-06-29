@@ -33,6 +33,12 @@ public sealed class MiniLogisticsDbContext : IdentityDbContext<ApplicationUser, 
 
     public DbSet<ExternalShipmentReference> ExternalShipmentReferences => Set<ExternalShipmentReference>();
 
+    public DbSet<WebhookEndpoint> WebhookEndpoints => Set<WebhookEndpoint>();
+
+    public DbSet<WebhookDelivery> WebhookDeliveries => Set<WebhookDelivery>();
+
+    public DbSet<PartnerApiRequestAudit> PartnerApiRequestAudits => Set<PartnerApiRequestAudit>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

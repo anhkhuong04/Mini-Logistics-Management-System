@@ -15,19 +15,22 @@ public sealed class PartnerCancelShipmentService : IPartnerCancelShipmentService
     private readonly IShipmentRepository _shipmentRepository;
     private readonly ICodTransactionRepository _codTransactionRepository;
     private readonly IExternalShipmentReferenceRepository _externalShipmentReferenceRepository;
+    private readonly IWebhookEventPublisher _webhookEventPublisher;
 
     public PartnerCancelShipmentService(
         IValidator<PartnerCancelShipmentCommand> validator,
         IShopRepository shopRepository,
         IShipmentRepository shipmentRepository,
         ICodTransactionRepository codTransactionRepository,
-        IExternalShipmentReferenceRepository externalShipmentReferenceRepository)
+        IExternalShipmentReferenceRepository externalShipmentReferenceRepository,
+        IWebhookEventPublisher? webhookEventPublisher = null)
     {
         _validator = validator;
         _shopRepository = shopRepository;
         _shipmentRepository = shipmentRepository;
         _codTransactionRepository = codTransactionRepository;
         _externalShipmentReferenceRepository = externalShipmentReferenceRepository;
+        _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
     }
 
     public async Task<Result<PartnerShipmentTrackingResponse>> CancelAsync(
@@ -76,6 +79,10 @@ public sealed class PartnerCancelShipmentService : IPartnerCancelShipmentService
         }
 
         await _shipmentRepository.SaveChangesAsync(cancellationToken);
+        await _webhookEventPublisher.PublishShipmentAsync(
+            shipment,
+            WebhookEventTypes.ShipmentStatusChanged,
+            cancellationToken);
 
         var codTransaction = await _codTransactionRepository.GetByShipmentIdAsync(shipment.Id, cancellationToken);
 

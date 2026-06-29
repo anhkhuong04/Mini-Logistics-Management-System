@@ -1,12 +1,19 @@
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Shipments.CreateShipment;
 using MiniLogistics.Domain.Common;
+using MiniLogistics.Domain.PartnerApi;
+using MiniLogistics.Web.Services;
 
 namespace MiniLogistics.Web.Endpoints;
 
 public static class PartnerApiEndpoints
 {
+    private static readonly JsonSerializerOptions RequestHashJsonOptions = new(JsonSerializerDefaults.Web);
+
     public static IEndpointRouteBuilder MapPartnerApiEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/v1/partner");
@@ -23,12 +30,18 @@ public static class PartnerApiEndpoints
         HttpContext httpContext,
         PartnerQuoteRequest? request,
         IPartnerApiAuthenticationService authenticationService,
-        IPartnerQuoteService quoteService)
+        IPartnerQuoteService quoteService,
+        IPartnerApiRateLimiter rateLimiter)
     {
         var authenticationResult = await AuthenticateAsync(httpContext, authenticationService);
         if (authenticationResult.IsFailure)
         {
             return ToErrorResult(authenticationResult.Error, httpContext);
+        }
+
+        if (!TryAcquireRateLimit(httpContext, rateLimiter, authenticationResult.Value.ApiClientId, PartnerApiRateLimitKind.Quote))
+        {
+            return ToErrorResult(PartnerApiErrors.RateLimitExceeded, httpContext);
         }
 
         if (request?.DeliveryAddress is null || request.Parcel is null)
@@ -63,7 +76,9 @@ public static class PartnerApiEndpoints
         HttpContext httpContext,
         PartnerCreateShipmentRequest? request,
         IPartnerApiAuthenticationService authenticationService,
-        IPartnerCreateShipmentService createShipmentService)
+        IPartnerCreateShipmentService createShipmentService,
+        IPartnerApiRateLimiter rateLimiter,
+        IPartnerApiRequestAuditRepository auditRepository)
     {
         var authenticationResult = await AuthenticateAsync(httpContext, authenticationService);
         if (authenticationResult.IsFailure)
@@ -71,14 +86,32 @@ public static class PartnerApiEndpoints
             return ToErrorResult(authenticationResult.Error, httpContext);
         }
 
-        if (request?.Receiver is null || request.DeliveryAddress is null || request.Parcel is null)
+        if (!TryAcquireRateLimit(httpContext, rateLimiter, authenticationResult.Value.ApiClientId, PartnerApiRateLimitKind.CreateShipment))
         {
-            return ToErrorResult(
-                ApplicationErrors.ValidationFailed("Receiver, delivery address and parcel are required."),
-                httpContext);
+            return ToErrorResult(PartnerApiErrors.RateLimitExceeded, httpContext);
         }
 
         var idempotencyKey = httpContext.Request.Headers["Idempotency-Key"].ToString().Trim();
+        if (request?.Receiver is null || request.DeliveryAddress is null || request.Parcel is null)
+        {
+            var validationError = ApplicationErrors.ValidationFailed("Receiver, delivery address and parcel are required.");
+            await AuditCreateShipmentAsync(
+                httpContext,
+                authenticationResult.Value,
+                request,
+                idempotencyKey,
+                StatusCodes.Status400BadRequest,
+                isSuccess: false,
+                isIdempotentReplay: false,
+                shipment: null,
+                error: validationError,
+                auditRepository);
+
+            return ToErrorResult(
+                validationError,
+                httpContext);
+        }
+
         var command = new PartnerCreateShipmentCommand(
             authenticationResult.Value.ApiClientId,
             authenticationResult.Value.ShopId,
@@ -103,8 +136,36 @@ public static class PartnerApiEndpoints
 
         if (createResult.IsFailure)
         {
+            var statusCode = ToStatusCode(createResult.Error);
+            await AuditCreateShipmentAsync(
+                httpContext,
+                authenticationResult.Value,
+                request,
+                idempotencyKey,
+                statusCode,
+                isSuccess: false,
+                isIdempotentReplay: false,
+                shipment: null,
+                error: createResult.Error,
+                auditRepository);
+
             return ToErrorResult(createResult.Error, httpContext);
         }
+
+        var successStatusCode = createResult.Value.IsIdempotentReplay
+            ? StatusCodes.Status200OK
+            : StatusCodes.Status201Created;
+        await AuditCreateShipmentAsync(
+            httpContext,
+            authenticationResult.Value,
+            request,
+            idempotencyKey,
+            successStatusCode,
+            isSuccess: true,
+            isIdempotentReplay: createResult.Value.IsIdempotentReplay,
+            shipment: createResult.Value.Shipment,
+            error: null,
+            auditRepository);
 
         return createResult.Value.IsIdempotentReplay
             ? Results.Ok(createResult.Value.Shipment)
@@ -117,12 +178,18 @@ public static class PartnerApiEndpoints
         HttpContext httpContext,
         string trackingCode,
         IPartnerApiAuthenticationService authenticationService,
-        IPartnerShipmentQueryService shipmentQueryService)
+        IPartnerShipmentQueryService shipmentQueryService,
+        IPartnerApiRateLimiter rateLimiter)
     {
         var authenticationResult = await AuthenticateAsync(httpContext, authenticationService);
         if (authenticationResult.IsFailure)
         {
             return ToErrorResult(authenticationResult.Error, httpContext);
+        }
+
+        if (!TryAcquireRateLimit(httpContext, rateLimiter, authenticationResult.Value.ApiClientId, PartnerApiRateLimitKind.Tracking))
+        {
+            return ToErrorResult(PartnerApiErrors.RateLimitExceeded, httpContext);
         }
 
         var queryResult = await shipmentQueryService.GetAsync(new PartnerGetShipmentCommand(
@@ -141,12 +208,18 @@ public static class PartnerApiEndpoints
         string trackingCode,
         PartnerCancelShipmentRequest? request,
         IPartnerApiAuthenticationService authenticationService,
-        IPartnerCancelShipmentService cancelShipmentService)
+        IPartnerCancelShipmentService cancelShipmentService,
+        IPartnerApiRateLimiter rateLimiter)
     {
         var authenticationResult = await AuthenticateAsync(httpContext, authenticationService);
         if (authenticationResult.IsFailure)
         {
             return ToErrorResult(authenticationResult.Error, httpContext);
+        }
+
+        if (!TryAcquireRateLimit(httpContext, rateLimiter, authenticationResult.Value.ApiClientId, PartnerApiRateLimitKind.CancelShipment))
+        {
+            return ToErrorResult(PartnerApiErrors.RateLimitExceeded, httpContext);
         }
 
         var cancelResult = await cancelShipmentService.CancelAsync(new PartnerCancelShipmentCommand(
@@ -168,6 +241,63 @@ public static class PartnerApiEndpoints
         return authenticationService.AuthenticateAsync(
             httpContext.Request.Headers.Authorization.ToString(),
             httpContext.RequestAborted);
+    }
+
+    private static bool TryAcquireRateLimit(
+        HttpContext httpContext,
+        IPartnerApiRateLimiter rateLimiter,
+        Guid apiClientId,
+        PartnerApiRateLimitKind kind)
+    {
+        var isAllowed = rateLimiter.TryAcquire(apiClientId, kind, out var retryAfter);
+        if (!isAllowed)
+        {
+            httpContext.Response.Headers.RetryAfter = Math.Ceiling(retryAfter.TotalSeconds).ToString("0");
+        }
+
+        return isAllowed;
+    }
+
+    private static async Task AuditCreateShipmentAsync(
+        HttpContext httpContext,
+        PartnerApiClientContext context,
+        PartnerCreateShipmentRequest? request,
+        string idempotencyKey,
+        int statusCode,
+        bool isSuccess,
+        bool isIdempotentReplay,
+        PartnerShipmentResponse? shipment,
+        Error? error,
+        IPartnerApiRequestAuditRepository auditRepository)
+    {
+        var audit = new PartnerApiRequestAudit(
+            context.ApiClientId,
+            context.ShopId,
+            httpContext.Request.Method,
+            httpContext.Request.Path.Value ?? "/api/v1/partner/shipments",
+            httpContext.TraceIdentifier,
+            request?.ExternalOrderId,
+            idempotencyKey,
+            ComputeRequestHash(request),
+            statusCode,
+            isSuccess,
+            isIdempotentReplay,
+            shipment?.ShipmentId,
+            shipment?.TrackingCode,
+            error?.Code,
+            error?.Description);
+
+        await auditRepository.AddAsync(audit, httpContext.RequestAborted);
+        await auditRepository.SaveChangesAsync(httpContext.RequestAborted);
+    }
+
+    private static string ComputeRequestHash(PartnerCreateShipmentRequest? request)
+    {
+        var json = request is null
+            ? "{}"
+            : JsonSerializer.Serialize(request, RequestHashJsonOptions);
+        var hashBytes = SHA256.HashData(Encoding.UTF8.GetBytes(json));
+        return Convert.ToHexString(hashBytes);
     }
 
     private static ShipmentAddressDto? ToShipmentAddress(PartnerAddressRequest? address)
@@ -195,6 +325,7 @@ public static class PartnerApiEndpoints
         {
             "PartnerApi.MissingApiKey" or "PartnerApi.InvalidApiKey" => StatusCodes.Status401Unauthorized,
             "PartnerApi.ApiClientInactive" or "Application.Forbidden" => StatusCodes.Status403Forbidden,
+            "PartnerApi.RateLimitExceeded" => StatusCodes.Status429TooManyRequests,
             "Application.NotFound" => StatusCodes.Status404NotFound,
             "Application.Conflict" or "PartnerApi.IdempotencyConflict" => StatusCodes.Status409Conflict,
             "Application.ValidationFailed" => StatusCodes.Status400BadRequest,

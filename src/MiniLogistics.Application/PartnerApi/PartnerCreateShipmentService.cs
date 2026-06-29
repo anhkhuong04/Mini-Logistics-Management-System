@@ -28,6 +28,7 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
     private readonly IShipmentRepository _shipmentRepository;
     private readonly ICodTransactionRepository _codTransactionRepository;
     private readonly IExternalShipmentReferenceRepository _externalShipmentReferenceRepository;
+    private readonly IWebhookEventPublisher _webhookEventPublisher;
 
     public PartnerCreateShipmentService(
         IValidator<PartnerCreateShipmentCommand> validator,
@@ -36,7 +37,8 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
         IShippingFeeService shippingFeeService,
         IShipmentRepository shipmentRepository,
         ICodTransactionRepository codTransactionRepository,
-        IExternalShipmentReferenceRepository externalShipmentReferenceRepository)
+        IExternalShipmentReferenceRepository externalShipmentReferenceRepository,
+        IWebhookEventPublisher? webhookEventPublisher = null)
     {
         _validator = validator;
         _shopRepository = shopRepository;
@@ -45,6 +47,7 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
         _shipmentRepository = shipmentRepository;
         _codTransactionRepository = codTransactionRepository;
         _externalShipmentReferenceRepository = externalShipmentReferenceRepository;
+        _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
     }
 
     public async Task<Result<PartnerCreateShipmentResult>> CreateAsync(
@@ -175,6 +178,10 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
         await _codTransactionRepository.AddAsync(codTransaction, cancellationToken);
         await _externalShipmentReferenceRepository.AddAsync(reference, cancellationToken);
         await _shipmentRepository.SaveChangesAsync(cancellationToken);
+        await _webhookEventPublisher.PublishShipmentAsync(
+            shipment,
+            WebhookEventTypes.ShipmentCreated,
+            cancellationToken);
 
         return Result<PartnerCreateShipmentResult>.Success(new PartnerCreateShipmentResult(response, false));
     }

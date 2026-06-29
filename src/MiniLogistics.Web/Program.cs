@@ -14,6 +14,7 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSingleton<VietnamAdministrativeDivisionService>();
+builder.Services.AddSingleton<IPartnerApiRateLimiter, InMemoryPartnerApiRateLimiter>();
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
@@ -69,3 +70,5 @@ static async Task RunDatabaseCommandsAsync(
         await seeder.SeedAsync();
     }
 }
+
+public partial class Program;

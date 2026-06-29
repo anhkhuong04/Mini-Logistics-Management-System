@@ -19,6 +19,10 @@ public interface IExternalShipmentReferenceRepository
         Guid shipmentId,
         CancellationToken cancellationToken = default);
 
+    Task<ExternalShipmentReference?> GetByShipmentIdAsync(
+        Guid shipmentId,
+        CancellationToken cancellationToken = default);
+
     Task AddAsync(
         ExternalShipmentReference reference,
         CancellationToken cancellationToken = default);

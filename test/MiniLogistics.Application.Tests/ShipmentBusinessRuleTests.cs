@@ -1202,6 +1202,11 @@ public sealed class ShipmentBusinessRuleTests
             return Task.FromResult(_shops.FirstOrDefault(shop => shop.OwnerUserId == ownerUserId));
         }
 
+        public Task<IReadOnlyList<Shop>> GetAllAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<Shop>>(_shops.ToList());
+        }
+
         public Task<bool> ExistsByOwnerUserIdAsync(
             Guid ownerUserId,
             CancellationToken cancellationToken = default)

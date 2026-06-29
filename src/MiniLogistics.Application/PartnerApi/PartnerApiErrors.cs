@@ -19,4 +19,8 @@ public static class PartnerApiErrors
     public static readonly Error IdempotencyConflict = new(
         "PartnerApi.IdempotencyConflict",
         "Idempotency key was already used with a different request.");
+
+    public static readonly Error RateLimitExceeded = new(
+        "PartnerApi.RateLimitExceeded",
+        "API client rate limit was exceeded.");
 }

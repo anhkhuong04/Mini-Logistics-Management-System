@@ -1,6 +1,7 @@
 using FluentValidation;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
+using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Users;
 
@@ -11,15 +12,18 @@ public sealed class AssignShipperToShipmentService : IAssignShipperToShipmentSer
     private readonly IValidator<AssignShipperCommand> _validator;
     private readonly IIdentityService _identityService;
     private readonly IShipmentRepository _shipmentRepository;
+    private readonly IWebhookEventPublisher _webhookEventPublisher;
 
     public AssignShipperToShipmentService(
         IValidator<AssignShipperCommand> validator,
         IIdentityService identityService,
-        IShipmentRepository shipmentRepository)
+        IShipmentRepository shipmentRepository,
+        IWebhookEventPublisher? webhookEventPublisher = null)
     {
         _validator = validator;
         _identityService = identityService;
         _shipmentRepository = shipmentRepository;
+        _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
     }
 
     public async Task<Result> AssignAsync(
@@ -71,6 +75,10 @@ public sealed class AssignShipperToShipmentService : IAssignShipperToShipmentSer
         }
 
         await _shipmentRepository.SaveChangesAsync(cancellationToken);
+        await _webhookEventPublisher.PublishShipmentAsync(
+            shipment,
+            WebhookEventTypes.ShipmentStatusChanged,
+            cancellationToken);
 
         return Result.Success();
     }
