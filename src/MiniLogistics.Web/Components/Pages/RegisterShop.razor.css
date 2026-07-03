@@ -1,233 +1,39 @@
-.register-page {
-    display: grid;
-    grid-template-columns: minmax(0, 0.9fr) minmax(26rem, 1fr);
-    min-height: 100vh;
+.register-page .auth-shell {
+    grid-template-columns: minmax(0, 0.96fr) minmax(34rem, 1.04fr);
 }
 
-.register-hero {
-    background:
-        linear-gradient(135deg, rgba(7, 101, 232, 0.9), rgba(7, 25, 79, 0.96)),
-        url("/images/landing%20page/landing-hero-truck.png") center/cover;
-    color: #fff;
-    display: grid;
-    align-content: space-between;
-    gap: 2rem;
-    padding: 3rem;
+.register-page .auth-panel-inner {
+    max-width: 36rem;
 }
 
-.register-brand {
-    align-items: center;
-    display: inline-flex;
-    gap: 0.8rem;
+.register-page .auth-card {
+    gap: 18px;
+    padding: 24px;
 }
 
-.register-brand img {
-    background: #fff;
-    border-radius: 12px;
-    height: 46px;
-    padding: 0.35rem;
-    width: 46px;
-}
-
-.register-brand strong,
-.register-copy h1,
-.register-card h2 {
-    font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
-}
-
-.register-brand strong,
-.register-brand span {
-    display: block;
-}
-
-.register-brand strong {
-    font-size: 1.2rem;
-    font-weight: 900;
-}
-
-.register-brand span {
-    color: rgba(255, 255, 255, 0.76);
-    font-size: 0.85rem;
-    font-weight: 800;
-}
-
-.register-copy {
-    max-width: 42rem;
-}
-
-.register-copy h1 {
-    font-size: clamp(2rem, 4vw, 3.5rem);
-    font-weight: 900;
-    line-height: 1.12;
-    margin: 0 0 1rem;
-}
-
-.register-copy p,
-.register-highlights p {
-    color: rgba(255, 255, 255, 0.78);
-    line-height: 1.7;
-    margin: 0;
-}
-
-.register-highlights {
-    display: grid;
-    gap: 0.85rem;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.register-highlights article {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid rgba(255, 255, 255, 0.18);
-    border-radius: 10px;
-    padding: 1rem;
-}
-
-.register-highlights strong {
-    display: block;
-    font-weight: 900;
-    margin-bottom: 0.35rem;
-}
-
-.register-panel {
-    align-content: center;
-    display: grid;
-    gap: 1rem;
-    padding: 2rem;
-}
-
-.panel-head,
-.register-actions {
-    align-items: center;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    justify-content: space-between;
-}
-
-.back-link,
-.secondary-link {
-    color: #0b63f6;
-    font-weight: 900;
-    text-decoration: none;
-}
-
-.panel-badge {
-    background: #eaf4ff;
-    border-radius: 999px;
-    color: #0b63f6;
-    font-size: 0.8rem;
-    font-weight: 900;
-    padding: 0.45rem 0.75rem;
-}
-
-.register-card {
-    background: #fff;
-    border: 1px solid #e5eef8;
-    border-radius: 12px;
-    box-shadow: 0 18px 44px rgba(7, 27, 77, 0.08);
-    display: grid;
-    gap: 1.25rem;
-    padding: 1.5rem;
-}
-
-.card-copy h2 {
-    color: #071b4d;
-    font-size: 1.45rem;
-    font-weight: 900;
-    margin: 0 0 0.35rem;
-}
-
-.card-copy p {
-    color: #64748b;
-    margin: 0;
-}
-
-.register-error {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    border-radius: 10px;
-    color: #b91c1c;
-    font-weight: 800;
-    padding: 0.85rem 1rem;
-}
-
-.register-form,
-.form-grid {
-    display: grid;
-    gap: 1rem;
-}
-
-.form-grid {
+.register-page .auth-form-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.field-group {
-    display: grid;
-    gap: 0.45rem;
-}
-
-.field-group span {
-    color: #071b4d;
-    font-size: 0.86rem;
-    font-weight: 900;
-}
-
-.field-group input {
-    border: 1px solid #d7e4f2;
-    border-radius: 10px;
-    color: #071b4d;
-    min-height: 44px;
-    padding: 0 0.85rem;
-}
-
-.field-group input:focus {
-    border-color: #0b63f6;
-    box-shadow: 0 0 0 0.18rem rgba(11, 99, 246, 0.12);
-    outline: 0;
-}
-
-.field-span-2 {
+.register-page .form-field--full {
     grid-column: 1 / -1;
 }
 
-.submit-button {
-    background: #0b63f6;
-    border: 1px solid #0b63f6;
-    border-radius: 10px;
-    color: #fff;
-    font-weight: 900;
-    min-height: 44px;
-    padding: 0 1.15rem;
+.register-page .auth-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-@media (max-width: 1040px) {
-    .register-page {
-        grid-template-columns: 1fr;
-    }
-
-    .register-hero {
-        min-height: 30rem;
-    }
+.register-page .auth-visual-frame {
+    aspect-ratio: 16 / 9;
 }
 
-@media (max-width: 720px) {
-    .register-hero,
-    .register-panel {
-        padding: 1.25rem;
-    }
+.register-page .auth-visual-frame img {
+    object-position: center;
+}
 
-    .register-highlights,
-    .form-grid {
+@media (max-width: 860px) {
+    .register-page .auth-form-grid,
+    .register-page .auth-actions {
         grid-template-columns: 1fr;
-    }
-
-    .register-actions,
-    .panel-head {
-        align-items: stretch;
-        flex-direction: column;
-    }
-
-    .submit-button {
-        width: 100%;
     }
 }

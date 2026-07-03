@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Support">
-  <rect width="64" height="64" rx="32" fill="#eef2ff"/>
-  <path d="M15 34v-4c0-9.4 7.6-17 17-17s17 7.6 17 17v4h-6v-4c0-6.1-4.9-11-11-11s-11 4.9-11 11v4h-6Z" fill="#4f46e5"/>
-  <path d="M18 31h8v15h-4a6 6 0 0 1-6-6v-7a2 2 0 0 1 2-2Zm20 0h8a2 2 0 0 1 2 2v7a6 6 0 0 1-6 6h-4V31Z" fill="#818cf8"/>
-  <path d="M36 49h6v5H30a5 5 0 0 1-5-5h6a2 2 0 0 0 2 2h3v-2Z" fill="#4f46e5"/>
-</svg>

@@ -2,113 +2,115 @@
 @layout MiniLogistics.Web.Components.Layout.LandingLayout
 @attribute [AllowAnonymous]
 
-<PageTitle>Đăng ký shop - MiniLogistics</PageTitle>
+<PageTitle>Đăng ký shop - LAK Logistics</PageTitle>
 
-<main class="register-page">
-    <section class="register-hero" aria-label="Đăng ký shop">
-        <div class="register-brand">
-            <img src="/images/landing%20page/logo.svg" alt="MiniLogistics" />
-            <div>
-                <strong>MiniLogistics</strong>
-                <span>Đăng ký shop</span>
-            </div>
-        </div>
+<main class="auth-page register-page">
+    <div class="auth-shell">
+        <section class="auth-visual" aria-label="Đăng ký shop LAK Logistics">
+            <a class="brand-lockup" href="/">
+                <img src="/images/auth/lak-logo.svg" alt="LAK Logistics" />
+                <span class="brand-copy">
+                    <strong>LAK Logistics</strong>
+                    <span>Đăng ký tài khoản shop để bắt đầu tạo và theo dõi vận đơn</span>
+                </span>
+            </a>
 
-        <div class="register-copy">
-            <h1>Mở shop và bắt đầu tạo vận đơn trong một workspace gọn gàng.</h1>
-            <p>
-                Tạo tài khoản shop, khai báo địa chỉ lấy hàng mặc định, rồi chuyển thẳng sang luồng tạo vận đơn,
-                theo dõi COD và vận hành giao nhận.
-            </p>
-        </div>
-
-        <div class="register-highlights" aria-label="Điểm nổi bật">
-            <article>
-                <strong>Thiết lập nhanh</strong>
-                <p>Tài khoản, thông tin shop và địa chỉ lấy hàng trong một biểu mẫu.</p>
-            </article>
-            <article>
-                <strong>Vận hành rõ ràng</strong>
-                <p>Dashboard, luồng vận đơn và COD nằm trong cùng hệ thống.</p>
-            </article>
-            <article>
-                <strong>Sẵn sàng demo</strong>
-                <p>Bố cục phù hợp desktop, laptop và màn hình nhỏ.</p>
-            </article>
-        </div>
-    </section>
-
-    <section class="register-panel" aria-label="Tạo tài khoản shop">
-        <div class="panel-head">
-            <a class="back-link" href="/login">Quay lại đăng nhập</a>
-            <span class="panel-badge">Tài khoản shop</span>
-        </div>
-
-        <div class="register-card">
-            <div class="card-copy">
-                <h2>Tạo tài khoản shop</h2>
-                <p>Dùng thông tin liên hệ sẽ quản lý đơn hàng và đối soát COD.</p>
+            <div class="auth-copy">
+                <span class="auth-chip">Tài khoản shop</span>
+                <h1>Tạo không gian quản lý đơn hàng và bắt đầu luồng giao nhận trong vài phút.</h1>
+                <p>Biểu mẫu chỉ giữ các thông tin cần thiết để shop có thể tạo đơn, theo dõi vận đơn và cấu hình điểm lấy hàng mặc định.</p>
             </div>
 
-            @if (!string.IsNullOrWhiteSpace(Error))
-            {
-                <div class="register-error" role="alert">@UiDisplay.ToErrorMessage(Error)</div>
-            }
+            <ul class="auth-points" aria-label="Điểm chính của biểu mẫu đăng ký">
+                <li>Thông tin gọn, rõ và đủ để tạo tài khoản quản trị ban đầu.</li>
+                <li>Bố cục hai cột giúp điền nhanh hơn trên màn hình desktop.</li>
+                <li>Các thiết lập vận hành khác có thể cập nhật sau khi đăng nhập.</li>
+            </ul>
 
-            <form method="post" action="/auth/register-shop" class="register-form">
-                <AntiforgeryToken />
+            <div class="auth-visual-frame">
+                <img src="/images/auth/register-visual.png" alt="Chủ shop chuẩn bị đơn hàng tại bàn làm việc" />
+            </div>
+        </section>
 
-                <div class="form-grid">
-                    <label class="field-group" for="full-name">
-                        <span>Họ và tên</span>
-                        <input id="full-name" name="FullName" autocomplete="name" required maxlength="150" />
-                    </label>
-
-                    <label class="field-group" for="email">
-                        <span>Email</span>
-                        <input id="email" name="Email" type="email" autocomplete="email" required maxlength="256" />
-                    </label>
-
-                    <label class="field-group" for="password">
-                        <span>Mật khẩu</span>
-                        <input id="password" name="Password" type="password" autocomplete="new-password" required minlength="6" maxlength="100" />
-                    </label>
-
-                    <label class="field-group" for="phone-number">
-                        <span>Số điện thoại</span>
-                        <input id="phone-number" name="PhoneNumber" type="tel" autocomplete="tel" required maxlength="20" />
-                    </label>
-
-                    <label class="field-group field-span-2" for="shop-name">
-                        <span>Tên shop</span>
-                        <input id="shop-name" name="ShopName" required maxlength="200" />
-                    </label>
-
-                    <label class="field-group" for="province">
-                        <span>Tỉnh / Thành</span>
-                        <input id="province" name="Province" required maxlength="100" />
-                    </label>
-
-                    <label class="field-group" for="ward">
-                        <span>Phường / Xã</span>
-                        <input id="ward" name="Ward" required maxlength="100" />
-                    </label>
-
-                    <label class="field-group field-span-2" for="address-line">
-                        <span>Địa chỉ</span>
-                        <input id="address-line" name="AddressLine" required maxlength="300" />
-                    </label>
+        <section class="auth-panel" aria-label="Biểu mẫu đăng ký shop">
+            <div class="auth-panel-inner">
+                <div class="auth-topbar">
+                    <div class="auth-topbar-links">
+                        <a class="auth-link" href="/login">Quay lại đăng nhập</a>
+                        <a class="auth-link" href="/">Trang chủ</a>
+                    </div>
+                    <span class="auth-lang">Tiếng Việt</span>
                 </div>
 
-                <input type="hidden" name="Country" value="Vietnam" />
+                <div class="auth-card">
+                    <div class="auth-card-head">
+                        <h2>Đăng ký shop</h2>
+                        <p>Dùng thông tin liên hệ chính để quản lý đơn hàng, vận hành giao nhận và đối soát COD trên hệ thống LAK.</p>
+                    </div>
 
-                <div class="form-actions register-actions">
-                    <button type="submit" class="submit-button">Tạo tài khoản</button>
-                    <a class="secondary-link" href="/login">Đã có tài khoản?</a>
+                    @if (!string.IsNullOrWhiteSpace(Error))
+                    {
+                        <div class="auth-error" role="alert">@UiDisplay.ToErrorMessage(Error)</div>
+                    }
+
+                    <form method="post" action="/auth/register-shop" class="auth-form">
+                        <AntiforgeryToken />
+
+                        <div class="auth-form-grid">
+                            <label class="form-field" for="full-name">
+                                <span>Họ và tên</span>
+                                <input id="full-name" class="form-input" name="FullName" autocomplete="name" required maxlength="150" placeholder="Nguyễn Văn A" />
+                            </label>
+
+                            <label class="form-field" for="email">
+                                <span>Email</span>
+                                <input id="email" class="form-input" name="Email" type="email" autocomplete="email" required maxlength="256" placeholder="name@shop.vn" />
+                            </label>
+
+                            <label class="form-field" for="password">
+                                <span>Mật khẩu</span>
+                                <input id="password" class="form-input" name="Password" type="password" autocomplete="new-password" required minlength="6" maxlength="100" placeholder="Tối thiểu 6 ký tự" />
+                            </label>
+
+                            <label class="form-field" for="phone-number">
+                                <span>Số điện thoại</span>
+                                <input id="phone-number" class="form-input" name="PhoneNumber" type="tel" autocomplete="tel" required maxlength="20" placeholder="09xxxxxxxx" />
+                            </label>
+
+                            <label class="form-field form-field--full" for="shop-name">
+                                <span>Tên shop</span>
+                                <input id="shop-name" class="form-input" name="ShopName" required maxlength="200" placeholder="Ví dụ: LAK Shop" />
+                            </label>
+
+                            <label class="form-field" for="province">
+                                <span>Tỉnh / Thành phố</span>
+                                <input id="province" class="form-input" name="Province" required maxlength="100" placeholder="Hà Nội" />
+                            </label>
+
+                            <label class="form-field" for="ward">
+                                <span>Phường / Xã</span>
+                                <input id="ward" class="form-input" name="Ward" required maxlength="100" placeholder="Phường ..." />
+                            </label>
+
+                            <label class="form-field form-field--full" for="address-line">
+                                <span>Địa chỉ lấy hàng</span>
+                                <input id="address-line" class="form-input" name="AddressLine" required maxlength="300" placeholder="Số nhà, đường, khu vực nhận hàng" />
+                            </label>
+                        </div>
+
+                        <input type="hidden" name="Country" value="Vietnam" />
+
+                        <div class="auth-actions">
+                            <button type="submit" class="auth-primary">Tạo tài khoản</button>
+                            <a class="auth-secondary" href="/login">Tôi đã có tài khoản</a>
+                        </div>
+                    </form>
+
+                    <p class="auth-note">Bạn có thể cập nhật thêm cấu hình shop, địa chỉ và thông tin vận hành sau khi đăng nhập vào hệ thống.</p>
                 </div>
-            </form>
-        </div>
-    </section>
+            </div>
+        </section>
+    </div>
 </main>
 
 @code {

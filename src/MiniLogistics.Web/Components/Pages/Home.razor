@@ -1,220 +1,116 @@
 @page "/"
 @layout MiniLogistics.Web.Components.Layout.LandingLayout
 
-<PageTitle>MiniLogistics - Ship Smart, Deliver Fast</PageTitle>
+<PageTitle>LAK | Nền tảng quản lý logistics</PageTitle>
 
 <header class="site-header">
     <div class="container header-inner">
-        <a class="brand" href="/">
-            <img src="/images/landing%20page/logo.svg" alt="MiniLogistics" />
-            <span>
-                <strong>MiniLogistics</strong>
-                <small>Ship Smart, Deliver Fast</small>
-            </span>
+        <a class="brand" href="/" aria-label="LAK">
+            <img class="brand-logo" src="/images/landing/lak-logo.svg" alt="LAK" />
         </a>
 
         <nav class="main-nav" aria-label="Main navigation">
-            <a class="active" href="/">Trang chủ</a>
+            <a href="/">Trang chủ</a>
             <a href="#services">Dịch vụ</a>
-            <a href="/tracking">Tra cứu</a>
-            <a href="#pricing">Bảng giá</a>
             <a href="#about">Về chúng tôi</a>
-            <a href="#support">Hỗ trợ</a>
-            <a href="#contact">Liên hệ</a>
+            <a href="/tracking">Tra cứu</a>
         </nav>
 
         <div class="header-actions">
-            <a class="btn btn-outline-primary" href="/login">Đăng nhập</a>
-            <a class="btn btn-primary" href="/register-shop">Đăng ký</a>
+            <button class="toolbar-button toolbar-button-plain" type="button">
+                <span class="toolbar-icon" aria-hidden="true">🌐</span>
+                <span>VI</span>
+                <span class="toolbar-caret" aria-hidden="true">⌄</span>
+            </button>
+            <a class="toolbar-button toolbar-button-outline" href="/download-app">Tải ứng dụng</a>
+            <a class="toolbar-button toolbar-button-solid" href="/login">Đăng nhập</a>
         </div>
     </div>
 </header>
 
-<main>
-    <section class="hero-section">
-        <div class="container hero-grid">
-            <div class="hero-content">
-                <h1>Giải pháp vận chuyển <span>thông minh & hiệu quả</span></h1>
-                <p>
-                    MiniLogistics giúp doanh nghiệp và cá nhân quản lý đơn hàng,
-                    theo dõi vận đơn và tối ưu quá trình giao nhận một cách dễ dàng.
-                </p>
+<main class="landing-main">
+    <section class="hero-banner">
+        <img src="/images/landing/hero-banner.png" alt="LAK logistics banner" />
+    </section>
 
-                <div class="hero-actions">
-                    <a class="btn btn-primary btn-lg" href="/login">Tạo đơn ngay <span aria-hidden="true">&rarr;</span></a>
-                    <a class="btn btn-outline-primary btn-lg" href="#services">Tìm hiểu thêm</a>
-                </div>
+    <section class="search-section">
+        <div class="container search-wrap">
+            <form class="tracking-form" method="get" action="/tracking">
+                <input id="tracking-code" name="code" maxlength="30" required placeholder="Nhập mã đơn hàng bạn cần tra cứu" />
+                <button type="submit">Theo dõi</button>
+            </form>
+        </div>
+    </section>
 
-                <form class="tracking-card" method="get" action="/tracking">
-                    <label for="tracking-code">Theo dõi vận đơn</label>
-                    <div class="tracking-row">
-                        <input id="tracking-code" name="code" maxlength="30" required placeholder="Nhập mã vận đơn (VD: ML123456789)" />
-                        <button class="btn btn-primary" type="submit">Tra cứu</button>
+    <section class="actions-section">
+        <div class="container action-grid">
+            <a class="action-card" href="/login">
+                <strong>Bắt đầu tạo đơn</strong>
+                <span>Tạo đơn lấy hàng hoặc gửi hàng</span>
+            </a>
+            <a class="action-card" href="/tracking">
+                <strong>Tra cứu vận đơn</strong>
+                <span>Kiểm tra trạng thái và lịch sử giao nhận</span>
+            </a>
+            <a class="action-card" href="/register-shop">
+                <strong>Đăng ký shop</strong>
+                <span>Tạo workspace giao nhận cho shop</span>
+            </a>
+        </div>
+    </section>
+
+    <section class="services-section" id="services">
+        <div class="container section-narrow">
+            <h2>Dịch vụ của LAK</h2>
+            <div class="services-grid">
+                <article class="service-item">
+                    <img src="/images/landing/icon1.svg" alt="" />
+                    <h3>Dịch vụ lấy hàng</h3>
+                    <p>Hỗ trợ khởi tạo và xử lý yêu cầu lấy hàng rõ ràng.</p>
+                </article>
+                <article class="service-item">
+                    <img src="/images/landing/icon2.svg" alt="" />
+                    <h3>Dịch vụ gửi hàng</h3>
+                    <p>Quản lý thông tin shop và tạo đơn trong một luồng gọn.</p>
+                </article>
+                <article class="service-item">
+                    <img src="/images/landing/icon3.svg" alt="" />
+                    <h3>Dich vu COD</h3>
+                    <p>Theo dõi tiền thu hộ và đối soát minh bạch hơn.</p>
+                </article>
+                <article class="service-item">
+                    <img src="/images/landing/icon4.svg" alt="" />
+                    <h3>Xử lý vận đơn</h3>
+                    <p>Cập nhật trạng thái vận đơn rõ từng mốc nghiệp vụ.</p>
+                </article>
+            </div>
+        </div>
+    </section>
+
+    <section class="about-section" id="about">
+        <div class="container section-narrow">
+            <h2>Về chúng tôi</h2>
+            <p class="section-intro">
+                LAK hướng tới một giao diện logistics dễ sử dụng hằng ngày: bố cục đơn giản,
+                hình ảnh đúng ngữ cảnh và ưu tiên thao tác thực tế thay vì trang trí.
+            </p>
+
+            <div class="about-grid">
+                <article class="about-card">
+                    <img src="/images/landing/hero-banner.png" alt="Nhan vien giao nhan LAK" />
+                    <div class="about-copy">
+                        <strong>Vận hành rõ ràng</strong>
+                        <span>Tập trung vào tạo đơn, tracking và xử lý giao nhận theo một flow dễ quét.</span>
                     </div>
-                    <small>Nhập mã vận đơn để mở trang tracking công khai.</small>
-                </form>
+                </article>
+                <article class="about-card">
+                    <img src="/images/landing/ops-banner.png" alt="He thong kho va xu ly van hanh LAK" />
+                    <div class="about-copy">
+                        <strong>Sẵn sàng mở rộng</strong>
+                        <span>Style này sẽ được dùng tiếp cho tracking, login, shipments và dashboard.</span>
+                    </div>
+                </article>
             </div>
-
-            <div class="hero-visual" aria-hidden="true">
-                <div class="hero-arc"></div>
-                <img src="/images/landing%20page/landing-hero-truck.png" alt="MiniLogistics Truck" />
-            </div>
-        </div>
-    </section>
-
-    <section id="services" class="container feature-panel" aria-label="Dịch vụ nổi bật">
-        <article class="feature-item">
-            <div class="feature-icon"><img src="/images/icons/ic-rocket.svg" alt="Giao hàng nhanh" /></div>
-            <h2>Giao hàng nhanh chóng</h2>
-            <p>Cam kết thời gian giao hàng nhanh và đúng hẹn</p>
-        </article>
-        <article class="feature-item">
-            <div class="feature-icon"><img src="/images/icons/ic-shield.svg" alt="An toàn bảo mật" /></div>
-            <h2>An toàn - Bảo mật</h2>
-            <p>Đảm bảo an toàn cho hàng hóa và thông tin của bạn</p>
-        </article>
-        <article class="feature-item">
-            <div class="feature-icon"><img src="/images/icons/ic-map-pin.svg" alt="Theo dõi thực" /></div>
-            <h2>Theo dõi thời gian thực</h2>
-            <p>Cập nhật trạng thái đơn hàng mọi lúc, mọi nơi</p>
-        </article>
-        <article class="feature-item">
-            <div class="feature-icon"><img src="/images/icons/ic-wallet.svg" alt="Chi phí tối ưu" /></div>
-            <h2>Chi phí tối ưu</h2>
-            <p>Bảng giá minh bạch, cạnh tranh nhất thị trường</p>
-        </article>
-        <article class="feature-item">
-            <div class="feature-icon"><img src="/images/icons/ic-headset.svg" alt="Hỗ trợ 24/7" /></div>
-            <h2>Hỗ trợ 24/7</h2>
-            <p>Đội ngũ hỗ trợ tận tâm, sẵn sàng phục vụ</p>
-        </article>
-    </section>
-
-    <section class="stats-bar-wrapper">
-        <div class="container stats-bar" aria-label="Số liệu vận hành">
-            <div class="stat-item">
-                <span class="stat-icon"><img src="/images/icons/ic-box.svg" alt="Box" /></span>
-                <strong>50K+</strong>
-                <p>Đơn hàng mỗi ngày</p>
-            </div>
-            <div class="stat-item">
-                <span class="stat-icon"><img src="/images/icons/ic-users.svg" alt="Users" /></span>
-                <strong>10K+</strong>
-                <p>Khách hàng tin tưởng</p>
-            </div>
-            <div class="stat-item">
-                <span class="stat-icon"><img src="/images/icons/ic-location.svg" alt="Location" /></span>
-                <strong>63</strong>
-                <p>Tỉnh thành phủ sóng</p>
-            </div>
-            <div class="stat-item">
-                <span class="stat-icon"><img src="/images/icons/ic-smile.svg" alt="Success rate" /></span>
-                <strong>99.8%</strong>
-                <p>Tỷ lệ giao thành công</p>
-            </div>
-        </div>
-    </section>
-
-    <section class="container audience-section" id="about">
-        <h2 class="section-title">Giải pháp cho mọi đối tượng</h2>
-
-        <div class="audience-grid">
-            <article class="audience-card">
-                <img src="/images/role-shop.svg" alt="Chủ shop" />
-                <h3>Chủ shop / Doanh nghiệp</h3>
-                <p>Quản lý đơn hàng, tạo vận đơn hàng loạt và đối soát COD dễ dàng.</p>
-                <a class="text-link" href="/register-shop">Khám phá ngay <span aria-hidden="true">&rarr;</span></a>
-            </article>
-            <article class="audience-card">
-                <img src="/images/role-shipper.svg" alt="Shipper" />
-                <h3>Shipper / Tài xế</h3>
-                <p>Nhận đơn nhanh chóng, tối ưu lộ trình và thu nhập.</p>
-                <a class="text-link" href="#support">Khám phá ngay <span aria-hidden="true">&rarr;</span></a>
-            </article>
-            <article class="audience-card">
-                <img src="/images/role-customer.svg" alt="Khách hàng cá nhân" />
-                <h3>Khách hàng cá nhân</h3>
-                <p>Gửi hàng dễ dàng, theo dõi đơn hàng và thanh toán tiện lợi.</p>
-                <a class="text-link" href="#support">Khám phá ngay <span aria-hidden="true">&rarr;</span></a>
-            </article>
-            <article class="audience-card">
-                <img src="/images/role-admin.svg" alt="Quản trị hệ thống" />
-                <h3>Quản trị hệ thống</h3>
-                <p>Báo cáo trực quan, quản lý nhân sự và hệ thống toàn diện.</p>
-                <a class="text-link" href="/login">Khám phá ngay <span aria-hidden="true">&rarr;</span></a>
-            </article>
-        </div>
-    </section>
-
-    <section class="cta-wrapper">
-        <div class="container cta-banner">
-            <img class="cta-illustration" src="/images/cta-packages.svg" alt="Packages" />
-            <div class="cta-content">
-                <h2>Sẵn sàng trải nghiệm giải pháp vận chuyển tối ưu?</h2>
-                <p>Đăng ký tài khoản ngay hôm nay để bắt đầu!</p>
-            </div>
-            <a class="btn btn-light" href="/register-shop">Đăng ký miễn phí <span aria-hidden="true">&rarr;</span></a>
         </div>
     </section>
 </main>
-
-<footer class="site-footer" id="contact">
-    <div class="container footer-grid">
-        <div class="footer-brand">
-            <a class="brand" href="/">
-                <img src="/images/landing%20page/logo.svg" alt="MiniLogistics" />
-                <span>
-                    <strong>MiniLogistics</strong>
-                    <small>Ship Smart, Deliver Fast</small>
-                </span>
-            </a>
-            <p>MiniLogistics là nền tảng quản lý vận chuyển thông minh, giúp kết nối người gửi, shipper và khách hàng một cách hiệu quả.</p>
-        </div>
-
-            <div class="footer-links">
-                <h2>Dịch vụ</h2>
-                <a href="#services">Tạo đơn hàng</a>
-                <a href="/tracking">Theo dõi đơn hàng</a>
-                <a href="#pricing">Bảng giá</a>
-                <a href="#about">Đối tác</a>
-        </div>
-
-        <div class="footer-links" id="support">
-            <h2>Hỗ trợ</h2>
-            <a href="#support">Trung tâm trợ giúp</a>
-            <a href="#support">Chính sách bảo mật</a>
-            <a href="#support">Điều khoản sử dụng</a>
-            <a href="#contact">Liên hệ</a>
-        </div>
-
-        <div class="footer-contact">
-            <h2>Liên hệ</h2>
-            <p>
-                <img class="contact-icon" src="/images/icons/ic-phone-call.svg" alt="Phone" />
-                1900 1234
-            </p>
-            <p>
-                <img class="contact-icon" src="/images/icons/ic-mail.svg" alt="Email" />
-                support@minilogistics.vn
-            </p>
-            <p>
-                <img class="contact-icon" src="/images/icons/ic-map-pin-gray.svg" alt="Location" />
-                Tòa nhà ABC, 123 Nguyễn Huệ, Quận 1, TP. Hồ Chí Minh
-            </p>
-        </div>
-
-        <div class="footer-socials">
-            <h2>Kết nối với chúng tôi</h2>
-            <div class="socials-group">
-                <a href="#" aria-label="Facebook"><img src="/images/icons/ic-facebook.svg" alt="Facebook" /></a>
-                <a href="#" aria-label="Zalo"><img src="/images/icons/ic-zalo.svg" alt="Zalo" /></a>
-                <a href="#" aria-label="YouTube"><img src="/images/icons/ic-youtube.svg" alt="YouTube" /></a>
-                <a href="#" aria-label="LinkedIn"><img src="/images/icons/ic-linkedin.svg" alt="LinkedIn" /></a>
-            </div>
-        </div>
-    </div>
-
-    <div class="container copyright-container">
-        <p class="copyright">© 2024 MiniLogistics. All rights reserved.</p>
-    </div>
-</footer>

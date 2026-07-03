@@ -15,11 +15,11 @@
 <PageTitle>Quan ly nguoi dung - MiniLogistics</PageTitle>
 
 <div class="admin-users-page">
-    <div class="page-heading">
+    <header class="admin-hero">
         <div>
-            <p class="eyebrow">Quan tri</p>
-            <h1>Quan ly nguoi dung</h1>
-            <p>Tao nhanh tai khoan van hanh va bat/tat trang thai shipper cho demo dieu phoi.</p>
+            <p class="eyebrow">Quan tri he thong</p>
+            <h1>Nguoi dung</h1>
+            <p>Quan ly tai khoan noi bo, vai tro van hanh va trang thai truy cap.</p>
         </div>
 
         <button type="button" class="refresh-button" disabled="@IsLoading" @onclick="RefreshAsync">
@@ -28,7 +28,7 @@
             </svg>
             <span>Lam moi</span>
         </button>
-    </div>
+    </header>
 
     @if (!string.IsNullOrWhiteSpace(ErrorMessage))
     {
@@ -42,35 +42,45 @@
 
     @if (IsLoading)
     {
-        <section class="content-card state-card" aria-live="polite">
+        <section class="admin-panel state-card" aria-live="polite">
             <strong>Dang tai danh sach nguoi dung</strong>
         </section>
     }
     else
     {
-        <section class="content-card">
-            <div class="summary-strip" aria-label="Tom tat nguoi dung">
-                <article>
-                    <span>Tong user</span>
-                    <strong>@Users.Count.ToString("N0")</strong>
-                </article>
-                <article>
-                    <span>Shipper active</span>
-                    <strong>@Users.Count(user => IsRole(user, UserRole.Shipper) && user.IsActive).ToString("N0")</strong>
-                </article>
-                <article>
-                    <span>Shipper inactive</span>
-                    <strong>@Users.Count(user => IsRole(user, UserRole.Shipper) && !user.IsActive).ToString("N0")</strong>
-                </article>
-                <article>
-                    <span>Operator</span>
-                    <strong>@Users.Count(user => IsRole(user, UserRole.Operator)).ToString("N0")</strong>
-                </article>
-            </div>
+        <section class="summary-grid" aria-label="Tom tat nguoi dung">
+            <article class="metric-card">
+                <span class="metric-icon blue" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4.2 0-7 2.1-7 5v1h14v-1c0-2.9-2.8-5-7-5Z" /></svg>
+                </span>
+                <span>Tong user</span>
+                <strong>@Users.Count.ToString("N0")</strong>
+            </article>
+            <article class="metric-card">
+                <span class="metric-icon green" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="m9.5 16.2-4-4 1.4-1.4 2.6 2.6 7.6-7.6 1.4 1.4-9 9Z" /></svg>
+                </span>
+                <span>Dang hoat dong</span>
+                <strong>@Users.Count(user => user.IsActive).ToString("N0")</strong>
+            </article>
+            <article class="metric-card">
+                <span class="metric-icon amber" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M3 6h11v9h1.4l2-3H21v6h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V8a2 2 0 0 1 1-2Zm2 2v7.8A3 3 0 0 1 8.8 17H13V8H5Zm10 2v5h.6l2-3H19v-2h-4Z" /></svg>
+                </span>
+                <span>Shipper active</span>
+                <strong>@Users.Count(user => IsRole(user, UserRole.Shipper) && user.IsActive).ToString("N0")</strong>
+            </article>
+            <article class="metric-card">
+                <span class="metric-icon slate" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Zm11-6h3v4h-3v-4Z" /></svg>
+                </span>
+                <span>Operator</span>
+                <strong>@Users.Count(user => IsRole(user, UserRole.Operator)).ToString("N0")</strong>
+            </article>
         </section>
 
-        <section class="content-card create-section">
-            <div class="section-heading">
+        <section class="admin-panel create-section">
+            <div class="panel-heading">
                 <div>
                     <p class="eyebrow">Tai khoan noi bo</p>
                     <h2>Tao shipper/operator</h2>
@@ -108,26 +118,49 @@
 
                 <div class="form-actions">
                     <button type="submit" class="primary-button" disabled="@IsCreating">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" />
+                        </svg>
                         @(IsCreating ? "Dang tao..." : "Tao tai khoan")
                     </button>
                 </div>
             </form>
         </section>
 
-        <section class="content-card users-section">
-            <div class="section-heading">
+        <section class="admin-panel users-section">
+            <div class="panel-heading users-heading">
                 <div>
                     <p class="eyebrow">Danh sach</p>
                     <h2>Nguoi dung he thong</h2>
                 </div>
-                <span class="section-count">@Users.Count.ToString("N0") user</span>
+                <span class="section-count">@VisibleUsers.Count.ToString("N0") / @Users.Count.ToString("N0") user</span>
             </div>
 
-            @if (Users.Count == 0)
+            <div class="table-toolbar">
+                <label class="search-field" for="admin-user-search">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M10.5 4a6.5 6.5 0 0 1 5.1 10.5l4 4-1.4 1.4-4-4A6.5 6.5 0 1 1 10.5 4Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" />
+                    </svg>
+                    <input id="admin-user-search" placeholder="Tim theo ten, email, sdt" @bind="SearchText" @bind:event="oninput" />
+                </label>
+
+                <label class="filter-field" for="admin-role-filter">
+                    <span>Vai tro</span>
+                    <select id="admin-role-filter" @bind="RoleFilter">
+                        <option value="All">Tat ca</option>
+                        <option value="Admin">Admin</option>
+                        <option value="Operator">Operator</option>
+                        <option value="Shop">Shop</option>
+                        <option value="Shipper">Shipper</option>
+                    </select>
+                </label>
+            </div>
+
+            @if (VisibleUsers.Count == 0)
             {
                 <div class="state-card compact">
-                    <strong>Chua co user</strong>
-                    <p>Seed demo hoac tao user noi bo de bat dau dieu phoi.</p>
+                    <strong>Khong co user phu hop</strong>
+                    <p>Thu doi tu khoa tim kiem hoac bo loc vai tro.</p>
                 </div>
             }
             else
@@ -145,12 +178,17 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var user in Users)
+                            @foreach (var user in VisibleUsers)
                             {
                                 <tr>
                                     <td data-label="Nguoi dung">
-                                        <strong>@user.FullName</strong>
-                                        <small>@user.UserId.ToString()[..8]</small>
+                                        <div class="user-cell">
+                                            <span class="user-avatar">@GetInitials(user.FullName)</span>
+                                            <span>
+                                                <strong>@user.FullName</strong>
+                                                <small>ID @user.UserId.ToString()[..8]</small>
+                                            </span>
+                                        </div>
                                     </td>
                                     <td data-label="Lien he">
                                         <strong>@user.Email</strong>
@@ -211,6 +249,10 @@
 
     private IReadOnlyList<GetAdminUserResponse> Users { get; set; } = [];
 
+    private string SearchText { get; set; } = string.Empty;
+
+    private string RoleFilter { get; set; } = "All";
+
     private string CreateFullName { get; set; } = string.Empty;
 
     private string CreateEmail { get; set; } = string.Empty;
@@ -220,6 +262,10 @@
     private string CreatePassword { get; set; } = string.Empty;
 
     private string CreateRole { get; set; } = nameof(UserRole.Shipper);
+
+    private IReadOnlyList<GetAdminUserResponse> VisibleUsers => Users
+        .Where(MatchesFilters)
+        .ToList();
 
     protected override async Task OnInitializedAsync()
     {
@@ -373,6 +419,41 @@
     private static bool IsRole(GetAdminUserResponse user, UserRole role)
     {
         return user.Roles.Contains(role.ToString(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    private bool MatchesFilters(GetAdminUserResponse user)
+    {
+        var matchesRole = RoleFilter == "All"
+            || user.Roles.Contains(RoleFilter, StringComparer.OrdinalIgnoreCase);
+        if (!matchesRole)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(SearchText))
+        {
+            return true;
+        }
+
+        var keyword = SearchText.Trim();
+        return user.FullName.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+            || user.Email.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+            || (user.PhoneNumber?.Contains(keyword, StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
+    private static string GetInitials(string fullName)
+    {
+        var parts = fullName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 0)
+        {
+            return "U";
+        }
+
+        var initials = parts.Length == 1
+            ? parts[0][0].ToString()
+            : string.Concat(parts[0][0], parts[^1][0]);
+
+        return initials.ToUpperInvariant();
     }
 
     private static string FormatDate(DateTimeOffset value)

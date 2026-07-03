@@ -17,8 +17,16 @@
     text-decoration: none;
 }
 
-.brand img {
+.brand-mark {
+    align-items: center;
+    background: #0b63f6;
+    border-radius: 10px;
+    color: #fff;
+    display: inline-flex;
     height: 38px;
+    justify-content: center;
+    font-size: 0.9rem;
+    font-weight: 900;
     width: 38px;
 }
 

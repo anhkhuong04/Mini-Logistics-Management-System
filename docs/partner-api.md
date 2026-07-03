@@ -1,5 +1,11 @@
 # MiniLogistics Partner API
 
+Integration guide for e-commerce partners:
+
+```text
+docs/third-party-shipment-integration-guide.md
+```
+
 Base URL:
 
 ```text
