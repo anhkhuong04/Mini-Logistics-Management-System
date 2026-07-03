@@ -82,6 +82,37 @@ public sealed class ShipmentRepository : IShipmentRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyDictionary<Guid, int>> GetActiveAssignmentCountsByShipperIdsAsync(
+        IReadOnlyCollection<Guid> shipperIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (shipperIds.Count == 0)
+        {
+            return new Dictionary<Guid, int>();
+        }
+
+        return await _dbContext.ShipmentAssignments
+            .AsNoTracking()
+            .Where(assignment => assignment.UnassignedAtUtc == null)
+            .Where(assignment => shipperIds.Contains(assignment.ShipperId))
+            .Join(
+                _dbContext.Shipments.AsNoTracking(),
+                assignment => assignment.ShipmentId,
+                shipment => shipment.Id,
+                (assignment, shipment) => new { assignment, shipment })
+            .Where(row => ShipmentLoadStatuses.ActiveAssignmentStatuses.Contains(row.shipment.Status))
+            .GroupBy(row => row.assignment.ShipperId)
+            .Select(group => new
+            {
+                ShipperId = group.Key,
+                Count = group.Count()
+            })
+            .ToDictionaryAsync(
+                row => row.ShipperId,
+                row => row.Count,
+                cancellationToken);
+    }
+
     public Task<Shipment?> GetByIdAndShopIdAsync(
         Guid shipmentId,
         Guid shopId,

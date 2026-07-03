@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MiniLogistics.Application.PartnerApi;
+using MiniLogistics.Domain.Operations;
 using MiniLogistics.Domain.PartnerApi;
 using MiniLogistics.Domain.Shops;
 using MiniLogistics.Domain.ValueObjects;
@@ -24,6 +25,46 @@ public sealed class DatabaseSeeder
     private const string DemoApiClientName = "Demo E-commerce Integration";
     public const string DemoPartnerApiKey = "ml_demo_partner_key_123456";
 
+    private static readonly HubSeedDefinition[] HubSeeds =
+    [
+        new("SPX-HY-SORT", "SPX Hung Yen Sorting Hub", "Hung Yen", true),
+        new("SPX-BD-SORT", "SPX Binh Duong Sorting Hub", "Binh Duong", true),
+        new("SPX-HAN-HUB", "SPX Ha Noi Province Hub", "Ha Noi", false),
+        new("SPX-CBG-HUB", "SPX Cao Bang Province Hub", "Cao Bang", false),
+        new("SPX-TQG-HUB", "SPX Tuyen Quang Province Hub", "Tuyen Quang", false),
+        new("SPX-DBN-HUB", "SPX Dien Bien Province Hub", "Dien Bien", false),
+        new("SPX-LCU-HUB", "SPX Lai Chau Province Hub", "Lai Chau", false),
+        new("SPX-SLA-HUB", "SPX Son La Province Hub", "Son La", false),
+        new("SPX-LCI-HUB", "SPX Lao Cai Province Hub", "Lao Cai", false),
+        new("SPX-TNN-HUB", "SPX Thai Nguyen Province Hub", "Thai Nguyen", false),
+        new("SPX-LSN-HUB", "SPX Lang Son Province Hub", "Lang Son", false),
+        new("SPX-QNH-HUB", "SPX Quang Ninh Province Hub", "Quang Ninh", false),
+        new("SPX-BNH-HUB", "SPX Bac Ninh Province Hub", "Bac Ninh", false),
+        new("SPX-PTO-HUB", "SPX Phu Tho Province Hub", "Phu Tho", false),
+        new("SPX-HPG-HUB", "SPX Hai Phong Province Hub", "Hai Phong", false),
+        new("SPX-HYN-HUB", "SPX Hung Yen Province Hub", "Hung Yen", false),
+        new("SPX-NBH-HUB", "SPX Ninh Binh Province Hub", "Ninh Binh", false),
+        new("SPX-THA-HUB", "SPX Thanh Hoa Province Hub", "Thanh Hoa", false),
+        new("SPX-NAN-HUB", "SPX Nghe An Province Hub", "Nghe An", false),
+        new("SPX-HTH-HUB", "SPX Ha Tinh Province Hub", "Ha Tinh", false),
+        new("SPX-QTI-HUB", "SPX Quang Tri Province Hub", "Quang Tri", false),
+        new("SPX-HUE-HUB", "SPX Hue Province Hub", "Hue", false),
+        new("SPX-DNG-HUB", "SPX Da Nang Province Hub", "Da Nang", false),
+        new("SPX-QNI-HUB", "SPX Quang Ngai Province Hub", "Quang Ngai", false),
+        new("SPX-GLI-HUB", "SPX Gia Lai Province Hub", "Gia Lai", false),
+        new("SPX-KHA-HUB", "SPX Khanh Hoa Province Hub", "Khanh Hoa", false),
+        new("SPX-DLK-HUB", "SPX Dak Lak Province Hub", "Dak Lak", false),
+        new("SPX-LDG-HUB", "SPX Lam Dong Province Hub", "Lam Dong", false),
+        new("SPX-DNI-HUB", "SPX Dong Nai Province Hub", "Dong Nai", false),
+        new("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh", false),
+        new("SPX-TNH-HUB", "SPX Tay Ninh Province Hub", "Tay Ninh", false),
+        new("SPX-DTP-HUB", "SPX Dong Thap Province Hub", "Dong Thap", false),
+        new("SPX-VLG-HUB", "SPX Vinh Long Province Hub", "Vinh Long", false),
+        new("SPX-AGG-HUB", "SPX An Giang Province Hub", "An Giang", false),
+        new("SPX-CTO-HUB", "SPX Can Tho Province Hub", "Can Tho", false),
+        new("SPX-CMU-HUB", "SPX Ca Mau Province Hub", "Ca Mau", false)
+    ];
+
     private readonly MiniLogisticsDbContext _dbContext;
     private readonly RoleManager<IdentityRole<Guid>> _roleManager;
     private readonly UserManager<ApplicationUser> _userManager;
@@ -42,6 +83,8 @@ public sealed class DatabaseSeeder
     {
         await SeedRolesAsync();
         await SeedDemoInternalUsersAsync();
+        await SeedHubsAsync(cancellationToken);
+        await SeedDemoShipperWorkingAreasAsync(cancellationToken);
         await SeedDemoShopAsync(cancellationToken);
     }
 
@@ -166,6 +209,73 @@ public sealed class DatabaseSeeder
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    private async Task SeedHubsAsync(CancellationToken cancellationToken)
+    {
+        foreach (var seed in HubSeeds)
+        {
+            var existingHub = await _dbContext.Hubs
+                .FirstOrDefaultAsync(hub => hub.Code == seed.Code, cancellationToken);
+
+            if (existingHub is null)
+            {
+                await _dbContext.Hubs.AddAsync(
+                    new Hub(
+                        seed.Code,
+                        seed.Name,
+                        seed.Province,
+                        isRegionalSortingHub: seed.IsRegionalSortingHub),
+                    cancellationToken);
+                continue;
+            }
+
+            if (!existingHub.IsActive)
+            {
+                existingHub.Activate();
+            }
+
+            if (existingHub.Name != seed.Name)
+            {
+                existingHub.Rename(seed.Name);
+            }
+
+            if (existingHub.Province != seed.Province)
+            {
+                existingHub.UpdateLocation(seed.Province);
+            }
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task SeedDemoShipperWorkingAreasAsync(CancellationToken cancellationToken)
+    {
+        var hoChiMinhHub = await _dbContext.Hubs
+            .FirstOrDefaultAsync(hub => hub.Code == "SPX-HCM-HUB", cancellationToken);
+        if (hoChiMinhHub is null)
+        {
+            return;
+        }
+
+        var hasDemoWorkingArea = await _dbContext.ShipperWorkingAreas
+            .AnyAsync(area =>
+                area.ShipperId == DemoShipperUserId
+                && area.HubId == hoChiMinhHub.Id
+                && area.IsActive,
+                cancellationToken);
+        if (hasDemoWorkingArea)
+        {
+            return;
+        }
+
+        await _dbContext.ShipperWorkingAreas.AddAsync(
+            new ShipperWorkingArea(
+                DemoShipperUserId,
+                hoChiMinhHub.Id,
+                hoChiMinhHub.Province),
+            cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     private static Address CreateDemoShopAddress()
     {
         return new Address(
@@ -261,4 +371,10 @@ public sealed class DatabaseSeeder
     {
         return string.Join("; ", errors.Select(error => error.Description));
     }
+
+    private sealed record HubSeedDefinition(
+        string Code,
+        string Name,
+        string Province,
+        bool IsRegionalSortingHub);
 }

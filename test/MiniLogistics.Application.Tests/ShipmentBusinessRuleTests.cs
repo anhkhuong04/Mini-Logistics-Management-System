@@ -18,11 +18,16 @@ using MiniLogistics.Application.Shipments.GetAssignedShipmentsForShipper;
 using MiniLogistics.Application.Shipments.GetOperationsShipments;
 using MiniLogistics.Application.Shipments.GetPublicTracking;
 using MiniLogistics.Application.Shipments.UpdateShipmentStatus;
+using MiniLogistics.Application.Shippers;
 using MiniLogistics.Application.Shippers.GetActiveShippers;
+using MiniLogistics.Application.Shipments.AssignmentSelection;
+using MiniLogistics.Application.Shipments.AutoAssignShipment;
+using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Shops;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Fees;
+using MiniLogistics.Domain.Operations;
 using MiniLogistics.Domain.Shipments;
 using MiniLogistics.Domain.Shops;
 using MiniLogistics.Domain.Users;
@@ -94,14 +99,106 @@ public sealed class ShipmentBusinessRuleTests
     }
 
     [Fact]
+    public async Task AssignmentSelector_MatchingArea_SelectsLowestActiveLoad()
+    {
+        var targetShipment = CreateShipment(_shopUserId);
+        var busyShipment = CreateAssignedShipment(_shipperId);
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var selector = new ShipmentAssignmentSelector(
+            CreateIdentityService(),
+            new FakeHubRepository([hub]),
+            new FakeShipperWorkingAreaRepository([
+                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh"),
+                new ShipperWorkingArea(_otherShipperId, hub.Id, "Ho Chi Minh")
+            ]),
+            new FakeShipmentRepository([targetShipment, busyShipment]));
+
+        var result = await selector.SelectAsync(targetShipment);
+
+        Assert.Equal(ShipmentAssignmentSelectionStatus.Selected, result.Status);
+        Assert.Equal(_otherShipperId, result.ShipperId);
+        Assert.Equal(0, result.ActiveShipmentCount);
+    }
+
+    [Fact]
+    public async Task AssignmentSelector_WardSpecificArea_WinsBeforeLoadTieBreaker()
+    {
+        var targetShipment = CreateShipment(_shopUserId);
+        var exactWardBusyShipment = CreateAssignedShipment(_shipperId);
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var selector = new ShipmentAssignmentSelector(
+            CreateIdentityService(),
+            new FakeHubRepository([hub]),
+            new FakeShipperWorkingAreaRepository([
+                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh", "Ben Thanh"),
+                new ShipperWorkingArea(_otherShipperId, hub.Id, "Ho Chi Minh")
+            ]),
+            new FakeShipmentRepository([targetShipment, exactWardBusyShipment]));
+
+        var result = await selector.SelectAsync(targetShipment);
+
+        Assert.Equal(ShipmentAssignmentSelectionStatus.Selected, result.Status);
+        Assert.Equal(_shipperId, result.ShipperId);
+    }
+
+    [Fact]
+    public async Task AssignmentSelector_NoMatchingWorkingArea_ReturnsNoEligibleShipper()
+    {
+        var targetShipment = CreateShipment(_shopUserId);
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var selector = new ShipmentAssignmentSelector(
+            CreateIdentityService(),
+            new FakeHubRepository([hub]),
+            new FakeShipperWorkingAreaRepository([]),
+            new FakeShipmentRepository([targetShipment]));
+
+        var result = await selector.SelectAsync(targetShipment);
+
+        Assert.Equal(ShipmentAssignmentSelectionStatus.NoEligibleShipper, result.Status);
+        Assert.Null(result.ShipperId);
+        Assert.Contains("No shipper working area", result.Reason);
+    }
+
+    [Fact]
+    public async Task AutoAssignShipment_AssignsPendingPickupAndPublishesWebhook()
+    {
+        var targetShipment = CreateShipment(_shopUserId);
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var shipmentRepository = new FakeShipmentRepository([targetShipment]);
+        var publisher = new FakeWebhookEventPublisher();
+        var selector = new ShipmentAssignmentSelector(
+            CreateIdentityService(),
+            new FakeHubRepository([hub]),
+            new FakeShipperWorkingAreaRepository([
+                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh")
+            ]),
+            shipmentRepository);
+        var service = new AutoAssignShipmentService(
+            shipmentRepository,
+            selector,
+            publisher);
+
+        var result = await service.AutoAssignAsync(targetShipment.Id);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(AutoAssignShipmentStatus.Assigned, result.Value.Status);
+        Assert.Equal(_shipperId, result.Value.ShipperId);
+        Assert.Equal(ShipmentStatus.Assigned, targetShipment.Status);
+        Assert.Contains(targetShipment.Assignments, assignment => assignment.IsActive && assignment.ShipperId == _shipperId);
+        Assert.Equal(1, shipmentRepository.SaveChangesCount);
+        Assert.Equal(1, publisher.PublishCount);
+        Assert.Equal(WebhookEventTypes.ShipmentStatusChanged, publisher.LastEventType);
+    }
+
+    [Fact]
     public async Task CreateInternalUser_AdminCreatesActiveShipperVisibleForAssignment()
     {
         var identityService = CreateIdentityService();
         var createService = new CreateInternalUserService(
             new CreateInternalUserCommandValidator(),
             identityService);
-        var listService = new GetAdminUsersService(identityService);
-        var shippersService = new GetActiveShippersService(identityService);
+        var listService = CreateGetAdminUsersService(identityService);
+        var shippersService = CreateGetActiveShippersService(identityService);
 
         var result = await createService.CreateAsync(new CreateInternalUserCommand(
             _adminId,
@@ -166,7 +263,7 @@ public sealed class ShipmentBusinessRuleTests
 
         Assert.True(deactivateResult.IsSuccess);
 
-        var shippersResult = await new GetActiveShippersService(identityService).GetAsync();
+        var shippersResult = await CreateGetActiveShippersService(identityService).GetAsync();
         Assert.True(shippersResult.IsSuccess);
         Assert.DoesNotContain(shippersResult.Value, shipper => shipper.UserId == managedShipperId);
 
@@ -576,7 +673,8 @@ public sealed class ShipmentBusinessRuleTests
             new RouteClassificationService(),
             shipmentRepository,
             new FakeShopRepository([shop]),
-            codTransactionRepository);
+            codTransactionRepository,
+            CreateAutoAssignService(shipmentRepository, [], []));
 
         var result = await service.CreateAsync(new CreateShipmentCommand(
             _shopUserId,
@@ -614,6 +712,56 @@ public sealed class ShipmentBusinessRuleTests
         Assert.Equal(new Money(150_000m), codTransaction.Amount);
         Assert.Equal(CodStatus.PendingCollection, codTransaction.Status);
         Assert.Equal(1, shipmentRepository.SaveChangesCount);
+    }
+
+    [Fact]
+    public async Task CreateShipmentService_MatchingWorkingAreaAutoAssignsShipment()
+    {
+        var shop = CreateShop(_shopUserId);
+        var shipmentRepository = new FakeShipmentRepository([]);
+        var codTransactionRepository = new FakeCodTransactionRepository([]);
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var feeRule = new FeeRule(
+            RouteType.IntraProvince,
+            baseWeightKg: 1m,
+            baseFee: new Money(20_000m),
+            extraWeightStepKg: 0.5m,
+            extraStepFee: new Money(5_000m));
+        var service = new CreateShipmentService(
+            new CreateShipmentCommandValidator(),
+            new ShippingFeeService(new FakeFeeRuleRepository([feeRule])),
+            new RouteClassificationService(),
+            shipmentRepository,
+            new FakeShopRepository([shop]),
+            codTransactionRepository,
+            CreateAutoAssignService(
+                shipmentRepository,
+                [hub],
+                [new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh")]));
+
+        var result = await service.CreateAsync(new CreateShipmentCommand(
+            _shopUserId,
+            "Demo Shop",
+            "0900000000",
+            "Demo Receiver",
+            "0911111111",
+            new ShipmentAddressDto("1 Nguyen Trai", "Ben Thanh", "Ho Chi Minh"),
+            new ShipmentAddressDto("9 Le Loi", "Ben Nghe", "Ho Chi Minh"),
+            WeightKg: 1m,
+            LengthCm: 10m,
+            WidthCm: 10m,
+            HeightCm: 10m,
+            GoodsValueAmount: 500_000m,
+            CodAmount: 100_000m,
+            Currency: "VND",
+            Note: "Auto assign create service test."));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ShipmentStatus.Assigned, result.Value.Status);
+        var shipment = shipmentRepository.Shipments.Single();
+        Assert.Equal(ShipmentStatus.Assigned, shipment.Status);
+        Assert.Contains(shipment.Assignments, assignment => assignment.IsActive && assignment.ShipperId == _shipperId);
+        Assert.Equal(2, shipmentRepository.SaveChangesCount);
     }
 
     [Fact]
@@ -730,6 +878,36 @@ public sealed class ShipmentBusinessRuleTests
         identityService.AddUser(_shipperId, true, nameof(UserRole.Shipper));
         identityService.AddUser(_otherShipperId, true, nameof(UserRole.Shipper));
         return identityService;
+    }
+
+    private static GetAdminUsersService CreateGetAdminUsersService(FakeIdentityService identityService)
+    {
+        return new GetAdminUsersService(
+            identityService,
+            new FakeHubRepository([]),
+            new FakeShipperWorkingAreaRepository([]));
+    }
+
+    private static GetActiveShippersService CreateGetActiveShippersService(FakeIdentityService identityService)
+    {
+        return new GetActiveShippersService(
+            identityService,
+            new FakeHubRepository([]),
+            new FakeShipperWorkingAreaRepository([]));
+    }
+
+    private AutoAssignShipmentService CreateAutoAssignService(
+        FakeShipmentRepository shipmentRepository,
+        IReadOnlyList<Hub> hubs,
+        IReadOnlyList<ShipperWorkingArea> workingAreas)
+    {
+        return new AutoAssignShipmentService(
+            shipmentRepository,
+            new ShipmentAssignmentSelector(
+                CreateIdentityService(),
+                new FakeHubRepository(hubs),
+                new FakeShipperWorkingAreaRepository(workingAreas),
+                shipmentRepository));
     }
 
     private Shipment CreateAssignedShipment(Guid shipperId, decimal codAmount = 100_000m)
@@ -1010,6 +1188,133 @@ public sealed class ShipmentBusinessRuleTests
         }
     }
 
+    private sealed class FakeHubRepository : IHubRepository
+    {
+        private readonly List<Hub> _hubs;
+
+        public FakeHubRepository(IReadOnlyList<Hub> hubs)
+        {
+            _hubs = hubs.ToList();
+        }
+
+        public Task<IReadOnlyList<Hub>> GetAllAsync(
+            bool activeOnly = false,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<Hub> hubs = _hubs
+                .Where(hub => !activeOnly || hub.IsActive)
+                .ToList();
+
+            return Task.FromResult(hubs);
+        }
+
+        public Task<IReadOnlyList<Hub>> GetByIdsAsync(
+            IReadOnlyCollection<Guid> hubIds,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<Hub> hubs = _hubs
+                .Where(hub => hubIds.Contains(hub.Id))
+                .ToList();
+
+            return Task.FromResult(hubs);
+        }
+
+        public Task<Hub?> GetByCodeAsync(
+            string code,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_hubs.FirstOrDefault(hub =>
+                string.Equals(hub.Code, code, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        public Task AddAsync(Hub hub, CancellationToken cancellationToken = default)
+        {
+            _hubs.Add(hub);
+            return Task.CompletedTask;
+        }
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeShipperWorkingAreaRepository : IShipperWorkingAreaRepository
+    {
+        private readonly List<ShipperWorkingArea> _workingAreas;
+
+        public FakeShipperWorkingAreaRepository(IReadOnlyList<ShipperWorkingArea> workingAreas)
+        {
+            _workingAreas = workingAreas.ToList();
+        }
+
+        public Task<IReadOnlyList<ShipperWorkingArea>> GetByShipperIdAsync(
+            Guid shipperId,
+            bool activeOnly = false,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<ShipperWorkingArea> workingAreas = _workingAreas
+                .Where(area => area.ShipperId == shipperId)
+                .Where(area => !activeOnly || area.IsActive)
+                .ToList();
+
+            return Task.FromResult(workingAreas);
+        }
+
+        public Task<IReadOnlyList<ShipperWorkingArea>> GetActiveByShipperIdsAsync(
+            IReadOnlyCollection<Guid> shipperIds,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<ShipperWorkingArea> workingAreas = _workingAreas
+                .Where(area => area.IsActive && shipperIds.Contains(area.ShipperId))
+                .ToList();
+
+            return Task.FromResult(workingAreas);
+        }
+
+        public Task<IReadOnlyList<ShipperWorkingArea>> GetActiveByHubOrProvinceAsync(
+            Guid? hubId,
+            string province,
+            string? ward = null,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyList<ShipperWorkingArea> workingAreas = _workingAreas
+                .Where(area => area.IsActive)
+                .Where(area => area.Province == province || (hubId.HasValue && area.HubId == hubId.Value))
+                .ToList();
+
+            return Task.FromResult(workingAreas);
+        }
+
+        public Task AddAsync(ShipperWorkingArea workingArea, CancellationToken cancellationToken = default)
+        {
+            _workingAreas.Add(workingArea);
+            return Task.CompletedTask;
+        }
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeWebhookEventPublisher : IWebhookEventPublisher
+    {
+        public int PublishCount { get; private set; }
+
+        public string? LastEventType { get; private set; }
+
+        public Task PublishShipmentAsync(
+            Shipment shipment,
+            string eventType,
+            CancellationToken cancellationToken = default)
+        {
+            PublishCount++;
+            LastEventType = eventType;
+            return Task.CompletedTask;
+        }
+    }
+
     private sealed class FakeShipmentRepository : IShipmentRepository
     {
         private readonly List<Shipment> _shipments;
@@ -1066,6 +1371,20 @@ public sealed class ShipmentBusinessRuleTests
                 .Where(shipment => shipment.Assignments.Any(assignment => assignment.IsActive && assignment.ShipperId == shipperId))
                 .Where(shipment => shipment.Status is not ShipmentStatus.Returned and not ShipmentStatus.Cancelled)
                 .ToList());
+        }
+
+        public Task<IReadOnlyDictionary<Guid, int>> GetActiveAssignmentCountsByShipperIdsAsync(
+            IReadOnlyCollection<Guid> shipperIds,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyDictionary<Guid, int> counts = _shipments
+                .Where(shipment => ShipmentLoadStatuses.ActiveAssignmentStatuses.Contains(shipment.Status))
+                .SelectMany(shipment => shipment.Assignments.Where(assignment =>
+                    assignment.IsActive && shipperIds.Contains(assignment.ShipperId)))
+                .GroupBy(assignment => assignment.ShipperId)
+                .ToDictionary(group => group.Key, group => group.Count());
+
+            return Task.FromResult(counts);
         }
 
         public Task<Shipment?> GetByIdAndShopIdAsync(

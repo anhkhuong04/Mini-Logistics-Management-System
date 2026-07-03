@@ -1,10 +1,12 @@
 using System.Text.Json;
 using MiniLogistics.Application.CashOnDelivery;
+using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Fees;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Routing;
 using MiniLogistics.Application.Shipments;
+using MiniLogistics.Application.Shipments.AutoAssignShipment;
 using MiniLogistics.Application.Shipments.CreateShipment;
 using MiniLogistics.Application.Shops;
 using MiniLogistics.Domain.CashOnDelivery;
@@ -128,6 +130,43 @@ public sealed class PartnerApiServiceTests
         Assert.Equal(shipment.Id, reference.ShipmentId);
         Assert.Equal("ECOM-10001", reference.ExternalOrderId);
         Assert.Equal("idem-10001", reference.IdempotencyKey);
+    }
+
+    [Fact]
+    public async Task CreateShipment_AutoAssignUpdatesResponseAndIdempotencySnapshot()
+    {
+        var shop = CreateShop(_ownerUserId);
+        var apiClientId = Guid.NewGuid();
+        var shipperId = Guid.NewGuid();
+        var shipmentRepository = new FakeShipmentRepository([]);
+        var codTransactionRepository = new FakeCodTransactionRepository([]);
+        var referenceRepository = new FakeExternalShipmentReferenceRepository([]);
+        var service = CreateShipmentService(
+            shop,
+            shipmentRepository,
+            codTransactionRepository,
+            referenceRepository,
+            new AssigningAutoAssignShipmentService(shipmentRepository, shipperId));
+
+        var firstResult = await service.CreateAsync(CreateShipmentCommand(apiClientId, shop.Id));
+        var replayResult = await service.CreateAsync(CreateShipmentCommand(apiClientId, shop.Id));
+
+        Assert.True(firstResult.IsSuccess);
+        Assert.True(replayResult.IsSuccess);
+        Assert.False(firstResult.Value.IsIdempotentReplay);
+        Assert.True(replayResult.Value.IsIdempotentReplay);
+        Assert.Equal(ShipmentStatus.Assigned, firstResult.Value.Shipment.Status);
+        Assert.Equal(ShipmentStatus.Assigned, replayResult.Value.Shipment.Status);
+
+        var shipment = shipmentRepository.Shipments.Single();
+        Assert.Equal(ShipmentStatus.Assigned, shipment.Status);
+        Assert.Contains(shipment.Assignments, assignment => assignment.IsActive && assignment.ShipperId == shipperId);
+
+        var snapshot = JsonSerializer.Deserialize<PartnerShipmentResponse>(
+            referenceRepository.References.Single().ResponseSnapshotJson,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web));
+        Assert.NotNull(snapshot);
+        Assert.Equal(ShipmentStatus.Assigned, snapshot.Status);
     }
 
     [Fact]
@@ -612,7 +651,8 @@ public sealed class PartnerApiServiceTests
         Shop shop,
         FakeShipmentRepository shipmentRepository,
         FakeCodTransactionRepository codTransactionRepository,
-        FakeExternalShipmentReferenceRepository referenceRepository)
+        FakeExternalShipmentReferenceRepository referenceRepository,
+        IAutoAssignShipmentService? autoAssignShipmentService = null)
     {
         return new PartnerCreateShipmentService(
             new PartnerCreateShipmentCommandValidator(),
@@ -621,7 +661,8 @@ public sealed class PartnerApiServiceTests
             CreateShippingFeeService(),
             shipmentRepository,
             codTransactionRepository,
-            referenceRepository);
+            referenceRepository,
+            autoAssignShipmentService ?? new NoOpAutoAssignShipmentService(shipmentRepository));
     }
 
     private static PartnerShipmentQueryService CreateShipmentQueryService(
@@ -748,6 +789,60 @@ public sealed class PartnerApiServiceTests
             CodAmount: codAmount,
             Currency: "VND",
             Note: "Hang de vo, giao gio hanh chinh");
+    }
+
+    private sealed class NoOpAutoAssignShipmentService : IAutoAssignShipmentService
+    {
+        private readonly FakeShipmentRepository _shipmentRepository;
+
+        public NoOpAutoAssignShipmentService(FakeShipmentRepository shipmentRepository)
+        {
+            _shipmentRepository = shipmentRepository;
+        }
+
+        public Task<Result<AutoAssignShipmentResult>> AutoAssignAsync(
+            Guid shipmentId,
+            CancellationToken cancellationToken = default)
+        {
+            var shipment = _shipmentRepository.Shipments.First(shipment => shipment.Id == shipmentId);
+
+            return Task.FromResult(Result<AutoAssignShipmentResult>.Success(
+                AutoAssignShipmentResult.Skipped(shipment, "Auto assignment disabled for this test.")));
+        }
+    }
+
+    private sealed class AssigningAutoAssignShipmentService : IAutoAssignShipmentService
+    {
+        private readonly FakeShipmentRepository _shipmentRepository;
+        private readonly Guid _shipperId;
+
+        public AssigningAutoAssignShipmentService(
+            FakeShipmentRepository shipmentRepository,
+            Guid shipperId)
+        {
+            _shipmentRepository = shipmentRepository;
+            _shipperId = shipperId;
+        }
+
+        public async Task<Result<AutoAssignShipmentResult>> AutoAssignAsync(
+            Guid shipmentId,
+            CancellationToken cancellationToken = default)
+        {
+            var shipment = _shipmentRepository.Shipments.First(shipment => shipment.Id == shipmentId);
+            var assignResult = shipment.AssignShipper(
+                _shipperId,
+                SystemActorIds.AutoAssignment,
+                "Auto assigned from partner test.");
+            if (assignResult.IsFailure)
+            {
+                return Result<AutoAssignShipmentResult>.Failure(assignResult.Error);
+            }
+
+            await _shipmentRepository.SaveChangesAsync(cancellationToken);
+
+            return Result<AutoAssignShipmentResult>.Success(
+                AutoAssignShipmentResult.Assigned(shipment, _shipperId, "Assigned by partner test."));
+        }
     }
 
     private sealed class FakeIdentityService : IIdentityService
@@ -1050,6 +1145,20 @@ public sealed class PartnerApiServiceTests
                 .Where(shipment => shipment.Assignments.Any(assignment => assignment.IsActive && assignment.ShipperId == shipperId))
                 .Where(shipment => shipment.Status is not ShipmentStatus.Returned and not ShipmentStatus.Cancelled)
                 .ToList());
+        }
+
+        public Task<IReadOnlyDictionary<Guid, int>> GetActiveAssignmentCountsByShipperIdsAsync(
+            IReadOnlyCollection<Guid> shipperIds,
+            CancellationToken cancellationToken = default)
+        {
+            IReadOnlyDictionary<Guid, int> counts = _shipments
+                .Where(shipment => ShipmentLoadStatuses.ActiveAssignmentStatuses.Contains(shipment.Status))
+                .SelectMany(shipment => shipment.Assignments.Where(assignment =>
+                    assignment.IsActive && shipperIds.Contains(assignment.ShipperId)))
+                .GroupBy(assignment => assignment.ShipperId)
+                .ToDictionary(group => group.Key, group => group.Count());
+
+            return Task.FromResult(counts);
         }
 
         public Task<Shipment?> GetByIdAndShopIdAsync(

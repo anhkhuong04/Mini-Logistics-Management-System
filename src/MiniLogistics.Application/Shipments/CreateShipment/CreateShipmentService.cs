@@ -4,6 +4,7 @@ using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Fees;
 using MiniLogistics.Application.Routing;
 using MiniLogistics.Application.Shops;
+using MiniLogistics.Application.Shipments.AutoAssignShipment;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Shipments;
@@ -21,6 +22,7 @@ public sealed class CreateShipmentService : ICreateShipmentService
     private readonly IShipmentRepository _shipmentRepository;
     private readonly IShopRepository _shopRepository;
     private readonly ICodTransactionRepository _codTransactionRepository;
+    private readonly IAutoAssignShipmentService _autoAssignShipmentService;
 
     public CreateShipmentService(
         IValidator<CreateShipmentCommand> validator,
@@ -28,7 +30,8 @@ public sealed class CreateShipmentService : ICreateShipmentService
         IRouteClassificationService routeClassificationService,
         IShipmentRepository shipmentRepository,
         IShopRepository shopRepository,
-        ICodTransactionRepository codTransactionRepository)
+        ICodTransactionRepository codTransactionRepository,
+        IAutoAssignShipmentService autoAssignShipmentService)
     {
         _validator = validator;
         _shippingFeeService = shippingFeeService;
@@ -36,6 +39,7 @@ public sealed class CreateShipmentService : ICreateShipmentService
         _shipmentRepository = shipmentRepository;
         _shopRepository = shopRepository;
         _codTransactionRepository = codTransactionRepository;
+        _autoAssignShipmentService = autoAssignShipmentService;
     }
 
     public async Task<Result<CreateShipmentResponse>> CreateAsync(
@@ -114,6 +118,7 @@ public sealed class CreateShipmentService : ICreateShipmentService
         await _shipmentRepository.AddAsync(shipment, cancellationToken);
         await _codTransactionRepository.AddAsync(codTransaction, cancellationToken);
         await _shipmentRepository.SaveChangesAsync(cancellationToken);
+        await _autoAssignShipmentService.AutoAssignAsync(shipment.Id, cancellationToken);
 
         return Result<CreateShipmentResponse>.Success(new CreateShipmentResponse(
             shipment.Id,

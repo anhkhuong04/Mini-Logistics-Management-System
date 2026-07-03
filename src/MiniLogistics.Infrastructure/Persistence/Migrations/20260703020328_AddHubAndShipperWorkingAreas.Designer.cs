@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MiniLogistics.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using MiniLogistics.Infrastructure.Persistence;
 namespace MiniLogistics.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(MiniLogisticsDbContext))]
-    partial class MiniLogisticsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260703020328_AddHubAndShipperWorkingAreas")]
+    partial class AddHubAndShipperWorkingAreas
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

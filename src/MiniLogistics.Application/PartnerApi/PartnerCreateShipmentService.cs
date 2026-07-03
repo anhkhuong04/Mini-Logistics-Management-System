@@ -5,6 +5,7 @@ using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Fees;
 using MiniLogistics.Application.Routing;
 using MiniLogistics.Application.Shipments;
+using MiniLogistics.Application.Shipments.AutoAssignShipment;
 using MiniLogistics.Application.Shipments.CreateShipment;
 using MiniLogistics.Application.Shops;
 using MiniLogistics.Domain.CashOnDelivery;
@@ -28,6 +29,7 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
     private readonly IShipmentRepository _shipmentRepository;
     private readonly ICodTransactionRepository _codTransactionRepository;
     private readonly IExternalShipmentReferenceRepository _externalShipmentReferenceRepository;
+    private readonly IAutoAssignShipmentService _autoAssignShipmentService;
     private readonly IWebhookEventPublisher _webhookEventPublisher;
 
     public PartnerCreateShipmentService(
@@ -38,6 +40,7 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
         IShipmentRepository shipmentRepository,
         ICodTransactionRepository codTransactionRepository,
         IExternalShipmentReferenceRepository externalShipmentReferenceRepository,
+        IAutoAssignShipmentService autoAssignShipmentService,
         IWebhookEventPublisher? webhookEventPublisher = null)
     {
         _validator = validator;
@@ -47,6 +50,7 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
         _shipmentRepository = shipmentRepository;
         _codTransactionRepository = codTransactionRepository;
         _externalShipmentReferenceRepository = externalShipmentReferenceRepository;
+        _autoAssignShipmentService = autoAssignShipmentService;
         _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
     }
 
@@ -155,15 +159,7 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
             trackingCode);
         var codTransaction = CodTransaction.Create(shipment.Id, codAmount);
 
-        var response = new PartnerShipmentResponse(
-            shipment.Id,
-            command.ExternalOrderId,
-            shipment.TrackingCode.Value,
-            shipment.Status,
-            shipment.RouteType,
-            shipment.ShippingFee.Amount,
-            shipment.ShippingFee.Currency,
-            shipment.CreatedAtUtc);
+        var response = ToResponse(shipment, command.ExternalOrderId);
         var responseJson = JsonSerializer.Serialize(response, SnapshotJsonOptions);
         var reference = new ExternalShipmentReference(
             command.ApiClientId,
@@ -183,7 +179,16 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
             WebhookEventTypes.ShipmentCreated,
             cancellationToken);
 
-        return Result<PartnerCreateShipmentResult>.Success(new PartnerCreateShipmentResult(response, false));
+        await _autoAssignShipmentService.AutoAssignAsync(shipment.Id, cancellationToken);
+
+        var finalResponse = ToResponse(shipment, command.ExternalOrderId);
+        if (finalResponse.Status != response.Status)
+        {
+            reference.UpdateResponseSnapshot(JsonSerializer.Serialize(finalResponse, SnapshotJsonOptions));
+            await _shipmentRepository.SaveChangesAsync(cancellationToken);
+        }
+
+        return Result<PartnerCreateShipmentResult>.Success(new PartnerCreateShipmentResult(finalResponse, false));
     }
 
     private async Task<TrackingCode> GenerateUniqueTrackingCodeAsync(CancellationToken cancellationToken)
@@ -241,6 +246,21 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
             address.Ward,
             address.Province,
             address.Country);
+    }
+
+    private static PartnerShipmentResponse ToResponse(
+        Shipment shipment,
+        string externalOrderId)
+    {
+        return new PartnerShipmentResponse(
+            shipment.Id,
+            externalOrderId,
+            shipment.TrackingCode.Value,
+            shipment.Status,
+            shipment.RouteType,
+            shipment.ShippingFee.Amount,
+            shipment.ShippingFee.Currency,
+            shipment.CreatedAtUtc);
     }
 
     private static Error ToValidationError(IEnumerable<FluentValidation.Results.ValidationFailure> errors)

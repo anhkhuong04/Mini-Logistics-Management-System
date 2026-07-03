@@ -5,10 +5,15 @@
 @using MiniLogistics.Application.AdminUsers.CreateInternalUser
 @using MiniLogistics.Application.AdminUsers.GetAdminUsers
 @using MiniLogistics.Application.AdminUsers.SetUserActiveStatus
+@using MiniLogistics.Application.Shippers
+@using MiniLogistics.Application.Shippers.GetLogisticsHubs
+@using MiniLogistics.Application.Shippers.SetShipperWorkingAreas
 @using MiniLogistics.Domain.Users
 @inject ICreateInternalUserService CreateInternalUserService
 @inject IGetAdminUsersService GetAdminUsersService
 @inject ISetUserActiveStatusService SetUserActiveStatusService
+@inject IGetLogisticsHubsService GetLogisticsHubsService
+@inject ISetShipperWorkingAreasService SetShipperWorkingAreasService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 
@@ -127,6 +132,79 @@
             </form>
         </section>
 
+        <section class="admin-panel working-area-section">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Dieu phoi hub</p>
+                    <h2>Khu vuc lam viec cua shipper</h2>
+                </div>
+                <span class="section-count">@Hubs.Count.ToString("N0") hub active</span>
+            </div>
+
+            @if (ShipperUsers.Count == 0)
+            {
+                <div class="state-card compact">
+                    <strong>Chua co shipper</strong>
+                    <p>Tao tai khoan role Shipper truoc khi gan khu vuc lam viec.</p>
+                </div>
+            }
+            else if (Hubs.Count == 0)
+            {
+                <div class="state-card compact">
+                    <strong>Chua co hub active</strong>
+                    <p>Can seed hoac tao hub truoc khi gan khu vuc lam viec cho shipper.</p>
+                </div>
+            }
+            else
+            {
+                <div class="working-area-layout">
+                    <label class="field-group shipper-picker" for="working-area-shipper">
+                        <span>Shipper</span>
+                        <select id="working-area-shipper" value="@SelectedShipperForAreaValue" @onchange="SelectAreaShipper">
+                            @foreach (var shipper in ShipperUsers)
+                            {
+                                <option value="@shipper.UserId">@FormatShipperOption(shipper)</option>
+                            }
+                        </select>
+                    </label>
+
+                    @if (SelectedAreaShipper is not null)
+                    {
+                        <div class="selected-shipper-summary">
+                            <strong>@SelectedAreaShipper.FullName</strong>
+                            <span>@SelectedWorkingAreaHubIds.Count.ToString("N0") hub duoc chon</span>
+                        </div>
+                    }
+
+                    <div class="hub-picker-grid" role="group" aria-label="Danh sach hub lam viec">
+                        @foreach (var hub in Hubs)
+                        {
+                            var checkboxId = $"hub-{hub.HubId}";
+                            <label class="hub-option @(IsHubSelected(hub.HubId) ? "selected" : null)" for="@checkboxId">
+                                <input id="@checkboxId"
+                                       type="checkbox"
+                                       checked="@IsHubSelected(hub.HubId)"
+                                       @onchange="eventArgs => ToggleHubSelection(hub.HubId, eventArgs.Value)" />
+                                <span>
+                                    <strong>@hub.Province</strong>
+                                    <small>@hub.Code - @(hub.IsRegionalSortingHub ? "Sorting hub" : "Province hub")</small>
+                                </span>
+                            </label>
+                        }
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="button" class="primary-button" disabled="@IsSavingWorkingAreas" @onclick="SaveWorkingAreasAsync">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M5 4h12l2 2v14H5V4Zm2 2v12h10V7.2L15.8 6H7Zm2 1h5v4H9V7Zm0 8h6v2H9v-2Z" />
+                            </svg>
+                            @(IsSavingWorkingAreas ? "Dang luu..." : "Luu khu vuc")
+                        </button>
+                    </div>
+                </div>
+            }
+        </section>
+
         <section class="admin-panel users-section">
             <div class="panel-heading users-heading">
                 <div>
@@ -172,6 +250,7 @@
                                 <th>Nguoi dung</th>
                                 <th>Lien he</th>
                                 <th>Vai tro</th>
+                                <th>Khu vuc</th>
                                 <th>Trang thai</th>
                                 <th>Ngay tao</th>
                                 <th>Thao tac</th>
@@ -204,6 +283,28 @@
                                                 <span class="role-pill">@role</span>
                                             }
                                         </div>
+                                    </td>
+                                    <td data-label="Khu vuc">
+                                        @if (IsRole(user, UserRole.Shipper))
+                                        {
+                                            <div class="area-list">
+                                                @if (user.WorkingAreas.Count == 0)
+                                                {
+                                                    <span class="empty-area">Chua gan hub</span>
+                                                }
+                                                else
+                                                {
+                                                    @foreach (var area in user.WorkingAreas)
+                                                    {
+                                                        <span class="area-pill" title="@area.HubName">@area.Province</span>
+                                                    }
+                                                }
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="locked-note">Khong ap dung</span>
+                                        }
                                     </td>
                                     <td data-label="Trang thai">
                                         <span class="status-pill @(user.IsActive ? "active" : "inactive")">
@@ -241,13 +342,21 @@
 
     private bool IsCreating { get; set; }
 
+    private bool IsSavingWorkingAreas { get; set; }
+
     private Guid? TogglingUserId { get; set; }
+
+    private Guid? SelectedShipperForAreaId { get; set; }
 
     private string? ErrorMessage { get; set; }
 
     private string? SuccessMessage { get; set; }
 
     private IReadOnlyList<GetAdminUserResponse> Users { get; set; } = [];
+
+    private IReadOnlyList<LogisticsHubResponse> Hubs { get; set; } = [];
+
+    private HashSet<Guid> SelectedWorkingAreaHubIds { get; set; } = [];
 
     private string SearchText { get; set; } = string.Empty;
 
@@ -266,6 +375,17 @@
     private IReadOnlyList<GetAdminUserResponse> VisibleUsers => Users
         .Where(MatchesFilters)
         .ToList();
+
+    private IReadOnlyList<GetAdminUserResponse> ShipperUsers => Users
+        .Where(user => IsRole(user, UserRole.Shipper))
+        .OrderBy(user => user.FullName)
+        .ThenBy(user => user.Email)
+        .ToList();
+
+    private GetAdminUserResponse? SelectedAreaShipper => ShipperUsers
+        .FirstOrDefault(user => user.UserId == SelectedShipperForAreaId);
+
+    private string SelectedShipperForAreaValue => SelectedShipperForAreaId?.ToString() ?? string.Empty;
 
     protected override async Task OnInitializedAsync()
     {
@@ -302,7 +422,17 @@
             return;
         }
 
+        var hubsResult = await GetLogisticsHubsService.GetAsync(activeOnly: true);
+        if (hubsResult.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(hubsResult.Error);
+            IsLoading = false;
+            return;
+        }
+
         Users = result.Value;
+        Hubs = hubsResult.Value;
+        SyncSelectedAreaShipper();
         IsLoading = false;
     }
 
@@ -338,6 +468,66 @@
 
         SuccessMessage = $"Da tao {result.Value.Role} {result.Value.FullName}.";
         ClearCreateForm();
+        await LoadAsync(clearMessages: false);
+    }
+
+    private void SelectAreaShipper(ChangeEventArgs args)
+    {
+        SelectedShipperForAreaId = Guid.TryParse(args.Value?.ToString(), out var shipperId)
+            ? shipperId
+            : null;
+        SyncSelectedWorkingAreaHubIds();
+    }
+
+    private void ToggleHubSelection(Guid hubId, object? value)
+    {
+        var isSelected = value is bool boolValue && boolValue;
+        if (isSelected)
+        {
+            SelectedWorkingAreaHubIds.Add(hubId);
+            return;
+        }
+
+        SelectedWorkingAreaHubIds.Remove(hubId);
+    }
+
+    private async Task SaveWorkingAreasAsync()
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        if (SelectedAreaShipper is null)
+        {
+            ErrorMessage = "Vui long chon shipper truoc khi luu khu vuc.";
+            return;
+        }
+
+        var adminUserId = await GetCurrentUserIdAsync();
+        if (adminUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        IsSavingWorkingAreas = true;
+
+        var result = await SetShipperWorkingAreasService.SetAsync(new SetShipperWorkingAreasCommand(
+            adminUserId.Value,
+            SelectedAreaShipper.UserId,
+            SelectedWorkingAreaHubIds
+                .OrderBy(hubId => hubId)
+                .Select(hubId => new SetShipperWorkingAreaItem(hubId))
+                .ToList()));
+
+        IsSavingWorkingAreas = false;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        SuccessMessage = $"Da cap nhat khu vuc lam viec cho {SelectedAreaShipper.FullName}.";
         await LoadAsync(clearMessages: false);
     }
 
@@ -400,6 +590,37 @@
         return TogglingUserId == userId;
     }
 
+    private bool IsHubSelected(Guid hubId)
+    {
+        return SelectedWorkingAreaHubIds.Contains(hubId);
+    }
+
+    private void SyncSelectedAreaShipper()
+    {
+        if (ShipperUsers.Count == 0)
+        {
+            SelectedShipperForAreaId = null;
+            SelectedWorkingAreaHubIds = [];
+            return;
+        }
+
+        if (SelectedShipperForAreaId is null
+            || ShipperUsers.All(user => user.UserId != SelectedShipperForAreaId.Value))
+        {
+            SelectedShipperForAreaId = ShipperUsers[0].UserId;
+        }
+
+        SyncSelectedWorkingAreaHubIds();
+    }
+
+    private void SyncSelectedWorkingAreaHubIds()
+    {
+        SelectedWorkingAreaHubIds = SelectedAreaShipper?.WorkingAreas
+            .Where(area => area.IsActive)
+            .Select(area => area.HubId)
+            .ToHashSet() ?? [];
+    }
+
     private static bool CanToggleUser(GetAdminUserResponse user)
     {
         return IsRole(user, UserRole.Shipper)
@@ -419,6 +640,13 @@
     private static bool IsRole(GetAdminUserResponse user, UserRole role)
     {
         return user.Roles.Contains(role.ToString(), StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string FormatShipperOption(GetAdminUserResponse shipper)
+    {
+        return string.IsNullOrWhiteSpace(shipper.PhoneNumber)
+            ? $"{shipper.FullName} - {shipper.Email}"
+            : $"{shipper.FullName} - {shipper.PhoneNumber}";
     }
 
     private bool MatchesFilters(GetAdminUserResponse user)

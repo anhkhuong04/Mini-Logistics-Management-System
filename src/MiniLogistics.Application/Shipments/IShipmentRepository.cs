@@ -28,6 +28,10 @@ public interface IShipmentRepository
         Guid shipperId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyDictionary<Guid, int>> GetActiveAssignmentCountsByShipperIdsAsync(
+        IReadOnlyCollection<Guid> shipperIds,
+        CancellationToken cancellationToken = default);
+
     Task<Shipment?> GetByIdAndShopIdAsync(
         Guid shipmentId,
         Guid shopId,

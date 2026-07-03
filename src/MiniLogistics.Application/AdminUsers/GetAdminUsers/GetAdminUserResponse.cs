@@ -1,3 +1,5 @@
+using MiniLogistics.Application.Shippers;
+
 namespace MiniLogistics.Application.AdminUsers.GetAdminUsers;
 
 public sealed record GetAdminUserResponse(
@@ -7,4 +9,5 @@ public sealed record GetAdminUserResponse(
     string? PhoneNumber,
     bool IsActive,
     IReadOnlyList<string> Roles,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    IReadOnlyList<ShipperWorkingAreaResponse> WorkingAreas);

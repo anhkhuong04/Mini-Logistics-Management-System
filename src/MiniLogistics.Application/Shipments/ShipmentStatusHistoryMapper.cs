@@ -1,3 +1,4 @@
+using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Domain.Shipments;
 
@@ -25,6 +26,18 @@ internal static class ShipmentStatusHistoryMapper
         return orderedHistory
             .Select(history =>
             {
+                if (history.ChangedByUserId == SystemActorIds.AutoAssignment)
+                {
+                    return new ShipmentStatusHistoryResponse(
+                        history.Status,
+                        history.Note,
+                        history.ChangedAtUtc,
+                        history.ChangedByUserId,
+                        "Auto assignment engine",
+                        null,
+                        false);
+                }
+
                 userById.TryGetValue(history.ChangedByUserId, out var user);
 
                 return new ShipmentStatusHistoryResponse(

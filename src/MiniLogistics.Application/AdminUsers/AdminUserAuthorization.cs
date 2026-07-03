@@ -5,7 +5,7 @@ using MiniLogistics.Domain.Users;
 
 namespace MiniLogistics.Application.AdminUsers;
 
-internal static class AdminUserAuthorization
+public static class AdminUserAuthorization
 {
     public static async Task<Result> EnsureActiveAdminAsync(
         IIdentityService identityService,

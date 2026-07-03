@@ -7,6 +7,7 @@ using MiniLogistics.Application.Fees;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Shops;
+using MiniLogistics.Application.Shippers;
 using MiniLogistics.Application.Shipments;
 using MiniLogistics.Infrastructure.Identity;
 using MiniLogistics.Infrastructure.PartnerApi;
@@ -53,6 +54,8 @@ public static class DependencyInjection
         services.AddScoped<IShipmentRepository, ShipmentRepository>();
         services.AddScoped<IFeeRuleRepository, FeeRuleRepository>();
         services.AddScoped<IShopRepository, ShopRepository>();
+        services.AddScoped<IHubRepository, HubRepository>();
+        services.AddScoped<IShipperWorkingAreaRepository, ShipperWorkingAreaRepository>();
         services.AddScoped<ICodTransactionRepository, CodTransactionRepository>();
         services.AddScoped<IApiClientRepository, ApiClientRepository>();
         services.AddScoped<IExternalShipmentReferenceRepository, ExternalShipmentReferenceRepository>();

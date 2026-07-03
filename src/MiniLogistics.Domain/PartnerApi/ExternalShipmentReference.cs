@@ -60,6 +60,12 @@ public sealed class ExternalShipmentReference : AuditableEntity
 
     public string ResponseSnapshotJson { get; private set; }
 
+    public void UpdateResponseSnapshot(string responseSnapshotJson)
+    {
+        ResponseSnapshotJson = RequireText(responseSnapshotJson, nameof(responseSnapshotJson), 4000);
+        MarkUpdated();
+    }
+
     private static string RequireText(string value, string fieldName, int maxLength)
     {
         if (string.IsNullOrWhiteSpace(value))

@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using MiniLogistics.Application.Common;
 using MiniLogistics.Application.CashOnDelivery;
 using MiniLogistics.Application.CashOnDelivery.GetCodSettlementCandidates;
 using MiniLogistics.Application.CashOnDelivery.MarkCodCollected;
@@ -53,6 +54,8 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
         Assert.Equal(4, initialCounts.Users);
         Assert.Equal(1, initialCounts.Shops);
         Assert.Equal(1, initialCounts.ApiClients);
+        Assert.True(initialCounts.Hubs >= 34);
+        Assert.Equal(1, initialCounts.ShipperWorkingAreas);
         Assert.True(initialCounts.FeeRules >= 3);
         Assert.Equal(initialCounts, repeatedCounts);
 
@@ -77,12 +80,13 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
         var createResult = await CreateShipmentAsync("Integration Persist", codAmount: 150_000m);
 
         Assert.True(createResult.IsSuccess, createResult.Error.Description);
-        Assert.Equal(ShipmentStatus.PendingPickup, createResult.Value.Status);
+        Assert.Equal(ShipmentStatus.Assigned, createResult.Value.Status);
 
         await _fixture.ExecuteAsync(async services =>
         {
             var dbContext = services.GetRequiredService<MiniLogisticsDbContext>();
             var shipment = await dbContext.Shipments
+                .Include(item => item.Assignments)
                 .Include(item => item.StatusHistory)
                 .SingleAsync(item => item.Id == createResult.Value.ShipmentId);
             var codTransaction = await dbContext.CodTransactions
@@ -96,18 +100,23 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
             Assert.Equal(createResult.Value.InsuranceFeeAmount, shipment.ShippingFeeBreakdown.InsuranceFee.Amount);
             Assert.Equal(createResult.Value.ReturnFeeAmount, shipment.ShippingFeeBreakdown.ReturnFee.Amount);
             Assert.Equal(createResult.Value.ShippingFeeAmount, shipment.ShippingFee.Amount);
+            Assert.Contains(shipment.Assignments, assignment =>
+                assignment.IsActive && assignment.ShipperId == DemoShipperUserId);
             Assert.Equal(CodStatus.PendingCollection, codTransaction.Status);
             Assert.Equal(150_000m, codTransaction.Amount.Amount);
             Assert.Contains(shipment.StatusHistory, history =>
                 history.Status == ShipmentStatus.PendingPickup
                 && history.ChangedByUserId == DemoShopUserId);
+            Assert.Contains(shipment.StatusHistory, history =>
+                history.Status == ShipmentStatus.Assigned
+                && history.ChangedByUserId == SystemActorIds.AutoAssignment);
         });
 
         var pendingResult = await _fixture.ExecuteAsync(services =>
             services.GetRequiredService<IGetPendingPickupShipmentsService>().GetAsync());
 
         Assert.True(pendingResult.IsSuccess, pendingResult.Error.Description);
-        Assert.Contains(pendingResult.Value, shipment => shipment.ShipmentId == createResult.Value.ShipmentId);
+        Assert.DoesNotContain(pendingResult.Value, shipment => shipment.ShipmentId == createResult.Value.ShipmentId);
     }
 
     [Fact]
@@ -115,15 +124,8 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
     {
         var createResult = await CreateShipmentAsync("Integration COD", codAmount: 250_000m);
         Assert.True(createResult.IsSuccess, createResult.Error.Description);
+        Assert.Equal(ShipmentStatus.Assigned, createResult.Value.Status);
         var shipmentId = createResult.Value.ShipmentId;
-
-        var assignResult = await _fixture.ExecuteAsync(services =>
-            services.GetRequiredService<IAssignShipperToShipmentService>().AssignAsync(new AssignShipperCommand(
-                shipmentId,
-                DemoShipperUserId,
-                DemoOperatorUserId,
-                "Integration assign.")));
-        Assert.True(assignResult.IsSuccess, assignResult.Error.Description);
 
         var operationsAfterAssign = await GetOperationsAsync();
         Assert.Contains(operationsAfterAssign, shipment =>
@@ -253,15 +255,7 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
     {
         var createResult = await CreateShipmentAsync(receiverName, codAmount);
         Assert.True(createResult.IsSuccess, createResult.Error.Description);
-
-        var assignResult = await _fixture.ExecuteAsync(services =>
-            services.GetRequiredService<IAssignShipperToShipmentService>().AssignAsync(new AssignShipperCommand(
-                createResult.Value.ShipmentId,
-                DemoShipperUserId,
-                DemoOperatorUserId,
-                "Integration assign.")));
-
-        Assert.True(assignResult.IsSuccess, assignResult.Error.Description);
+        Assert.Equal(ShipmentStatus.Assigned, createResult.Value.Status);
         return createResult.Value;
     }
 
@@ -329,6 +323,8 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
                 await dbContext.Users.CountAsync(),
                 await dbContext.Shops.CountAsync(),
                 await dbContext.ApiClients.CountAsync(),
+                await dbContext.Hubs.CountAsync(),
+                await dbContext.ShipperWorkingAreas.CountAsync(),
                 await dbContext.FeeRules.CountAsync());
         });
     }
@@ -338,5 +334,7 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
         int Users,
         int Shops,
         int ApiClients,
+        int Hubs,
+        int ShipperWorkingAreas,
         int FeeRules);
 }
