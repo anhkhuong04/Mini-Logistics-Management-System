@@ -37,6 +37,7 @@
 
 .refresh-button,
 .assign-button,
+.retry-button,
 .settlement-button {
     align-items: center;
     border: 0;
@@ -64,6 +65,7 @@
 
 .refresh-button:disabled,
 .assign-button:disabled,
+.retry-button:disabled,
 .shipper-select:disabled {
     cursor: not-allowed;
     opacity: 0.65;
@@ -85,6 +87,12 @@
     background: #eafaf1;
     border: 1px solid #bbf7d0;
     color: #15803d;
+}
+
+.alert-box.warning {
+    background: #fff7ed;
+    border: 1px solid #fed7aa;
+    color: #c2410c;
 }
 
 .content-card {
@@ -162,6 +170,10 @@
     width: 100%;
 }
 
+.pending-table {
+    min-width: 1360px;
+}
+
 .operations-table {
     min-width: 1280px;
 }
@@ -236,12 +248,68 @@
     border-color: #fca5a5;
 }
 
+.shipper-select.warning {
+    border-color: #fdba74;
+}
+
 .assign-button,
+.retry-button,
 .settlement-button {
     background: #0b63f6;
     color: #fff;
     padding: 0 1rem;
     white-space: nowrap;
+}
+
+.retry-button {
+    background: #fff;
+    border: 1px solid #d7e4f2;
+    color: #0b63f6;
+}
+
+.assignment-actions {
+    display: grid;
+    gap: 0.5rem;
+    min-width: 8.5rem;
+}
+
+.fallback-pill {
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: 0.74rem;
+    font-weight: 900;
+    line-height: 1;
+    padding: 0.42rem 0.6rem;
+    white-space: nowrap;
+}
+
+.fallback-pill.info {
+    background: #eaf4ff;
+    color: #0b63f6;
+}
+
+.fallback-pill.warning {
+    background: #fff7ed;
+    color: #c2410c;
+}
+
+.fallback-reason,
+.shipper-meta {
+    color: #64748b;
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 800;
+    line-height: 1.45;
+    margin-top: 0.45rem;
+    max-width: 18rem;
+}
+
+.shipper-meta.success {
+    color: #15803d;
+}
+
+.shipper-meta.warning {
+    color: #c2410c;
 }
 
 .settlement-button {
@@ -372,6 +440,10 @@
 
 .row-message.success {
     color: #15803d;
+}
+
+.row-message.warning {
+    color: #c2410c;
 }
 
 .field-hint {
@@ -531,17 +603,29 @@
     .settlement-table td:nth-child(6)::before { content: "Trạng thái"; }
     .settlement-table td:nth-child(7)::before { content: "Thao tác"; }
 
+    .assignments-table.pending-table:not(.operations-table):not(.settlement-table) td:nth-child(1)::before { content: "Ma van don"; }
+    .assignments-table.pending-table:not(.operations-table):not(.settlement-table) td:nth-child(2)::before { content: "Nguoi nhan"; }
+    .assignments-table.pending-table:not(.operations-table):not(.settlement-table) td:nth-child(3)::before { content: "Tuyen"; }
+    .assignments-table.pending-table:not(.operations-table):not(.settlement-table) td:nth-child(4)::before { content: "COD"; }
+    .assignments-table.pending-table:not(.operations-table):not(.settlement-table) td:nth-child(5)::before { content: "Phi ship"; }
+    .assignments-table.pending-table:not(.operations-table):not(.settlement-table) td:nth-child(6)::before { content: "Ngay tao"; }
+    .assignments-table.pending-table:not(.operations-table):not(.settlement-table) td:nth-child(7)::before { content: "Fallback"; }
+    .assignments-table.pending-table:not(.operations-table):not(.settlement-table) td:nth-child(8)::before { content: "Shipper"; }
+    .assignments-table.pending-table:not(.operations-table):not(.settlement-table) td:nth-child(9)::before { content: "Thao tac"; }
+
     .route-text {
         max-width: none;
     }
 
     .shipper-select,
+    .assignment-actions,
     .operations-actions {
         min-width: 0;
         width: 100%;
     }
 
     .assign-button,
+    .retry-button,
     .cod-button,
     .settlement-button,
     .operations-status-form button {

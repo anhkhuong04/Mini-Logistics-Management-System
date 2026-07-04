@@ -3,7 +3,7 @@ using System.Text;
 
 namespace MiniLogistics.Application.Shippers;
 
-internal static class LocationNameNormalizer
+public static class LocationNameNormalizer
 {
     public static string NormalizeProvince(string value)
     {

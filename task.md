@@ -40,7 +40,7 @@ Shop/Partner tao don
 | P1 | Shipper working areas | Done | Da co Hub, ShipperWorkingArea, repo/service, migration, seed demo va UI admin gan hub. |
 | P2 | Assignment selector/auto assign service | Done | Da co selector, load query, auto assign service, result status ro va webhook publish. |
 | P3 | Tich hop vao luong tao don | Done | Shop UI va Partner API tao don xong se thu auto assign, response/snapshot phan anh status moi. |
-| P4 | Operations UI hybrid | Pending | UI hien auto result, fallback reason, manual override theo shipper phu hop. |
+| P4 | Operations UI hybrid | Done | UI hien auto result, fallback reason, manual override theo shipper phu hop. |
 | P5 | Shipper workspace va capacity | Pending | Shipper thay don duoc assign; load/capacity duoc tinh de phan bo cong bang hon. |
 | P6 | Tests va cleanup | Pending | Coverage cho rule moi, xoa code thua, docs cap nhat. |
 
@@ -141,15 +141,24 @@ Shop/Partner tao don
 
 ## P4 - Operations UI Hybrid
 
-- [ ] Cap nhat `/operations/assignments`:
+- [x] Cap nhat `/operations/assignments`:
   - Hien PendingPickup chua auto assign duoc.
   - Hien reason/fallback neu co.
   - Dropdown uu tien shipper match khu vuc len dau.
   - Canh bao khi manual assign shipper khong match khu vuc.
-- [ ] Tach component/logic UI neu page qua dai.
-- [ ] Hien thong tin working area/load cua shipper trong dropdown hoac tooltip ngan.
-- [ ] Giu manual assign cho Admin/Operator.
-- [ ] Can nhac them action `Retry auto assign` cho tung don hoac bulk.
+- [x] Tach component/logic UI neu page qua dai.
+- [x] Hien thong tin working area/load cua shipper trong dropdown hoac tooltip ngan.
+- [x] Giu manual assign cho Admin/Operator.
+- [x] Can nhac them action `Retry auto assign` cho tung don hoac bulk.
+
+### P4 Result
+
+- `/operations/assignments` luon hien don `PendingPickup`, ke ca khi chua co shipper active.
+- Pending table co cot fallback reason suy luan theo pickup province va active working areas.
+- Dropdown shipper uu tien nhom match pickup area, sau do den manual override; option hien working area va active load.
+- Khi chon shipper khong match pickup area, UI canh bao nhung van cho Admin/Operator manual assign voi note override.
+- Them action `Retry auto` cho tung don, goi lai `IAutoAssignShipmentService` va hien reason/result tren row.
+- Tach logic ranking/fallback sang `OperationsAssignmentUiModels` va them Web tests cho matching/sort dropdown.
 
 ## P5 - Shipper Workspace Va Capacity
 
