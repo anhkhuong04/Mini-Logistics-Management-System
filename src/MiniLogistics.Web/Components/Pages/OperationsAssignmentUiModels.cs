@@ -20,7 +20,12 @@ public sealed record OperationsPendingAssignmentInsight(
 public sealed record OperationsShipperOption(
     GetActiveShipperResponse Shipper,
     bool MatchesPickupArea,
-    int ActiveShipmentCount);
+    int ActiveShipmentCount)
+{
+    public bool IsAtCapacity => ActiveShipmentCount >= Shipper.MaxActiveShipments;
+
+    public bool IsAutoAssignable => Shipper.IsAvailableForAssignment && !IsAtCapacity;
+}
 
 public static class OperationsAssignmentUiModels
 {
@@ -45,6 +50,9 @@ public static class OperationsAssignmentUiModels
                 insight.Matches(shipper.UserId),
                 getActiveShipmentCount(shipper.UserId)))
             .OrderByDescending(option => option.MatchesPickupArea)
+            .ThenByDescending(option => option.IsAutoAssignable)
+            .ThenBy(option => option.Shipper.IsAvailableForAssignment ? 0 : 1)
+            .ThenBy(option => option.IsAtCapacity ? 1 : 0)
             .ThenBy(option => option.ActiveShipmentCount)
             .ThenBy(option => option.Shipper.FullName, StringComparer.OrdinalIgnoreCase)
             .ThenBy(option => option.Shipper.UserId)

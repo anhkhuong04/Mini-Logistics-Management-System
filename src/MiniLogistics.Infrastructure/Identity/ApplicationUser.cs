@@ -8,5 +8,9 @@ public sealed class ApplicationUser : IdentityUser<Guid>
 
     public bool IsActive { get; set; } = true;
 
+    public bool IsAvailableForAssignment { get; set; } = true;
+
+    public int MaxActiveShipments { get; set; } = 30;
+
     public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
 }

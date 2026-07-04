@@ -41,7 +41,7 @@ Shop/Partner tao don
 | P2 | Assignment selector/auto assign service | Done | Da co selector, load query, auto assign service, result status ro va webhook publish. |
 | P3 | Tich hop vao luong tao don | Done | Shop UI va Partner API tao don xong se thu auto assign, response/snapshot phan anh status moi. |
 | P4 | Operations UI hybrid | Done | UI hien auto result, fallback reason, manual override theo shipper phu hop. |
-| P5 | Shipper workspace va capacity | Pending | Shipper thay don duoc assign; load/capacity duoc tinh de phan bo cong bang hon. |
+| P5 | Shipper workspace va capacity | Done | Shipper thay workspace/area/capacity; selector bo qua shipper tam ngung hoac vuot capacity. |
 | P6 | Tests va cleanup | Pending | Coverage cho rule moi, xoa code thua, docs cap nhat. |
 
 ## P0 - Design Boundary Va Data Model
@@ -162,13 +162,22 @@ Shop/Partner tao don
 
 ## P5 - Shipper Workspace Va Capacity
 
-- [ ] Xac dinh active statuses tinh load: `Assigned`, `PickingUp`, `PickedUp`, `InTransit`, `Delivering`, `DeliveryFailed`.
-- [ ] Them cau hinh capacity don gian cho shipper neu can:
+- [x] Xac dinh active statuses tinh load: `Assigned`, `PickingUp`, `PickedUp`, `InTransit`, `Delivering`, `DeliveryFailed`.
+- [x] Them cau hinh capacity don gian cho shipper neu can:
   - `MaxActiveShipments`
   - `IsAvailable`/ca lam viec
-- [ ] Cap nhat selector de bo qua shipper vuot capacity.
-- [ ] Cap nhat workspace shipper de hien khu vuc/tuyen hien tai neu data co.
-- [ ] Kiem tra COD flow sau auto assign khong bi anh huong.
+- [x] Cap nhat selector de bo qua shipper vuot capacity.
+- [x] Cap nhat workspace shipper de hien khu vuc/tuyen hien tai neu data co.
+- [x] Kiem tra COD flow sau auto assign khong bi anh huong.
+
+### P5 Result
+
+- Them cau hinh shipper `IsAvailableForAssignment` va `MaxActiveShipments` tren identity user, EF config, migration `AddShipperCapacitySettings`, va response identity/shipper.
+- Them service Admin `SetShipperCapacityService` va UI `/admin/users` de Admin cap nhat trang thai nhan auto assign va max active shipments.
+- Selector auto assign chi xet shipper active, con available, co working area match pickup hub/province, va chua vuot capacity active load.
+- `/operations/assignments` hien trang thai available/capacity trong dropdown va uu tien shipper co the auto assign.
+- Workspace shipper hien capacity/load active, trang thai available, va working areas/hubs hien tai.
+- Tests cover active load statuses, skip shipper unavailable/at capacity, no eligible khi full capacity, COD collection sau auto assign, va admin update capacity.
 
 ## P6 - Tests, Docs, Cleanup
 

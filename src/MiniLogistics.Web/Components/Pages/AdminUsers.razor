@@ -4,6 +4,7 @@
 @using System.Security.Claims
 @using MiniLogistics.Application.AdminUsers.CreateInternalUser
 @using MiniLogistics.Application.AdminUsers.GetAdminUsers
+@using MiniLogistics.Application.AdminUsers.SetShipperCapacity
 @using MiniLogistics.Application.AdminUsers.SetUserActiveStatus
 @using MiniLogistics.Application.Shippers
 @using MiniLogistics.Application.Shippers.GetLogisticsHubs
@@ -11,6 +12,7 @@
 @using MiniLogistics.Domain.Users
 @inject ICreateInternalUserService CreateInternalUserService
 @inject IGetAdminUsersService GetAdminUsersService
+@inject ISetShipperCapacityService SetShipperCapacityService
 @inject ISetUserActiveStatusService SetUserActiveStatusService
 @inject IGetLogisticsHubsService GetLogisticsHubsService
 @inject ISetShipperWorkingAreasService SetShipperWorkingAreasService
@@ -172,8 +174,35 @@
                     {
                         <div class="selected-shipper-summary">
                             <strong>@SelectedAreaShipper.FullName</strong>
-                            <span>@SelectedWorkingAreaHubIds.Count.ToString("N0") hub duoc chon</span>
+                            <span>@SelectedWorkingAreaHubIds.Count.ToString("N0") hub duoc chon - @FormatCapacity(SelectedAreaShipper)</span>
                         </div>
+
+                        <form class="capacity-form" @onsubmit="SaveCapacityAsync" @onsubmit:preventDefault="true">
+                            <label class="availability-toggle" for="shipper-available">
+                                <input id="shipper-available"
+                                       type="checkbox"
+                                       @bind="SelectedShipperIsAvailableForAssignment" />
+                                <span>Cho phep auto assign</span>
+                            </label>
+
+                            <label class="field-group capacity-input" for="shipper-max-active">
+                                <span>Max active shipments</span>
+                                <input id="shipper-max-active"
+                                       type="number"
+                                       min="1"
+                                       max="200"
+                                       required
+                                       @bind="SelectedShipperMaxActiveShipments"
+                                       @bind:event="oninput" />
+                            </label>
+
+                            <button type="submit" class="primary-button" disabled="@IsSavingCapacity">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M5 4h12l2 2v14H5V4Zm2 2v12h10V7.2L15.8 6H7Zm2 1h5v4H9V7Zm0 8h6v2H9v-2Z" />
+                                </svg>
+                                @(IsSavingCapacity ? "Dang luu..." : "Luu capacity")
+                            </button>
+                        </form>
                     }
 
                     <div class="hub-picker-grid" role="group" aria-label="Danh sach hub lam viec">
@@ -251,6 +280,7 @@
                                 <th>Lien he</th>
                                 <th>Vai tro</th>
                                 <th>Khu vuc</th>
+                                <th>Dieu phoi</th>
                                 <th>Trang thai</th>
                                 <th>Ngay tao</th>
                                 <th>Thao tac</th>
@@ -306,6 +336,21 @@
                                             <span class="locked-note">Khong ap dung</span>
                                         }
                                     </td>
+                                    <td data-label="Dieu phoi">
+                                        @if (IsRole(user, UserRole.Shipper))
+                                        {
+                                            <div class="capacity-list">
+                                                <span class="capacity-pill @(user.IsAvailableForAssignment ? "available" : "paused")">
+                                                    @(user.IsAvailableForAssignment ? "Nhan auto" : "Tam ngung")
+                                                </span>
+                                                <small>@FormatCapacity(user)</small>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <span class="locked-note">Khong ap dung</span>
+                                        }
+                                    </td>
                                     <td data-label="Trang thai">
                                         <span class="status-pill @(user.IsActive ? "active" : "inactive")">
                                             @(user.IsActive ? "Active" : "Inactive")
@@ -344,6 +389,8 @@
 
     private bool IsSavingWorkingAreas { get; set; }
 
+    private bool IsSavingCapacity { get; set; }
+
     private Guid? TogglingUserId { get; set; }
 
     private Guid? SelectedShipperForAreaId { get; set; }
@@ -357,6 +404,10 @@
     private IReadOnlyList<LogisticsHubResponse> Hubs { get; set; } = [];
 
     private HashSet<Guid> SelectedWorkingAreaHubIds { get; set; } = [];
+
+    private bool SelectedShipperIsAvailableForAssignment { get; set; } = true;
+
+    private int SelectedShipperMaxActiveShipments { get; set; } = 30;
 
     private string SearchText { get; set; } = string.Empty;
 
@@ -477,6 +528,7 @@
             ? shipperId
             : null;
         SyncSelectedWorkingAreaHubIds();
+        SyncSelectedCapacity();
     }
 
     private void ToggleHubSelection(Guid hubId, object? value)
@@ -528,6 +580,44 @@
         }
 
         SuccessMessage = $"Da cap nhat khu vuc lam viec cho {SelectedAreaShipper.FullName}.";
+        await LoadAsync(clearMessages: false);
+    }
+
+    private async Task SaveCapacityAsync()
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        if (SelectedAreaShipper is null)
+        {
+            ErrorMessage = "Vui long chon shipper truoc khi luu capacity.";
+            return;
+        }
+
+        var adminUserId = await GetCurrentUserIdAsync();
+        if (adminUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        IsSavingCapacity = true;
+
+        var result = await SetShipperCapacityService.SetAsync(new SetShipperCapacityCommand(
+            adminUserId.Value,
+            SelectedAreaShipper.UserId,
+            SelectedShipperIsAvailableForAssignment,
+            SelectedShipperMaxActiveShipments));
+
+        IsSavingCapacity = false;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        SuccessMessage = $"Da cap nhat capacity cho {SelectedAreaShipper.FullName}.";
         await LoadAsync(clearMessages: false);
     }
 
@@ -601,6 +691,8 @@
         {
             SelectedShipperForAreaId = null;
             SelectedWorkingAreaHubIds = [];
+            SelectedShipperIsAvailableForAssignment = true;
+            SelectedShipperMaxActiveShipments = 30;
             return;
         }
 
@@ -611,6 +703,7 @@
         }
 
         SyncSelectedWorkingAreaHubIds();
+        SyncSelectedCapacity();
     }
 
     private void SyncSelectedWorkingAreaHubIds()
@@ -619,6 +712,12 @@
             .Where(area => area.IsActive)
             .Select(area => area.HubId)
             .ToHashSet() ?? [];
+    }
+
+    private void SyncSelectedCapacity()
+    {
+        SelectedShipperIsAvailableForAssignment = SelectedAreaShipper?.IsAvailableForAssignment ?? true;
+        SelectedShipperMaxActiveShipments = SelectedAreaShipper?.MaxActiveShipments ?? 30;
     }
 
     private static bool CanToggleUser(GetAdminUserResponse user)
@@ -647,6 +746,11 @@
         return string.IsNullOrWhiteSpace(shipper.PhoneNumber)
             ? $"{shipper.FullName} - {shipper.Email}"
             : $"{shipper.FullName} - {shipper.PhoneNumber}";
+    }
+
+    private static string FormatCapacity(GetAdminUserResponse shipper)
+    {
+        return $"max {shipper.MaxActiveShipments:N0} don active";
     }
 
     private bool MatchesFilters(GetAdminUserResponse user)

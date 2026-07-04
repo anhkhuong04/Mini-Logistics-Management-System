@@ -897,6 +897,15 @@ public sealed class PartnerApiServiceTests
             throw new NotSupportedException();
         }
 
+        public Task<Result> SetShipperCapacityAsync(
+            Guid userId,
+            bool isAvailableForAssignment,
+            int maxActiveShipments,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Result.Success());
+        }
+
         public Task<IdentityUserRoleCheckResponse> CheckUserRoleAsync(
             Guid userId,
             string role,

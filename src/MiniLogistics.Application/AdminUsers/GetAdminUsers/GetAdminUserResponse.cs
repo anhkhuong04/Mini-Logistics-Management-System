@@ -8,6 +8,8 @@ public sealed record GetAdminUserResponse(
     string Email,
     string? PhoneNumber,
     bool IsActive,
+    bool IsAvailableForAssignment,
+    int MaxActiveShipments,
     IReadOnlyList<string> Roles,
     DateTimeOffset CreatedAtUtc,
     IReadOnlyList<ShipperWorkingAreaResponse> WorkingAreas);

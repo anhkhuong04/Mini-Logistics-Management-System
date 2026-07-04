@@ -60,6 +60,8 @@ public sealed class GetAdminUsersService : IGetAdminUsersService
                 user.Email,
                 user.PhoneNumber,
                 user.IsActive,
+                user.IsAvailableForAssignment,
+                user.MaxActiveShipments,
                 user.Roles,
                 user.CreatedAtUtc,
                 areasByShipperId.TryGetValue(user.UserId, out var areas) ? areas : []))

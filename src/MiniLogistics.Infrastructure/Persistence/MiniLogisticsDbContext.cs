@@ -57,6 +57,14 @@ public sealed class MiniLogisticsDbContext : IdentityDbContext<ApplicationUser, 
             builder.Property(user => user.IsActive)
                 .IsRequired();
 
+            builder.Property(user => user.IsAvailableForAssignment)
+                .HasDefaultValue(true)
+                .IsRequired();
+
+            builder.Property(user => user.MaxActiveShipments)
+                .HasDefaultValue(30)
+                .IsRequired();
+
             builder.Property(user => user.CreatedAtUtc)
                 .IsRequired();
         });

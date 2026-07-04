@@ -1065,8 +1065,14 @@
     private string FormatShipperOption(OperationsShipperOption option)
     {
         var matchLabel = option.MatchesPickupArea ? "Phù hợp" : "Override";
+        var availabilityLabel = option.Shipper.IsAvailableForAssignment
+            ? "nhận auto"
+            : "tạm ngưng";
+        var capacityLabel = option.IsAtCapacity
+            ? $"đầy {option.ActiveShipmentCount:N0}/{option.Shipper.MaxActiveShipments:N0}"
+            : $"tải {option.ActiveShipmentCount:N0}/{option.Shipper.MaxActiveShipments:N0}";
 
-        return $"{FormatShipper(option.Shipper)} | {matchLabel} | {FormatWorkingAreas(option.Shipper)} | tải {option.ActiveShipmentCount:N0}";
+        return $"{FormatShipper(option.Shipper)} | {matchLabel} | {availabilityLabel} | {FormatWorkingAreas(option.Shipper)} | {capacityLabel}";
     }
 
     private static string FormatShipper(GetActiveShipperResponse shipper)
@@ -1118,10 +1124,12 @@
     {
         var activeLoad = GetActiveShipmentCount(shipper.UserId);
         var workingAreas = FormatWorkingAreas(shipper);
+        var availability = shipper.IsAvailableForAssignment ? "đang nhận auto" : "tạm ngưng auto";
+        var capacity = $"{activeLoad:N0}/{shipper.MaxActiveShipments:N0}";
 
         return IsShipperAreaMatch(shipment, shipper.UserId)
-            ? $"Match pickup {shipment.PickupProvince}; tải {activeLoad:N0}; {workingAreas}."
-            : $"Manual override ngoài pickup {shipment.PickupProvince}; tải {activeLoad:N0}; {workingAreas}.";
+            ? $"Match pickup {shipment.PickupProvince}; {availability}; tải {capacity}; {workingAreas}."
+            : $"Manual override ngoài pickup {shipment.PickupProvince}; {availability}; tải {capacity}; {workingAreas}.";
     }
 
     private static string FormatStatus(ShipmentStatus status)

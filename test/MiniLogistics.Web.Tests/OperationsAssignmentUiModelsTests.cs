@@ -95,6 +95,8 @@ public sealed class OperationsAssignmentUiModelsTests
             fullName,
             $"{fullName.Replace(" ", ".", StringComparison.OrdinalIgnoreCase).ToLowerInvariant()}@example.test",
             "0900000000",
+            true,
+            30,
             [CreateArea(shipperId, province)]);
     }
 

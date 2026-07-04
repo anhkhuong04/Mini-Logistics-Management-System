@@ -17,7 +17,9 @@
 .table-toolbar,
 .form-actions,
 .user-cell,
-.selected-shipper-summary {
+.selected-shipper-summary,
+.capacity-form,
+.availability-toggle {
     align-items: center;
     display: flex;
 }
@@ -248,10 +250,38 @@ button:disabled {
 }
 
 .selected-shipper-summary span,
-.empty-area {
+.empty-area,
+.capacity-list small {
     color: var(--admin-muted);
     font-size: 0.82rem;
     font-weight: 600;
+}
+
+.capacity-form {
+    background: #fff;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    flex-wrap: wrap;
+    gap: 0.85rem;
+    padding: 1rem;
+}
+
+.availability-toggle {
+    color: var(--admin-text);
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    gap: 0.55rem;
+    min-height: 2.6rem;
+}
+
+.availability-toggle input {
+    height: 1rem;
+    width: 1rem;
+}
+
+.capacity-input {
+    max-width: 14rem;
 }
 
 .hub-picker-grid {
@@ -293,7 +323,8 @@ button:disabled {
 }
 
 .hub-option span,
-.area-list {
+.area-list,
+.capacity-list {
     display: grid;
     gap: 0.28rem;
 }
@@ -396,7 +427,7 @@ button:disabled {
 
 .users-table {
     border-collapse: collapse;
-    min-width: 1040px;
+    min-width: 1140px;
     width: 100%;
 }
 
@@ -465,7 +496,8 @@ button:disabled {
 
 .role-pill,
 .status-pill,
-.area-pill {
+.area-pill,
+.capacity-pill {
     border-radius: 999px;
     display: inline-flex;
     font-size: 0.76rem;
@@ -486,6 +518,22 @@ button:disabled {
     background: #f0fbf4;
     color: #087443;
     width: fit-content;
+}
+
+.capacity-pill {
+    line-height: 1;
+    white-space: nowrap;
+    width: fit-content;
+}
+
+.capacity-pill.available {
+    background: #eafaf0;
+    color: #087443;
+}
+
+.capacity-pill.paused {
+    background: #fff7e6;
+    color: #b7791f;
 }
 
 .status-pill.active {

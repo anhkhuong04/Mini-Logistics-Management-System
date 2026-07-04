@@ -1,6 +1,7 @@
 using FluentValidation;
 using MiniLogistics.Application.AdminUsers.CreateInternalUser;
 using MiniLogistics.Application.AdminUsers.GetAdminUsers;
+using MiniLogistics.Application.AdminUsers.SetShipperCapacity;
 using MiniLogistics.Application.AdminUsers.SetUserActiveStatus;
 using MiniLogistics.Application.CashOnDelivery.GetCodSettlementCandidates;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,6 +39,7 @@ public static class DependencyInjection
 
         services.AddScoped<ICreateInternalUserService, CreateInternalUserService>();
         services.AddScoped<IGetAdminUsersService, GetAdminUsersService>();
+        services.AddScoped<ISetShipperCapacityService, SetShipperCapacityService>();
         services.AddScoped<ISetUserActiveStatusService, SetUserActiveStatusService>();
         services.AddScoped<IMarkCodCollectedService, MarkCodCollectedService>();
         services.AddScoped<IMarkCodSettledService, MarkCodSettledService>();

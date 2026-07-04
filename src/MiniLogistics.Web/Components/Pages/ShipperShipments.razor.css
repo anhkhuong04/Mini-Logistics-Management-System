@@ -91,6 +91,71 @@
     box-shadow: 0 10px 28px rgba(7, 27, 77, 0.05);
 }
 
+.workspace-profile {
+    display: grid;
+    gap: 1rem;
+    padding: 1.25rem;
+}
+
+.profile-main {
+    align-items: flex-start;
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+}
+
+.profile-main h2 {
+    color: #071b4d;
+    font-size: 1.2rem;
+    font-weight: 900;
+    margin: 0;
+}
+
+.profile-main p {
+    color: #64748b;
+    margin: 0.35rem 0 0;
+}
+
+.capacity-badge,
+.area-pill,
+.empty-area {
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: 0.78rem;
+    font-weight: 900;
+    line-height: 1;
+    padding: 0.48rem 0.65rem;
+    white-space: nowrap;
+}
+
+.capacity-badge.available {
+    background: #eafaf1;
+    color: #15803d;
+}
+
+.capacity-badge.paused,
+.capacity-badge.full {
+    background: #fff7ed;
+    color: #c2410c;
+}
+
+.capacity-badge.neutral,
+.empty-area {
+    background: #eef4fb;
+    color: #64748b;
+}
+
+.area-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.area-pill {
+    background: #eaf4ff;
+    color: #0b63f6;
+}
+
 .cod-action-card {
     align-items: center;
     background: #f3fff9;
@@ -466,7 +531,8 @@
 
 @media (max-width: 840px) {
     .page-heading,
-    .shipment-card-header {
+    .shipment-card-header,
+    .profile-main {
         align-items: stretch;
         flex-direction: column;
     }

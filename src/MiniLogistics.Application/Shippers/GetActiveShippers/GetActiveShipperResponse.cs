@@ -7,4 +7,6 @@ public sealed record GetActiveShipperResponse(
     string FullName,
     string Email,
     string? PhoneNumber,
+    bool IsAvailableForAssignment,
+    int MaxActiveShipments,
     IReadOnlyList<ShipperWorkingAreaResponse> WorkingAreas);

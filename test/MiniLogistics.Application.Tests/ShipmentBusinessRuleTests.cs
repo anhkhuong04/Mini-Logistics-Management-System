@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using MiniLogistics.Application.AdminUsers.CreateInternalUser;
 using MiniLogistics.Application.AdminUsers.GetAdminUsers;
+using MiniLogistics.Application.AdminUsers.SetShipperCapacity;
 using MiniLogistics.Application.AdminUsers.SetUserActiveStatus;
 using MiniLogistics.Application.CashOnDelivery;
 using MiniLogistics.Application.CashOnDelivery.GetCodSettlementCandidates;
@@ -160,6 +161,91 @@ public sealed class ShipmentBusinessRuleTests
     }
 
     [Fact]
+    public void ShipmentLoadStatuses_ActiveAssignmentStatuses_MatchCapacityDefinition()
+    {
+        Assert.Equal(
+            [
+                ShipmentStatus.Assigned,
+                ShipmentStatus.PickingUp,
+                ShipmentStatus.PickedUp,
+                ShipmentStatus.InTransit,
+                ShipmentStatus.Delivering,
+                ShipmentStatus.DeliveryFailed
+            ],
+            ShipmentLoadStatuses.ActiveAssignmentStatuses);
+    }
+
+    [Fact]
+    public async Task AssignmentSelector_MatchingArea_SkipsShipperAtCapacity()
+    {
+        var identityService = CreateIdentityService();
+        identityService.SetShipperCapacity(_shipperId, isAvailableForAssignment: true, maxActiveShipments: 1);
+        identityService.SetShipperCapacity(_otherShipperId, isAvailableForAssignment: true, maxActiveShipments: 10);
+        var targetShipment = CreateShipment(_shopUserId);
+        var busyShipment = CreateAssignedShipment(_shipperId);
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var selector = new ShipmentAssignmentSelector(
+            identityService,
+            new FakeHubRepository([hub]),
+            new FakeShipperWorkingAreaRepository([
+                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh"),
+                new ShipperWorkingArea(_otherShipperId, hub.Id, "Ho Chi Minh")
+            ]),
+            new FakeShipmentRepository([targetShipment, busyShipment]));
+
+        var result = await selector.SelectAsync(targetShipment);
+
+        Assert.Equal(ShipmentAssignmentSelectionStatus.Selected, result.Status);
+        Assert.Equal(_otherShipperId, result.ShipperId);
+    }
+
+    [Fact]
+    public async Task AssignmentSelector_MatchingArea_WhenAllShippersAtCapacity_ReturnsNoEligibleShipper()
+    {
+        var identityService = CreateIdentityService();
+        identityService.SetShipperCapacity(_shipperId, isAvailableForAssignment: true, maxActiveShipments: 1);
+        var targetShipment = CreateShipment(_shopUserId);
+        var busyShipment = CreateAssignedShipment(_shipperId);
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var selector = new ShipmentAssignmentSelector(
+            identityService,
+            new FakeHubRepository([hub]),
+            new FakeShipperWorkingAreaRepository([
+                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh")
+            ]),
+            new FakeShipmentRepository([targetShipment, busyShipment]));
+
+        var result = await selector.SelectAsync(targetShipment);
+
+        Assert.Equal(ShipmentAssignmentSelectionStatus.NoEligibleShipper, result.Status);
+        Assert.Null(result.ShipperId);
+        Assert.Contains("at capacity", result.Reason);
+    }
+
+    [Fact]
+    public async Task AssignmentSelector_MatchingArea_SkipsUnavailableShipper()
+    {
+        var identityService = CreateIdentityService();
+        identityService.SetShipperCapacity(_shipperId, isAvailableForAssignment: false, maxActiveShipments: 10);
+        identityService.SetShipperCapacity(_otherShipperId, isAvailableForAssignment: true, maxActiveShipments: 10);
+        var targetShipment = CreateShipment(_shopUserId);
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var selector = new ShipmentAssignmentSelector(
+            identityService,
+            new FakeHubRepository([hub]),
+            new FakeShipperWorkingAreaRepository([
+                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh"),
+                new ShipperWorkingArea(_otherShipperId, hub.Id, "Ho Chi Minh")
+            ]),
+            new FakeShipmentRepository([targetShipment]));
+
+        var result = await selector.SelectAsync(targetShipment);
+
+        Assert.Equal(ShipmentAssignmentSelectionStatus.Selected, result.Status);
+        Assert.Equal(_otherShipperId, result.ShipperId);
+    }
+
+    [Fact]
     public async Task AutoAssignShipment_AssignsPendingPickupAndPublishesWebhook()
     {
         var targetShipment = CreateShipment(_shopUserId);
@@ -188,6 +274,37 @@ public sealed class ShipmentBusinessRuleTests
         Assert.Equal(1, shipmentRepository.SaveChangesCount);
         Assert.Equal(1, publisher.PublishCount);
         Assert.Equal(WebhookEventTypes.ShipmentStatusChanged, publisher.LastEventType);
+    }
+
+    [Fact]
+    public async Task AutoAssignShipment_DeliveredCodShipment_CanStillBeCollectedByAssignedShipper()
+    {
+        var targetShipment = CreateShipment(_shopUserId, codAmount: 100_000m);
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var shipmentRepository = new FakeShipmentRepository([targetShipment]);
+        var selector = new ShipmentAssignmentSelector(
+            CreateIdentityService(),
+            new FakeHubRepository([hub]),
+            new FakeShipperWorkingAreaRepository([
+                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh")
+            ]),
+            shipmentRepository);
+        var autoAssignService = new AutoAssignShipmentService(shipmentRepository, selector);
+
+        var autoAssignResult = await autoAssignService.AutoAssignAsync(targetShipment.Id);
+        MoveShipmentToStatus(targetShipment, ShipmentStatus.Delivered);
+        var codTransaction = CodTransaction.Create(targetShipment.Id, new Money(100_000m));
+        var codRepository = new FakeCodTransactionRepository([codTransaction]);
+        var collectService = CreateMarkCodCollectedService(shipmentRepository, codRepository);
+        var collectResult = await collectService.MarkCollectedAsync(new MarkCodCollectedCommand(
+            targetShipment.Id,
+            _shipperId));
+
+        Assert.True(autoAssignResult.IsSuccess);
+        Assert.Equal(AutoAssignShipmentStatus.Assigned, autoAssignResult.Value.Status);
+        Assert.True(collectResult.IsSuccess);
+        Assert.Equal(CodStatus.Collected, codTransaction.Status);
+        Assert.Equal(_shipperId, codTransaction.CollectedByUserId);
     }
 
     [Fact]
@@ -281,6 +398,28 @@ public sealed class ShipmentBusinessRuleTests
 
         Assert.True(assignResult.IsFailure);
         Assert.Equal("Application.Forbidden", assignResult.Error.Code);
+    }
+
+    [Fact]
+    public async Task SetShipperCapacity_AdminUpdatesAutoAssignmentCapacity()
+    {
+        var identityService = CreateIdentityService();
+        var service = new SetShipperCapacityService(
+            new SetShipperCapacityCommandValidator(),
+            identityService);
+
+        var result = await service.SetAsync(new SetShipperCapacityCommand(
+            _adminId,
+            _shipperId,
+            IsAvailableForAssignment: false,
+            MaxActiveShipments: 12));
+        var shippersResult = await CreateGetActiveShippersService(identityService).GetAsync();
+
+        Assert.True(result.IsSuccess);
+        Assert.True(shippersResult.IsSuccess);
+        var shipper = Assert.Single(shippersResult.Value, shipper => shipper.UserId == _shipperId);
+        Assert.False(shipper.IsAvailableForAssignment);
+        Assert.Equal(12, shipper.MaxActiveShipments);
     }
 
     [Fact]
@@ -1010,8 +1149,17 @@ public sealed class ShipmentBusinessRuleTests
                 $"{userId:N}@example.test",
                 null,
                 isActive,
+                true,
+                30,
                 roles.ToHashSet(),
                 DateTimeOffset.UtcNow);
+        }
+
+        public void SetShipperCapacity(Guid userId, bool isAvailableForAssignment, int maxActiveShipments)
+        {
+            var user = _users[userId];
+            user.IsAvailableForAssignment = isAvailableForAssignment;
+            user.MaxActiveShipments = maxActiveShipments;
         }
 
         public Task<Result<Guid>> CreateUserAsync(
@@ -1028,6 +1176,8 @@ public sealed class ShipmentBusinessRuleTests
                 email.Trim(),
                 phoneNumber.Trim(),
                 true,
+                true,
+                30,
                 [],
                 DateTimeOffset.UtcNow);
 
@@ -1093,6 +1243,22 @@ public sealed class ShipmentBusinessRuleTests
             return Task.FromResult(Result.Success());
         }
 
+        public Task<Result> SetShipperCapacityAsync(
+            Guid userId,
+            bool isAvailableForAssignment,
+            int maxActiveShipments,
+            CancellationToken cancellationToken = default)
+        {
+            if (!_users.TryGetValue(userId, out var user))
+            {
+                return Task.FromResult(Result.Failure(ApplicationErrors.NotFound("User was not found.")));
+            }
+
+            user.IsAvailableForAssignment = isAvailableForAssignment;
+            user.MaxActiveShipments = maxActiveShipments;
+            return Task.FromResult(Result.Success());
+        }
+
         public Task<IdentityUserRoleCheckResponse> CheckUserRoleAsync(
             Guid userId,
             string role,
@@ -1115,7 +1281,13 @@ public sealed class ShipmentBusinessRuleTests
         {
             IReadOnlyList<ActiveShipperResponse> shippers = _users.Values
                 .Where(user => user.IsActive && user.Roles.Contains(nameof(UserRole.Shipper)))
-                .Select(user => new ActiveShipperResponse(user.UserId, user.FullName, user.Email, user.PhoneNumber))
+                .Select(user => new ActiveShipperResponse(
+                    user.UserId,
+                    user.FullName,
+                    user.Email,
+                    user.PhoneNumber,
+                    user.IsAvailableForAssignment,
+                    user.MaxActiveShipments))
                 .ToList();
 
             return Task.FromResult(shippers);
@@ -1132,6 +1304,8 @@ public sealed class ShipmentBusinessRuleTests
                     user.Email,
                     user.PhoneNumber,
                     user.IsActive,
+                    user.IsAvailableForAssignment,
+                    user.MaxActiveShipments,
                     user.Roles.OrderBy(role => role).ToList(),
                     user.CreatedAtUtc))
                 .ToList();
@@ -1146,7 +1320,14 @@ public sealed class ShipmentBusinessRuleTests
             IReadOnlyList<IdentityUserSummaryResponse> users = userIds
                 .Where(_users.ContainsKey)
                 .Select(userId => _users[userId])
-                .Select(user => new IdentityUserSummaryResponse(user.UserId, user.FullName, user.Email, user.PhoneNumber, user.IsActive))
+                .Select(user => new IdentityUserSummaryResponse(
+                    user.UserId,
+                    user.FullName,
+                    user.Email,
+                    user.PhoneNumber,
+                    user.IsActive,
+                    user.IsAvailableForAssignment,
+                    user.MaxActiveShipments))
                 .ToList();
 
             return Task.FromResult(users);
@@ -1160,6 +1341,8 @@ public sealed class ShipmentBusinessRuleTests
                 string email,
                 string? phoneNumber,
                 bool isActive,
+                bool isAvailableForAssignment,
+                int maxActiveShipments,
                 HashSet<string> roles,
                 DateTimeOffset createdAtUtc)
             {
@@ -1168,6 +1351,8 @@ public sealed class ShipmentBusinessRuleTests
                 Email = email;
                 PhoneNumber = phoneNumber;
                 IsActive = isActive;
+                IsAvailableForAssignment = isAvailableForAssignment;
+                MaxActiveShipments = maxActiveShipments;
                 Roles = roles;
                 CreatedAtUtc = createdAtUtc;
             }
@@ -1181,6 +1366,10 @@ public sealed class ShipmentBusinessRuleTests
             public string? PhoneNumber { get; }
 
             public bool IsActive { get; set; }
+
+            public bool IsAvailableForAssignment { get; set; }
+
+            public int MaxActiveShipments { get; set; }
 
             public HashSet<string> Roles { get; }
 

@@ -29,6 +29,12 @@ public interface IIdentityService
         bool isActive,
         CancellationToken cancellationToken = default);
 
+    Task<Result> SetShipperCapacityAsync(
+        Guid userId,
+        bool isAvailableForAssignment,
+        int maxActiveShipments,
+        CancellationToken cancellationToken = default);
+
     Task<IdentityUserRoleCheckResponse> CheckUserRoleAsync(
         Guid userId,
         string role,
@@ -55,14 +61,18 @@ public sealed record ActiveShipperResponse(
     Guid UserId,
     string FullName,
     string Email,
-    string? PhoneNumber);
+    string? PhoneNumber,
+    bool IsAvailableForAssignment,
+    int MaxActiveShipments);
 
 public sealed record IdentityUserSummaryResponse(
     Guid UserId,
     string FullName,
     string Email,
     string? PhoneNumber,
-    bool IsActive);
+    bool IsActive,
+    bool IsAvailableForAssignment,
+    int MaxActiveShipments);
 
 public sealed record IdentityUserWithRolesResponse(
     Guid UserId,
@@ -70,5 +80,7 @@ public sealed record IdentityUserWithRolesResponse(
     string Email,
     string? PhoneNumber,
     bool IsActive,
+    bool IsAvailableForAssignment,
+    int MaxActiveShipments,
     IReadOnlyList<string> Roles,
     DateTimeOffset CreatedAtUtc);

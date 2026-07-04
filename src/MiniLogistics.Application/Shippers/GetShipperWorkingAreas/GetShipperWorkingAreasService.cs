@@ -28,15 +28,6 @@ public sealed class GetShipperWorkingAreasService : IGetShipperWorkingAreasServi
         Guid shipperId,
         CancellationToken cancellationToken = default)
     {
-        var authorizationResult = await AdminUserAuthorization.EnsureActiveAdminAsync(
-            _identityService,
-            requestedByUserId,
-            cancellationToken);
-        if (authorizationResult.IsFailure)
-        {
-            return Result<IReadOnlyList<ShipperWorkingAreaResponse>>.Failure(authorizationResult.Error);
-        }
-
         var shipperCheck = await _identityService.CheckUserRoleAsync(
             shipperId,
             nameof(UserRole.Shipper),
@@ -51,6 +42,23 @@ public sealed class GetShipperWorkingAreasService : IGetShipperWorkingAreasServi
         {
             return Result<IReadOnlyList<ShipperWorkingAreaResponse>>.Failure(
                 ApplicationErrors.Forbidden("Selected user is not a shipper."));
+        }
+
+        if (requestedByUserId != shipperId)
+        {
+            var authorizationResult = await AdminUserAuthorization.EnsureActiveAdminAsync(
+                _identityService,
+                requestedByUserId,
+                cancellationToken);
+            if (authorizationResult.IsFailure)
+            {
+                return Result<IReadOnlyList<ShipperWorkingAreaResponse>>.Failure(authorizationResult.Error);
+            }
+        }
+        else if (!shipperCheck.IsActive)
+        {
+            return Result<IReadOnlyList<ShipperWorkingAreaResponse>>.Failure(
+                ApplicationErrors.Forbidden("Shipper is not active."));
         }
 
         var workingAreas = await _workingAreaRepository.GetByShipperIdAsync(

@@ -6,9 +6,14 @@
 @using MiniLogistics.Application.Shipments
 @using MiniLogistics.Application.Shipments.GetAssignedShipmentsForShipper
 @using MiniLogistics.Application.Shipments.UpdateShipmentStatus
+@using MiniLogistics.Application.Shippers
+@using MiniLogistics.Application.Shippers.GetActiveShippers
+@using MiniLogistics.Application.Shippers.GetShipperWorkingAreas
 @using MiniLogistics.Domain.CashOnDelivery
 @using MiniLogistics.Domain.Shipments
 @inject IGetAssignedShipmentsForShipperService GetAssignedShipmentsForShipperService
+@inject IGetActiveShippersService GetActiveShippersService
+@inject IGetShipperWorkingAreasService GetShipperWorkingAreasService
 @inject IMarkCodCollectedService MarkCodCollectedService
 @inject IUpdateShipmentStatusService UpdateShipmentStatusService
 @inject AuthenticationStateProvider AuthenticationStateProvider
@@ -53,24 +58,37 @@
             <strong>Đang tải danh sách vận đơn</strong>
         </section>
     }
-    else if (AssignedShipments.Count == 0)
-    {
-        <section class="content-card state-card">
-            <span class="state-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" />
-                </svg>
-            </span>
-            <strong>Không có đơn cần xử lý</strong>
-            <p>Đơn mới sau khi điều phối assign sẽ xuất hiện ở đây. Đơn Returned, Cancelled hoặc Delivered đã xong COD được ẩn khỏi workspace chính.</p>
-        </section>
-    }
     else
     {
+        <section class="content-card workspace-profile">
+            <div class="profile-main">
+                <div>
+                    <p class="eyebrow">Tuyến làm việc</p>
+                    <h2>@(CurrentShipper?.FullName ?? "Shipper")</h2>
+                    <p>@FormatAvailability(CurrentShipper)</p>
+                </div>
+                <span class="capacity-badge @GetCapacityBadgeClass()">@FormatLoadCapacity()</span>
+            </div>
+
+            <div class="area-strip">
+                @if (WorkingAreas.Count == 0)
+                {
+                    <span class="empty-area">Chưa được gán hub làm việc</span>
+                }
+                else
+                {
+                    @foreach (var area in WorkingAreas)
+                    {
+                        <span class="area-pill" title="@area.HubName">@FormatWorkingArea(area)</span>
+                    }
+                }
+            </div>
+        </section>
+
         <section class="stats-grid" aria-label="Tóm tắt vận đơn shipper">
             <article>
                 <span>Tổng đơn active</span>
-                <strong>@AssignedShipments.Count.ToString("N0")</strong>
+                <strong>@ActiveLoadCount.ToString("N0")</strong>
             </article>
             <article>
                 <span>Đang giao</span>
@@ -78,14 +96,32 @@
             </article>
             <article>
                 <span>COD cần thu</span>
-                <strong>@FormatMoney(AssignedShipments.Where(shipment => shipment.CodStatus == CodStatus.PendingCollection).Sum(shipment => shipment.CodAmount), AssignedShipments.First().Currency)</strong>
+                <strong>@FormatMoney(AssignedShipments.Where(shipment => shipment.CodStatus == CodStatus.PendingCollection).Sum(shipment => shipment.CodAmount), DisplayCurrency)</strong>
+            </article>
+            <article>
+                <span>Hub/khu vực</span>
+                <strong>@WorkingAreas.Count.ToString("N0")</strong>
             </article>
         </section>
 
-        <div class="shipment-grid">
-            @foreach (var shipment in AssignedShipments)
-            {
-                <article class="shipment-card">
+        @if (AssignedShipments.Count == 0)
+        {
+            <section class="content-card state-card">
+                <span class="state-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" />
+                    </svg>
+                </span>
+                <strong>Không có đơn cần xử lý</strong>
+                <p>Đơn mới sau khi điều phối assign sẽ xuất hiện ở đây. Đơn Returned, Cancelled hoặc Delivered đã xong COD được ẩn khỏi workspace chính.</p>
+            </section>
+        }
+        else
+        {
+            <div class="shipment-grid">
+                @foreach (var shipment in AssignedShipments)
+                {
+                    <article class="shipment-card">
                     <header class="shipment-card-header">
                         <div>
                             <span class="tracking-code">@shipment.TrackingCode</span>
@@ -209,9 +245,10 @@
                             }
                         </ol>
                     </section>
-                </article>
-            }
-        </div>
+                    </article>
+                }
+            </div>
+        }
     }
 </div>
 
@@ -227,6 +264,10 @@
     private string? SuccessMessage { get; set; }
 
     private IReadOnlyList<GetAssignedShipmentForShipperResponse> AssignedShipments { get; set; } = [];
+
+    private GetActiveShipperResponse? CurrentShipper { get; set; }
+
+    private IReadOnlyList<ShipperWorkingAreaResponse> WorkingAreas { get; set; } = [];
 
     private Dictionary<Guid, ShipmentStatus> SelectedStatuses { get; } = [];
 
@@ -262,6 +303,13 @@
             return;
         }
 
+        var profileLoaded = await LoadShipperProfileAsync(shipperUserId.Value);
+        if (!profileLoaded)
+        {
+            IsLoading = false;
+            return;
+        }
+
         var result = await GetAssignedShipmentsForShipperService.GetAsync(shipperUserId.Value);
         if (result.IsFailure)
         {
@@ -275,6 +323,30 @@
         }
 
         IsLoading = false;
+    }
+
+    private async Task<bool> LoadShipperProfileAsync(Guid shipperUserId)
+    {
+        var activeShippersResult = await GetActiveShippersService.GetAsync();
+        if (activeShippersResult.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(activeShippersResult.Error);
+            return false;
+        }
+
+        CurrentShipper = activeShippersResult.Value.FirstOrDefault(shipper => shipper.UserId == shipperUserId);
+
+        var workingAreasResult = await GetShipperWorkingAreasService.GetAsync(
+            shipperUserId,
+            shipperUserId);
+        if (workingAreasResult.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(workingAreasResult.Error);
+            return false;
+        }
+
+        WorkingAreas = workingAreasResult.Value;
+        return true;
     }
 
     private async Task UpdateStatusAsync(GetAssignedShipmentForShipperResponse shipment)
@@ -461,6 +533,11 @@
         return CollectingCodShipmentId == shipmentId;
     }
 
+    private int ActiveLoadCount => AssignedShipments.Count(shipment =>
+        ShipmentLoadStatuses.ActiveAssignmentStatuses.Contains(shipment.Status));
+
+    private string DisplayCurrency => AssignedShipments.FirstOrDefault()?.Currency ?? "VND";
+
     private static bool CanMarkCodCollected(GetAssignedShipmentForShipperResponse shipment)
     {
         return shipment.Status == ShipmentStatus.Delivered
@@ -484,6 +561,51 @@
     private static string FormatDate(DateTimeOffset value)
     {
         return UiDisplay.FormatLocalDateTime(value);
+    }
+
+    private string FormatLoadCapacity()
+    {
+        return CurrentShipper is null
+            ? $"{ActiveLoadCount:N0} đơn active"
+            : $"{ActiveLoadCount:N0}/{CurrentShipper.MaxActiveShipments:N0} active";
+    }
+
+    private string GetCapacityBadgeClass()
+    {
+        if (CurrentShipper is null)
+        {
+            return "neutral";
+        }
+
+        if (!CurrentShipper.IsAvailableForAssignment)
+        {
+            return "paused";
+        }
+
+        return ActiveLoadCount >= CurrentShipper.MaxActiveShipments
+            ? "full"
+            : "available";
+    }
+
+    private static string FormatAvailability(GetActiveShipperResponse? shipper)
+    {
+        if (shipper is null)
+        {
+            return "Chưa tải được thông tin điều phối.";
+        }
+
+        return shipper.IsAvailableForAssignment
+            ? $"Đang nhận auto assign, sức chứa tối đa {shipper.MaxActiveShipments:N0} đơn active."
+            : $"Tạm ngưng nhận auto assign, sức chứa tối đa {shipper.MaxActiveShipments:N0} đơn active.";
+    }
+
+    private static string FormatWorkingArea(ShipperWorkingAreaResponse area)
+    {
+        var wardSuffix = string.IsNullOrWhiteSpace(area.Ward)
+            ? string.Empty
+            : $" / {area.Ward}";
+
+        return $"{area.HubCode} - {area.Province}{wardSuffix}";
     }
 
     private static string FormatInternalActor(ShipmentStatusHistoryResponse history)

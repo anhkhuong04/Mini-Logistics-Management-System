@@ -29,6 +29,8 @@ public sealed class IdentityService : IIdentityService
             PhoneNumber = phoneNumber.Trim(),
             FullName = fullName.Trim(),
             IsActive = true,
+            IsAvailableForAssignment = true,
+            MaxActiveShipments = 30,
             CreatedAtUtc = DateTimeOffset.UtcNow
         };
 
@@ -112,6 +114,36 @@ public sealed class IdentityService : IIdentityService
             : Result.Failure(IdentityErrors.UserUpdateFailed(FormatErrors(result.Errors)));
     }
 
+    public async Task<Result> SetShipperCapacityAsync(
+        Guid userId,
+        bool isAvailableForAssignment,
+        int maxActiveShipments,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var user = await _userManager.FindByIdAsync(userId.ToString());
+        if (user is null)
+        {
+            return Result.Failure(IdentityErrors.UserNotFound(userId));
+        }
+
+        if (user.IsAvailableForAssignment == isAvailableForAssignment
+            && user.MaxActiveShipments == maxActiveShipments)
+        {
+            return Result.Success();
+        }
+
+        user.IsAvailableForAssignment = isAvailableForAssignment;
+        user.MaxActiveShipments = maxActiveShipments;
+
+        var result = await _userManager.UpdateAsync(user);
+
+        return result.Succeeded
+            ? Result.Success()
+            : Result.Failure(IdentityErrors.UserUpdateFailed(FormatErrors(result.Errors)));
+    }
+
     public async Task<IdentityUserRoleCheckResponse> CheckUserRoleAsync(
         Guid userId,
         string role,
@@ -152,6 +184,8 @@ public sealed class IdentityService : IIdentityService
                 user.Email ?? string.Empty,
                 user.PhoneNumber,
                 user.IsActive,
+                user.IsAvailableForAssignment,
+                user.MaxActiveShipments,
                 roles.Order(StringComparer.OrdinalIgnoreCase).ToList(),
                 user.CreatedAtUtc));
         }
@@ -173,7 +207,9 @@ public sealed class IdentityService : IIdentityService
                 shipper.Id,
                 shipper.FullName,
                 shipper.Email ?? string.Empty,
-                shipper.PhoneNumber))
+                shipper.PhoneNumber,
+                shipper.IsAvailableForAssignment,
+                shipper.MaxActiveShipments))
             .ToList();
     }
 
@@ -193,7 +229,9 @@ public sealed class IdentityService : IIdentityService
                 user.FullName,
                 user.Email ?? string.Empty,
                 user.PhoneNumber,
-                user.IsActive))
+                user.IsActive,
+                user.IsAvailableForAssignment,
+                user.MaxActiveShipments))
             .ToListAsync(cancellationToken);
     }
 

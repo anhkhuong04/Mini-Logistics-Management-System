@@ -34,19 +34,27 @@ public sealed class ShipmentAssignmentSelector : IShipmentAssignmentSelector
             return ShipmentAssignmentSelectionResult.NoEligibleShipper("No active shipper is available.");
         }
 
+        var availableShippers = activeShippers
+            .Where(shipper => shipper.IsAvailableForAssignment)
+            .ToList();
+        if (availableShippers.Count == 0)
+        {
+            return ShipmentAssignmentSelectionResult.NoEligibleShipper("No active shipper is available for auto assignment.");
+        }
+
         var pickupProvinceKey = LocationNameNormalizer.NormalizeProvince(shipment.PickupAddress.Province);
         var pickupWardKey = LocationNameNormalizer.NormalizeAreaValue(shipment.PickupAddress.Ward);
         var hubs = await _hubRepository.GetAllAsync(activeOnly: true, cancellationToken);
         var pickupHub = SelectPickupHub(hubs, pickupProvinceKey);
 
-        var activeShipperIds = activeShippers
+        var availableShipperIds = availableShippers
             .Select(shipper => shipper.UserId)
             .ToHashSet();
         var workingAreas = await _workingAreaRepository.GetActiveByShipperIdsAsync(
-            activeShipperIds.ToList(),
+            availableShipperIds.ToList(),
             cancellationToken);
         var candidateAreas = workingAreas
-            .Where(area => activeShipperIds.Contains(area.ShipperId))
+            .Where(area => availableShipperIds.Contains(area.ShipperId))
             .Select(area => ToCandidateArea(area, pickupHub, pickupProvinceKey, pickupWardKey))
             .Where(area => area is not null)
             .Select(area => area!)
@@ -67,9 +75,9 @@ public sealed class ShipmentAssignmentSelector : IShipmentAssignmentSelector
         var activeLoadByShipperId = await _shipmentRepository.GetActiveAssignmentCountsByShipperIdsAsync(
             candidateShipperIds,
             cancellationToken);
-        var shipperById = activeShippers.ToDictionary(shipper => shipper.UserId);
+        var shipperById = availableShippers.ToDictionary(shipper => shipper.UserId);
 
-        var selected = candidateAreas
+        var candidatesWithinCapacity = candidateAreas
             .Select(area =>
             {
                 var shipper = shipperById[area.ShipperId];
@@ -82,8 +90,21 @@ public sealed class ShipmentAssignmentSelector : IShipmentAssignmentSelector
                     area.HubId,
                     area.HubCode,
                     area.MatchScore,
-                    activeLoad);
+                    activeLoad,
+                    shipper.MaxActiveShipments);
             })
+            .Where(candidate => candidate.ActiveShipmentCount < candidate.MaxActiveShipments)
+            .ToList();
+
+        if (candidatesWithinCapacity.Count == 0)
+        {
+            var reason = pickupHub is null
+                ? $"All matching shippers for pickup province {shipment.PickupAddress.Province} are at capacity."
+                : $"All matching shippers for pickup hub {pickupHub.Code} are at capacity.";
+            return ShipmentAssignmentSelectionResult.NoEligibleShipper(reason);
+        }
+
+        var selected = candidatesWithinCapacity
             .OrderByDescending(candidate => candidate.MatchScore)
             .ThenBy(candidate => candidate.ActiveShipmentCount)
             .ThenBy(candidate => candidate.FullName, StringComparer.OrdinalIgnoreCase)
@@ -167,5 +188,6 @@ public sealed class ShipmentAssignmentSelector : IShipmentAssignmentSelector
         Guid? HubId,
         string? HubCode,
         int MatchScore,
-        int ActiveShipmentCount);
+        int ActiveShipmentCount,
+        int MaxActiveShipments);
 }

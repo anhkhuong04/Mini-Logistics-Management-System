@@ -44,6 +44,8 @@ public sealed class GetActiveShippersService : IGetActiveShippersService
                 shipper.FullName,
                 shipper.Email,
                 shipper.PhoneNumber,
+                shipper.IsAvailableForAssignment,
+                shipper.MaxActiveShipments,
                 areasByShipperId.TryGetValue(shipper.UserId, out var areas) ? areas : []))
             .ToList();
 
