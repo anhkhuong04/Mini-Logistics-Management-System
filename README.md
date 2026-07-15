@@ -1,4 +1,4 @@
-# Mini Logistics Management System
+# Mini Logistics Management System - In Progress (70% completed)
 
 > A mini delivery management MVP simulating the core operational flows of a logistics platform (similar to GHN, GHTK, J&T) — built with **.NET 10 + Blazor Web App** following **Clean Architecture** and **Modular Monolith** principles.
 
