@@ -15,4 +15,5 @@ public sealed record CreateShipmentCommand(
     decimal GoodsValueAmount,
     decimal CodAmount,
     string Currency = "VND",
-    string? Note = null);
+    string? Note = null,
+    Guid? ShopId = null);

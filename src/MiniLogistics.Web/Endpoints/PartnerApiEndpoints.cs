@@ -80,6 +80,7 @@ public static class PartnerApiEndpoints
         IPartnerApiRateLimiter rateLimiter,
         IPartnerApiRequestAuditRepository auditRepository)
     {
+        var startedAtUtc = DateTimeOffset.UtcNow;
         var authenticationResult = await AuthenticateAsync(httpContext, authenticationService);
         if (authenticationResult.IsFailure)
         {
@@ -100,6 +101,7 @@ public static class PartnerApiEndpoints
                 authenticationResult.Value,
                 request,
                 idempotencyKey,
+                startedAtUtc,
                 StatusCodes.Status400BadRequest,
                 isSuccess: false,
                 isIdempotentReplay: false,
@@ -142,6 +144,7 @@ public static class PartnerApiEndpoints
                 authenticationResult.Value,
                 request,
                 idempotencyKey,
+                startedAtUtc,
                 statusCode,
                 isSuccess: false,
                 isIdempotentReplay: false,
@@ -160,6 +163,7 @@ public static class PartnerApiEndpoints
             authenticationResult.Value,
             request,
             idempotencyKey,
+            startedAtUtc,
             successStatusCode,
             isSuccess: true,
             isIdempotentReplay: createResult.Value.IsIdempotentReplay,
@@ -263,6 +267,7 @@ public static class PartnerApiEndpoints
         PartnerApiClientContext context,
         PartnerCreateShipmentRequest? request,
         string idempotencyKey,
+        DateTimeOffset startedAtUtc,
         int statusCode,
         bool isSuccess,
         bool isIdempotentReplay,
@@ -280,6 +285,7 @@ public static class PartnerApiEndpoints
             idempotencyKey,
             ComputeRequestHash(request),
             statusCode,
+            CalculateDurationMs(startedAtUtc),
             isSuccess,
             isIdempotentReplay,
             shipment?.ShipmentId,
@@ -289,6 +295,12 @@ public static class PartnerApiEndpoints
 
         await auditRepository.AddAsync(audit, httpContext.RequestAborted);
         await auditRepository.SaveChangesAsync(httpContext.RequestAborted);
+    }
+
+    private static int CalculateDurationMs(DateTimeOffset startedAtUtc)
+    {
+        var elapsed = DateTimeOffset.UtcNow - startedAtUtc;
+        return (int)Math.Clamp(elapsed.TotalMilliseconds, 0, int.MaxValue);
     }
 
     private static string ComputeRequestHash(PartnerCreateShipmentRequest? request)
@@ -324,7 +336,7 @@ public static class PartnerApiEndpoints
         return error.Code switch
         {
             "PartnerApi.MissingApiKey" or "PartnerApi.InvalidApiKey" => StatusCodes.Status401Unauthorized,
-            "PartnerApi.ApiClientInactive" or "Application.Forbidden" => StatusCodes.Status403Forbidden,
+            "PartnerApi.ApiClientInactive" or "PartnerApi.ShopInactive" or "Application.Forbidden" => StatusCodes.Status403Forbidden,
             "PartnerApi.RateLimitExceeded" => StatusCodes.Status429TooManyRequests,
             "Application.NotFound" => StatusCodes.Status404NotFound,
             "Application.Conflict" or "PartnerApi.IdempotencyConflict" => StatusCodes.Status409Conflict,

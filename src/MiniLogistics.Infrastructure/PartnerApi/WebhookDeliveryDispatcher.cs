@@ -23,17 +23,20 @@ public sealed class WebhookDeliveryDispatcher
     private readonly HttpClient _httpClient;
     private readonly IWebhookDeliveryRepository _webhookDeliveryRepository;
     private readonly IWebhookEndpointRepository _webhookEndpointRepository;
+    private readonly ISecretProtector _secretProtector;
     private readonly ILogger<WebhookDeliveryDispatcher> _logger;
 
     public WebhookDeliveryDispatcher(
         HttpClient httpClient,
         IWebhookDeliveryRepository webhookDeliveryRepository,
         IWebhookEndpointRepository webhookEndpointRepository,
+        ISecretProtector secretProtector,
         ILogger<WebhookDeliveryDispatcher> logger)
     {
         _httpClient = httpClient;
         _webhookDeliveryRepository = webhookDeliveryRepository;
         _webhookEndpointRepository = webhookEndpointRepository;
+        _secretProtector = secretProtector;
         _logger = logger;
     }
 
@@ -108,14 +111,15 @@ public sealed class WebhookDeliveryDispatcher
         }
     }
 
-    private static HttpRequestMessage BuildRequest(
+    private HttpRequestMessage BuildRequest(
         WebhookDelivery delivery,
         WebhookEndpoint endpoint,
         DateTimeOffset attemptedAtUtc)
     {
         var timestamp = attemptedAtUtc.ToString("O");
+        var signingSecret = _secretProtector.Unprotect(endpoint.ProtectedSigningSecret);
         var signature = WebhookSignature.Compute(
-            endpoint.SigningSecret,
+            signingSecret,
             timestamp,
             delivery.PayloadJson);
         var request = new HttpRequestMessage(HttpMethod.Post, endpoint.Url)

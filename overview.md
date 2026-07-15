@@ -45,11 +45,12 @@ Flow end-to-end hiện đã có:
 
 1. Login bằng tài khoản Operator hoặc Admin.
 2. Vào `/operations/assignments`.
-3. Xem đơn `PendingPickup` cần phân công.
-4. Assign shipper active cho đơn.
-5. Theo dõi các đơn đang vận hành: `Assigned`, `PickingUp`, `PickedUp`, `InTransit`, `Delivering`, `DeliveryFailed`.
-6. Hỗ trợ update shipment status theo lifecycle rule.
-7. Hỗ trợ xác nhận COD khi shipment `Delivered` và COD còn `PendingCollection`.
+3. Xem đơn `PendingPickup` chưa auto assign được, kèm lý do fallback theo pickup area.
+4. Retry auto assign hoặc manual override shipper active khi cần.
+5. Assign/reassign có cảnh báo nếu shipper không khớp khu vực lấy hàng.
+6. Theo dõi các đơn đang vận hành: `Assigned`, `PickingUp`, `PickedUp`, `InTransit`, `Delivering`, `DeliveryFailed`.
+7. Hỗ trợ update shipment status theo lifecycle rule.
+8. Hỗ trợ xác nhận COD khi shipment `Delivered` và COD còn `PendingCollection`.
 
 Trạng thái: hoàn thành mức demo end-to-end cho flow điều phối và hỗ trợ vận hành.
 
@@ -59,11 +60,12 @@ Flow end-to-end hiện đã có:
 
 1. Login bằng tài khoản Shipper.
 2. Vào `/shipper/shipments`.
-3. Xem các đơn đang được assign active.
-4. Update trạng thái theo lifecycle hợp lệ.
-5. Khi `DeliveryFailed`, note là bắt buộc.
-6. Khi giao thành công và COD còn `PendingCollection`, shipper vẫn thấy đơn để xác nhận COD.
-7. Sau khi COD collected hoặc đơn terminal không còn việc cần xử lý, đơn biến mất khỏi workspace chính.
+3. Xem khu vực/hub làm việc, trạng thái nhận auto assign và tải active hiện tại.
+4. Xem các đơn đang được assign active.
+5. Update trạng thái theo lifecycle hợp lệ.
+6. Khi `DeliveryFailed`, note là bắt buộc.
+7. Khi giao thành công và COD còn `PendingCollection`, shipper vẫn thấy đơn để xác nhận COD.
+8. Sau khi COD collected hoặc đơn terminal không còn việc cần xử lý, đơn biến mất khỏi workspace chính.
 
 Trạng thái: hoàn thành mức demo end-to-end cho flow giao hàng và COD chính.
 
@@ -73,9 +75,10 @@ Flow hiện có:
 
 1. Mở trang tracking public.
 2. Nhập tracking code.
-3. Xem trạng thái hiện tại và timeline.
+3. Xem summary đã ẩn PII.
+4. Nhập 4 số cuối điện thoại người gửi hoặc người nhận để xem chi tiết.
 
-Trạng thái: hoàn thành mức demo cho tracking public.
+Trạng thái: hoàn thành tracking public 2 lớp với summary/verified detail và rate limit cơ bản.
 
 ## 4. Business Rules Đang Được Enforce
 
@@ -86,6 +89,10 @@ Trạng thái: hoàn thành mức demo cho tracking public.
 - Target user phải active và có role `Shipper`.
 - Chỉ shipment `PendingPickup` mới được assign.
 - Mỗi shipment chỉ có một active assignment.
+- Khi Shop hoặc Partner API tạo đơn, hệ thống thử auto assign theo pickup-first: `PickupAddress.Province` -> hub giả lập -> working area của shipper.
+- Auto assignment chỉ chọn shipper active, còn nhận auto assign, có working area khớp hub/province/ward và chưa vượt `MaxActiveShipments`.
+- Nếu không có shipper phù hợp, shipment vẫn ở `PendingPickup` để Operations retry hoặc xử lý thủ công.
+- Admin/Operator vẫn có quyền manual override shipper active ngoài khu vực; UI hiển thị cảnh báo mismatch trước khi assign.
 
 ### Status Lifecycle
 
@@ -132,7 +139,7 @@ Rule đã chốt:
 | `/shipments/{id}` | Shop | Chi tiết, tracking, cancel khi hợp lệ |
 | `/operations/assignments` | Admin/Operator | Assign, tracking vận hành, update status, COD support |
 | `/shipper/shipments` | Shipper | Workspace xử lý đơn, update status, COD collect |
-| `/tracking` | Public | Tra cứu timeline |
+| `/tracking` | Public | Tra cứu summary, xác minh phone last4 để xem chi tiết |
 
 ## 6. Tiến Độ Gần Nhất
 
@@ -203,7 +210,7 @@ Build web cũng đã pass trước khi bổ sung rule assignment lifecycle mới
 | Shop | Hoàn thành demo E2E | Tạo đơn, xem đơn, tracking, cancel khi hợp lệ |
 | Operator/Admin | Hoàn thành demo E2E | Assign, theo dõi vận hành, update status, COD support |
 | Shipper | Hoàn thành demo E2E | Nhận đơn, update status, giao hàng, xác nhận COD |
-| Receiver/Public | Hoàn thành demo tracking | Tra cứu timeline bằng tracking code |
+| Receiver/Public | Hoàn thành demo tracking | Tra cứu summary bằng tracking code, chi tiết cần phone last4 |
 
 Kết luận: code đã đạt mục tiêu demo chính. Việc còn lại là chạy manual browser checklist để xác nhận UI thực tế sau khi seed database.
 

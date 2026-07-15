@@ -82,7 +82,7 @@
           }
         ],
         "responses": {
-          "201": { "description": "Shipment created" },
+          "201": { "description": "Shipment created; status can be PendingPickup or Assigned" },
           "200": { "description": "Idempotent replay" },
           "400": { "description": "Validation failed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PartnerApiErrorResponse" } } } },
           "401": { "description": "Missing or invalid API key" },

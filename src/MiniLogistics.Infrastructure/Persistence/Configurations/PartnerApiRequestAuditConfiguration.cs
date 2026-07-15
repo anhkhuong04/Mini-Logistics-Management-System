@@ -38,6 +38,12 @@ public sealed class PartnerApiRequestAuditConfiguration : IEntityTypeConfigurati
             .HasMaxLength(128)
             .IsRequired();
 
+        builder.Property(audit => audit.StatusCode)
+            .IsRequired();
+
+        builder.Property(audit => audit.DurationMs)
+            .IsRequired();
+
         builder.Property(audit => audit.TrackingCode)
             .HasMaxLength(50);
 

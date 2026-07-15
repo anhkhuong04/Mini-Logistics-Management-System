@@ -16,7 +16,7 @@ public sealed class WebhookDeliveryDispatcherTests
         var endpoint = new WebhookEndpoint(
             apiClientId,
             "https://partner.example.test/webhooks",
-            "secret");
+            FakeSecretProtector.ProtectValue("secret"));
         var delivery = CreateDelivery(endpoint, apiClientId);
         var endpointRepository = new FakeWebhookEndpointRepository([endpoint]);
         var deliveryRepository = new FakeWebhookDeliveryRepository([delivery]);
@@ -34,6 +34,9 @@ public sealed class WebhookDeliveryDispatcherTests
         Assert.True(handler.LastRequest.Headers.Contains("X-MiniLogistics-Event"));
         Assert.True(handler.LastRequest.Headers.Contains("X-MiniLogistics-Signature"));
         Assert.True(handler.LastRequest.Headers.Contains("X-MiniLogistics-Timestamp"));
+        var timestamp = Assert.Single(handler.LastRequest.Headers.GetValues("X-MiniLogistics-Timestamp"));
+        var signature = Assert.Single(handler.LastRequest.Headers.GetValues("X-MiniLogistics-Signature"));
+        Assert.Equal(WebhookSignature.Compute("secret", timestamp, delivery.PayloadJson), signature);
     }
 
     [Fact]
@@ -43,7 +46,7 @@ public sealed class WebhookDeliveryDispatcherTests
         var endpoint = new WebhookEndpoint(
             apiClientId,
             "https://partner.example.test/webhooks",
-            "secret");
+            FakeSecretProtector.ProtectValue("secret"));
         var delivery = CreateDelivery(endpoint, apiClientId);
         var endpointRepository = new FakeWebhookEndpointRepository([endpoint]);
         var deliveryRepository = new FakeWebhookDeliveryRepository([delivery]);
@@ -75,6 +78,7 @@ public sealed class WebhookDeliveryDispatcherTests
             new HttpClient(handler),
             deliveryRepository,
             endpointRepository,
+            new FakeSecretProtector(),
             NullLogger<WebhookDeliveryDispatcher>.Instance);
     }
 
@@ -177,6 +181,13 @@ public sealed class WebhookDeliveryDispatcherTests
 
         public int SaveChangesCount { get; private set; }
 
+        public Task<bool> ExistsAsync(
+            Guid deliveryId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_deliveries.Any(delivery => delivery.Id == deliveryId));
+        }
+
         public Task<IReadOnlyList<WebhookDelivery>> GetDueAsync(
             DateTimeOffset dueAtUtc,
             int batchSize,
@@ -215,6 +226,33 @@ public sealed class WebhookDeliveryDispatcherTests
         {
             SaveChangesCount++;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeSecretProtector : ISecretProtector
+    {
+        private const string Prefix = "fake:v1:";
+
+        public static string ProtectValue(string plaintextSecret)
+        {
+            return Prefix + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(plaintextSecret));
+        }
+
+        public string Protect(string plaintextSecret)
+        {
+            return ProtectValue(plaintextSecret);
+        }
+
+        public string Unprotect(string protectedSecret)
+        {
+            return IsProtected(protectedSecret)
+                ? System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(protectedSecret[Prefix.Length..]))
+                : protectedSecret;
+        }
+
+        public bool IsProtected(string value)
+        {
+            return value.StartsWith(Prefix, StringComparison.Ordinal);
         }
     }
 }

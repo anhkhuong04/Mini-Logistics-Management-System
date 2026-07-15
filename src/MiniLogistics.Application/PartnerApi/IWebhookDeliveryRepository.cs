@@ -4,6 +4,10 @@ namespace MiniLogistics.Application.PartnerApi;
 
 public interface IWebhookDeliveryRepository
 {
+    Task<bool> ExistsAsync(
+        Guid deliveryId,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<WebhookDelivery>> GetDueAsync(
         DateTimeOffset dueAtUtc,
         int batchSize,

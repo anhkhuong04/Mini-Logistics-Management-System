@@ -14,7 +14,24 @@ builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSingleton<VietnamAdministrativeDivisionService>();
-builder.Services.AddSingleton<IPartnerApiRateLimiter, InMemoryPartnerApiRateLimiter>();
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddDistributedMemoryCache();
+builder.Services.Configure<PublicTrackingRateLimitOptions>(
+    builder.Configuration.GetSection(PublicTrackingRateLimitOptions.SectionName));
+builder.Services.AddSingleton<IPublicTrackingRateLimiter, DistributedCachePublicTrackingRateLimiter>();
+builder.Services.Configure<PartnerApiRateLimitOptions>(
+    builder.Configuration.GetSection(PartnerApiRateLimitOptions.SectionName));
+if (string.Equals(
+    builder.Configuration.GetValue<string>($"{PartnerApiRateLimitOptions.SectionName}:Mode"),
+    "Distributed",
+    StringComparison.OrdinalIgnoreCase))
+{
+    builder.Services.AddSingleton<IPartnerApiRateLimiter, DistributedCachePartnerApiRateLimiter>();
+}
+else
+{
+    builder.Services.AddSingleton<IPartnerApiRateLimiter, InMemoryPartnerApiRateLimiter>();
+}
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();

@@ -7,4 +7,5 @@ public sealed record GetCurrentShopResponse(
     string AddressLine,
     string Ward,
     string Province,
-    string Country);
+    string Country,
+    bool IsActive);

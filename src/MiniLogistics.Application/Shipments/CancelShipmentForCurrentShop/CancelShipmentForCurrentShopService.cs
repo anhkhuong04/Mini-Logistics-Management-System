@@ -1,7 +1,7 @@
 using FluentValidation;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.PartnerApi;
-using MiniLogistics.Application.Shops;
+using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Application.Shipments.CancelShipmentForCurrentShop;
@@ -9,18 +9,18 @@ namespace MiniLogistics.Application.Shipments.CancelShipmentForCurrentShop;
 public sealed class CancelShipmentForCurrentShopService : ICancelShipmentForCurrentShopService
 {
     private readonly IValidator<CancelShipmentCommand> _validator;
-    private readonly IShopRepository _shopRepository;
+    private readonly IShopAccessService _shopAccessService;
     private readonly IShipmentRepository _shipmentRepository;
     private readonly IWebhookEventPublisher _webhookEventPublisher;
 
     public CancelShipmentForCurrentShopService(
         IValidator<CancelShipmentCommand> validator,
-        IShopRepository shopRepository,
+        IShopAccessService shopAccessService,
         IShipmentRepository shipmentRepository,
         IWebhookEventPublisher? webhookEventPublisher = null)
     {
         _validator = validator;
-        _shopRepository = shopRepository;
+        _shopAccessService = shopAccessService;
         _shipmentRepository = shipmentRepository;
         _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
     }
@@ -36,17 +36,17 @@ public sealed class CancelShipmentForCurrentShopService : ICancelShipmentForCurr
             return Result.Failure(ApplicationErrors.ValidationFailed(description));
         }
 
-        var shop = await _shopRepository.GetByOwnerUserIdAsync(command.OwnerUserId, cancellationToken);
-        if (shop is null)
+        var shopResult = await _shopAccessService.GetShopForUserAsync(
+            command.OwnerUserId,
+            command.ShopId,
+            requireActiveShop: true,
+            cancellationToken);
+        if (shopResult.IsFailure)
         {
-            return Result.Failure(ApplicationErrors.NotFound("Shop was not found for current user."));
+            return Result.Failure(shopResult.Error);
         }
 
-        if (!shop.IsActive)
-        {
-            return Result.Failure(ApplicationErrors.Forbidden("Shop account is not active."));
-        }
-
+        var shop = shopResult.Value;
         var shipment = await _shipmentRepository.GetTrackedByIdAndShopIdAsync(
             command.ShipmentId,
             shop.Id,
@@ -63,11 +63,11 @@ public sealed class CancelShipmentForCurrentShopService : ICancelShipmentForCurr
             return cancelResult;
         }
 
-        await _shipmentRepository.SaveChangesAsync(cancellationToken);
         await _webhookEventPublisher.PublishShipmentAsync(
             shipment,
             WebhookEventTypes.ShipmentStatusChanged,
             cancellationToken);
+        await _shipmentRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
     }

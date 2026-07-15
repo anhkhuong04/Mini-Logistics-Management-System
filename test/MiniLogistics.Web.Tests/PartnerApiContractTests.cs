@@ -68,6 +68,7 @@ public sealed class PartnerApiContractTests
         Assert.False(audit.IsSuccess);
         Assert.Equal("Application.ValidationFailed", audit.ErrorCode);
         Assert.NotEmpty(audit.RequestHash);
+        Assert.True(audit.DurationMs >= 0);
     }
 
     [Fact]
@@ -98,9 +99,50 @@ public sealed class PartnerApiContractTests
         Assert.Equal("PartnerApi.RateLimitExceeded", document.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 
+    [Fact]
+    public async Task Quote_WhenShopInactive_ReturnsForbidden()
+    {
+        await using var factory = new PartnerApiWebApplicationFactory(isShopActive: false);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestApiKey);
+
+        var response = await client.PostAsJsonAsync("/api/v1/partner/shipping/quote", new
+        {
+            deliveryAddress = new
+            {
+                street = "9 Le Loi",
+                ward = "Hoan Kiem",
+                province = "Ha Noi",
+                country = "Vietnam"
+            },
+            parcel = new
+            {
+                weightKg = 1,
+                lengthCm = 10,
+                widthCm = 10,
+                heightCm = 10
+            },
+            goodsValueAmount = 100000,
+            codAmount = 0,
+            currency = "VND"
+        });
+
+        var json = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(json);
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Equal("PartnerApi.ShopInactive", document.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
     private sealed class PartnerApiWebApplicationFactory : WebApplicationFactory<Program>
     {
         private readonly string _databaseName = "MiniLogisticsContractTests-" + Guid.NewGuid();
+        private readonly bool _isShopActive;
+
+        public PartnerApiWebApplicationFactory(bool isShopActive = true)
+        {
+            _isShopActive = isShopActive;
+        }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
         {
@@ -132,6 +174,10 @@ public sealed class PartnerApiContractTests
                     "Contract Test Client",
                     ApiKeyHasher.GetPrefix(TestApiKey),
                     ApiKeyHasher.Hash(TestApiKey));
+                if (!_isShopActive)
+                {
+                    shop.Deactivate();
+                }
 
                 dbContext.Shops.Add(shop);
                 dbContext.ApiClients.Add(apiClient);

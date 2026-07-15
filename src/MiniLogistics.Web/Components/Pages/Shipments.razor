@@ -1,10 +1,17 @@
 @page "/shipments"
 @rendermode InteractiveServer
 @attribute [Authorize(Roles = "Shop")]
+@using System.IO
 @using System.Security.Claims
+@using System.Text
+@using MiniLogistics.Application.Shops.GetShopContext
 @using MiniLogistics.Application.Shipments.GetShipmentsForCurrentShop
+@using MiniLogistics.Application.Shipments.ImportShipments
 @using MiniLogistics.Domain.Shipments
+@inject IGetShopContextService GetShopContextService
 @inject IGetShipmentsForCurrentShopService GetShipmentsForCurrentShopService
+@inject IPreviewShipmentImportService PreviewShipmentImportService
+@inject IConfirmShipmentImportService ConfirmShipmentImportService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 
@@ -17,13 +24,41 @@
             <p>Theo dõi các vận đơn thuộc shop đang đăng nhập.</p>
         </div>
 
-        <a class="btn btn-primary action-button" href="/shipments/create">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" />
-            </svg>
-            <span>Tạo đơn hàng</span>
-        </a>
+        <div class="heading-actions">
+            <button type="button" class="btn btn-outline-secondary action-button" @onclick="ToggleImportPanel">
+                Import CSV
+            </button>
+            <a class="btn btn-outline-secondary action-button" href="@CsvTemplateDataUri" download="shipment-import-template.csv">
+                Template CSV
+            </a>
+            <a class="btn btn-primary action-button" href="@(BuildShopLink("/shipments/create"))">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" />
+                </svg>
+                <span>Tạo đơn hàng</span>
+            </a>
+        </div>
     </div>
+
+    @if (ShopContext is not null)
+    {
+        <section class="shop-context-bar" aria-label="Shop context">
+            <label for="shipments-shop-context">
+                Shop dang chon
+                <select id="shipments-shop-context" value="@SelectedShopId" @onchange="OnShopChanged">
+                    @foreach (var shop in ShopContext.Shops)
+                    {
+                        <option value="@shop.ShopId">
+                            @shop.Name@(shop.IsActive ? string.Empty : " (Inactive)")
+                        </option>
+                    }
+                </select>
+            </label>
+            <span class="shop-context-status @(SelectedShop?.IsActive == true ? "active" : "inactive")">
+                @(SelectedShop?.IsActive == true ? "Active" : "Inactive")
+            </span>
+        </section>
+    }
 
     @if (!string.IsNullOrWhiteSpace(ErrorMessage))
     {
@@ -50,7 +85,7 @@
             </span>
             <strong>Chưa có đơn hàng</strong>
             <p>Tạo vận đơn đầu tiên để bắt đầu theo dõi giao hàng.</p>
-            <a class="btn btn-primary" href="/shipments/create">Tạo đơn hàng</a>
+            <a class="btn btn-primary" href="@(BuildShopLink("/shipments/create"))">Tạo đơn hàng</a>
         </section>
     }
     else
@@ -75,9 +110,17 @@
                         {
                             <tr>
                                 <td>
-                                    <a class="tracking-link" href="@($"/shipments/{shipment.ShipmentId}")">
+                                    <a class="tracking-link" href="@(BuildShopLink($"/shipments/{shipment.ShipmentId}"))">
                                         @shipment.TrackingCode
                                     </a>
+                                    @if (CanEditShipment(shipment.Status))
+                                    {
+                                        <a class="icon-link" href="@(BuildShopLink($"/shipments/create?shipmentId={shipment.ShipmentId:D}"))" aria-label="Sua don">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                <path d="M5 17.2V20h2.8L18.6 9.2l-2.8-2.8L5 17.2ZM20.7 7.1a1 1 0 0 0 0-1.4l-2.4-2.4a1 1 0 0 0-1.4 0l-1.4 1.4 3.8 3.8 1.4-1.4Z" />
+                                            </svg>
+                                        </a>
+                                    }
                                 </td>
                                 <td>@shipment.ReceiverName</td>
                                 <td>@FormatRouteType(shipment.RouteType)</td>
@@ -90,7 +133,7 @@
                                 </td>
                                 <td>@FormatDate(shipment.CreatedAtUtc)</td>
                                 <td>
-                                    <a class="icon-link" href="@($"/shipments/{shipment.ShipmentId}")" aria-label="Xem chi tiết">
+                                    <a class="icon-link" href="@(BuildShopLink($"/shipments/{shipment.ShipmentId}"))" aria-label="Xem chi tiết">
                                         <svg viewBox="0 0 24 24" aria-hidden="true">
                                             <path d="m9 6 6 6-6 6-1.4-1.4 4.6-4.6-4.6-4.6L9 6Z" />
                                         </svg>
@@ -103,17 +146,267 @@
             </div>
         </section>
     }
+    @if (ShowImportPanel)
+    {
+        <section class="content-card import-panel">
+            <div class="import-header">
+                <div>
+                    <h2>Import CSV</h2>
+                    <p>Upload CSV UTF-8, preview lỗi theo từng dòng, rồi confirm để tạo đơn cho các dòng hợp lệ.</p>
+                </div>
+                <span class="import-limit">Tối đa @ShipmentImportService.MaxImportRows.ToString("N0") dòng</span>
+            </div>
+
+            @if (SelectedShop?.IsActive == false)
+            {
+                <div class="alert alert-warning" role="status">
+                    Shop đang inactive. Bạn có thể xem đơn cũ nhưng không thể import đơn mới cho shop này.
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(ImportErrorMessage))
+            {
+                <div class="alert alert-danger" role="alert">@ImportErrorMessage</div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(ImportSuccessMessage))
+            {
+                <div class="alert alert-success" role="status">@ImportSuccessMessage</div>
+            }
+
+            <div class="import-upload-row">
+                <label for="shipment-import-file">
+                    CSV file
+                    <InputFile id="shipment-import-file" OnChange="HandleImportFileChangedAsync" accept=".csv,text/csv" disabled="@(!CanPreviewImport)" />
+                </label>
+                <button type="button" class="btn btn-outline-secondary" @onclick="ClearImportState" disabled="@(IsPreviewingImport || IsConfirmingImport)">
+                    Xóa preview
+                </button>
+            </div>
+
+            @if (IsPreviewingImport)
+            {
+                <div class="import-state">Đang đọc và validate CSV...</div>
+            }
+
+            @if (ImportPreview is not null)
+            {
+                <div class="import-summary-grid" aria-label="Import summary">
+                    <article>
+                        <span>Tổng dòng</span>
+                        <strong>@ImportPreview.TotalRows.ToString("N0")</strong>
+                    </article>
+                    <article>
+                        <span>Hợp lệ</span>
+                        <strong>@ImportPreview.ValidRows.ToString("N0")</strong>
+                    </article>
+                    <article>
+                        <span>Lỗi</span>
+                        <strong>@ImportPreview.InvalidRows.ToString("N0")</strong>
+                    </article>
+                </div>
+
+                <div class="table-shell import-table-shell">
+                    <table class="shipments-table import-table">
+                        <thead>
+                            <tr>
+                                <th>Row</th>
+                                <th>Client order</th>
+                                <th>Receiver</th>
+                                <th>Province</th>
+                                <th>Weight</th>
+                                <th>Fee</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in ImportPreview.Rows)
+                            {
+                                <tr class="@(row.IsValid ? "valid-row" : "invalid-row")">
+                                    <td>@row.Draft.RowNumber</td>
+                                    <td>@(row.Draft.ClientOrderCode ?? "-")</td>
+                                    <td>
+                                        <strong>@(string.IsNullOrWhiteSpace(row.Draft.ReceiverName) ? "-" : row.Draft.ReceiverName)</strong>
+                                        <small>@(string.IsNullOrWhiteSpace(row.Draft.ReceiverPhone) ? "-" : row.Draft.ReceiverPhone)</small>
+                                    </td>
+                                    <td>@(string.IsNullOrWhiteSpace(row.Draft.DeliveryProvince) ? "-" : row.Draft.DeliveryProvince)</td>
+                                    <td>@row.Draft.WeightKg.ToString("N3") kg</td>
+                                    <td>@(row.ShippingFeeAmount.HasValue ? FormatMoney(row.ShippingFeeAmount.Value, row.Currency) : "-")</td>
+                                    <td>
+                                        @if (row.IsValid)
+                                        {
+                                            <span class="status-pill success">Valid</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="status-pill danger">Invalid</span>
+                                            <ul class="import-errors">
+                                                @foreach (var error in row.Errors)
+                                                {
+                                                    <li>@error</li>
+                                                }
+                                            </ul>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="import-actions">
+                    @if (ImportPreview.InvalidRows > 0)
+                    {
+                        <a class="btn btn-outline-secondary" href="@ImportErrorCsvDataUri" download="shipment-import-errors.csv">
+                            Tải file lỗi
+                        </a>
+                    }
+                    <button type="button" class="btn btn-primary" @onclick="ConfirmImportAsync" disabled="@(!CanConfirmImport)">
+                        @(IsConfirmingImport ? "Đang tạo đơn..." : $"Tạo {ImportPreview.ValidRows:N0} đơn hợp lệ")
+                    </button>
+                </div>
+            }
+
+            @if (ImportConfirmResult is not null)
+            {
+                <div class="table-shell import-table-shell">
+                    <table class="shipments-table import-table">
+                        <thead>
+                            <tr>
+                                <th>Row</th>
+                                <th>Client order</th>
+                                <th>Result</th>
+                                <th>Tracking code</th>
+                                <th>Error</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in ImportConfirmResult.Rows)
+                            {
+                                <tr class="@(row.IsCreated ? "valid-row" : "invalid-row")">
+                                    <td>@row.RowNumber</td>
+                                    <td>@(row.ClientOrderCode ?? "-")</td>
+                                    <td>
+                                        <span class="status-pill @(row.IsCreated ? "success" : "danger")">
+                                            @(row.IsCreated ? "Created" : "Failed")
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if (row.ShipmentId.HasValue)
+                                        {
+                                            <a class="tracking-link" href="@(BuildShopLink($"/shipments/{row.ShipmentId.Value}"))">@row.TrackingCode</a>
+                                        }
+                                        else
+                                        {
+                                            <span>-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (row.Errors.Count == 0)
+                                        {
+                                            <span>-</span>
+                                        }
+                                        else
+                                        {
+                                            <ul class="import-errors">
+                                                @foreach (var error in row.Errors)
+                                                {
+                                                    <li>@error</li>
+                                                }
+                                            </ul>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
 </div>
 
 @code {
+    private const long MaxImportFileSize = 2_000_000;
+
+    private const string CsvTemplate = """
+clientOrderCode,receiverName,receiverPhone,deliveryStreet,deliveryWard,deliveryProvince,deliveryCountry,weightKg,lengthCm,widthCm,heightCm,goodsValueAmount,codAmount,note
+DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,15,10,2000000,150000,Hang de vo
+""";
+
+    [SupplyParameterFromQuery(Name = "shopId")]
+    public Guid? ShopId { get; set; }
+
+    private GetShopContextResponse? ShopContext { get; set; }
+
+    private Guid SelectedShopId { get; set; }
+
+    private ShopContextItemResponse? SelectedShop => ShopContext?.Shops
+        .FirstOrDefault(shop => shop.ShopId == SelectedShopId);
+
     private bool IsLoading { get; set; } = true;
 
     private string? ErrorMessage { get; set; }
 
+    private bool ShowImportPanel { get; set; }
+
+    private bool IsPreviewingImport { get; set; }
+
+    private bool IsConfirmingImport { get; set; }
+
+    private string? ImportErrorMessage { get; set; }
+
+    private string? ImportSuccessMessage { get; set; }
+
+    private ShipmentImportPreviewResponse? ImportPreview { get; set; }
+
+    private ShipmentImportConfirmResponse? ImportConfirmResult { get; set; }
+
     private IReadOnlyList<ShipmentListItemResponse> ShipmentItems { get; set; } = [];
 
-    protected override async Task OnInitializedAsync()
+    private bool CanPreviewImport => SelectedShop?.IsActive == true && !IsPreviewingImport && !IsConfirmingImport;
+
+    private bool CanConfirmImport => CanPreviewImport && ImportPreview?.ValidRows > 0;
+
+    private IReadOnlyList<ShipmentImportRowDraft> ValidImportRows => ImportPreview?.Rows
+        .Where(row => row.IsValid)
+        .Select(row => row.Draft)
+        .ToList() ?? [];
+
+    private static string CsvTemplateDataUri => "data:text/csv;charset=utf-8," + Uri.EscapeDataString(CsvTemplate);
+
+    private string ImportErrorCsvDataUri
     {
+        get
+        {
+            if (ImportPreview is null)
+            {
+                return string.Empty;
+            }
+
+            var builder = new StringBuilder();
+            builder.AppendLine("rowNumber,clientOrderCode,errors");
+            foreach (var row in ImportPreview.Rows.Where(row => !row.IsValid))
+            {
+                builder
+                    .Append(row.Draft.RowNumber.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                    .Append(',')
+                    .Append(ToCsvField(row.Draft.ClientOrderCode ?? string.Empty))
+                    .Append(',')
+                    .Append(ToCsvField(string.Join("; ", row.Errors)))
+                    .AppendLine();
+            }
+
+            return "data:text/csv;charset=utf-8," + Uri.EscapeDataString(builder.ToString());
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+        ShipmentItems = [];
+
         var userId = await GetCurrentUserIdAsync();
         if (userId is null)
         {
@@ -121,7 +414,29 @@
             return;
         }
 
-        var result = await GetShipmentsForCurrentShopService.GetAsync(userId.Value);
+        var contextResult = await GetShopContextService.GetAsync(userId.Value, ShopId);
+        if (contextResult.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(contextResult.Error);
+            IsLoading = false;
+            return;
+        }
+
+        ShopContext = contextResult.Value;
+        var previousShopId = SelectedShopId;
+        SelectedShopId = contextResult.Value.SelectedShopId;
+        if (previousShopId != Guid.Empty && previousShopId != SelectedShopId)
+        {
+            ClearImportState();
+        }
+
+        await LoadShipmentItemsAsync(userId.Value);
+        IsLoading = false;
+    }
+
+    private async Task LoadShipmentItemsAsync(Guid userId)
+    {
+        var result = await GetShipmentsForCurrentShopService.GetAsync(userId, SelectedShopId);
         if (result.IsFailure)
         {
             ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
@@ -130,8 +445,127 @@
         {
             ShipmentItems = result.Value;
         }
+    }
 
-        IsLoading = false;
+    private void OnShopChanged(ChangeEventArgs args)
+    {
+        if (Guid.TryParse(args.Value?.ToString(), out var shopId))
+        {
+            NavigationManager.NavigateTo(BuildShopLink("/shipments", shopId));
+        }
+    }
+
+    private void ToggleImportPanel()
+    {
+        ShowImportPanel = !ShowImportPanel;
+    }
+
+    private void ClearImportState()
+    {
+        ImportErrorMessage = null;
+        ImportSuccessMessage = null;
+        ImportPreview = null;
+        ImportConfirmResult = null;
+        IsPreviewingImport = false;
+        IsConfirmingImport = false;
+    }
+
+    private async Task HandleImportFileChangedAsync(InputFileChangeEventArgs args)
+    {
+        ClearImportState();
+        ShowImportPanel = true;
+
+        if (SelectedShop?.IsActive != true)
+        {
+            ImportErrorMessage = "Shop inactive khong the import don hang.";
+            return;
+        }
+
+        var userId = await GetCurrentUserIdAsync();
+        if (userId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var file = args.File;
+        if (!file.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
+        {
+            ImportErrorMessage = "Vui long upload file .csv.";
+            return;
+        }
+
+        IsPreviewingImport = true;
+        try
+        {
+            await using var stream = file.OpenReadStream(MaxImportFileSize);
+            using var reader = new StreamReader(stream, Encoding.UTF8, detectEncodingFromByteOrderMarks: true);
+            var csvContent = await reader.ReadToEndAsync();
+            var result = await PreviewShipmentImportService.PreviewAsync(new PreviewShipmentImportCommand(
+                userId.Value,
+                SelectedShopId,
+                csvContent));
+
+            if (result.IsFailure)
+            {
+                ImportErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+                return;
+            }
+
+            ImportPreview = result.Value;
+        }
+        catch (IOException)
+        {
+            ImportErrorMessage = "File CSV qua lon hoac khong the doc.";
+        }
+        finally
+        {
+            IsPreviewingImport = false;
+        }
+    }
+
+    private async Task ConfirmImportAsync()
+    {
+        ImportErrorMessage = null;
+        ImportSuccessMessage = null;
+
+        var rows = ValidImportRows;
+        if (rows.Count == 0)
+        {
+            ImportErrorMessage = "Khong co dong hop le de tao don.";
+            return;
+        }
+
+        var userId = await GetCurrentUserIdAsync();
+        if (userId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        IsConfirmingImport = true;
+        try
+        {
+            var result = await ConfirmShipmentImportService.ConfirmAsync(new ConfirmShipmentImportCommand(
+                userId.Value,
+                SelectedShopId,
+                rows));
+
+            if (result.IsFailure)
+            {
+                ImportErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+                return;
+            }
+
+            ImportConfirmResult = result.Value;
+            ImportPreview = null;
+            ImportSuccessMessage = $"Da tao {result.Value.CreatedRows:N0}/{result.Value.TotalRows:N0} don hang.";
+            await LoadShipmentItemsAsync(userId.Value);
+        }
+        finally
+        {
+            IsConfirmingImport = false;
+        }
     }
 
     private async Task<Guid?> GetCurrentUserIdAsync()
@@ -142,6 +576,23 @@
         return Guid.TryParse(userIdValue, out var userId)
             ? userId
             : null;
+    }
+
+    private string BuildShopLink(string path)
+    {
+        return BuildShopLink(path, SelectedShopId);
+    }
+
+    private static string BuildShopLink(string path, Guid shopId)
+    {
+        return shopId == Guid.Empty
+            ? path
+            : $"{path}?shopId={shopId:D}";
+    }
+
+    private static string ToCsvField(string value)
+    {
+        return "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
     }
 
     private static string FormatDate(DateTimeOffset value)
@@ -179,6 +630,7 @@
             ShipmentStatus.DeliveryFailed => "Giao thất bại",
             ShipmentStatus.Returned => "Đã hoàn",
             ShipmentStatus.Cancelled => "Đã hủy",
+            ShipmentStatus.Draft => "Draft",
             _ => status.ToString()
         };
     }
@@ -192,5 +644,10 @@
             ShipmentStatus.InTransit or ShipmentStatus.Delivering or ShipmentStatus.PickedUp => "info",
             _ => "warning"
         };
+    }
+
+    private static bool CanEditShipment(ShipmentStatus status)
+    {
+        return status is ShipmentStatus.Draft or ShipmentStatus.PendingPickup;
     }
 }

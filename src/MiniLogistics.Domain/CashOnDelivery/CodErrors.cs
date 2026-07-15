@@ -19,4 +19,8 @@ public static class CodErrors
     public static readonly Error CannotSettle = new(
         "COD.CannotSettle",
         "Only collected COD can be settled.");
+
+    public static readonly Error CannotChangeAmount = new(
+        "COD.CannotChangeAmount",
+        "COD amount can only be changed before collection starts.");
 }

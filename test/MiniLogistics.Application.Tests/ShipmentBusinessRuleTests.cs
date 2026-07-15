@@ -13,22 +13,28 @@ using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.Routing;
 using MiniLogistics.Application.Shipments.CancelShipmentForCurrentShop;
 using MiniLogistics.Application.Shipments.CreateShipment;
+using MiniLogistics.Application.Shipments.DraftShipments;
 using MiniLogistics.Application.Shipments;
 using MiniLogistics.Application.Shipments.AssignShipperToShipment;
 using MiniLogistics.Application.Shipments.GetAssignedShipmentsForShipper;
+using MiniLogistics.Application.Shipments.GetShipmentsForCurrentShop;
 using MiniLogistics.Application.Shipments.GetOperationsShipments;
 using MiniLogistics.Application.Shipments.GetPublicTracking;
 using MiniLogistics.Application.Shipments.UpdateShipmentStatus;
+using MiniLogistics.Application.Shipments.ImportShipments;
 using MiniLogistics.Application.Shippers;
 using MiniLogistics.Application.Shippers.GetActiveShippers;
+using MiniLogistics.Application.Shippers.SetShipperWorkingAreas;
 using MiniLogistics.Application.Shipments.AssignmentSelection;
 using MiniLogistics.Application.Shipments.AutoAssignShipment;
 using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Shops;
+using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Fees;
 using MiniLogistics.Domain.Operations;
+using MiniLogistics.Domain.PartnerApi;
 using MiniLogistics.Domain.Shipments;
 using MiniLogistics.Domain.Shops;
 using MiniLogistics.Domain.Users;
@@ -97,6 +103,49 @@ public sealed class ShipmentBusinessRuleTests
 
         Assert.True(result.IsFailure);
         Assert.Equal("Application.Forbidden", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task AssignShipper_AdminManualOverride_AllowsActiveShipperWithoutWorkingAreaMatch()
+    {
+        var shipment = CreateShipment(_shopUserId);
+        var repository = new FakeShipmentRepository([shipment]);
+        var service = CreateAssignService(repository);
+
+        var result = await service.AssignAsync(new AssignShipperCommand(
+            shipment.Id,
+            _shipperId,
+            _adminId,
+            "Manual override outside pickup area."));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ShipmentStatus.Assigned, shipment.Status);
+        Assert.Contains(shipment.Assignments, assignment => assignment.ShipperId == _shipperId && assignment.IsActive);
+        Assert.Contains(shipment.StatusHistory, history =>
+            history.Status == ShipmentStatus.Assigned
+            && history.ChangedByUserId == _adminId
+            && history.Note == "Manual override outside pickup area.");
+        Assert.Equal(1, repository.SaveChangesCount);
+    }
+
+    [Fact]
+    public async Task AssignmentSelector_ProvinceMatchWithoutPickupHub_SelectsMatchingShipper()
+    {
+        var targetShipment = CreateShipment(_shopUserId);
+        var provinceOnlyArea = new ShipperWorkingArea(_shipperId, Guid.NewGuid(), "Ho Chi Minh");
+        var selector = new ShipmentAssignmentSelector(
+            CreateIdentityService(),
+            new FakeHubRepository([]),
+            new FakeShipperWorkingAreaRepository([provinceOnlyArea]),
+            new FakeShipmentRepository([targetShipment]));
+
+        var result = await selector.SelectAsync(targetShipment);
+
+        Assert.Equal(ShipmentAssignmentSelectionStatus.Selected, result.Status);
+        Assert.Equal(_shipperId, result.ShipperId);
+        Assert.Equal(provinceOnlyArea.Id, result.WorkingAreaId);
+        Assert.Null(result.HubCode);
+        Assert.Contains("Matched pickup province", result.Reason);
     }
 
     [Fact]
@@ -228,6 +277,28 @@ public sealed class ShipmentBusinessRuleTests
         var identityService = CreateIdentityService();
         identityService.SetShipperCapacity(_shipperId, isAvailableForAssignment: false, maxActiveShipments: 10);
         identityService.SetShipperCapacity(_otherShipperId, isAvailableForAssignment: true, maxActiveShipments: 10);
+        var targetShipment = CreateShipment(_shopUserId);
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var selector = new ShipmentAssignmentSelector(
+            identityService,
+            new FakeHubRepository([hub]),
+            new FakeShipperWorkingAreaRepository([
+                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh"),
+                new ShipperWorkingArea(_otherShipperId, hub.Id, "Ho Chi Minh")
+            ]),
+            new FakeShipmentRepository([targetShipment]));
+
+        var result = await selector.SelectAsync(targetShipment);
+
+        Assert.Equal(ShipmentAssignmentSelectionStatus.Selected, result.Status);
+        Assert.Equal(_otherShipperId, result.ShipperId);
+    }
+
+    [Fact]
+    public async Task AssignmentSelector_MatchingArea_SkipsInactiveShipper()
+    {
+        var identityService = CreateIdentityService();
+        identityService.AddUser(_shipperId, isActive: false, nameof(UserRole.Shipper));
         var targetShipment = CreateShipment(_shopUserId);
         var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
         var selector = new ShipmentAssignmentSelector(
@@ -398,6 +469,87 @@ public sealed class ShipmentBusinessRuleTests
 
         Assert.True(assignResult.IsFailure);
         Assert.Equal("Application.Forbidden", assignResult.Error.Code);
+    }
+
+    [Fact]
+    public async Task SetShipperWorkingAreas_DuplicateNormalizedAreas_ReturnsValidationFailure()
+    {
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var workingAreaRepository = new FakeShipperWorkingAreaRepository([]);
+        var service = new SetShipperWorkingAreasService(
+            new SetShipperWorkingAreasCommandValidator(),
+            CreateIdentityService(),
+            new FakeHubRepository([hub]),
+            workingAreaRepository);
+
+        var result = await service.SetAsync(new SetShipperWorkingAreasCommand(
+            _adminId,
+            _shipperId,
+            [
+                new SetShipperWorkingAreaItem(hub.Id, " Ben Thanh "),
+                new SetShipperWorkingAreaItem(hub.Id, "Ben Thanh", " ")
+            ]));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Application.ValidationFailed", result.Error.Code);
+        Assert.Contains("duplicates", result.Error.Description);
+        Assert.Empty(workingAreaRepository.WorkingAreas);
+        Assert.Equal(0, workingAreaRepository.SaveChangesCount);
+    }
+
+    [Fact]
+    public async Task SetShipperWorkingAreas_InactiveHub_IsRejected()
+    {
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        hub.Deactivate();
+        var workingAreaRepository = new FakeShipperWorkingAreaRepository([]);
+        var service = new SetShipperWorkingAreasService(
+            new SetShipperWorkingAreasCommandValidator(),
+            CreateIdentityService(),
+            new FakeHubRepository([hub]),
+            workingAreaRepository);
+
+        var result = await service.SetAsync(new SetShipperWorkingAreasCommand(
+            _adminId,
+            _shipperId,
+            [new SetShipperWorkingAreaItem(hub.Id)]));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Application.Forbidden", result.Error.Code);
+        Assert.Contains("Inactive hubs", result.Error.Description);
+        Assert.Empty(workingAreaRepository.WorkingAreas);
+        Assert.Equal(0, workingAreaRepository.SaveChangesCount);
+    }
+
+    [Fact]
+    public async Task SetShipperWorkingAreas_AdminReplacesAreas_DeactivatesRemovedAreas()
+    {
+        var oldHub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var newHub = new Hub("SPX-HN-HUB", "SPX Ha Noi Province Hub", "Ha Noi");
+        var oldArea = new ShipperWorkingArea(_shipperId, oldHub.Id, oldHub.Province);
+        var workingAreaRepository = new FakeShipperWorkingAreaRepository([oldArea]);
+        var service = new SetShipperWorkingAreasService(
+            new SetShipperWorkingAreasCommandValidator(),
+            CreateIdentityService(),
+            new FakeHubRepository([oldHub, newHub]),
+            workingAreaRepository);
+
+        var result = await service.SetAsync(new SetShipperWorkingAreasCommand(
+            _adminId,
+            _shipperId,
+            [new SetShipperWorkingAreaItem(newHub.Id, "Hoan Kiem")]));
+
+        Assert.True(result.IsSuccess);
+        var activeArea = Assert.Single(result.Value);
+        Assert.Equal(newHub.Id, activeArea.HubId);
+        Assert.Equal("Hoan Kiem", activeArea.Ward);
+        Assert.Equal(2, workingAreaRepository.WorkingAreas.Count);
+        Assert.Contains(workingAreaRepository.WorkingAreas, area => area.Id == oldArea.Id && !area.IsActive);
+        Assert.Contains(workingAreaRepository.WorkingAreas, area =>
+            area.HubId == newHub.Id
+            && area.Ward == "Hoan Kiem"
+            && area.IsActive);
+        Assert.Equal(1, workingAreaRepository.SaveChangesCount);
     }
 
     [Fact]
@@ -753,9 +905,10 @@ public sealed class ShipmentBusinessRuleTests
         var shipment = CreateShipmentForShop(shop.Id, _shopUserId, codAmount: 100_000m);
         var assignResult = shipment.AssignShipper(_shipperId, _operatorId, "Assign before cancel test.");
         var shipmentRepository = new FakeShipmentRepository([shipment]);
+        var shopRepository = new FakeShopRepository([shop]);
         var service = new CancelShipmentForCurrentShopService(
             new CancelShipmentCommandValidator(),
-            new FakeShopRepository([shop]),
+            new ShopAccessService(CreateIdentityService(), shopRepository),
             shipmentRepository);
 
         Assert.True(assignResult.IsSuccess);
@@ -800,6 +953,7 @@ public sealed class ShipmentBusinessRuleTests
         var shop = CreateShop(_shopUserId);
         var shipmentRepository = new FakeShipmentRepository([]);
         var codTransactionRepository = new FakeCodTransactionRepository([]);
+        var shopRepository = new FakeShopRepository([shop]);
         var feeRule = new FeeRule(
             RouteType.InterRegion,
             baseWeightKg: 1m,
@@ -811,7 +965,7 @@ public sealed class ShipmentBusinessRuleTests
             new ShippingFeeService(new FakeFeeRuleRepository([feeRule])),
             new RouteClassificationService(),
             shipmentRepository,
-            new FakeShopRepository([shop]),
+            new ShopAccessService(CreateIdentityService(), shopRepository),
             codTransactionRepository,
             CreateAutoAssignService(shipmentRepository, [], []));
 
@@ -854,11 +1008,231 @@ public sealed class ShipmentBusinessRuleTests
     }
 
     [Fact]
+    public async Task CreateShipmentService_SelectedShopCreatesShipmentForSelectedShop()
+    {
+        var firstShop = CreateShop(_shopUserId);
+        var secondShop = CreateShop(_shopUserId);
+        secondShop.Rename("Second Shop");
+        var shipmentRepository = new FakeShipmentRepository([]);
+        var codTransactionRepository = new FakeCodTransactionRepository([]);
+        var shopRepository = new FakeShopRepository([firstShop, secondShop]);
+        var feeRule = new FeeRule(
+            RouteType.InterRegion,
+            baseWeightKg: 1m,
+            baseFee: new Money(35_000m),
+            extraWeightStepKg: 0.5m,
+            extraStepFee: new Money(8_000m));
+        var service = new CreateShipmentService(
+            new CreateShipmentCommandValidator(),
+            new ShippingFeeService(new FakeFeeRuleRepository([feeRule])),
+            new RouteClassificationService(),
+            shipmentRepository,
+            new ShopAccessService(CreateIdentityService(), shopRepository),
+            codTransactionRepository,
+            CreateAutoAssignService(shipmentRepository, [], []));
+
+        var result = await service.CreateAsync(new CreateShipmentCommand(
+            _shopUserId,
+            "Second Shop",
+            "0900000000",
+            "Demo Receiver",
+            "0911111111",
+            new ShipmentAddressDto("1 Nguyen Trai", "Ben Thanh", "Ho Chi Minh"),
+            new ShipmentAddressDto("9 Le Loi", "Hoan Kiem", "Thanh pho Ha Noi"),
+            WeightKg: 1.2m,
+            LengthCm: 20m,
+            WidthCm: 15m,
+            HeightCm: 10m,
+            GoodsValueAmount: 2_000_000m,
+            CodAmount: 150_000m,
+            Currency: "VND",
+            Note: "Selected shop create service test.",
+            ShopId: secondShop.Id));
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(shipmentRepository.Shipments);
+        Assert.Equal(secondShop.Id, shipmentRepository.Shipments.Single().ShopId);
+        Assert.Single(codTransactionRepository.CodTransactions);
+    }
+
+    [Fact]
+    public async Task GetShipmentsForCurrentShop_SelectedShopReturnsOnlyThatShop()
+    {
+        var firstShop = CreateShop(_shopUserId);
+        var secondShop = CreateShop(_shopUserId);
+        var firstShipment = CreateShipmentForShop(firstShop.Id, _shopUserId);
+        var secondShipment = CreateShipmentForShop(secondShop.Id, _shopUserId);
+        var shipmentRepository = new FakeShipmentRepository([firstShipment, secondShipment]);
+        var shopRepository = new FakeShopRepository([firstShop, secondShop]);
+        var service = new GetShipmentsForCurrentShopService(
+            new ShopAccessService(CreateIdentityService(), shopRepository),
+            shipmentRepository);
+
+        var result = await service.GetAsync(_shopUserId, secondShop.Id);
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value);
+        Assert.Equal(secondShipment.Id, result.Value.Single().ShipmentId);
+    }
+
+    [Fact]
+    public async Task GetShipmentsForCurrentShop_OtherOwnerShopIdIsRejected()
+    {
+        var ownShop = CreateShop(_shopUserId);
+        var otherShop = CreateShop(Guid.NewGuid());
+        var shipmentRepository = new FakeShipmentRepository([]);
+        var shopRepository = new FakeShopRepository([ownShop, otherShop]);
+        var service = new GetShipmentsForCurrentShopService(
+            new ShopAccessService(CreateIdentityService(), shopRepository),
+            shipmentRepository);
+
+        var result = await service.GetAsync(_shopUserId, otherShop.Id);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Application.Forbidden", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task ShipmentImportPreview_ValidCsv_ReturnsFeePreview()
+    {
+        var shop = CreateShop(_shopUserId);
+        var shipmentRepository = new FakeShipmentRepository([]);
+        var codTransactionRepository = new FakeCodTransactionRepository([]);
+        var service = CreateShipmentImportService(
+            new FakeShopRepository([shop]),
+            shipmentRepository,
+            codTransactionRepository);
+
+        var result = await service.PreviewAsync(new PreviewShipmentImportCommand(
+            _shopUserId,
+            shop.Id,
+            BuildImportCsv(
+                "ORD-1001,Demo Receiver,0911111111,9 Le Loi,Hoan Kiem,Thanh pho Ha Noi,Vietnam,1.2,20,15,10,2000000,150000,Imported order")));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.Value.TotalRows);
+        Assert.Equal(1, result.Value.ValidRows);
+        Assert.True(result.Value.Rows.Single().IsValid);
+        Assert.Equal(RouteType.InterRegion, result.Value.Rows.Single().RouteType);
+        Assert.Equal(53_000m, result.Value.Rows.Single().ShippingFeeAmount);
+    }
+
+    [Fact]
+    public async Task ShipmentImportPreview_MissingRequiredField_ReturnsRowError()
+    {
+        var shop = CreateShop(_shopUserId);
+        var service = CreateShipmentImportService(
+            new FakeShopRepository([shop]),
+            new FakeShipmentRepository([]),
+            new FakeCodTransactionRepository([]));
+
+        var result = await service.PreviewAsync(new PreviewShipmentImportCommand(
+            _shopUserId,
+            shop.Id,
+            BuildImportCsv(
+                "ORD-1001,,0911111111,9 Le Loi,Hoan Kiem,Thanh pho Ha Noi,Vietnam,1.2,20,15,10,2000000,150000,Imported order")));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(0, result.Value.ValidRows);
+        Assert.Contains(result.Value.Rows.Single().Errors, error => error.Contains("receiverName is required", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task ShipmentImportPreview_UnsupportedProvince_ReturnsRowError()
+    {
+        var shop = CreateShop(_shopUserId);
+        var service = CreateShipmentImportService(
+            new FakeShopRepository([shop]),
+            new FakeShipmentRepository([]),
+            new FakeCodTransactionRepository([]));
+
+        var result = await service.PreviewAsync(new PreviewShipmentImportCommand(
+            _shopUserId,
+            shop.Id,
+            BuildImportCsv(
+                "ORD-1001,Demo Receiver,0911111111,9 Le Loi,Central,Atlantis,Vietnam,1.2,20,15,10,2000000,150000,Imported order")));
+
+        Assert.True(result.IsSuccess);
+        Assert.False(result.Value.Rows.Single().IsValid);
+        Assert.Contains(result.Value.Rows.Single().Errors, error => error.Contains("Province is not supported", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public async Task ShipmentImportPreview_DuplicateClientOrderCode_IsRejectedPerRow()
+    {
+        var shop = CreateShop(_shopUserId);
+        var service = CreateShipmentImportService(
+            new FakeShopRepository([shop]),
+            new FakeShipmentRepository([]),
+            new FakeCodTransactionRepository([]));
+
+        var result = await service.PreviewAsync(new PreviewShipmentImportCommand(
+            _shopUserId,
+            shop.Id,
+            BuildImportCsv(
+                "ORD-1001,First Receiver,0911111111,9 Le Loi,Hoan Kiem,Thanh pho Ha Noi,Vietnam,1.2,20,15,10,2000000,150000,Imported order",
+                "ORD-1001,Second Receiver,0922222222,10 Le Loi,Hoan Kiem,Thanh pho Ha Noi,Vietnam,1.2,20,15,10,2000000,150000,Imported order")));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(0, result.Value.ValidRows);
+        Assert.All(result.Value.Rows, row =>
+            Assert.Contains(row.Errors, error => error.Contains("Duplicate clientOrderCode", StringComparison.OrdinalIgnoreCase)));
+    }
+
+    [Fact]
+    public async Task ShipmentImportConfirm_CreatesOnlyValidRows()
+    {
+        var shop = CreateShop(_shopUserId);
+        var shipmentRepository = new FakeShipmentRepository([]);
+        var codTransactionRepository = new FakeCodTransactionRepository([]);
+        var service = CreateShipmentImportService(
+            new FakeShopRepository([shop]),
+            shipmentRepository,
+            codTransactionRepository);
+        var validRow = CreateImportRowDraft(2, "ORD-1001");
+        var invalidRow = CreateImportRowDraft(3, "ORD-1002") with { ReceiverPhone = "bad-phone" };
+
+        var result = await service.ConfirmAsync(new ConfirmShipmentImportCommand(
+            _shopUserId,
+            shop.Id,
+            [validRow, invalidRow]));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(1, result.Value.CreatedRows);
+        Assert.Equal(1, result.Value.FailedRows);
+        Assert.Single(shipmentRepository.Shipments);
+        Assert.Single(codTransactionRepository.CodTransactions);
+        Assert.Contains(result.Value.Rows, row => row.RowNumber == validRow.RowNumber && row.IsCreated);
+        Assert.Contains(result.Value.Rows, row => row.RowNumber == invalidRow.RowNumber && !row.IsCreated);
+    }
+
+    [Fact]
+    public async Task ShipmentImportPreview_InactiveShop_IsRejected()
+    {
+        var shop = CreateShop(_shopUserId);
+        shop.Deactivate();
+        var service = CreateShipmentImportService(
+            new FakeShopRepository([shop]),
+            new FakeShipmentRepository([]),
+            new FakeCodTransactionRepository([]));
+
+        var result = await service.PreviewAsync(new PreviewShipmentImportCommand(
+            _shopUserId,
+            shop.Id,
+            BuildImportCsv(
+                "ORD-1001,Demo Receiver,0911111111,9 Le Loi,Hoan Kiem,Thanh pho Ha Noi,Vietnam,1.2,20,15,10,2000000,150000,Imported order")));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Application.Forbidden", result.Error.Code);
+    }
+
+    [Fact]
     public async Task CreateShipmentService_MatchingWorkingAreaAutoAssignsShipment()
     {
         var shop = CreateShop(_shopUserId);
         var shipmentRepository = new FakeShipmentRepository([]);
         var codTransactionRepository = new FakeCodTransactionRepository([]);
+        var shopRepository = new FakeShopRepository([shop]);
         var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
         var feeRule = new FeeRule(
             RouteType.IntraProvince,
@@ -871,7 +1245,7 @@ public sealed class ShipmentBusinessRuleTests
             new ShippingFeeService(new FakeFeeRuleRepository([feeRule])),
             new RouteClassificationService(),
             shipmentRepository,
-            new FakeShopRepository([shop]),
+            new ShopAccessService(CreateIdentityService(), shopRepository),
             codTransactionRepository,
             CreateAutoAssignService(
                 shipmentRepository,
@@ -904,49 +1278,255 @@ public sealed class ShipmentBusinessRuleTests
     }
 
     [Fact]
-    public async Task GetPublicTracking_MapsTimelineActorsAndKeepsUnknownUsersVisible()
+    public async Task CreateDraftShipment_DoesNotCreateCodOrAutoAssign()
     {
-        var inactiveOperatorId = Guid.NewGuid();
-        var unknownUserId = Guid.NewGuid();
-        var identityService = CreateIdentityService();
-        identityService.AddUser(inactiveOperatorId, false, nameof(UserRole.Operator));
+        var shop = CreateShop(_shopUserId);
+        var shipmentRepository = new FakeShipmentRepository([]);
+        var service = CreateDraftShipmentService(
+            new FakeShopRepository([shop]),
+            shipmentRepository);
 
+        var result = await service.CreateAsync(BuildDraftCommand(shop.Id));
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(shipmentRepository.Shipments);
+
+        var shipment = shipmentRepository.Shipments.Single();
+        Assert.Equal(ShipmentStatus.Draft, shipment.Status);
+        Assert.Empty(shipment.Assignments);
+        Assert.Equal(1, shipmentRepository.SaveChangesCount);
+    }
+
+    [Fact]
+    public async Task SubmitDraftShipment_CreatesCodAndAutoAssignsWhenEligible()
+    {
+        var shop = CreateShop(_shopUserId);
+        var shipmentRepository = new FakeShipmentRepository([]);
+        var codTransactionRepository = new FakeCodTransactionRepository([]);
+        var createDraftService = CreateDraftShipmentService(
+            new FakeShopRepository([shop]),
+            shipmentRepository);
+        var createResult = await createDraftService.CreateAsync(BuildDraftCommand(shop.Id));
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var submitService = CreateSubmitDraftShipmentService(
+            new FakeShopRepository([shop]),
+            shipmentRepository,
+            codTransactionRepository,
+            CreateAutoAssignService(
+                shipmentRepository,
+                [hub],
+                [new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh")]));
+
+        var result = await submitService.SubmitAsync(new SubmitDraftShipmentCommand(
+            _shopUserId,
+            createResult.Value.ShipmentId,
+            shop.Id));
+
+        Assert.True(createResult.IsSuccess);
+        Assert.True(result.IsSuccess);
+        Assert.Single(codTransactionRepository.CodTransactions);
+        Assert.Equal(new Money(150_000m), codTransactionRepository.CodTransactions.Single().Amount);
+
+        var shipment = shipmentRepository.Shipments.Single();
+        Assert.Equal(ShipmentStatus.Assigned, shipment.Status);
+        Assert.Contains(shipment.Assignments, assignment => assignment.IsActive && assignment.ShipperId == _shipperId);
+    }
+
+    [Fact]
+    public async Task UpdateDraftShipment_RecalculatesFeeAndKeepsDraftStatus()
+    {
+        var shop = CreateShop(_shopUserId);
+        var shipmentRepository = new FakeShipmentRepository([]);
+        var codTransactionRepository = new FakeCodTransactionRepository([]);
+        var createDraftService = CreateDraftShipmentService(
+            new FakeShopRepository([shop]),
+            shipmentRepository);
+        var createResult = await createDraftService.CreateAsync(BuildDraftCommand(shop.Id));
+        var updateService = CreateUpdateShipmentBeforePickupService(
+            new FakeShopRepository([shop]),
+            shipmentRepository,
+            codTransactionRepository);
+
+        var result = await updateService.UpdateAsync(BuildUpdateBeforePickupCommand(
+            shop.Id,
+            createResult.Value.ShipmentId,
+            deliveryProvince: "Ho Chi Minh",
+            goodsValueAmount: 0m,
+            codAmount: 0m));
+
+        Assert.True(createResult.IsSuccess);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ShipmentStatus.Draft, shipmentRepository.Shipments.Single().Status);
+        Assert.Equal(RouteType.IntraProvince, shipmentRepository.Shipments.Single().RouteType);
+        Assert.Equal(20_000m, shipmentRepository.Shipments.Single().ShippingFee.Amount);
+        Assert.Empty(codTransactionRepository.CodTransactions);
+    }
+
+    [Fact]
+    public async Task UpdatePendingPickupShipment_RecalculatesFeeAndUpdatesCod()
+    {
+        var shop = CreateShop(_shopUserId);
+        var shipmentRepository = new FakeShipmentRepository([]);
+        var codTransactionRepository = new FakeCodTransactionRepository([]);
+        var createService = new CreateShipmentService(
+            new CreateShipmentCommandValidator(),
+            CreateShippingFeeService(),
+            new RouteClassificationService(),
+            shipmentRepository,
+            new ShopAccessService(CreateIdentityService(), new FakeShopRepository([shop])),
+            codTransactionRepository,
+            CreateAutoAssignService(shipmentRepository, [], []));
+        var createResult = await createService.CreateAsync(BuildCreateShipmentCommand(shop.Id));
+        var updateService = CreateUpdateShipmentBeforePickupService(
+            new FakeShopRepository([shop]),
+            shipmentRepository,
+            codTransactionRepository);
+
+        var result = await updateService.UpdateAsync(BuildUpdateBeforePickupCommand(
+            shop.Id,
+            createResult.Value.ShipmentId,
+            deliveryProvince: "Ho Chi Minh",
+            goodsValueAmount: 0m,
+            codAmount: 50_000m));
+
+        Assert.True(createResult.IsSuccess);
+        Assert.True(result.IsSuccess);
+        Assert.Equal(ShipmentStatus.PendingPickup, shipmentRepository.Shipments.Single().Status);
+        Assert.Equal(RouteType.IntraProvince, shipmentRepository.Shipments.Single().RouteType);
+        Assert.Equal(20_000m, shipmentRepository.Shipments.Single().ShippingFee.Amount);
+        Assert.Equal(new Money(50_000m), codTransactionRepository.CodTransactions.Single().Amount);
+        Assert.Equal(CodStatus.PendingCollection, codTransactionRepository.CodTransactions.Single().Status);
+    }
+
+    [Theory]
+    [InlineData(ShipmentStatus.Assigned)]
+    [InlineData(ShipmentStatus.PickedUp)]
+    [InlineData(ShipmentStatus.InTransit)]
+    [InlineData(ShipmentStatus.Delivered)]
+    public async Task UpdateShipmentBeforePickup_NonEditableStatusesAreRejected(ShipmentStatus status)
+    {
+        var shop = CreateShop(_shopUserId);
+        var shipment = CreateShipmentForShop(shop.Id, _shopUserId);
+        var assignResult = shipment.AssignShipper(_shipperId, _operatorId, "Assigned for edit rejection test.");
+        Assert.True(assignResult.IsSuccess);
+        if (status != ShipmentStatus.Assigned)
+        {
+            MoveShipmentToStatus(shipment, status);
+        }
+        var service = CreateUpdateShipmentBeforePickupService(
+            new FakeShopRepository([shop]),
+            new FakeShipmentRepository([shipment]),
+            new FakeCodTransactionRepository([CodTransaction.Create(shipment.Id, shipment.CodAmount)]));
+
+        var result = await service.UpdateAsync(BuildUpdateBeforePickupCommand(
+            shop.Id,
+            shipment.Id));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Shipment.CannotEditBeforePickup", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task GetPublicTracking_WithoutPhoneLast4_ReturnsSummaryWithoutPii()
+    {
         var shipment = CreateAssignedShipment(_shipperId);
-        var pickupResult = shipment.UpdateStatus(ShipmentStatus.PickingUp, inactiveOperatorId, "Inactive operator support update.");
-        var pickedUpResult = shipment.UpdateStatus(ShipmentStatus.PickedUp, unknownUserId, "Legacy user update.");
-        var service = new GetPublicTrackingService(
-            identityService,
-            new FakeShipmentRepository([shipment]));
+        var pickupResult = shipment.UpdateStatus(
+            ShipmentStatus.PickingUp,
+            _shipperId,
+            "Sensitive internal handoff note.");
+        var service = new GetPublicTrackingService(new FakeShipmentRepository([shipment]));
 
         var result = await service.GetAsync(shipment.TrackingCode.Value);
 
         Assert.True(pickupResult.IsSuccess);
-        Assert.True(pickedUpResult.IsSuccess);
         Assert.True(result.IsSuccess);
+        Assert.Equal(PublicTrackingAccessLevel.Summary, result.Value.AccessLevel);
+        Assert.Equal(shipment.TrackingCode.Value, result.Value.TrackingCode);
+        Assert.Equal(ShipmentStatus.PickingUp, result.Value.CurrentStatus);
+        Assert.Equal("Ho Chi Minh", result.Value.PickupProvince);
+        Assert.Equal("Ho Chi Minh", result.Value.DeliveryProvince);
+        Assert.NotEqual("Shop Demo", result.Value.SenderName);
+        Assert.NotEqual("Customer Demo", result.Value.ReceiverName);
+        Assert.Null(result.Value.SenderPhone);
+        Assert.Null(result.Value.ReceiverPhone);
+        Assert.Null(result.Value.PickupAddress);
+        Assert.Null(result.Value.DeliveryAddress);
+        Assert.Contains(result.Value.Timeline, item => item.Status == ShipmentStatus.PickingUp);
+    }
 
-        var timeline = result.Value.Timeline;
-        Assert.Contains(timeline, history =>
-            history.Status == ShipmentStatus.PendingPickup
-            && history.ChangedByUserId == _shopUserId
-            && history.ChangedByUserFound
-            && history.ChangedByDisplayName == FormatFakeUserName(_shopUserId)
-            && history.ChangedByEmail == FormatFakeUserEmail(_shopUserId));
-        Assert.Contains(timeline, history =>
-            history.Status == ShipmentStatus.Assigned
-            && history.ChangedByUserId == _operatorId
-            && history.ChangedByUserFound
-            && history.ChangedByDisplayName == FormatFakeUserName(_operatorId));
-        Assert.Contains(timeline, history =>
-            history.Status == ShipmentStatus.PickingUp
-            && history.ChangedByUserId == inactiveOperatorId
-            && history.ChangedByUserFound
-            && history.ChangedByDisplayName == FormatFakeUserName(inactiveOperatorId));
-        Assert.Contains(timeline, history =>
-            history.Status == ShipmentStatus.PickedUp
-            && history.ChangedByUserId == unknownUserId
-            && !history.ChangedByUserFound
-            && history.ChangedByDisplayName == "Người dùng không xác định"
-            && history.ChangedByEmail is null);
+    [Fact]
+    public async Task GetPublicTracking_ReceiverPhoneLast4_ReturnsVerifiedDetail()
+    {
+        var shipment = CreateAssignedShipment(_shipperId);
+        var service = new GetPublicTrackingService(new FakeShipmentRepository([shipment]));
+
+        var result = await service.GetAsync(shipment.TrackingCode.Value, "1111");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(PublicTrackingAccessLevel.Verified, result.Value.AccessLevel);
+        Assert.Equal("Customer Demo", result.Value.ReceiverName);
+        Assert.Equal("0911111111", result.Value.ReceiverPhone);
+        Assert.Equal("Shop Demo", result.Value.SenderName);
+        Assert.Equal("0900000000", result.Value.SenderPhone);
+        Assert.Equal("9 Le Loi, Ben Nghe, Ho Chi Minh, Vietnam", result.Value.DeliveryAddress?.FullAddress);
+    }
+
+    [Fact]
+    public async Task GetPublicTracking_SenderPhoneLast4_ReturnsVerifiedDetail()
+    {
+        var shipment = CreateAssignedShipment(_shipperId);
+        var service = new GetPublicTrackingService(new FakeShipmentRepository([shipment]));
+
+        var result = await service.GetAsync(shipment.TrackingCode.Value, "0000");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(PublicTrackingAccessLevel.Verified, result.Value.AccessLevel);
+        Assert.Equal("Shop Demo", result.Value.SenderName);
+        Assert.Equal("0900000000", result.Value.SenderPhone);
+        Assert.Equal("1 Nguyen Trai, Ben Thanh, Ho Chi Minh, Vietnam", result.Value.PickupAddress?.FullAddress);
+    }
+
+    [Fact]
+    public async Task GetPublicTracking_WrongPhoneLast4_KeepsSummaryAndDoesNotLeakPii()
+    {
+        var shipment = CreateAssignedShipment(_shipperId);
+        var service = new GetPublicTrackingService(new FakeShipmentRepository([shipment]));
+
+        var result = await service.GetAsync(shipment.TrackingCode.Value, "9999");
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(PublicTrackingAccessLevel.Summary, result.Value.AccessLevel);
+        Assert.NotEqual("Shop Demo", result.Value.SenderName);
+        Assert.NotEqual("Customer Demo", result.Value.ReceiverName);
+        Assert.Null(result.Value.SenderPhone);
+        Assert.Null(result.Value.ReceiverPhone);
+        Assert.Null(result.Value.PickupAddress);
+        Assert.Null(result.Value.DeliveryAddress);
+    }
+
+    [Fact]
+    public async Task GetPublicTracking_InvalidPhoneLast4_IsRejected()
+    {
+        var shipment = CreateAssignedShipment(_shipperId);
+        var service = new GetPublicTrackingService(new FakeShipmentRepository([shipment]));
+
+        var result = await service.GetAsync(shipment.TrackingCode.Value, "12ab");
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Application.ValidationFailed", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task GetPublicTracking_DraftShipment_IsHidden()
+    {
+        var shipment = CreateShipment(_shopUserId);
+        ForceShipmentStatus(shipment, ShipmentStatus.Draft);
+        var service = new GetPublicTrackingService(new FakeShipmentRepository([shipment]));
+
+        var result = await service.GetAsync(shipment.TrackingCode.Value);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Application.NotFound", result.Error.Code);
     }
 
     private AssignShipperToShipmentService CreateAssignService(IReadOnlyList<Shipment> shipments)
@@ -1049,6 +1629,202 @@ public sealed class ShipmentBusinessRuleTests
                 shipmentRepository));
     }
 
+    private static ShippingFeeService CreateShippingFeeService()
+    {
+        return new ShippingFeeService(new FakeFeeRuleRepository([
+            new FeeRule(
+                RouteType.InterRegion,
+                baseWeightKg: 1m,
+                baseFee: new Money(35_000m),
+                extraWeightStepKg: 0.5m,
+                extraStepFee: new Money(8_000m)),
+            new FeeRule(
+                RouteType.IntraProvince,
+                baseWeightKg: 1m,
+                baseFee: new Money(20_000m),
+                extraWeightStepKg: 0.5m,
+                extraStepFee: new Money(5_000m))
+        ]));
+    }
+
+    private CreateDraftShipmentService CreateDraftShipmentService(
+        FakeShopRepository shopRepository,
+        FakeShipmentRepository shipmentRepository)
+    {
+        return new CreateDraftShipmentService(
+            new CreateDraftShipmentCommandValidator(),
+            CreateShippingFeeService(),
+            new RouteClassificationService(),
+            shipmentRepository,
+            new ShopAccessService(CreateIdentityService(), shopRepository));
+    }
+
+    private UpdateShipmentBeforePickupService CreateUpdateShipmentBeforePickupService(
+        FakeShopRepository shopRepository,
+        FakeShipmentRepository shipmentRepository,
+        FakeCodTransactionRepository codTransactionRepository)
+    {
+        return new UpdateShipmentBeforePickupService(
+            new UpdateShipmentBeforePickupCommandValidator(),
+            CreateShippingFeeService(),
+            new RouteClassificationService(),
+            shipmentRepository,
+            new ShopAccessService(CreateIdentityService(), shopRepository),
+            codTransactionRepository);
+    }
+
+    private SubmitDraftShipmentService CreateSubmitDraftShipmentService(
+        FakeShopRepository shopRepository,
+        FakeShipmentRepository shipmentRepository,
+        FakeCodTransactionRepository codTransactionRepository,
+        AutoAssignShipmentService autoAssignShipmentService)
+    {
+        return new SubmitDraftShipmentService(
+            new SubmitDraftShipmentCommandValidator(),
+            CreateShippingFeeService(),
+            new RouteClassificationService(),
+            shipmentRepository,
+            new ShopAccessService(CreateIdentityService(), shopRepository),
+            codTransactionRepository,
+            autoAssignShipmentService);
+    }
+
+    private ShipmentImportService CreateShipmentImportService(
+        FakeShopRepository shopRepository,
+        FakeShipmentRepository shipmentRepository,
+        FakeCodTransactionRepository codTransactionRepository)
+    {
+        var feeService = new ShippingFeeService(new FakeFeeRuleRepository([
+            new FeeRule(
+                RouteType.InterRegion,
+                baseWeightKg: 1m,
+                baseFee: new Money(35_000m),
+                extraWeightStepKg: 0.5m,
+                extraStepFee: new Money(8_000m)),
+            new FeeRule(
+                RouteType.IntraProvince,
+                baseWeightKg: 1m,
+                baseFee: new Money(20_000m),
+                extraWeightStepKg: 0.5m,
+                extraStepFee: new Money(5_000m))
+        ]));
+        var routeClassificationService = new RouteClassificationService();
+        var shopAccessService = new ShopAccessService(CreateIdentityService(), shopRepository);
+        var createShipmentService = new CreateShipmentService(
+            new CreateShipmentCommandValidator(),
+            feeService,
+            routeClassificationService,
+            shipmentRepository,
+            shopAccessService,
+            codTransactionRepository,
+            CreateAutoAssignService(shipmentRepository, [], []));
+
+        return new ShipmentImportService(
+            new PreviewShipmentImportCommandValidator(),
+            new ConfirmShipmentImportCommandValidator(),
+            new CreateShipmentCommandValidator(),
+            shopAccessService,
+            routeClassificationService,
+            feeService,
+            createShipmentService);
+    }
+
+    private static string BuildImportCsv(params string[] rows)
+    {
+        const string header = "clientOrderCode,receiverName,receiverPhone,deliveryStreet,deliveryWard,deliveryProvince,deliveryCountry,weightKg,lengthCm,widthCm,heightCm,goodsValueAmount,codAmount,note";
+        return header + Environment.NewLine + string.Join(Environment.NewLine, rows);
+    }
+
+    private CreateShipmentCommand BuildCreateShipmentCommand(Guid shopId)
+    {
+        return new CreateShipmentCommand(
+            _shopUserId,
+            "Demo Shop",
+            "0900000000",
+            "Demo Receiver",
+            "0911111111",
+            new ShipmentAddressDto("1 Nguyen Trai", "Ben Thanh", "Ho Chi Minh"),
+            new ShipmentAddressDto("9 Le Loi", "Hoan Kiem", "Thanh pho Ha Noi"),
+            WeightKg: 1.2m,
+            LengthCm: 20m,
+            WidthCm: 15m,
+            HeightCm: 10m,
+            GoodsValueAmount: 2_000_000m,
+            CodAmount: 150_000m,
+            Currency: "VND",
+            Note: "Draft/edit test shipment.",
+            ShopId: shopId);
+    }
+
+    private CreateDraftShipmentCommand BuildDraftCommand(Guid shopId)
+    {
+        var createCommand = BuildCreateShipmentCommand(shopId);
+        return new CreateDraftShipmentCommand(
+            createCommand.CreatedByUserId,
+            createCommand.SenderName,
+            createCommand.SenderPhone,
+            createCommand.ReceiverName,
+            createCommand.ReceiverPhone,
+            createCommand.PickupAddress,
+            createCommand.DeliveryAddress,
+            createCommand.WeightKg,
+            createCommand.LengthCm,
+            createCommand.WidthCm,
+            createCommand.HeightCm,
+            createCommand.GoodsValueAmount,
+            createCommand.CodAmount,
+            createCommand.Currency,
+            createCommand.Note,
+            createCommand.ShopId);
+    }
+
+    private UpdateShipmentBeforePickupCommand BuildUpdateBeforePickupCommand(
+        Guid shopId,
+        Guid shipmentId,
+        string deliveryProvince = "Thanh pho Ha Noi",
+        decimal goodsValueAmount = 2_000_000m,
+        decimal codAmount = 150_000m)
+    {
+        return new UpdateShipmentBeforePickupCommand(
+            _shopUserId,
+            shipmentId,
+            "Demo Shop",
+            "0900000000",
+            "Updated Receiver",
+            "0911111111",
+            new ShipmentAddressDto("1 Nguyen Trai", "Ben Thanh", "Ho Chi Minh"),
+            new ShipmentAddressDto("9 Le Loi", "Ben Nghe", deliveryProvince),
+            WeightKg: 1m,
+            LengthCm: 10m,
+            WidthCm: 10m,
+            HeightCm: 10m,
+            GoodsValueAmount: goodsValueAmount,
+            CodAmount: codAmount,
+            Currency: "VND",
+            Note: "Updated before pickup.",
+            ShopId: shopId);
+    }
+
+    private static ShipmentImportRowDraft CreateImportRowDraft(int rowNumber, string clientOrderCode)
+    {
+        return new ShipmentImportRowDraft(
+            rowNumber,
+            clientOrderCode,
+            "Demo Receiver",
+            "0911111111",
+            "9 Le Loi",
+            "Hoan Kiem",
+            "Thanh pho Ha Noi",
+            "Vietnam",
+            1.2m,
+            20m,
+            15m,
+            10m,
+            2_000_000m,
+            150_000m,
+            "Imported order");
+    }
+
     private Shipment CreateAssignedShipment(Guid shipperId, decimal codAmount = 100_000m)
     {
         var shipment = CreateShipment(_shopUserId, codAmount);
@@ -1116,6 +1892,13 @@ public sealed class ShipmentBusinessRuleTests
             RouteType.IntraProvince,
             createdByUserId,
             "Test shipment.");
+    }
+
+    private static void ForceShipmentStatus(Shipment shipment, ShipmentStatus status)
+    {
+        typeof(Shipment)
+            .GetProperty(nameof(Shipment.Status))!
+            .SetValue(shipment, status);
     }
 
     private static Shop CreateShop(Guid ownerUserId)
@@ -1437,6 +2220,10 @@ public sealed class ShipmentBusinessRuleTests
             _workingAreas = workingAreas.ToList();
         }
 
+        public int SaveChangesCount { get; private set; }
+
+        public IReadOnlyList<ShipperWorkingArea> WorkingAreas => _workingAreas.AsReadOnly();
+
         public Task<IReadOnlyList<ShipperWorkingArea>> GetByShipperIdAsync(
             Guid shipperId,
             bool activeOnly = false,
@@ -1483,6 +2270,7 @@ public sealed class ShipmentBusinessRuleTests
 
         public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+            SaveChangesCount++;
             return Task.CompletedTask;
         }
     }
@@ -1501,6 +2289,15 @@ public sealed class ShipmentBusinessRuleTests
             PublishCount++;
             LastEventType = eventType;
             return Task.CompletedTask;
+        }
+
+        public Task PublishShipmentAsync(
+            Shipment shipment,
+            ExternalShipmentReference reference,
+            string eventType,
+            CancellationToken cancellationToken = default)
+        {
+            return PublishShipmentAsync(shipment, eventType, cancellationToken);
         }
     }
 
@@ -1708,6 +2505,15 @@ public sealed class ShipmentBusinessRuleTests
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(_shops.FirstOrDefault(shop => shop.OwnerUserId == ownerUserId));
+        }
+
+        public Task<IReadOnlyList<Shop>> GetAllByOwnerUserIdAsync(
+            Guid ownerUserId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<Shop>>(_shops
+                .Where(shop => shop.OwnerUserId == ownerUserId)
+                .ToList());
         }
 
         public Task<IReadOnlyList<Shop>> GetAllAsync(CancellationToken cancellationToken = default)

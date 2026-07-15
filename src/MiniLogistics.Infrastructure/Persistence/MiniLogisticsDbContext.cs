@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Fees;
 using MiniLogistics.Domain.Operations;
+using MiniLogistics.Domain.Outbox;
 using MiniLogistics.Domain.PartnerApi;
 using MiniLogistics.Domain.Shipments;
 using MiniLogistics.Domain.Shops;
@@ -43,6 +44,10 @@ public sealed class MiniLogisticsDbContext : IdentityDbContext<ApplicationUser, 
     public DbSet<WebhookDelivery> WebhookDeliveries => Set<WebhookDelivery>();
 
     public DbSet<PartnerApiRequestAudit> PartnerApiRequestAudits => Set<PartnerApiRequestAudit>();
+
+    public DbSet<PartnerApiCredentialAudit> PartnerApiCredentialAudits => Set<PartnerApiCredentialAudit>();
+
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

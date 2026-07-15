@@ -74,11 +74,11 @@ public sealed class AssignShipperToShipmentService : IAssignShipperToShipmentSer
             return assignResult;
         }
 
-        await _shipmentRepository.SaveChangesAsync(cancellationToken);
         await _webhookEventPublisher.PublishShipmentAsync(
             shipment,
             WebhookEventTypes.ShipmentStatusChanged,
             cancellationToken);
+        await _shipmentRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
     }

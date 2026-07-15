@@ -10,6 +10,13 @@
     margin-bottom: 1.5rem;
 }
 
+.heading-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
 .page-heading h1 {
     color: #071b4d;
     font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
@@ -81,6 +88,11 @@
 
 .shipments-table tbody tr:hover {
     background: #f8fbff;
+}
+
+.shipments-table td:last-child {
+    display: flex;
+    gap: 0.5rem;
 }
 
 .tracking-link {
@@ -165,8 +177,134 @@
     width: 24px;
 }
 
+.import-panel {
+    display: grid;
+    gap: 1rem;
+    margin-top: 1.25rem;
+}
+
+.import-header,
+.import-upload-row,
+.import-actions {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    justify-content: space-between;
+}
+
+.import-header h2 {
+    color: #071b4d;
+    font-size: 1.2rem;
+    font-weight: 800;
+    margin: 0 0 0.35rem;
+}
+
+.import-header p {
+    color: #64748b;
+    margin: 0;
+}
+
+.import-limit {
+    background: #eef4fb;
+    border-radius: 999px;
+    color: #41547c;
+    font-size: 0.8rem;
+    font-weight: 800;
+    padding: 0.45rem 0.7rem;
+}
+
+.import-upload-row label {
+    color: #071b4d;
+    display: grid;
+    font-weight: 800;
+    gap: 0.45rem;
+    min-width: min(100%, 22rem);
+}
+
+.import-upload-row input {
+    border: 1px solid #d7e4f2;
+    border-radius: 8px;
+    padding: 0.65rem;
+}
+
+.import-state {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    color: #1d4ed8;
+    font-weight: 800;
+    padding: 0.85rem 1rem;
+}
+
+.import-summary-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+}
+
+.import-summary-grid article {
+    background: #f8fbff;
+    border: 1px solid #e5eef8;
+    border-radius: 8px;
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.85rem;
+}
+
+.import-summary-grid span {
+    color: #64748b;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.import-summary-grid strong {
+    color: #071b4d;
+    font-size: 1.35rem;
+    font-weight: 900;
+}
+
+.import-table-shell {
+    max-height: 34rem;
+}
+
+.import-table {
+    min-width: 980px;
+}
+
+.import-table small {
+    color: #64748b;
+    display: block;
+    margin-top: 0.25rem;
+}
+
+.import-table tr.valid-row {
+    background: #fbfefc;
+}
+
+.import-table tr.invalid-row {
+    background: #fffafa;
+}
+
+.import-errors {
+    color: #b91c1c;
+    font-size: 0.82rem;
+    line-height: 1.45;
+    margin: 0.5rem 0 0;
+    padding-left: 1rem;
+}
+
 @media (max-width: 720px) {
     .page-heading {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .heading-actions,
+    .import-header,
+    .import-upload-row,
+    .import-actions {
         align-items: stretch;
         flex-direction: column;
     }

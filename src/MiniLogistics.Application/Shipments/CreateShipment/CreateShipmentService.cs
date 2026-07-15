@@ -3,7 +3,7 @@ using MiniLogistics.Application.CashOnDelivery;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Fees;
 using MiniLogistics.Application.Routing;
-using MiniLogistics.Application.Shops;
+using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Application.Shipments.AutoAssignShipment;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Common;
@@ -20,7 +20,7 @@ public sealed class CreateShipmentService : ICreateShipmentService
     private readonly IShippingFeeService _shippingFeeService;
     private readonly IRouteClassificationService _routeClassificationService;
     private readonly IShipmentRepository _shipmentRepository;
-    private readonly IShopRepository _shopRepository;
+    private readonly IShopAccessService _shopAccessService;
     private readonly ICodTransactionRepository _codTransactionRepository;
     private readonly IAutoAssignShipmentService _autoAssignShipmentService;
 
@@ -29,7 +29,7 @@ public sealed class CreateShipmentService : ICreateShipmentService
         IShippingFeeService shippingFeeService,
         IRouteClassificationService routeClassificationService,
         IShipmentRepository shipmentRepository,
-        IShopRepository shopRepository,
+        IShopAccessService shopAccessService,
         ICodTransactionRepository codTransactionRepository,
         IAutoAssignShipmentService autoAssignShipmentService)
     {
@@ -37,7 +37,7 @@ public sealed class CreateShipmentService : ICreateShipmentService
         _shippingFeeService = shippingFeeService;
         _routeClassificationService = routeClassificationService;
         _shipmentRepository = shipmentRepository;
-        _shopRepository = shopRepository;
+        _shopAccessService = shopAccessService;
         _codTransactionRepository = codTransactionRepository;
         _autoAssignShipmentService = autoAssignShipmentService;
     }
@@ -53,17 +53,17 @@ public sealed class CreateShipmentService : ICreateShipmentService
             return Result<CreateShipmentResponse>.Failure(ApplicationErrors.ValidationFailed(description));
         }
 
-        var shop = await _shopRepository.GetByOwnerUserIdAsync(command.CreatedByUserId, cancellationToken);
-        if (shop is null)
+        var shopResult = await _shopAccessService.GetShopForUserAsync(
+            command.CreatedByUserId,
+            command.ShopId,
+            requireActiveShop: true,
+            cancellationToken);
+        if (shopResult.IsFailure)
         {
-            return Result<CreateShipmentResponse>.Failure(ApplicationErrors.NotFound("Shop was not found for current user."));
+            return Result<CreateShipmentResponse>.Failure(shopResult.Error);
         }
 
-        if (!shop.IsActive)
-        {
-            return Result<CreateShipmentResponse>.Failure(ApplicationErrors.Forbidden("Shop account is not active."));
-        }
-
+        var shop = shopResult.Value;
         var weight = new Weight(command.WeightKg);
         var parcelDimensions = new ParcelDimensions(
             command.LengthCm,

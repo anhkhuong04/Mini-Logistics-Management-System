@@ -1,0 +1,424 @@
+@page "/profile"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Shop")]
+@using System.Security.Claims
+@using MiniLogistics.Application.Shops.CreateAdditionalShop
+@using MiniLogistics.Application.Shops.GetShopContext
+@using MiniLogistics.Application.Shops.GetShopProfile
+@using MiniLogistics.Application.Shops.UpdateShopProfile
+@inject ICreateAdditionalShopService CreateAdditionalShopService
+@inject IGetShopContextService GetShopContextService
+@inject IGetShopProfileService GetShopProfileService
+@inject IUpdateShopProfileService UpdateShopProfileService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Ho so shop - MiniLogistics</PageTitle>
+
+<div class="shop-profile-page">
+    <header class="profile-hero">
+        <div>
+            <p class="eyebrow">Tai khoan shop</p>
+            <h1>Ho so shop</h1>
+            <p>Cap nhat thong tin lien he va dia chi lay hang mac dinh cho cac van don moi.</p>
+        </div>
+
+        <button type="button" class="secondary-button" disabled="@IsLoading" @onclick="LoadAsync">
+            Lam moi
+        </button>
+    </header>
+
+    @if (ShopContext is not null)
+    {
+        <section class="shop-context-bar" aria-label="Shop context">
+            <label for="profile-shop-context">
+                Shop dang chon
+                <select id="profile-shop-context" value="@SelectedShopId" @onchange="OnShopChanged">
+                    @foreach (var shop in ShopContext.Shops)
+                    {
+                        <option value="@shop.ShopId">
+                            @shop.Name@(shop.IsActive ? string.Empty : " (Inactive)")
+                        </option>
+                    }
+                </select>
+            </label>
+            <span class="shop-context-status @(SelectedShop?.IsActive == true ? "active" : "inactive")">
+                @(SelectedShop?.IsActive == true ? "Active" : "Inactive")
+            </span>
+        </section>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert-box danger" role="alert">@ErrorMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
+    {
+        <div class="alert-box success" role="status">@SuccessMessage</div>
+    }
+
+    @if (IsLoading)
+    {
+        <section class="profile-panel state-card" aria-live="polite">
+            <strong>Dang tai ho so shop</strong>
+        </section>
+    }
+    else if (Profile is not null)
+    {
+        <section class="summary-grid" aria-label="Tom tat shop">
+            <article class="metric-card">
+                <span>Trang thai</span>
+                <strong class="status-text @(Profile.IsActive ? "active" : "inactive")">
+                    @(Profile.IsActive ? "Active" : "Inactive")
+                </strong>
+            </article>
+            <article class="metric-card">
+                <span>Ngay tao</span>
+                <strong>@FormatDate(Profile.CreatedAtUtc)</strong>
+            </article>
+            <article class="metric-card">
+                <span>Cap nhat lan cuoi</span>
+                <strong>@(Profile.UpdatedAtUtc is null ? "Chua cap nhat" : FormatDate(Profile.UpdatedAtUtc.Value))</strong>
+            </article>
+        </section>
+
+        @if (!Profile.IsActive)
+        {
+            <div class="alert-box warning" role="status">
+                Shop dang inactive. Ban van co the xem ho so va lich su don hang, nhung khong the cap nhat profile hoac tao van don moi.
+            </div>
+        }
+
+        <section class="profile-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Thong tin mac dinh</p>
+                    <h2>Thong tin shop va diem lay hang</h2>
+                </div>
+            </div>
+
+            <form class="profile-form" @onsubmit="SaveAsync" @onsubmit:preventDefault="true">
+                <label class="field-group" for="profile-shop-name">
+                    <span>Ten shop</span>
+                    <input id="profile-shop-name" maxlength="200" required disabled="@IsReadOnly" @bind="Name" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group" for="profile-phone">
+                    <span>So dien thoai</span>
+                    <input id="profile-phone" type="tel" maxlength="20" required disabled="@IsReadOnly" @bind="PhoneNumber" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group" for="profile-province">
+                    <span>Tinh / Thanh pho</span>
+                    <input id="profile-province" maxlength="100" required disabled="@IsReadOnly" @bind="Province" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group" for="profile-ward">
+                    <span>Phuong / Xa</span>
+                    <input id="profile-ward" maxlength="100" required disabled="@IsReadOnly" @bind="Ward" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group field-wide" for="profile-address">
+                    <span>Dia chi lay hang</span>
+                    <input id="profile-address" maxlength="300" required disabled="@IsReadOnly" @bind="AddressLine" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group" for="profile-country">
+                    <span>Quoc gia</span>
+                    <input id="profile-country" maxlength="100" required disabled="@IsReadOnly" @bind="Country" @bind:event="oninput" />
+                </label>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@IsReadOnly">
+                        @(IsSaving ? "Dang luu..." : "Luu thay doi")
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section class="profile-panel">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Multi-shop</p>
+                    <h2>Them shop moi</h2>
+                </div>
+            </div>
+
+            <form class="profile-form" @onsubmit="CreateAdditionalShopAsync" @onsubmit:preventDefault="true">
+                <label class="field-group" for="new-shop-name">
+                    <span>Ten shop</span>
+                    <input id="new-shop-name" maxlength="200" required @bind="NewShopName" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group" for="new-shop-phone">
+                    <span>So dien thoai</span>
+                    <input id="new-shop-phone" type="tel" maxlength="20" required @bind="NewShopPhoneNumber" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group" for="new-shop-province">
+                    <span>Tinh / Thanh pho</span>
+                    <input id="new-shop-province" maxlength="100" required @bind="NewShopProvince" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group" for="new-shop-ward">
+                    <span>Phuong / Xa</span>
+                    <input id="new-shop-ward" maxlength="100" required @bind="NewShopWard" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group field-wide" for="new-shop-address">
+                    <span>Dia chi lay hang</span>
+                    <input id="new-shop-address" maxlength="300" required @bind="NewShopAddressLine" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group" for="new-shop-country">
+                    <span>Quoc gia</span>
+                    <input id="new-shop-country" maxlength="100" required @bind="NewShopCountry" @bind:event="oninput" />
+                </label>
+
+                <div class="form-actions">
+                    <button type="submit" class="secondary-button" disabled="@IsCreatingAdditionalShop">
+                        @(IsCreatingAdditionalShop ? "Dang tao..." : "Tao shop moi")
+                    </button>
+                </div>
+            </form>
+        </section>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "shopId")]
+    public Guid? ShopId { get; set; }
+
+    private GetShopProfileResponse? Profile { get; set; }
+
+    private GetShopContextResponse? ShopContext { get; set; }
+
+    private Guid SelectedShopId { get; set; }
+
+    private ShopContextItemResponse? SelectedShop => ShopContext?.Shops
+        .FirstOrDefault(shop => shop.ShopId == SelectedShopId);
+
+    private bool IsLoading { get; set; } = true;
+
+    private bool IsSaving { get; set; }
+
+    private bool IsCreatingAdditionalShop { get; set; }
+
+    private string? ErrorMessage { get; set; }
+
+    private string? SuccessMessage { get; set; }
+
+    private string Name { get; set; } = string.Empty;
+
+    private string PhoneNumber { get; set; } = string.Empty;
+
+    private string AddressLine { get; set; } = string.Empty;
+
+    private string Ward { get; set; } = string.Empty;
+
+    private string Province { get; set; } = string.Empty;
+
+    private string Country { get; set; } = "Vietnam";
+
+    private string NewShopName { get; set; } = string.Empty;
+
+    private string NewShopPhoneNumber { get; set; } = string.Empty;
+
+    private string NewShopAddressLine { get; set; } = string.Empty;
+
+    private string NewShopWard { get; set; } = string.Empty;
+
+    private string NewShopProvince { get; set; } = string.Empty;
+
+    private string NewShopCountry { get; set; } = "Vietnam";
+
+    private bool IsReadOnly => IsSaving || Profile?.IsActive != true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        var userId = await GetCurrentUserIdAsync();
+        if (userId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var contextResult = await GetShopContextService.GetAsync(userId.Value, ShopId);
+        if (contextResult.IsFailure)
+        {
+            IsLoading = false;
+            ErrorMessage = UiDisplay.ToErrorMessage(contextResult.Error);
+            return;
+        }
+
+        ShopContext = contextResult.Value;
+        SelectedShopId = contextResult.Value.SelectedShopId;
+
+        var result = await GetShopProfileService.GetAsync(userId.Value, SelectedShopId);
+        IsLoading = false;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        Profile = result.Value;
+        SyncForm(result.Value);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (Profile?.IsActive != true || IsSaving)
+        {
+            return;
+        }
+
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        var userId = await GetCurrentUserIdAsync();
+        if (userId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        IsSaving = true;
+        var result = await UpdateShopProfileService.UpdateAsync(new UpdateShopProfileCommand(
+            userId.Value,
+            Name,
+            PhoneNumber,
+            AddressLine,
+            Ward,
+            Province,
+            Country,
+            SelectedShopId));
+        IsSaving = false;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        var updated = result.Value;
+        Profile = new GetShopProfileResponse(
+            updated.ShopId,
+            updated.Name,
+            updated.PhoneNumber,
+            updated.AddressLine,
+            updated.Ward,
+            updated.Province,
+            updated.Country,
+            updated.IsActive,
+            Profile.CreatedAtUtc,
+            updated.UpdatedAtUtc);
+        SyncForm(Profile);
+        SuccessMessage = "Da cap nhat ho so shop.";
+    }
+
+    private async Task CreateAdditionalShopAsync()
+    {
+        if (IsCreatingAdditionalShop)
+        {
+            return;
+        }
+
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        var userId = await GetCurrentUserIdAsync();
+        if (userId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        IsCreatingAdditionalShop = true;
+        var result = await CreateAdditionalShopService.CreateAsync(new CreateAdditionalShopCommand(
+            userId.Value,
+            NewShopName,
+            NewShopPhoneNumber,
+            NewShopAddressLine,
+            NewShopWard,
+            NewShopProvince,
+            NewShopCountry));
+        IsCreatingAdditionalShop = false;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        ResetNewShopForm();
+        SuccessMessage = "Da tao shop moi.";
+        NavigationManager.NavigateTo(BuildShopLink("/profile", result.Value.ShopId));
+    }
+
+    private void OnShopChanged(ChangeEventArgs args)
+    {
+        if (Guid.TryParse(args.Value?.ToString(), out var shopId))
+        {
+            NavigationManager.NavigateTo(BuildShopLink("/profile", shopId));
+        }
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userIdValue = authenticationState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(userIdValue, out var userId)
+            ? userId
+            : null;
+    }
+
+    private string BuildShopLink(string path)
+    {
+        return BuildShopLink(path, SelectedShopId);
+    }
+
+    private static string BuildShopLink(string path, Guid shopId)
+    {
+        return shopId == Guid.Empty
+            ? path
+            : $"{path}?shopId={shopId:D}";
+    }
+
+    private void ResetNewShopForm()
+    {
+        NewShopName = string.Empty;
+        NewShopPhoneNumber = string.Empty;
+        NewShopAddressLine = string.Empty;
+        NewShopWard = string.Empty;
+        NewShopProvince = string.Empty;
+        NewShopCountry = "Vietnam";
+    }
+
+    private void SyncForm(GetShopProfileResponse profile)
+    {
+        Name = profile.Name;
+        PhoneNumber = profile.PhoneNumber;
+        AddressLine = profile.AddressLine;
+        Ward = profile.Ward;
+        Province = profile.Province;
+        Country = profile.Country;
+    }
+
+    private static string FormatDate(DateTimeOffset value)
+    {
+        return UiDisplay.FormatLocalDateTime(value);
+    }
+}

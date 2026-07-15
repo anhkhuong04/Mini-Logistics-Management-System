@@ -7,13 +7,13 @@ public sealed class WebhookEndpoint : AuditableEntity
     private WebhookEndpoint()
     {
         Url = string.Empty;
-        SigningSecret = string.Empty;
+        ProtectedSigningSecret = string.Empty;
     }
 
     public WebhookEndpoint(
         Guid apiClientId,
         string url,
-        string signingSecret)
+        string protectedSigningSecret)
         : base(Guid.NewGuid())
     {
         if (apiClientId == Guid.Empty)
@@ -23,7 +23,7 @@ public sealed class WebhookEndpoint : AuditableEntity
 
         ApiClientId = apiClientId;
         Url = RequireUrl(url);
-        SigningSecret = RequireText(signingSecret, nameof(signingSecret), 200);
+        ProtectedSigningSecret = RequireText(protectedSigningSecret, nameof(protectedSigningSecret), 2048);
         IsActive = true;
     }
 
@@ -31,14 +31,14 @@ public sealed class WebhookEndpoint : AuditableEntity
 
     public string Url { get; private set; }
 
-    public string SigningSecret { get; private set; }
+    public string ProtectedSigningSecret { get; private set; }
 
     public bool IsActive { get; private set; }
 
-    public void Update(string url, string signingSecret)
+    public void Update(string url, string protectedSigningSecret)
     {
         Url = RequireUrl(url);
-        SigningSecret = RequireText(signingSecret, nameof(signingSecret), 200);
+        ProtectedSigningSecret = RequireText(protectedSigningSecret, nameof(protectedSigningSecret), 2048);
         MarkUpdated();
     }
 

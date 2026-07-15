@@ -21,7 +21,8 @@ public sealed record PartnerApiClientResponse(
     DateTimeOffset? LastUsedAtUtc,
     DateTimeOffset CreatedAtUtc,
     PartnerWebhookEndpointResponse? WebhookEndpoint,
-    IReadOnlyList<PartnerWebhookDeliveryResponse> RecentDeliveries);
+    IReadOnlyList<PartnerWebhookDeliveryResponse> RecentDeliveries,
+    IReadOnlyList<PartnerApiCredentialAuditResponse> RecentCredentialAudits);
 
 public sealed record PartnerWebhookEndpointResponse(
     Guid WebhookEndpointId,
@@ -49,3 +50,11 @@ public sealed record PartnerApiClientSecretResponse(
 public sealed record PartnerWebhookTestResponse(
     Guid WebhookDeliveryId,
     string EventType);
+
+public sealed record PartnerApiCredentialAuditResponse(
+    Guid AuditId,
+    Guid ActorUserId,
+    string Action,
+    bool IsSuccess,
+    string? ErrorCode,
+    DateTimeOffset OccurredAtUtc);

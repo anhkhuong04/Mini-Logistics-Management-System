@@ -173,11 +173,12 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
         await _shipmentRepository.AddAsync(shipment, cancellationToken);
         await _codTransactionRepository.AddAsync(codTransaction, cancellationToken);
         await _externalShipmentReferenceRepository.AddAsync(reference, cancellationToken);
-        await _shipmentRepository.SaveChangesAsync(cancellationToken);
         await _webhookEventPublisher.PublishShipmentAsync(
             shipment,
+            reference,
             WebhookEventTypes.ShipmentCreated,
             cancellationToken);
+        await _shipmentRepository.SaveChangesAsync(cancellationToken);
 
         await _autoAssignShipmentService.AutoAssignAsync(shipment.Id, cancellationToken);
 

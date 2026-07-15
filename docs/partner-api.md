@@ -43,6 +43,8 @@ Limits are enforced per API client with a 1 minute fixed window.
 
 When exceeded, the API returns `429` with `Retry-After`.
 
+Default configuration uses in-memory counters. Set `PartnerApi:RateLimiting:Mode` to `Distributed` to use the `IDistributedCache` implementation without changing endpoint code.
+
 ## Quote
 
 ```http
@@ -114,7 +116,9 @@ Responses:
 - `200 OK`: same idempotency key and same request body, old response replayed.
 - `409 Conflict`: same idempotency key with different body, or shipment lifecycle rule conflict.
 
-Create shipment writes an audit row to `PartnerApiRequestAudits` for authenticated requests. The audit stores metadata and request hash only, not raw payload or secrets.
+The create response `status` can be `Assigned` immediately when auto assignment finds an eligible shipper for the pickup area. If no eligible shipper is available, the shipment stays `PendingPickup` for Operations manual handling. Idempotent replays return the stored response snapshot, including the same status.
+
+Create shipment writes an audit row to `PartnerApiRequestAudits` for authenticated requests. The audit stores metadata, status, latency and request hash only, not raw payload or secrets.
 
 ## Tracking
 
@@ -141,6 +145,10 @@ Authorization: Bearer {api_key}
 ## Webhooks
 
 Webhook deliveries are configured in `/partner/integrations`.
+
+Webhook signing secrets are encrypted/protected at rest. The worker decrypts the secret only when computing the outbound HMAC signature.
+
+Shipment webhook events are first committed to `OutboxMessages` with the shipment/reference change. The outbox worker materializes `WebhookDelivery` rows, and the webhook delivery worker handles HTTP retry.
 
 Headers:
 

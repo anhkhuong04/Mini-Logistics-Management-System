@@ -81,7 +81,9 @@
                     <select id="integration-shop" value="@SelectedShopId" @onchange="OnShopChangedAsync">
                         @foreach (var shop in Dashboard.Shops)
                         {
-                            <option value="@shop.ShopId">@shop.ShopName</option>
+                            <option value="@shop.ShopId">
+                                @shop.ShopName@(shop.IsActive ? string.Empty : " (Inactive)")
+                            </option>
                         }
                     </select>
                 </label>
@@ -92,12 +94,19 @@
                 </label>
 
                 <div class="form-actions">
-                    <button type="submit" class="primary-button" disabled="@IsCreatingClient">
+                    <button type="submit" class="primary-button" disabled="@(IsCreatingClient || !CanManageSelectedShop)">
                         @(IsCreatingClient ? "Dang tao..." : "Tao API key")
                     </button>
                 </div>
             </form>
         </section>
+
+        @if (!CanManageSelectedShop)
+        {
+            <div class="alert-box danger" role="status">
+                Shop dang inactive. Ban co the xem integration hien co, nhung khong the tao key, rotate, revoke hoac cap nhat webhook.
+            </div>
+        }
 
         <section class="content-card clients-section">
             <div class="section-heading">
@@ -149,12 +158,12 @@
                                     <td data-label="Lan dung cuoi">@FormatNullableDate(client.LastUsedAtUtc)</td>
                                     <td data-label="Thao tac">
                                         <div class="row-actions">
-                                            <button type="button" class="secondary-button" disabled="@IsBusy" @onclick="() => RotateClientAsync(client.ApiClientId)">
+                                            <button type="button" class="secondary-button" disabled="@(IsBusy || !CanManageSelectedShop)" @onclick="() => RotateClientAsync(client.ApiClientId)">
                                                 Rotate
                                             </button>
                                             <button type="button"
                                                     class="toggle-button @(client.IsActive ? "danger" : "success")"
-                                                    disabled="@IsBusy"
+                                                    disabled="@(IsBusy || !CanManageSelectedShop)"
                                                     @onclick="() => ToggleClientAsync(client)">
                                                 @(client.IsActive ? "Revoke" : "Kich hoat")
                                             </button>
@@ -185,19 +194,19 @@
                     <form class="webhook-form" @onsubmit="SaveWebhookAsync" @onsubmit:preventDefault="true">
                         <label class="field-group" for="webhook-url">
                             <span>Webhook URL</span>
-                            <input id="webhook-url" type="url" maxlength="500" required placeholder="https://store.example.com/webhooks/logistics" @bind="WebhookUrl" @bind:event="oninput" />
+                            <input id="webhook-url" type="url" maxlength="500" required disabled="@(!CanManageSelectedShop)" placeholder="https://store.example.com/webhooks/logistics" @bind="WebhookUrl" @bind:event="oninput" />
                         </label>
 
                         <label class="field-group" for="webhook-secret">
                             <span>Signing secret</span>
-                            <input id="webhook-secret" maxlength="200" required @bind="WebhookSigningSecret" @bind:event="oninput" />
+                            <input id="webhook-secret" maxlength="200" required disabled="@(!CanManageSelectedShop)" @bind="WebhookSigningSecret" @bind:event="oninput" />
                         </label>
 
                         <div class="form-actions split-actions">
-                            <button type="submit" class="primary-button" disabled="@IsSavingWebhook">
+                            <button type="submit" class="primary-button" disabled="@(IsSavingWebhook || !CanManageSelectedShop)">
                                 @(IsSavingWebhook ? "Dang luu..." : "Luu webhook")
                             </button>
-                            <button type="button" class="secondary-button" disabled="@IsTestingWebhook" @onclick="TestWebhookAsync">
+                            <button type="button" class="secondary-button" disabled="@(IsTestingWebhook || !CanManageSelectedShop)" @onclick="TestWebhookAsync">
                                 @(IsTestingWebhook ? "Dang test..." : "Test webhook")
                             </button>
                         </div>
@@ -258,12 +267,69 @@
                         </div>
                     }
                 </article>
+
+                <article class="content-card audit-section">
+                    <div class="section-heading">
+                        <div>
+                            <p class="eyebrow">Security audit</p>
+                            <h2>Lich su key/webhook</h2>
+                        </div>
+                        <span class="section-count">@SelectedClient.RecentCredentialAudits.Count.ToString("N0") action</span>
+                    </div>
+
+                    @if (SelectedClient.RecentCredentialAudits.Count == 0)
+                    {
+                        <div class="state-card compact">
+                            <strong>Chua co audit action</strong>
+                            <p>Cac thao tac tao key, rotate, revoke, webhook se xuat hien tai day.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-shell compact-table">
+                            <table class="audit-table">
+                                <thead>
+                                    <tr>
+                                        <th>Action</th>
+                                        <th>Result</th>
+                                        <th>Actor</th>
+                                        <th>Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var audit in SelectedClient.RecentCredentialAudits)
+                                    {
+                                        <tr>
+                                            <td data-label="Action">
+                                                <strong>@FormatAuditAction(audit.Action)</strong>
+                                                @if (!string.IsNullOrWhiteSpace(audit.ErrorCode))
+                                                {
+                                                    <small>@audit.ErrorCode</small>
+                                                }
+                                            </td>
+                                            <td data-label="Result">
+                                                <span class="status-pill @GetAuditStatusClass(audit.IsSuccess)">
+                                                    @(audit.IsSuccess ? "Success" : "Failed")
+                                                </span>
+                                            </td>
+                                            <td data-label="Actor"><code>@audit.ActorUserId.ToString()[..8]</code></td>
+                                            <td data-label="Time">@FormatDate(audit.OccurredAtUtc)</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </article>
             </section>
         }
     }
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = "shopId")]
+    public Guid? ShopId { get; set; }
+
     private PartnerIntegrationDashboardResponse Dashboard { get; set; } = new([], []);
 
     private bool IsLoading { get; set; } = true;
@@ -277,6 +343,11 @@
     private bool IsBusy => IsCreatingClient || IsSavingWebhook || IsTestingWebhook;
 
     private Guid SelectedShopId { get; set; }
+
+    private PartnerIntegrationShopResponse? SelectedShop => Dashboard.Shops
+        .FirstOrDefault(shop => shop.ShopId == SelectedShopId);
+
+    private bool CanManageSelectedShop => SelectedShop?.IsActive == true;
 
     private Guid? SelectedClientId { get; set; }
 
@@ -300,7 +371,7 @@
     private PartnerApiClientResponse? SelectedClient => Dashboard.ApiClients
         .FirstOrDefault(client => client.ApiClientId == SelectedClientId);
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
         await LoadAsync(clearMessages: true);
     }
@@ -328,7 +399,7 @@
             return;
         }
 
-        var previousShopId = SelectedShopId;
+        var previousShopId = ShopId ?? SelectedShopId;
         var previousClientId = SelectedClientId;
         var result = await PartnerIntegrationManagementService.GetDashboardAsync(currentUserId.Value);
         if (result.IsFailure)
@@ -513,9 +584,7 @@
     {
         if (Guid.TryParse(args.Value?.ToString(), out var shopId))
         {
-            SelectedShopId = shopId;
-            SelectedClientId = VisibleClients.FirstOrDefault()?.ApiClientId;
-            SyncWebhookForm();
+            NavigationManager.NavigateTo(BuildShopLink("/partner/integrations", shopId));
         }
 
         await Task.CompletedTask;
@@ -552,6 +621,13 @@
             : null;
     }
 
+    private static string BuildShopLink(string path, Guid shopId)
+    {
+        return shopId == Guid.Empty
+            ? path
+            : $"{path}?shopId={shopId:D}";
+    }
+
     private static string FormatDate(DateTimeOffset value)
     {
         return UiDisplay.FormatLocalDateTime(value);
@@ -569,6 +645,25 @@
             WebhookDeliveryStatus.Succeeded => "active",
             WebhookDeliveryStatus.Failed => "danger",
             _ => "warning"
+        };
+    }
+
+    private static string GetAuditStatusClass(bool isSuccess)
+    {
+        return isSuccess ? "active" : "danger";
+    }
+
+    private static string FormatAuditAction(string action)
+    {
+        return action switch
+        {
+            PartnerApiCredentialAuditActions.ApiClientCreated => "Create API client",
+            PartnerApiCredentialAuditActions.ApiClientKeyRotated => "Rotate API key",
+            PartnerApiCredentialAuditActions.ApiClientActivated => "Activate API client",
+            PartnerApiCredentialAuditActions.ApiClientDeactivated => "Revoke API client",
+            PartnerApiCredentialAuditActions.WebhookEndpointUpserted => "Save webhook",
+            PartnerApiCredentialAuditActions.WebhookTestQueued => "Test webhook",
+            _ => action
         };
     }
 }

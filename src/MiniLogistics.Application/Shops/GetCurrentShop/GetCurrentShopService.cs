@@ -1,32 +1,34 @@
 using MiniLogistics.Application.Common;
+using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Application.Shops.GetCurrentShop;
 
 public sealed class GetCurrentShopService : IGetCurrentShopService
 {
-    private readonly IShopRepository _shopRepository;
+    private readonly IShopAccessService _shopAccessService;
 
-    public GetCurrentShopService(IShopRepository shopRepository)
+    public GetCurrentShopService(IShopAccessService shopAccessService)
     {
-        _shopRepository = shopRepository;
+        _shopAccessService = shopAccessService;
     }
 
     public async Task<Result<GetCurrentShopResponse>> GetAsync(
         Guid ownerUserId,
+        Guid? shopId = null,
         CancellationToken cancellationToken = default)
     {
-        var shop = await _shopRepository.GetByOwnerUserIdAsync(ownerUserId, cancellationToken);
-        if (shop is null)
+        var shopResult = await _shopAccessService.GetShopForUserAsync(
+            ownerUserId,
+            shopId,
+            requireActiveShop: false,
+            cancellationToken);
+        if (shopResult.IsFailure)
         {
-            return Result<GetCurrentShopResponse>.Failure(ApplicationErrors.NotFound("Shop was not found for current user."));
+            return Result<GetCurrentShopResponse>.Failure(shopResult.Error);
         }
 
-        if (!shop.IsActive)
-        {
-            return Result<GetCurrentShopResponse>.Failure(ApplicationErrors.Forbidden("Shop account is not active."));
-        }
-
+        var shop = shopResult.Value;
         return Result<GetCurrentShopResponse>.Success(new GetCurrentShopResponse(
             shop.Id,
             shop.Name,
@@ -34,6 +36,7 @@ public sealed class GetCurrentShopService : IGetCurrentShopService
             shop.Address.Street,
             shop.Address.Ward,
             shop.Address.Province,
-            shop.Address.Country));
+            shop.Address.Country,
+            shop.IsActive));
     }
 }

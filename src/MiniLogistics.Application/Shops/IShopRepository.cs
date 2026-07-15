@@ -12,6 +12,13 @@ public interface IShopRepository
         Guid ownerUserId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<Shop>> GetAllByOwnerUserIdAsync(
+        Guid ownerUserId,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException();
+    }
+
     Task<IReadOnlyList<Shop>> GetAllAsync(CancellationToken cancellationToken = default);
 
     Task<bool> ExistsByOwnerUserIdAsync(

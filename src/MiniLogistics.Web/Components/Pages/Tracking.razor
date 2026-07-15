@@ -2,10 +2,12 @@
 @rendermode InteractiveServer
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Components
-@using MiniLogistics.Application.Shipments
+@using Microsoft.AspNetCore.Http
 @using MiniLogistics.Application.Shipments.GetPublicTracking
 @using MiniLogistics.Domain.Shipments
 @inject IGetPublicTrackingService GetPublicTrackingService
+@inject IPublicTrackingRateLimiter TrackingRateLimiter
+@inject IHttpContextAccessor HttpContextAccessor
 
 <PageTitle>Tracking</PageTitle>
 
@@ -13,7 +15,7 @@
     <div class="page-heading">
         <div>
             <h1>Tra cứu vận đơn</h1>
-            <p>Nhập tracking code để xem trạng thái hiện tại và timeline giao hàng.</p>
+            <p>Nhập tracking code để xem trạng thái hiện tại và tuyến giao hàng.</p>
         </div>
     </div>
 
@@ -76,9 +78,14 @@
                 <div class="tracking-summary">
                     <span>Tracking code</span>
                     <strong>@TrackingResult.TrackingCode</strong>
-                    <span class="status-pill @GetStatusClass(TrackingResult.CurrentStatus)">
-                        @FormatStatus(TrackingResult.CurrentStatus)
-                    </span>
+                    <div class="summary-pills">
+                        <span class="status-pill @GetStatusClass(TrackingResult.CurrentStatus)">
+                            @FormatStatus(TrackingResult.CurrentStatus)
+                        </span>
+                        <span class="access-pill @GetAccessClass(TrackingResult.AccessLevel)">
+                            @FormatAccessLevel(TrackingResult.AccessLevel)
+                        </span>
+                    </div>
                 </div>
 
                 <dl class="summary-grid">
@@ -87,10 +94,79 @@
                         <dd>@FormatDate(TrackingResult.CreatedAtUtc)</dd>
                     </div>
                     <div>
-                        <dt>Trạng thái hiện tại</dt>
-                        <dd>@FormatStatus(TrackingResult.CurrentStatus)</dd>
+                        <dt>Cập nhật cuối</dt>
+                        <dd>@FormatDate(TrackingResult.LastUpdatedAtUtc)</dd>
+                    </div>
+                    <div>
+                        <dt>Từ</dt>
+                        <dd>@TrackingResult.PickupProvince</dd>
+                    </div>
+                    <div>
+                        <dt>Đến</dt>
+                        <dd>@TrackingResult.DeliveryProvince</dd>
+                    </div>
+                    <div>
+                        <dt>Người gửi</dt>
+                        <dd>@DisplayOrHidden(TrackingResult.SenderName)</dd>
+                    </div>
+                    <div>
+                        <dt>Người nhận</dt>
+                        <dd>@DisplayOrHidden(TrackingResult.ReceiverName)</dd>
                     </div>
                 </dl>
+
+                @if (TrackingResult.AccessLevel == PublicTrackingAccessLevel.Summary)
+                {
+                    <div class="privacy-panel">
+                        <div class="privacy-copy">
+                            <strong>Chi tiết đang được ẩn</strong>
+                            <p>Xác minh bằng 4 số cuối điện thoại người gửi hoặc người nhận.</p>
+                        </div>
+
+                        <EditForm Model="VerificationForm" OnValidSubmit="HandleVerifyAsync" class="verify-form">
+                            <DataAnnotationsValidator />
+
+                            <div class="form-field">
+                                <label for="phone-last4">4 số cuối điện thoại</label>
+                                <InputText id="phone-last4" class="form-control" inputmode="numeric" maxlength="4" @bind-Value="VerificationForm.PhoneLast4" />
+                                <ValidationMessage For="() => VerificationForm.PhoneLast4" />
+                            </div>
+
+                            <button class="btn btn-secondary verify-button" type="submit" disabled="@IsVerifying">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M12 2 4 5.5V11c0 5 3.4 9.3 8 10.5 4.6-1.2 8-5.5 8-10.5V5.5L12 2Zm0 2.2 6 2.7V11c0 3.9-2.5 7.3-6 8.4-3.5-1.1-6-4.5-6-8.4V6.9l6-2.7Zm3.7 5.1-5 5-2.4-2.4-1.4 1.4 3.8 3.8 6.4-6.4-1.4-1.4Z" />
+                                </svg>
+                                <span>@(IsVerifying ? "Đang xác minh..." : "Xác minh")</span>
+                            </button>
+                        </EditForm>
+
+                        @if (!string.IsNullOrWhiteSpace(VerifyMessage))
+                        {
+                            <p class="inline-message">@VerifyMessage</p>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <dl class="summary-grid detail-grid">
+                        <div>
+                            <dt>Điện thoại gửi</dt>
+                            <dd>@DisplayOrHidden(TrackingResult.SenderPhone)</dd>
+                        </div>
+                        <div>
+                            <dt>Điện thoại nhận</dt>
+                            <dd>@DisplayOrHidden(TrackingResult.ReceiverPhone)</dd>
+                        </div>
+                        <div>
+                            <dt>Địa chỉ lấy</dt>
+                            <dd>@DisplayOrHidden(TrackingResult.PickupAddress?.FullAddress)</dd>
+                        </div>
+                        <div>
+                            <dt>Địa chỉ giao</dt>
+                            <dd>@DisplayOrHidden(TrackingResult.DeliveryAddress?.FullAddress)</dd>
+                        </div>
+                    </dl>
+                }
 
                 <h2 class="timeline-title">Timeline</h2>
                 <ol class="timeline">
@@ -101,11 +177,6 @@
                             <div>
                                 <strong>@FormatStatus(item.Status)</strong>
                                 <time>@FormatDate(item.ChangedAtUtc)</time>
-                                <small class="timeline-actor">Cập nhật bởi @FormatPublicActor(item)</small>
-                                @if (!string.IsNullOrWhiteSpace(item.Note))
-                                {
-                                    <p>@item.Note</p>
-                                }
                             </div>
                         </li>
                     }
@@ -118,11 +189,17 @@
 @code {
     private TrackingFormModel Form { get; set; } = new();
 
+    private TrackingVerificationFormModel VerificationForm { get; set; } = new();
+
     private bool IsSearching { get; set; }
+
+    private bool IsVerifying { get; set; }
 
     private string? LoadedQueryCode { get; set; }
 
     private string? ErrorMessage { get; set; }
+
+    private string? VerifyMessage { get; set; }
 
     private PublicTrackingResponse? TrackingResult { get; set; }
 
@@ -141,30 +218,10 @@
         LoadedQueryCode = normalizedCode;
         Form.TrackingCode = normalizedCode;
 
-        await SearchAsync(normalizedCode);
-    }
-
-    private async Task HandleSearchAsync()
-    {
-        await SearchAsync(Form.TrackingCode);
-    }
-
-    private async Task SearchAsync(string trackingCode)
-    {
         IsSearching = true;
-        ErrorMessage = null;
-        TrackingResult = null;
-
         try
         {
-            var result = await GetPublicTrackingService.GetAsync(trackingCode.Trim());
-            if (result.IsFailure)
-            {
-                ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
-                return;
-            }
-
-            TrackingResult = result.Value;
+            await SearchAsync(normalizedCode, clearResult: true);
         }
         finally
         {
@@ -172,22 +229,151 @@
         }
     }
 
+    private async Task HandleSearchAsync()
+    {
+        IsSearching = true;
+        try
+        {
+            await SearchAsync(Form.TrackingCode, clearResult: true);
+        }
+        finally
+        {
+            IsSearching = false;
+        }
+    }
+
+    private async Task HandleVerifyAsync()
+    {
+        if (TrackingResult is null)
+        {
+            return;
+        }
+
+        IsVerifying = true;
+        try
+        {
+            await SearchAsync(
+                TrackingResult.TrackingCode,
+                VerificationForm.PhoneLast4,
+                clearResult: false);
+
+            if (TrackingResult?.AccessLevel == PublicTrackingAccessLevel.Summary
+                && string.IsNullOrWhiteSpace(VerifyMessage))
+            {
+                VerifyMessage = "4 số cuối không khớp với vận đơn này.";
+            }
+        }
+        finally
+        {
+            IsVerifying = false;
+        }
+    }
+
+    private async Task SearchAsync(
+        string trackingCode,
+        string? phoneLast4 = null,
+        bool clearResult = true)
+    {
+        var normalizedCode = trackingCode.Trim();
+        if (clearResult)
+        {
+            ErrorMessage = null;
+            VerifyMessage = null;
+            TrackingResult = null;
+            VerificationForm.PhoneLast4 = string.Empty;
+        }
+        else
+        {
+            ErrorMessage = null;
+            VerifyMessage = null;
+        }
+
+        if (!TrackingRateLimiter.TryAcquire(GetClientKey(), normalizedCode, out var retryAfter))
+        {
+            var message = $"Bạn thao tác quá nhanh. Vui lòng thử lại sau {FormatRetryAfter(retryAfter)}.";
+            if (clearResult)
+            {
+                ErrorMessage = message;
+            }
+            else
+            {
+                VerifyMessage = message;
+            }
+
+            return;
+        }
+
+        var result = await GetPublicTrackingService.GetAsync(
+            normalizedCode,
+            phoneLast4?.Trim());
+        if (result.IsFailure)
+        {
+            var message = UiDisplay.ToErrorMessage(result.Error);
+            if (clearResult)
+            {
+                ErrorMessage = message;
+            }
+            else
+            {
+                VerifyMessage = message;
+            }
+
+            return;
+        }
+
+        TrackingResult = result.Value;
+        Form.TrackingCode = result.Value.TrackingCode;
+    }
+
+    private string GetClientKey()
+    {
+        var httpContext = HttpContextAccessor.HttpContext;
+        var forwardedFor = httpContext?.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        if (!string.IsNullOrWhiteSpace(forwardedFor))
+        {
+            return forwardedFor.Split(',')[0].Trim();
+        }
+
+        return httpContext?.Connection.RemoteIpAddress?.ToString() ?? "unknown-circuit";
+    }
+
     private static string FormatDate(DateTimeOffset value)
     {
         return UiDisplay.FormatLocalDateTime(value);
     }
 
-    private static string FormatPublicActor(ShipmentStatusHistoryResponse history)
+    private static string DisplayOrHidden(string? value)
     {
-        return history.ChangedByUserFound
-            ? history.ChangedByDisplayName
-            : "hệ thống";
+        return string.IsNullOrWhiteSpace(value)
+            ? "Đã ẩn"
+            : value;
+    }
+
+    private static string FormatRetryAfter(TimeSpan retryAfter)
+    {
+        var seconds = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds));
+        return $"{seconds} giây";
+    }
+
+    private static string FormatAccessLevel(PublicTrackingAccessLevel accessLevel)
+    {
+        return accessLevel == PublicTrackingAccessLevel.Verified
+            ? "Đã xác minh"
+            : "Tóm tắt";
+    }
+
+    private static string GetAccessClass(PublicTrackingAccessLevel accessLevel)
+    {
+        return accessLevel == PublicTrackingAccessLevel.Verified
+            ? "verified"
+            : "summary";
     }
 
     private static string FormatStatus(ShipmentStatus status)
     {
         return status switch
         {
+            ShipmentStatus.Draft => "Nháp",
             ShipmentStatus.PendingPickup => "Chờ lấy hàng",
             ShipmentStatus.Assigned => "Đã phân công",
             ShipmentStatus.PickingUp => "Đang lấy hàng",
@@ -218,5 +404,12 @@
         [Required]
         [MaxLength(30)]
         public string TrackingCode { get; set; } = string.Empty;
+    }
+
+    private sealed class TrackingVerificationFormModel
+    {
+        [Required]
+        [RegularExpression(@"^\d{4}$", ErrorMessage = "Vui lòng nhập đúng 4 chữ số cuối.")]
+        public string PhoneLast4 { get; set; } = string.Empty;
     }
 }

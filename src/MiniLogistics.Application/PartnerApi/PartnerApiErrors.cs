@@ -16,6 +16,10 @@ public static class PartnerApiErrors
         "PartnerApi.ApiClientInactive",
         "API client is inactive.");
 
+    public static readonly Error ShopInactive = new(
+        "PartnerApi.ShopInactive",
+        "Shop account is inactive.");
+
     public static readonly Error IdempotencyConflict = new(
         "PartnerApi.IdempotencyConflict",
         "Idempotency key was already used with a different request.");

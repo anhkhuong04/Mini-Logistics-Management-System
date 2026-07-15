@@ -13,6 +13,14 @@ public sealed class WebhookDeliveryRepository : IWebhookDeliveryRepository
         _dbContext = dbContext;
     }
 
+    public Task<bool> ExistsAsync(
+        Guid deliveryId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.WebhookDeliveries
+            .AnyAsync(delivery => delivery.Id == deliveryId, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<WebhookDelivery>> GetDueAsync(
         DateTimeOffset dueAtUtc,
         int batchSize,

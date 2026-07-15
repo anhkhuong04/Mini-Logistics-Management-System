@@ -1,0 +1,297 @@
+@page "/admin/shops"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@using System.Security.Claims
+@using MiniLogistics.Application.Shops.GetAdminShops
+@using MiniLogistics.Application.Shops.SetShopActiveStatus
+@inject IGetAdminShopsService GetAdminShopsService
+@inject ISetShopActiveStatusService SetShopActiveStatusService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Quan ly shop - MiniLogistics</PageTitle>
+
+<div class="admin-shops-page">
+    <header class="admin-hero">
+        <div>
+            <p class="eyebrow">Quan tri shop</p>
+            <h1>Shops</h1>
+            <p>Quan ly trang thai business account cua shop ma khong tac dong truc tiep den tai khoan Identity.</p>
+        </div>
+
+        <button type="button" class="refresh-button" disabled="@IsLoading" @onclick="RefreshAsync">Lam moi</button>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert-box danger" role="alert">@ErrorMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
+    {
+        <div class="alert-box success" role="status">@SuccessMessage</div>
+    }
+
+    @if (IsLoading)
+    {
+        <section class="admin-panel state-card" aria-live="polite">
+            <strong>Dang tai danh sach shop</strong>
+        </section>
+    }
+    else
+    {
+        <section class="summary-grid" aria-label="Tom tat shop">
+            <article class="metric-card">
+                <span>Tong shop</span>
+                <strong>@Shops.Count.ToString("N0")</strong>
+            </article>
+            <article class="metric-card">
+                <span>Active</span>
+                <strong>@Shops.Count(shop => shop.IsActive).ToString("N0")</strong>
+            </article>
+            <article class="metric-card">
+                <span>Inactive</span>
+                <strong>@Shops.Count(shop => !shop.IsActive).ToString("N0")</strong>
+            </article>
+        </section>
+
+        <section class="admin-panel shops-section">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Danh sach</p>
+                    <h2>Shop business accounts</h2>
+                </div>
+                <span class="section-count">@VisibleShops.Count.ToString("N0") / @Shops.Count.ToString("N0") shop</span>
+            </div>
+
+            <div class="table-toolbar">
+                <label class="search-field" for="admin-shop-search">
+                    <input id="admin-shop-search" placeholder="Tim theo shop, owner, email, sdt" @bind="SearchText" @bind:event="oninput" />
+                </label>
+
+                <label class="filter-field" for="admin-shop-status">
+                    <span>Trang thai</span>
+                    <select id="admin-shop-status" @bind="StatusFilter">
+                        <option value="All">Tat ca</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </select>
+                </label>
+            </div>
+
+            @if (VisibleShops.Count == 0)
+            {
+                <div class="state-card compact">
+                    <strong>Khong co shop phu hop</strong>
+                    <p>Thu doi tu khoa tim kiem hoac bo loc trang thai.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-shell">
+                    <table class="shops-table">
+                        <thead>
+                            <tr>
+                                <th>Shop</th>
+                                <th>Owner</th>
+                                <th>Dia chi lay hang</th>
+                                <th>Trang thai</th>
+                                <th>Cap nhat</th>
+                                <th>Thao tac</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var shop in VisibleShops)
+                            {
+                                <tr>
+                                    <td data-label="Shop">
+                                        <strong>@shop.Name</strong>
+                                        <small>@shop.PhoneNumber</small>
+                                    </td>
+                                    <td data-label="Owner">
+                                        <strong>@shop.OwnerFullName</strong>
+                                        <small>@shop.OwnerEmail</small>
+                                    </td>
+                                    <td data-label="Dia chi">
+                                        <strong>@shop.Province</strong>
+                                        <small>@FormatAddress(shop)</small>
+                                    </td>
+                                    <td data-label="Trang thai">
+                                        <span class="status-pill @(shop.IsActive ? "active" : "inactive")">
+                                            @(shop.IsActive ? "Active" : "Inactive")
+                                        </span>
+                                    </td>
+                                    <td data-label="Cap nhat">
+                                        <strong>@(shop.UpdatedAtUtc is null ? "Chua cap nhat" : FormatDate(shop.UpdatedAtUtc.Value))</strong>
+                                        <small>Tao @FormatDate(shop.CreatedAtUtc)</small>
+                                    </td>
+                                    <td data-label="Thao tac">
+                                        <button type="button"
+                                                class="toggle-button @(shop.IsActive ? "danger" : "success")"
+                                                disabled="@IsToggling(shop.ShopId)"
+                                                @onclick="() => ToggleShopAsync(shop)">
+                                            @GetToggleButtonText(shop)
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    private bool IsLoading { get; set; } = true;
+
+    private Guid? TogglingShopId { get; set; }
+
+    private string? ErrorMessage { get; set; }
+
+    private string? SuccessMessage { get; set; }
+
+    private string SearchText { get; set; } = string.Empty;
+
+    private string StatusFilter { get; set; } = "All";
+
+    private IReadOnlyList<GetAdminShopResponse> Shops { get; set; } = [];
+
+    private IReadOnlyList<GetAdminShopResponse> VisibleShops => Shops
+        .Where(MatchesFilters)
+        .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync(clearMessages: true);
+    }
+
+    private async Task RefreshAsync()
+    {
+        await LoadAsync(clearMessages: true);
+    }
+
+    private async Task LoadAsync(bool clearMessages)
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+
+        if (clearMessages)
+        {
+            SuccessMessage = null;
+        }
+
+        var adminUserId = await GetCurrentUserIdAsync();
+        if (adminUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var result = await GetAdminShopsService.GetAsync(adminUserId.Value);
+        IsLoading = false;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        Shops = result.Value;
+    }
+
+    private async Task ToggleShopAsync(GetAdminShopResponse shop)
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        var adminUserId = await GetCurrentUserIdAsync();
+        if (adminUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        TogglingShopId = shop.ShopId;
+        var targetActiveStatus = !shop.IsActive;
+        var result = await SetShopActiveStatusService.SetAsync(new SetShopActiveStatusCommand(
+            adminUserId.Value,
+            shop.ShopId,
+            targetActiveStatus));
+        TogglingShopId = null;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        SuccessMessage = targetActiveStatus
+            ? $"Da kich hoat shop {shop.Name}."
+            : $"Da tam dung shop {shop.Name}.";
+        await LoadAsync(clearMessages: false);
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userIdValue = authenticationState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(userIdValue, out var userId)
+            ? userId
+            : null;
+    }
+
+    private bool MatchesFilters(GetAdminShopResponse shop)
+    {
+        var matchesStatus = StatusFilter switch
+        {
+            "Active" => shop.IsActive,
+            "Inactive" => !shop.IsActive,
+            _ => true
+        };
+
+        if (!matchesStatus)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(SearchText))
+        {
+            return true;
+        }
+
+        var keyword = SearchText.Trim();
+        return shop.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+            || shop.PhoneNumber.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+            || shop.OwnerFullName.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+            || shop.OwnerEmail.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+            || (shop.OwnerPhoneNumber?.Contains(keyword, StringComparison.OrdinalIgnoreCase) ?? false);
+    }
+
+    private bool IsToggling(Guid shopId)
+    {
+        return TogglingShopId == shopId;
+    }
+
+    private string GetToggleButtonText(GetAdminShopResponse shop)
+    {
+        if (IsToggling(shop.ShopId))
+        {
+            return shop.IsActive ? "Dang tam dung..." : "Dang kich hoat...";
+        }
+
+        return shop.IsActive ? "Tam dung" : "Kich hoat";
+    }
+
+    private static string FormatAddress(GetAdminShopResponse shop)
+    {
+        return string.Join(", ", shop.AddressLine, shop.Ward, shop.Province, shop.Country);
+    }
+
+    private static string FormatDate(DateTimeOffset value)
+    {
+        return UiDisplay.FormatLocalDateTime(value);
+    }
+}

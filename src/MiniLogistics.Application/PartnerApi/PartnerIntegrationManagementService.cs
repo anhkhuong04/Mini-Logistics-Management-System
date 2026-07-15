@@ -13,6 +13,7 @@ namespace MiniLogistics.Application.PartnerApi;
 public sealed class PartnerIntegrationManagementService : IPartnerIntegrationManagementService
 {
     private const int RecentDeliveryCountPerClient = 10;
+    private const int RecentCredentialAuditCountPerClient = 10;
     private static readonly JsonSerializerOptions PayloadJsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IIdentityService _identityService;
@@ -20,19 +21,25 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
     private readonly IApiClientRepository _apiClientRepository;
     private readonly IWebhookEndpointRepository _webhookEndpointRepository;
     private readonly IWebhookDeliveryRepository _webhookDeliveryRepository;
+    private readonly IPartnerApiCredentialAuditRepository _credentialAuditRepository;
+    private readonly ISecretProtector _secretProtector;
 
     public PartnerIntegrationManagementService(
         IIdentityService identityService,
         IShopRepository shopRepository,
         IApiClientRepository apiClientRepository,
         IWebhookEndpointRepository webhookEndpointRepository,
-        IWebhookDeliveryRepository webhookDeliveryRepository)
+        IWebhookDeliveryRepository webhookDeliveryRepository,
+        IPartnerApiCredentialAuditRepository credentialAuditRepository,
+        ISecretProtector secretProtector)
     {
         _identityService = identityService;
         _shopRepository = shopRepository;
         _apiClientRepository = apiClientRepository;
         _webhookEndpointRepository = webhookEndpointRepository;
         _webhookDeliveryRepository = webhookDeliveryRepository;
+        _credentialAuditRepository = credentialAuditRepository;
+        _secretProtector = secretProtector;
     }
 
     public async Task<Result<PartnerIntegrationDashboardResponse>> GetDashboardAsync(
@@ -54,6 +61,10 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             apiClientIds,
             RecentDeliveryCountPerClient,
             cancellationToken);
+        var credentialAudits = await _credentialAuditRepository.GetRecentByApiClientIdsAsync(
+            apiClientIds,
+            RecentCredentialAuditCountPerClient,
+            cancellationToken);
 
         var shopNames = shops.ToDictionary(shop => shop.Id, shop => shop.Name);
         var latestEndpoints = endpoints
@@ -70,6 +81,13 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
                 .OrderByDescending(delivery => delivery.CreatedAtUtc)
                 .Select(MapDelivery)
                 .ToList());
+        var credentialAuditsByClient = credentialAudits
+            .Where(audit => audit.ApiClientId.HasValue)
+            .GroupBy(audit => audit.ApiClientId!.Value)
+            .ToDictionary(group => group.Key, group => group
+                .OrderByDescending(audit => audit.CreatedAtUtc)
+                .Select(MapCredentialAudit)
+                .ToList());
 
         var response = new PartnerIntegrationDashboardResponse(
             shops.Select(shop => new PartnerIntegrationShopResponse(shop.Id, shop.Name, shop.IsActive)).ToList(),
@@ -77,6 +95,7 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             {
                 latestEndpoints.TryGetValue(apiClient.Id, out var endpoint);
                 deliveriesByClient.TryGetValue(apiClient.Id, out var clientDeliveries);
+                credentialAuditsByClient.TryGetValue(apiClient.Id, out var clientAudits);
 
                 return new PartnerApiClientResponse(
                     apiClient.Id,
@@ -88,7 +107,8 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
                     apiClient.LastUsedAtUtc,
                     apiClient.CreatedAtUtc,
                     endpoint is null ? null : MapEndpoint(endpoint),
-                    clientDeliveries ?? []);
+                    clientDeliveries ?? [],
+                    clientAudits ?? []);
             }).ToList());
 
         return Result<PartnerIntegrationDashboardResponse>.Success(response);
@@ -100,12 +120,31 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
     {
         if (string.IsNullOrWhiteSpace(command.Name))
         {
-            return Result<PartnerApiClientSecretResponse>.Failure(ApplicationErrors.ValidationFailed("API client name is required."));
+            var validationError = ApplicationErrors.ValidationFailed("API client name is required.");
+            await SaveCredentialAuditAsync(
+                command.CurrentUserId,
+                command.ShopId,
+                apiClientId: null,
+                PartnerApiCredentialAuditActions.ApiClientCreated,
+                isSuccess: false,
+                validationError,
+                cancellationToken);
+
+            return Result<PartnerApiClientSecretResponse>.Failure(validationError);
         }
 
         var accessResult = await EnsureCanManageShopAsync(command.CurrentUserId, command.ShopId, cancellationToken);
         if (accessResult.IsFailure)
         {
+            await SaveCredentialAuditAsync(
+                command.CurrentUserId,
+                command.ShopId,
+                apiClientId: null,
+                PartnerApiCredentialAuditActions.ApiClientCreated,
+                isSuccess: false,
+                accessResult.Error,
+                cancellationToken);
+
             return Result<PartnerApiClientSecretResponse>.Failure(accessResult.Error);
         }
 
@@ -117,6 +156,14 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             ApiKeyHasher.Hash(apiKey));
 
         await _apiClientRepository.AddAsync(apiClient, cancellationToken);
+        await AddCredentialAuditAsync(
+            command.CurrentUserId,
+            apiClient.ShopId,
+            apiClient.Id,
+            PartnerApiCredentialAuditActions.ApiClientCreated,
+            isSuccess: true,
+            error: null,
+            cancellationToken);
         await _apiClientRepository.SaveChangesAsync(cancellationToken);
 
         return Result<PartnerApiClientSecretResponse>.Success(new PartnerApiClientSecretResponse(
@@ -143,6 +190,14 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
         apiClient.RotateKey(ApiKeyHasher.GetPrefix(apiKey), ApiKeyHasher.Hash(apiKey));
         apiClient.Activate();
 
+        await AddCredentialAuditAsync(
+            command.CurrentUserId,
+            apiClient.ShopId,
+            apiClient.Id,
+            PartnerApiCredentialAuditActions.ApiClientKeyRotated,
+            isSuccess: true,
+            error: null,
+            cancellationToken);
         await _apiClientRepository.SaveChangesAsync(cancellationToken);
 
         return Result<PartnerApiClientSecretResponse>.Success(new PartnerApiClientSecretResponse(
@@ -173,6 +228,16 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             apiClientResult.Value.Deactivate();
         }
 
+        await AddCredentialAuditAsync(
+            command.CurrentUserId,
+            apiClientResult.Value.ShopId,
+            apiClientResult.Value.Id,
+            command.IsActive
+                ? PartnerApiCredentialAuditActions.ApiClientActivated
+                : PartnerApiCredentialAuditActions.ApiClientDeactivated,
+            isSuccess: true,
+            error: null,
+            cancellationToken);
         await _apiClientRepository.SaveChangesAsync(cancellationToken);
         return Result.Success();
     }
@@ -181,11 +246,6 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
         UpsertPartnerWebhookEndpointCommand command,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(command.SigningSecret))
-        {
-            return Result<PartnerWebhookEndpointResponse>.Failure(ApplicationErrors.ValidationFailed("Webhook signing secret is required."));
-        }
-
         var apiClientResult = await GetManageableApiClientAsync(
             command.CurrentUserId,
             command.ApiClientId,
@@ -195,28 +255,62 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             return Result<PartnerWebhookEndpointResponse>.Failure(apiClientResult.Error);
         }
 
+        if (string.IsNullOrWhiteSpace(command.SigningSecret))
+        {
+            var validationError = ApplicationErrors.ValidationFailed("Webhook signing secret is required.");
+            await SaveCredentialAuditAsync(
+                command.CurrentUserId,
+                apiClientResult.Value.ShopId,
+                apiClientResult.Value.Id,
+                PartnerApiCredentialAuditActions.WebhookEndpointUpserted,
+                isSuccess: false,
+                validationError,
+                cancellationToken);
+
+            return Result<PartnerWebhookEndpointResponse>.Failure(validationError);
+        }
+
         try
         {
+            var protectedSigningSecret = _secretProtector.Protect(command.SigningSecret);
             var endpoint = await _webhookEndpointRepository.GetLatestByApiClientIdAsync(
                 apiClientResult.Value.Id,
                 cancellationToken);
             if (endpoint is null)
             {
-                endpoint = new WebhookEndpoint(apiClientResult.Value.Id, command.Url, command.SigningSecret);
+                endpoint = new WebhookEndpoint(apiClientResult.Value.Id, command.Url, protectedSigningSecret);
                 await _webhookEndpointRepository.AddAsync(endpoint, cancellationToken);
             }
             else
             {
-                endpoint.Update(command.Url, command.SigningSecret);
+                endpoint.Update(command.Url, protectedSigningSecret);
                 endpoint.Activate();
             }
 
+            await AddCredentialAuditAsync(
+                command.CurrentUserId,
+                apiClientResult.Value.ShopId,
+                apiClientResult.Value.Id,
+                PartnerApiCredentialAuditActions.WebhookEndpointUpserted,
+                isSuccess: true,
+                error: null,
+                cancellationToken);
             await _webhookEndpointRepository.SaveChangesAsync(cancellationToken);
             return Result<PartnerWebhookEndpointResponse>.Success(MapEndpoint(endpoint));
         }
         catch (DomainException exception)
         {
-            return Result<PartnerWebhookEndpointResponse>.Failure(ApplicationErrors.ValidationFailed(exception.Message));
+            var validationError = ApplicationErrors.ValidationFailed(exception.Message);
+            await SaveCredentialAuditAsync(
+                command.CurrentUserId,
+                apiClientResult.Value.ShopId,
+                apiClientResult.Value.Id,
+                PartnerApiCredentialAuditActions.WebhookEndpointUpserted,
+                isSuccess: false,
+                validationError,
+                cancellationToken);
+
+            return Result<PartnerWebhookEndpointResponse>.Failure(validationError);
         }
     }
 
@@ -238,7 +332,17 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             cancellationToken);
         if (endpoint is null || !endpoint.IsActive)
         {
-            return Result<PartnerWebhookTestResponse>.Failure(ApplicationErrors.ValidationFailed("Active webhook endpoint is required before sending a test event."));
+            var validationError = ApplicationErrors.ValidationFailed("Active webhook endpoint is required before sending a test event.");
+            await SaveCredentialAuditAsync(
+                command.CurrentUserId,
+                apiClientResult.Value.ShopId,
+                apiClientResult.Value.Id,
+                PartnerApiCredentialAuditActions.WebhookTestQueued,
+                isSuccess: false,
+                validationError,
+                cancellationToken);
+
+            return Result<PartnerWebhookTestResponse>.Failure(validationError);
         }
 
         var eventId = Guid.NewGuid();
@@ -256,6 +360,14 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             JsonSerializer.Serialize(payload, PayloadJsonOptions));
 
         await _webhookDeliveryRepository.AddAsync(delivery, cancellationToken);
+        await AddCredentialAuditAsync(
+            command.CurrentUserId,
+            apiClientResult.Value.ShopId,
+            apiClientResult.Value.Id,
+            PartnerApiCredentialAuditActions.WebhookTestQueued,
+            isSuccess: true,
+            error: null,
+            cancellationToken);
         await _webhookDeliveryRepository.SaveChangesAsync(cancellationToken);
 
         return Result<PartnerWebhookTestResponse>.Success(new PartnerWebhookTestResponse(
@@ -295,18 +407,13 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             return Result<IReadOnlyList<Shop>>.Failure(ApplicationErrors.Forbidden("Only Shop or Admin can manage partner integrations."));
         }
 
-        var shop = await _shopRepository.GetByOwnerUserIdAsync(currentUserId, cancellationToken);
-        if (shop is null)
+        var shops = await _shopRepository.GetAllByOwnerUserIdAsync(currentUserId, cancellationToken);
+        if (shops.Count == 0)
         {
             return Result<IReadOnlyList<Shop>>.Failure(ApplicationErrors.NotFound("Shop was not found for current user."));
         }
 
-        if (!shop.IsActive)
-        {
-            return Result<IReadOnlyList<Shop>>.Failure(ApplicationErrors.Forbidden("Shop account is not active."));
-        }
-
-        return Result<IReadOnlyList<Shop>>.Success([shop]);
+        return Result<IReadOnlyList<Shop>>.Success(shops);
     }
 
     private async Task<Result> EnsureCanManageShopAsync(
@@ -320,9 +427,15 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             return Result.Failure(accessibleShopsResult.Error);
         }
 
-        return accessibleShopsResult.Value.Any(shop => shop.Id == shopId)
+        var shop = accessibleShopsResult.Value.FirstOrDefault(shop => shop.Id == shopId);
+        if (shop is null)
+        {
+            return Result.Failure(ApplicationErrors.Forbidden("Current user cannot manage this shop."));
+        }
+
+        return shop.IsActive
             ? Result.Success()
-            : Result.Failure(ApplicationErrors.Forbidden("Current user cannot manage this shop."));
+            : Result.Failure(ApplicationErrors.Forbidden("Shop account is not active."));
     }
 
     private async Task<Result<ApiClient>> GetManageableApiClientAsync(
@@ -364,6 +477,63 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             delivery.LastResponseStatusCode,
             delivery.LastError,
             delivery.CreatedAtUtc);
+    }
+
+    private static PartnerApiCredentialAuditResponse MapCredentialAudit(PartnerApiCredentialAudit audit)
+    {
+        return new PartnerApiCredentialAuditResponse(
+            audit.Id,
+            audit.ActorUserId,
+            audit.Action,
+            audit.IsSuccess,
+            audit.ErrorCode,
+            audit.CreatedAtUtc);
+    }
+
+    private async Task SaveCredentialAuditAsync(
+        Guid actorUserId,
+        Guid shopId,
+        Guid? apiClientId,
+        string action,
+        bool isSuccess,
+        Error? error,
+        CancellationToken cancellationToken)
+    {
+        await AddCredentialAuditAsync(
+            actorUserId,
+            shopId,
+            apiClientId,
+            action,
+            isSuccess,
+            error,
+            cancellationToken);
+        await _credentialAuditRepository.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task AddCredentialAuditAsync(
+        Guid actorUserId,
+        Guid shopId,
+        Guid? apiClientId,
+        string action,
+        bool isSuccess,
+        Error? error,
+        CancellationToken cancellationToken)
+    {
+        if (actorUserId == Guid.Empty || shopId == Guid.Empty)
+        {
+            return;
+        }
+
+        var audit = new PartnerApiCredentialAudit(
+            actorUserId,
+            shopId,
+            apiClientId,
+            action,
+            isSuccess,
+            errorCode: error?.Code,
+            errorMessage: error?.Description);
+
+        await _credentialAuditRepository.AddAsync(audit, cancellationToken);
     }
 
     private static string GenerateApiKey()

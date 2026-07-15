@@ -31,4 +31,12 @@ public static class ShipmentErrors
     public static readonly Error CannotCancel = new(
         "Shipment.CannotCancel",
         "Shipment cannot be cancelled in its current status.");
+
+    public static readonly Error CannotEditBeforePickup = new(
+        "Shipment.CannotEditBeforePickup",
+        "Only draft or pending pickup shipments without an active assignment can be edited.");
+
+    public static readonly Error OnlyDraftCanBeSubmitted = new(
+        "Shipment.OnlyDraftCanBeSubmitted",
+        "Only draft shipments can be submitted.");
 }

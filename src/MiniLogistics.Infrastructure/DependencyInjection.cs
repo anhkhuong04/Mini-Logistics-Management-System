@@ -5,11 +5,13 @@ using Microsoft.EntityFrameworkCore;
 using MiniLogistics.Application.CashOnDelivery;
 using MiniLogistics.Application.Fees;
 using MiniLogistics.Application.Identity;
+using MiniLogistics.Application.Outbox;
 using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Shops;
 using MiniLogistics.Application.Shippers;
 using MiniLogistics.Application.Shipments;
 using MiniLogistics.Infrastructure.Identity;
+using MiniLogistics.Infrastructure.Outbox;
 using MiniLogistics.Infrastructure.PartnerApi;
 using MiniLogistics.Infrastructure.Persistence;
 using MiniLogistics.Infrastructure.Persistence.Repositories;
@@ -44,6 +46,7 @@ public static class DependencyInjection
             })
             .AddEntityFrameworkStores<MiniLogisticsDbContext>()
             .AddDefaultTokenProviders();
+        services.AddDataProtection();
         services.ConfigureApplicationCookie(options =>
         {
             options.LoginPath = "/login";
@@ -62,12 +65,19 @@ public static class DependencyInjection
         services.AddScoped<IWebhookEndpointRepository, WebhookEndpointRepository>();
         services.AddScoped<IWebhookDeliveryRepository, WebhookDeliveryRepository>();
         services.AddScoped<IPartnerApiRequestAuditRepository, PartnerApiRequestAuditRepository>();
+        services.AddScoped<IPartnerApiCredentialAuditRepository, PartnerApiCredentialAuditRepository>();
+        services.AddScoped<OutboxMessageRepository>();
+        services.AddScoped<IOutboxMessageRepository>(provider => provider.GetRequiredService<OutboxMessageRepository>());
+        services.AddScoped<IOutboxWriter>(provider => provider.GetRequiredService<OutboxMessageRepository>());
         services.AddScoped<IIdentityService, IdentityService>();
+        services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
         services.AddScoped<DatabaseSeeder>();
+        services.AddScoped<OutboxMessageDispatcher>();
         services.AddHttpClient<WebhookDeliveryDispatcher>(client =>
         {
             client.Timeout = TimeSpan.FromSeconds(10);
         });
+        services.AddHostedService<OutboxWorker>();
         services.AddHostedService<WebhookDeliveryWorker>();
 
         return services;

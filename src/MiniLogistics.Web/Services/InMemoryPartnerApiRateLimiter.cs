@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Options;
 
 namespace MiniLogistics.Web.Services;
 
@@ -7,6 +8,12 @@ public sealed class InMemoryPartnerApiRateLimiter : IPartnerApiRateLimiter
     private static readonly TimeSpan Window = TimeSpan.FromMinutes(1);
 
     private readonly ConcurrentDictionary<RateLimitKey, WindowCounter> _counters = [];
+    private readonly PartnerApiRateLimitOptions _options;
+
+    public InMemoryPartnerApiRateLimiter(IOptions<PartnerApiRateLimitOptions> options)
+    {
+        _options = options.Value;
+    }
 
     public bool TryAcquire(
         Guid apiClientId,
@@ -14,7 +21,7 @@ public sealed class InMemoryPartnerApiRateLimiter : IPartnerApiRateLimiter
         out TimeSpan retryAfter)
     {
         var now = DateTimeOffset.UtcNow;
-        var limit = GetLimit(kind);
+        var limit = _options.GetLimit(kind);
         var key = new RateLimitKey(apiClientId, kind);
         var counter = _counters.AddOrUpdate(
             key,
@@ -42,18 +49,6 @@ public sealed class InMemoryPartnerApiRateLimiter : IPartnerApiRateLimiter
         }
 
         return false;
-    }
-
-    private static int GetLimit(PartnerApiRateLimitKind kind)
-    {
-        return kind switch
-        {
-            PartnerApiRateLimitKind.Quote => 60,
-            PartnerApiRateLimitKind.CreateShipment => 30,
-            PartnerApiRateLimitKind.Tracking => 120,
-            PartnerApiRateLimitKind.CancelShipment => 30,
-            _ => 60
-        };
     }
 
     private sealed record RateLimitKey(Guid ApiClientId, PartnerApiRateLimitKind Kind);

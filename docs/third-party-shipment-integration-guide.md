@@ -13,7 +13,7 @@ Khach hang mua san pham tren website ban hang
 -> website hien phi ship cho khach hang
 -> khach xac nhan dat hang
 -> website goi MiniLogistics Create Shipment API
--> MiniLogistics tra tracking code
+-> MiniLogistics tra tracking code va status ban dau
 -> shop/operator/shipper xu ly don tren MiniLogistics
 -> MiniLogistics gui webhook cap nhat trang thai ve website ban hang
 ```
@@ -54,6 +54,7 @@ Luu y bao mat:
 - Khong dua API key vao frontend/browser/mobile app public.
 - Chi backend cua website ban hang duoc goi MiniLogistics Partner API.
 - Neu nghi ngo lo key, dung chuc nang `Rotate` hoac `Revoke`.
+- Webhook signing secret duoc bao ve trong database; MiniLogistics chi giai ma khi can ky HMAC webhook.
 
 ## 3. Base URL Va Authentication
 
@@ -133,6 +134,8 @@ Website ban hang nen luu:
 | `shippingFeeAmount` | Phi ship da tinh/chot luc tao shipment. |
 | `status` | Trang thai shipment gan nhat. |
 
+Luu y: `status` sau khi tao shipment co the la `Assigned` ngay neu MiniLogistics tim duoc shipper phu hop voi khu vuc lay hang. Neu khong co shipper phu hop, status giu `PendingPickup` de Operations xu ly thu cong.
+
 ### Buoc 6: Theo Doi Trang Thai
 
 Co hai cach:
@@ -141,6 +144,8 @@ Co hai cach:
 - Webhook: MiniLogistics tu dong POST event ve webhook URL cua website.
 
 Khuyen nghi dung webhook cho production.
+
+MiniLogistics ghi webhook event vao outbox cung transaction voi shipment, sau do worker gui HTTP bat dong bo. Vi vay webhook co the tre vai giay, nhung event khong bi mat neu request tao/cap nhat shipment da commit.
 
 ## 5. Input Tinh Phi Ship
 
@@ -313,6 +318,8 @@ Request body:
 ```
 
 Website can luu `trackingCode` de hien cho khach va truy van trang thai.
+
+`status` trong response tao shipment khong luon la `PendingPickup`. He thong se thu auto assign theo hub/khu vuc lay hang; neu thanh cong, response tra `Assigned` va retry cung `Idempotency-Key` se replay dung snapshot `Assigned`. Neu auto assign khong tim duoc shipper hop le, shipment van duoc tao thanh cong voi `PendingPickup`.
 
 ### Idempotency Khi Tao Shipment
 
@@ -492,6 +499,7 @@ Mapping thuong gap:
 | 401 | `PartnerApi.MissingApiKey` | Thieu API key. |
 | 401 | `PartnerApi.InvalidApiKey` | API key sai. |
 | 403 | `PartnerApi.ApiClientInactive` | API client da bi revoke/inactive. |
+| 403 | `PartnerApi.ShopInactive` | Shop dang inactive nen Partner API bi chan. |
 | 404 | `Application.NotFound` | Khong tim thay shipment trong pham vi API client. |
 | 409 | `PartnerApi.IdempotencyConflict` | Idempotency key bi dung lai voi body khac. |
 | 409 | `Application.Conflict` | Conflict nghiep vu, vi du external order da ton tai. |

@@ -1,45 +1,38 @@
 using MiniLogistics.Application.Common;
-using MiniLogistics.Application.Shops;
+using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Application.Shipments.GetShipmentsForCurrentShop;
 
 public sealed class GetShipmentsForCurrentShopService : IGetShipmentsForCurrentShopService
 {
-    private readonly IShopRepository _shopRepository;
+    private readonly IShopAccessService _shopAccessService;
     private readonly IShipmentRepository _shipmentRepository;
 
     public GetShipmentsForCurrentShopService(
-        IShopRepository shopRepository,
+        IShopAccessService shopAccessService,
         IShipmentRepository shipmentRepository)
     {
-        _shopRepository = shopRepository;
+        _shopAccessService = shopAccessService;
         _shipmentRepository = shipmentRepository;
     }
 
     public async Task<Result<IReadOnlyList<ShipmentListItemResponse>>> GetAsync(
         Guid ownerUserId,
+        Guid? shopId = null,
         CancellationToken cancellationToken = default)
     {
-        if (ownerUserId == Guid.Empty)
+        var shopResult = await _shopAccessService.GetShopForUserAsync(
+            ownerUserId,
+            shopId,
+            requireActiveShop: false,
+            cancellationToken);
+        if (shopResult.IsFailure)
         {
-            return Result<IReadOnlyList<ShipmentListItemResponse>>.Failure(
-                ApplicationErrors.ValidationFailed("Current user id is required."));
+            return Result<IReadOnlyList<ShipmentListItemResponse>>.Failure(shopResult.Error);
         }
 
-        var shop = await _shopRepository.GetByOwnerUserIdAsync(ownerUserId, cancellationToken);
-        if (shop is null)
-        {
-            return Result<IReadOnlyList<ShipmentListItemResponse>>.Failure(
-                ApplicationErrors.NotFound("Shop was not found for current user."));
-        }
-
-        if (!shop.IsActive)
-        {
-            return Result<IReadOnlyList<ShipmentListItemResponse>>.Failure(
-                ApplicationErrors.Forbidden("Shop account is not active."));
-        }
-
+        var shop = shopResult.Value;
         var shipments = await _shipmentRepository.GetByShopIdAsync(shop.Id, cancellationToken);
         var response = shipments
             .Select(shipment => new ShipmentListItemResponse(

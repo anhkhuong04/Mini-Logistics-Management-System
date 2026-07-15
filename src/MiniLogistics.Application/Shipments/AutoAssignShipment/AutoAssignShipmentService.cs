@@ -66,11 +66,11 @@ public sealed class AutoAssignShipmentService : IAutoAssignShipmentService
             return Result<AutoAssignShipmentResult>.Failure(assignResult.Error);
         }
 
-        await _shipmentRepository.SaveChangesAsync(cancellationToken);
         await _webhookEventPublisher.PublishShipmentAsync(
             shipment,
             WebhookEventTypes.ShipmentStatusChanged,
             cancellationToken);
+        await _shipmentRepository.SaveChangesAsync(cancellationToken);
 
         return Result<AutoAssignShipmentResult>.Success(
             AutoAssignShipmentResult.Assigned(

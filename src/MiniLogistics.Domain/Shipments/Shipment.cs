@@ -44,7 +44,9 @@ public sealed class Shipment : AuditableEntity
         ShippingFeeBreakdown shippingFeeBreakdown,
         RouteType routeType,
         string? note,
-        Guid createdByUserId)
+        Guid createdByUserId,
+        ShipmentStatus initialStatus,
+        string initialHistoryNote)
         : base(Guid.NewGuid())
     {
         if (shopId == Guid.Empty)
@@ -69,9 +71,9 @@ public sealed class Shipment : AuditableEntity
         ShippingFee = shippingFeeBreakdown.TotalFee;
         RouteType = routeType;
         Note = note?.Trim();
-        Status = ShipmentStatus.PendingPickup;
+        Status = initialStatus;
 
-        AddStatusHistory(Status, createdByUserId, "Shipment created.");
+        AddStatusHistory(Status, createdByUserId, initialHistoryNote);
     }
 
     public Guid ShopId { get; private set; }
@@ -150,7 +152,50 @@ public sealed class Shipment : AuditableEntity
             shippingFeeBreakdown,
             routeType,
             note,
-            createdByUserId);
+            createdByUserId,
+            ShipmentStatus.PendingPickup,
+            "Shipment created.");
+    }
+
+    public static Shipment CreateDraft(
+        Guid shopId,
+        string senderName,
+        PhoneNumber senderPhone,
+        string receiverName,
+        PhoneNumber receiverPhone,
+        Address pickupAddress,
+        Address deliveryAddress,
+        Weight weight,
+        ParcelDimensions parcelDimensions,
+        Weight chargeableWeight,
+        Money goodsValue,
+        Money codAmount,
+        ShippingFeeBreakdown shippingFeeBreakdown,
+        RouteType routeType,
+        Guid createdByUserId,
+        string? note = null,
+        TrackingCode? trackingCode = null)
+    {
+        return new Shipment(
+            shopId,
+            trackingCode ?? TrackingCode.Generate(),
+            senderName,
+            senderPhone,
+            receiverName,
+            receiverPhone,
+            pickupAddress,
+            deliveryAddress,
+            weight,
+            parcelDimensions,
+            chargeableWeight,
+            goodsValue,
+            codAmount,
+            shippingFeeBreakdown,
+            routeType,
+            note,
+            createdByUserId,
+            ShipmentStatus.Draft,
+            "Draft created.");
     }
 
     public Result AssignShipper(Guid shipperId, Guid assignedByUserId, string? note = null)
@@ -225,6 +270,63 @@ public sealed class Shipment : AuditableEntity
         DeactivateActiveAssignments();
 
         ChangeStatus(ShipmentStatus.Cancelled, cancelledByUserId, reason);
+
+        return Result.Success();
+    }
+
+    public Result UpdateBeforePickup(
+        string senderName,
+        PhoneNumber senderPhone,
+        string receiverName,
+        PhoneNumber receiverPhone,
+        Address pickupAddress,
+        Address deliveryAddress,
+        Weight weight,
+        ParcelDimensions parcelDimensions,
+        Weight chargeableWeight,
+        Money goodsValue,
+        Money codAmount,
+        ShippingFeeBreakdown shippingFeeBreakdown,
+        RouteType routeType,
+        Guid changedByUserId,
+        string? note = null)
+    {
+        if (Status is not (ShipmentStatus.Draft or ShipmentStatus.PendingPickup)
+            || _assignments.Any(assignment => assignment.IsActive))
+        {
+            return Result.Failure(ShipmentErrors.CannotEditBeforePickup);
+        }
+
+        SenderName = RequireText(senderName, nameof(senderName));
+        SenderPhone = senderPhone;
+        ReceiverName = RequireText(receiverName, nameof(receiverName));
+        ReceiverPhone = receiverPhone;
+        PickupAddress = pickupAddress;
+        DeliveryAddress = deliveryAddress;
+        Weight = weight;
+        ParcelDimensions = parcelDimensions;
+        ChargeableWeight = chargeableWeight;
+        GoodsValue = goodsValue;
+        CodAmount = codAmount;
+        ShippingFeeBreakdown = shippingFeeBreakdown;
+        ShippingFee = shippingFeeBreakdown.TotalFee;
+        RouteType = routeType;
+        Note = note?.Trim();
+
+        AddStatusHistory(Status, changedByUserId, "Shipment details updated before pickup.");
+        MarkUpdated();
+
+        return Result.Success();
+    }
+
+    public Result SubmitDraft(Guid submittedByUserId)
+    {
+        if (Status != ShipmentStatus.Draft)
+        {
+            return Result.Failure(ShipmentErrors.OnlyDraftCanBeSubmitted);
+        }
+
+        ChangeStatus(ShipmentStatus.PendingPickup, submittedByUserId, "Draft submitted.");
 
         return Result.Success();
     }

@@ -261,6 +261,10 @@ td small {
     gap: 1.25rem;
 }
 
+.audit-section {
+    grid-column: 1 / -1;
+}
+
 .compact-table {
     max-height: 32rem;
 }

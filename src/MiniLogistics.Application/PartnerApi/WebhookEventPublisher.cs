@@ -1,4 +1,6 @@
 using System.Text.Json;
+using MiniLogistics.Application.Outbox;
+using MiniLogistics.Domain.Outbox;
 using MiniLogistics.Domain.Shipments;
 using MiniLogistics.Domain.PartnerApi;
 
@@ -10,16 +12,16 @@ public sealed class WebhookEventPublisher : IWebhookEventPublisher
 
     private readonly IExternalShipmentReferenceRepository _externalShipmentReferenceRepository;
     private readonly IWebhookEndpointRepository _webhookEndpointRepository;
-    private readonly IWebhookDeliveryRepository _webhookDeliveryRepository;
+    private readonly IOutboxWriter _outboxWriter;
 
     public WebhookEventPublisher(
         IExternalShipmentReferenceRepository externalShipmentReferenceRepository,
         IWebhookEndpointRepository webhookEndpointRepository,
-        IWebhookDeliveryRepository webhookDeliveryRepository)
+        IOutboxWriter outboxWriter)
     {
         _externalShipmentReferenceRepository = externalShipmentReferenceRepository;
         _webhookEndpointRepository = webhookEndpointRepository;
-        _webhookDeliveryRepository = webhookDeliveryRepository;
+        _outboxWriter = outboxWriter;
     }
 
     public async Task PublishShipmentAsync(
@@ -35,6 +37,15 @@ public sealed class WebhookEventPublisher : IWebhookEventPublisher
             return;
         }
 
+        await PublishShipmentAsync(shipment, reference, eventType, cancellationToken);
+    }
+
+    public async Task PublishShipmentAsync(
+        Shipment shipment,
+        ExternalShipmentReference reference,
+        string eventType,
+        CancellationToken cancellationToken = default)
+    {
         var endpoints = await _webhookEndpointRepository.GetActiveByApiClientIdAsync(
             reference.ApiClientId,
             cancellationToken);
@@ -58,17 +69,29 @@ public sealed class WebhookEventPublisher : IWebhookEventPublisher
                 reference.ExternalOrderId,
                 shipment.Status.ToString(),
                 changedAtUtc);
-            var delivery = new WebhookDelivery(
-                eventId,
+            var outboxPayload = new WebhookDeliveryOutboxPayload(
                 endpoint.Id,
                 reference.ApiClientId,
                 eventType,
                 shipment.Id,
                 JsonSerializer.Serialize(payload, PayloadJsonOptions));
+            var outboxMessage = new OutboxMessage(
+                eventId,
+                ToOutboxMessageType(eventType),
+                shipment.Id,
+                JsonSerializer.Serialize(outboxPayload, PayloadJsonOptions));
 
-            await _webhookDeliveryRepository.AddAsync(delivery, cancellationToken);
+            await _outboxWriter.AddAsync(outboxMessage, cancellationToken);
         }
+    }
 
-        await _webhookDeliveryRepository.SaveChangesAsync(cancellationToken);
+    private static string ToOutboxMessageType(string eventType)
+    {
+        return eventType switch
+        {
+            WebhookEventTypes.ShipmentCreated => OutboxMessageTypes.WebhookShipmentCreated,
+            WebhookEventTypes.ShipmentStatusChanged => OutboxMessageTypes.WebhookShipmentStatusChanged,
+            _ => throw new InvalidOperationException($"Unsupported webhook event type '{eventType}'.")
+        };
     }
 }

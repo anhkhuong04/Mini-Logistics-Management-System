@@ -2,12 +2,16 @@
 @rendermode InteractiveServer
 @attribute [Authorize(Roles = "Shop")]
 @using System.Security.Claims
+@using MiniLogistics.Application.Shops.GetShopContext
 @using MiniLogistics.Application.Shipments
 @using MiniLogistics.Application.Shipments.CancelShipmentForCurrentShop
+@using MiniLogistics.Application.Shipments.DraftShipments
 @using MiniLogistics.Application.Shipments.GetShipmentDetailForCurrentShop
 @using MiniLogistics.Domain.Shipments
 @inject ICancelShipmentForCurrentShopService CancelShipmentForCurrentShopService
+@inject IGetShopContextService GetShopContextService
 @inject IGetShipmentDetailForCurrentShopService GetShipmentDetailForCurrentShopService
+@inject ISubmitDraftShipmentService SubmitDraftShipmentService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 
@@ -16,7 +20,7 @@
 <div class="shipment-detail-page">
     <div class="page-heading">
         <div>
-            <a class="back-link" href="/shipments">
+            <a class="back-link" href="@(BuildShopLink("/shipments"))">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="m15 6-6 6 6 6 1.4-1.4-4.6-4.6 4.6-4.6L15 6Z" />
                 </svg>
@@ -36,6 +40,26 @@
             </span>
         }
     </div>
+
+    @if (ShopContext is not null)
+    {
+        <section class="shop-context-bar" aria-label="Shop context">
+            <label for="shipment-detail-shop-context">
+                Shop dang chon
+                <select id="shipment-detail-shop-context" value="@SelectedShopId" @onchange="OnShopChanged">
+                    @foreach (var shop in ShopContext.Shops)
+                    {
+                        <option value="@shop.ShopId">
+                            @shop.Name@(shop.IsActive ? string.Empty : " (Inactive)")
+                        </option>
+                    }
+                </select>
+            </label>
+            <span class="shop-context-status @(SelectedShop?.IsActive == true ? "active" : "inactive")">
+                @(SelectedShop?.IsActive == true ? "Active" : "Inactive")
+            </span>
+        </section>
+    }
 
     @if (!string.IsNullOrWhiteSpace(ErrorMessage))
     {
@@ -157,6 +181,31 @@
                     <small>Vị trí sẵn sàng cho quản lý COD.</small>
                 </section>
 
+                @if (CanEditShipment(Shipment.Status))
+                {
+                    <section class="content-card draft-action-card">
+                        <div class="section-heading compact">
+                            <span class="section-icon blue">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M5 17.2V20h2.8L18.6 9.2l-2.8-2.8L5 17.2ZM20.7 7.1a1 1 0 0 0 0-1.4l-2.4-2.4a1 1 0 0 0-1.4 0l-1.4 1.4 3.8 3.8 1.4-1.4Z" />
+                                </svg>
+                            </span>
+                            <h2>Chinh sua don</h2>
+                        </div>
+
+                        <a class="detail-action-link" href="@(BuildShopLink($"/shipments/create?shipmentId={Shipment.ShipmentId:D}"))">
+                            Sua thong tin
+                        </a>
+
+                        @if (Shipment.Status == ShipmentStatus.Draft)
+                        {
+                            <button type="button" class="submit-draft-button" @onclick="SubmitDraftAsync" disabled="@IsSubmittingDraft">
+                                @(IsSubmittingDraft ? "Dang gui don..." : "Gui don")
+                            </button>
+                        }
+                    </section>
+                }
+
                 @if (CanCancelShipment(Shipment.Status))
                 {
                     <section class="content-card cancel-card">
@@ -221,9 +270,21 @@
     [Parameter]
     public Guid Id { get; set; }
 
+    [SupplyParameterFromQuery(Name = "shopId")]
+    public Guid? ShopId { get; set; }
+
+    private GetShopContextResponse? ShopContext { get; set; }
+
+    private Guid SelectedShopId { get; set; }
+
+    private ShopContextItemResponse? SelectedShop => ShopContext?.Shops
+        .FirstOrDefault(shop => shop.ShopId == SelectedShopId);
+
     private bool IsLoading { get; set; } = true;
 
     private bool IsCancelling { get; set; }
+
+    private bool IsSubmittingDraft { get; set; }
 
     private string? ErrorMessage { get; set; }
 
@@ -258,7 +319,19 @@
             return;
         }
 
-        var result = await GetShipmentDetailForCurrentShopService.GetAsync(userId.Value, Id);
+        var contextResult = await GetShopContextService.GetAsync(userId.Value, ShopId);
+        if (contextResult.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(contextResult.Error);
+            Shipment = null;
+            IsLoading = false;
+            return;
+        }
+
+        ShopContext = contextResult.Value;
+        SelectedShopId = contextResult.Value.SelectedShopId;
+
+        var result = await GetShipmentDetailForCurrentShopService.GetAsync(userId.Value, Id, SelectedShopId);
         if (result.IsFailure)
         {
             ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
@@ -270,6 +343,14 @@
         }
 
         IsLoading = false;
+    }
+
+    private void OnShopChanged(ChangeEventArgs args)
+    {
+        if (Guid.TryParse(args.Value?.ToString(), out var shopId))
+        {
+            NavigationManager.NavigateTo(BuildShopLink("/shipments", shopId));
+        }
     }
 
     private async Task CancelShipmentAsync()
@@ -295,7 +376,8 @@
         var result = await CancelShipmentForCurrentShopService.CancelAsync(new CancelShipmentCommand(
             userId.Value,
             Id,
-            CancelReason));
+            CancelReason,
+            SelectedShopId));
 
         IsCancelling = false;
 
@@ -311,6 +393,40 @@
         await LoadShipmentAsync(clearActionMessages: false);
     }
 
+    private async Task SubmitDraftAsync()
+    {
+        ActionErrorMessage = null;
+        ActionSuccessMessage = null;
+
+        var userId = await GetCurrentUserIdAsync();
+        if (userId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        IsSubmittingDraft = true;
+
+        var result = await SubmitDraftShipmentService.SubmitAsync(new SubmitDraftShipmentCommand(
+            userId.Value,
+            Id,
+            SelectedShopId));
+
+        IsSubmittingDraft = false;
+
+        if (result.IsFailure)
+        {
+            ActionErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        ActionSuccessMessage = result.Value.FeeChanged
+            ? $"Da gui don. Phi van chuyen doi tu {FormatMoney(result.Value.PreviousShippingFeeAmount!.Value, result.Value.Currency)} sang {FormatMoney(result.Value.ShippingFeeAmount, result.Value.Currency)}."
+            : "Da gui don.";
+
+        await LoadShipmentAsync(clearActionMessages: false);
+    }
+
     private async Task<Guid?> GetCurrentUserIdAsync()
     {
         var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -319,6 +435,18 @@
         return Guid.TryParse(userIdValue, out var userId)
             ? userId
             : null;
+    }
+
+    private string BuildShopLink(string path)
+    {
+        return BuildShopLink(path, SelectedShopId);
+    }
+
+    private static string BuildShopLink(string path, Guid shopId)
+    {
+        return shopId == Guid.Empty
+            ? path
+            : $"{path}?shopId={shopId:D}";
     }
 
     private static string FormatDate(DateTimeOffset value)
@@ -368,6 +496,7 @@
             ShipmentStatus.DeliveryFailed => "Giao thất bại",
             ShipmentStatus.Returned => "Đã hoàn",
             ShipmentStatus.Cancelled => "Đã hủy",
+            ShipmentStatus.Draft => "Draft",
             _ => status.ToString()
         };
     }
@@ -389,5 +518,10 @@
             or ShipmentStatus.PendingPickup
             or ShipmentStatus.Assigned
             or ShipmentStatus.PickingUp;
+    }
+
+    private static bool CanEditShipment(ShipmentStatus status)
+    {
+        return status is ShipmentStatus.Draft or ShipmentStatus.PendingPickup;
     }
 }

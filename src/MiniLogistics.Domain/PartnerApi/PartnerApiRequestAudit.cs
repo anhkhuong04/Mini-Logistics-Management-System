@@ -22,6 +22,7 @@ public sealed class PartnerApiRequestAudit : AuditableEntity
         string? idempotencyKey,
         string requestHash,
         int statusCode,
+        int durationMs,
         bool isSuccess,
         bool isIdempotentReplay,
         Guid? shipmentId,
@@ -49,6 +50,7 @@ public sealed class PartnerApiRequestAudit : AuditableEntity
         IdempotencyKey = TrimOptional(idempotencyKey, 150);
         RequestHash = RequireText(requestHash, nameof(requestHash), 128);
         StatusCode = statusCode;
+        DurationMs = Math.Max(0, durationMs);
         IsSuccess = isSuccess;
         IsIdempotentReplay = isIdempotentReplay;
         ShipmentId = shipmentId;
@@ -74,6 +76,8 @@ public sealed class PartnerApiRequestAudit : AuditableEntity
     public string RequestHash { get; private set; }
 
     public int StatusCode { get; private set; }
+
+    public int DurationMs { get; private set; }
 
     public bool IsSuccess { get; private set; }
 

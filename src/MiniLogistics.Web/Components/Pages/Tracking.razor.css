@@ -148,11 +148,26 @@
     font-weight: 900;
 }
 
+.summary-pills {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
 .summary-grid {
     display: grid;
     gap: 1rem;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     margin: 0 0 1.25rem;
+}
+
+.detail-grid {
+    background: #f8fbff;
+    border: 1px solid #e5eef8;
+    border-radius: 10px;
+    margin-top: -0.25rem;
+    padding: 1rem;
 }
 
 .summary-grid div {
@@ -172,6 +187,61 @@
     color: #071b4d;
     font-weight: 800;
     margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.privacy-panel {
+    background: #f8fbff;
+    border: 1px solid #e5eef8;
+    border-radius: 10px;
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 1.25rem;
+    padding: 1rem;
+}
+
+.privacy-copy {
+    display: grid;
+    gap: 0.25rem;
+}
+
+.privacy-copy strong {
+    color: #071b4d;
+    font-weight: 900;
+}
+
+.privacy-copy p,
+.inline-message {
+    color: #64748b;
+    margin: 0;
+}
+
+.verify-form {
+    align-items: end;
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: minmax(180px, 1fr) auto;
+}
+
+.verify-button {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.45rem;
+    justify-content: center;
+    min-height: 44px;
+    white-space: nowrap;
+}
+
+.verify-button svg {
+    fill: currentColor;
+    height: 18px;
+    width: 18px;
+}
+
+.inline-message {
+    color: #b45309;
+    font-size: 0.9rem;
+    font-weight: 700;
 }
 
 .timeline-title {
@@ -241,6 +311,27 @@
     white-space: nowrap;
 }
 
+.access-pill {
+    border-radius: 999px;
+    display: inline-flex;
+    font-size: 0.8rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-top: 0.25rem;
+    padding: 0.5rem 0.7rem;
+    white-space: nowrap;
+}
+
+.access-pill.summary {
+    background: #f1f5f9;
+    color: #334155;
+}
+
+.access-pill.verified {
+    background: #ecfdf5;
+    color: #047857;
+}
+
 .status-pill.warning {
     background: #fff7ed;
     color: #c2410c;
@@ -263,7 +354,8 @@
 
 @media (max-width: 900px) {
     .tracking-grid,
-    .summary-grid {
+    .summary-grid,
+    .verify-form {
         grid-template-columns: 1fr;
     }
 }

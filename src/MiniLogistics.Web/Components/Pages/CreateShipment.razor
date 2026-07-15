@@ -5,13 +5,19 @@
 @using System.Security.Claims
 @using MiniLogistics.Application.Fees
 @using MiniLogistics.Application.Routing
-@using MiniLogistics.Application.Shops.GetCurrentShop
+@using MiniLogistics.Application.Shops.GetShopContext
 @using MiniLogistics.Application.Shipments.CreateShipment
+@using MiniLogistics.Application.Shipments.DraftShipments
+@using MiniLogistics.Application.Shipments.GetShipmentDetailForCurrentShop
 @using MiniLogistics.Domain.Shipments
 @using MiniLogistics.Domain.ValueObjects
 @using MiniLogistics.Web.Services
-@inject IGetCurrentShopService GetCurrentShopService
+@inject IGetShopContextService GetShopContextService
 @inject ICreateShipmentService CreateShipmentService
+@inject ICreateDraftShipmentService CreateDraftShipmentService
+@inject IUpdateShipmentBeforePickupService UpdateShipmentBeforePickupService
+@inject ISubmitDraftShipmentService SubmitDraftShipmentService
+@inject IGetShipmentDetailForCurrentShopService GetShipmentDetailForCurrentShopService
 @inject IShippingFeeService ShippingFeeService
 @inject IRouteClassificationService RouteClassificationService
 @inject VietnamAdministrativeDivisionService AdministrativeDivisionService
@@ -25,14 +31,34 @@
         <div>
             <h1>Tạo đơn hàng mới</h1>
             <nav class="breadcrumb-line" aria-label="Breadcrumb">
-                <a href="/dashboard">Trang chủ</a>
+                <a href="@(BuildShopLink("/dashboard"))">Trang chủ</a>
                 <span>/</span>
-                <a href="/shipments">Đơn hàng</a>
+                <a href="@(BuildShopLink("/shipments"))">Đơn hàng</a>
                 <span>/</span>
                 <strong>Tạo đơn hàng</strong>
             </nav>
         </div>
     </div>
+
+    @if (ShopContext is not null)
+    {
+        <section class="shop-context-bar" aria-label="Shop context">
+            <label for="create-shop-context">
+                Shop dang chon
+                <select id="create-shop-context" value="@SelectedShopId" @onchange="OnShopChanged">
+                    @foreach (var shop in ShopContext.Shops)
+                    {
+                        <option value="@shop.ShopId">
+                            @shop.Name@(shop.IsActive ? string.Empty : " (Inactive)")
+                        </option>
+                    }
+                </select>
+            </label>
+            <span class="shop-context-status @(SelectedShop?.IsActive == true ? "active" : "inactive")">
+                @(SelectedShop?.IsActive == true ? "Active" : "Inactive")
+            </span>
+        </section>
+    }
 
     @if (!string.IsNullOrWhiteSpace(ErrorMessage))
     {
@@ -46,7 +72,33 @@
                 Đã tạo vận đơn <strong>@CreatedShipment.TrackingCode</strong>.
                 Phí vận chuyển: <strong>@FormatMoney(CreatedShipment.ShippingFeeAmount, CreatedShipment.Currency)</strong>.
             </span>
-            <a class="fw-bold" href="@($"/shipments/{CreatedShipment.ShipmentId}")">Xem chi tiết</a>
+            <a class="fw-bold" href="@(BuildShopLink($"/shipments/{CreatedShipment.ShipmentId}"))">Xem chi tiết</a>
+    </div>
+    }
+
+    @if (SavedShipment is not null)
+    {
+        <div class="alert alert-success success-alert" role="status">
+            <span>
+                @SuccessMessage <strong>@SavedShipment.TrackingCode</strong>.
+                Phi van chuyen: <strong>@FormatMoney(SavedShipment.ShippingFeeAmount, SavedShipment.Currency)</strong>.
+            </span>
+            <a class="fw-bold" href="@(BuildShopLink($"/shipments/{SavedShipment.ShipmentId}"))">Xem chi tiet</a>
+        </div>
+
+        @if (SavedShipment.FeeChanged)
+        {
+            <div class="alert alert-warning" role="status">
+                Phi van chuyen da thay doi tu @FormatMoney(SavedShipment.PreviousShippingFeeAmount!.Value, SavedShipment.Currency)
+                sang @FormatMoney(SavedShipment.ShippingFeeAmount, SavedShipment.Currency).
+            </div>
+        }
+    }
+
+    @if (ShopContext is not null && SelectedShop?.IsActive == false)
+    {
+        <div class="alert alert-warning" role="status">
+            Shop dang inactive. Ban co the xem du lieu lich su, nhung khong the tao don hang moi cho shop nay.
         </div>
     }
 
@@ -71,25 +123,25 @@
                 <div class="form-grid sender-grid">
                     <div class="form-field">
                         <label for="sender-name">Tên người gửi <span>*</span></label>
-                        <InputText id="sender-name" class="form-control" @bind-Value="Form.SenderName" disabled />
+                        <InputText id="sender-name" class="form-control" @bind-Value="Form.SenderName" disabled="@(!IsEditMode)" />
                         <ValidationMessage For="() => Form.SenderName" />
                     </div>
 
                     <div class="form-field">
                         <label for="sender-phone">Số điện thoại <span>*</span></label>
-                        <InputText id="sender-phone" class="form-control" @bind-Value="Form.SenderPhone" disabled />
+                        <InputText id="sender-phone" class="form-control" @bind-Value="Form.SenderPhone" disabled="@(!IsEditMode)" />
                         <ValidationMessage For="() => Form.SenderPhone" />
                     </div>
 
                     <div class="form-field wide">
                         <label for="pickup-street">Địa chỉ lấy hàng <span>*</span></label>
-                        <InputText id="pickup-street" class="form-control" @bind-Value="Form.PickupStreet" disabled />
+                        <InputText id="pickup-street" class="form-control" @bind-Value="Form.PickupStreet" disabled="@(!IsEditMode)" />
                         <ValidationMessage For="() => Form.PickupStreet" />
                     </div>
 
                     <div class="form-field">
                         <label for="pickup-province">Tỉnh / Thành <span>*</span></label>
-                        <InputSelect id="pickup-province" class="form-select" @bind-Value="Form.PickupProvince" disabled>
+                        <InputSelect id="pickup-province" class="form-select" @bind-Value="Form.PickupProvince" @bind-Value:after="HandlePickupProvinceChanged" disabled="@(!IsEditMode)">
                             @foreach (var province in Provinces)
                             {
                                 <option value="@province.Name">@province.Name</option>
@@ -104,7 +156,7 @@
 
                     <div class="form-field">
                         <label for="pickup-ward">Phường / Xã <span>*</span></label>
-                        <InputSelect id="pickup-ward" class="form-select" @bind-Value="Form.PickupWard" disabled>
+                        <InputSelect id="pickup-ward" class="form-select" @bind-Value="Form.PickupWard" disabled="@(!IsEditMode || !PickupWardOptions.Any())">
                             @foreach (var ward in PickupWardOptions)
                             {
                                 <option value="@ward.Name">@ward.Name</option>
@@ -318,7 +370,7 @@
 
             <div class="summary-code">
                 <span>Mã đơn hàng</span>
-                <strong>@(CreatedShipment?.TrackingCode ?? "Sẽ sinh sau khi tạo")</strong>
+                <strong>@CurrentTrackingCode</strong>
             </div>
 
             <dl class="summary-list">
@@ -387,17 +439,24 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M11 18h2v-2h-2v2Zm1-16a8 8 0 0 0-5 14.2V21l5-2 5 2v-4.8A8 8 0 0 0 12 2Zm0 2a6 6 0 0 1 3.5 10.9l-.5.3v2.8l-3-1.2-3 1.2v-2.8l-.5-.3A6 6 0 0 1 12 4Zm-1 4h2v6h-2V8Z" />
                 </svg>
-                <span>Đơn hàng sẽ được xử lý ngay sau khi tạo.</span>
+                <span>@SummaryHintText</span>
             </div>
 
-            <button type="submit" class="btn btn-primary submit-button" disabled="@IsSubmitting">
+            <button type="submit" class="btn btn-primary submit-button" disabled="@(!CanSubmit)">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M2 21 23 3 17 21l-5-7-7 7H2Zm13.7-4.8 2.8-8.4-9 7.7 3.2-3.2 3 3.9Z" />
                 </svg>
-                <span>@(IsSubmitting ? "Đang tạo..." : "Tạo đơn hàng")</span>
+                <span>@PrimarySubmitButtonText</span>
             </button>
 
-            <button type="button" class="btn btn-outline-secondary reset-button" @onclick="ResetFormAsync" disabled="@IsSubmitting">
+            @if (CanShowSaveDraftButton)
+            {
+                <button type="button" class="btn btn-outline-secondary reset-button" @onclick="HandleSaveDraftAsync" disabled="@(!CanSaveDraft)">
+                    @(IsSavingDraft ? "Dang luu nhap..." : "Luu nhap")
+                </button>
+            }
+
+            <button type="button" class="btn btn-outline-secondary reset-button" @onclick="ResetFormAsync" disabled="@IsBusy">
                 Hủy
             </button>
         </aside>
@@ -405,15 +464,34 @@
 </div>
 
 @code {
+    [SupplyParameterFromQuery(Name = "shopId")]
+    public Guid? ShopId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "shipmentId")]
+    public Guid? ShipmentId { get; set; }
+
     private CreateShipmentFormModel Form { get; set; } = CreateDefaultForm();
 
+    private GetShopContextResponse? ShopContext { get; set; }
+
+    private Guid SelectedShopId { get; set; }
+
+    private ShopContextItemResponse? SelectedShop => ShopContext?.Shops
+        .FirstOrDefault(shop => shop.ShopId == SelectedShopId);
+
     private bool IsSubmitting { get; set; }
+
+    private bool IsSavingDraft { get; set; }
+
+    private bool IsSubmittingDraft { get; set; }
 
     private bool IsFeeEstimateLoading { get; set; }
 
     private string? ErrorMessage { get; set; }
 
     private string? FeeEstimateMessage { get; set; }
+
+    private string? SuccessMessage { get; set; }
 
     private decimal EstimatedShippingFeeAmount { get; set; }
 
@@ -433,27 +511,95 @@
 
     private CreateShipmentResponse? CreatedShipment { get; set; }
 
+    private DraftShipmentResponse? SavedShipment { get; set; }
+
+    private ShipmentDetailResponse? EditingShipment { get; set; }
+
     private IReadOnlyList<ProvinceOption> Provinces { get; set; } = [];
 
     private IReadOnlyList<WardOption> PickupWardOptions { get; set; } = [];
 
     private IReadOnlyList<WardOption> DeliveryWardOptions { get; set; } = [];
 
-    private decimal CurrentShippingFeeAmount => CreatedShipment?.ShippingFeeAmount ?? EstimatedShippingFeeAmount;
+    private decimal CurrentShippingFeeAmount => CreatedShipment?.ShippingFeeAmount
+        ?? SavedShipment?.ShippingFeeAmount
+        ?? EstimatedShippingFeeAmount;
 
-    private decimal CurrentBaseFeeAmount => CreatedShipment?.BaseFeeAmount ?? EstimatedBaseFeeAmount;
+    private decimal CurrentBaseFeeAmount => CreatedShipment?.BaseFeeAmount
+        ?? SavedShipment?.BaseFeeAmount
+        ?? EstimatedBaseFeeAmount;
 
-    private decimal CurrentExtraWeightFeeAmount => CreatedShipment?.ExtraWeightFeeAmount ?? EstimatedExtraWeightFeeAmount;
+    private decimal CurrentExtraWeightFeeAmount => CreatedShipment?.ExtraWeightFeeAmount
+        ?? SavedShipment?.ExtraWeightFeeAmount
+        ?? EstimatedExtraWeightFeeAmount;
 
-    private decimal CurrentInsuranceFeeAmount => CreatedShipment?.InsuranceFeeAmount ?? EstimatedInsuranceFeeAmount;
+    private decimal CurrentInsuranceFeeAmount => CreatedShipment?.InsuranceFeeAmount
+        ?? SavedShipment?.InsuranceFeeAmount
+        ?? EstimatedInsuranceFeeAmount;
 
-    private decimal CurrentReturnFeeAmount => CreatedShipment?.ReturnFeeAmount ?? EstimatedReturnFeeAmount;
+    private decimal CurrentReturnFeeAmount => CreatedShipment?.ReturnFeeAmount
+        ?? SavedShipment?.ReturnFeeAmount
+        ?? EstimatedReturnFeeAmount;
 
-    private string CurrentCurrency => CreatedShipment?.Currency ?? EstimatedShippingFeeCurrency;
+    private string CurrentCurrency => CreatedShipment?.Currency
+        ?? SavedShipment?.Currency
+        ?? EstimatedShippingFeeCurrency;
 
-    protected override async Task OnInitializedAsync()
+    private ShipmentStatus? EditingStatus => EditingShipment?.Status;
+
+    private bool IsEditMode => ShipmentId.HasValue;
+
+    private bool IsBusy => IsSubmitting || IsSavingDraft || IsSubmittingDraft;
+
+    private bool CanSubmit => !IsBusy
+        && SelectedShop?.IsActive == true
+        && (!IsEditMode || EditingStatus is ShipmentStatus.Draft or ShipmentStatus.PendingPickup);
+
+    private bool CanSaveDraft => !IsBusy
+        && SelectedShop?.IsActive == true
+        && (!IsEditMode || EditingStatus == ShipmentStatus.Draft);
+
+    private bool CanShowSaveDraftButton => !IsEditMode || EditingStatus == ShipmentStatus.Draft;
+
+    private string CurrentTrackingCode => CreatedShipment?.TrackingCode
+        ?? SavedShipment?.TrackingCode
+        ?? EditingShipment?.TrackingCode
+        ?? "Se sinh sau khi tao";
+
+    private string SummaryHintText => IsEditMode
+        ? "He thong se tinh lai phi server-side khi luu hoac gui don."
+        : "Tao don that se xu ly ngay; luu nhap se chua auto assign.";
+
+    private string PrimarySubmitButtonText
+    {
+        get
+        {
+            if (IsSubmitting || IsSubmittingDraft)
+            {
+                return IsEditMode && EditingStatus == ShipmentStatus.Draft
+                    ? "Dang gui don..."
+                    : "Dang luu...";
+            }
+
+            if (!IsEditMode)
+            {
+                return "Tao don hang";
+            }
+
+            return EditingStatus == ShipmentStatus.Draft
+                ? "Gui don"
+                : "Luu thay doi";
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
     {
         Provinces = await AdministrativeDivisionService.GetProvincesAsync();
+        ErrorMessage = null;
+        CreatedShipment = null;
+        SavedShipment = null;
+        SuccessMessage = null;
+        EditingShipment = null;
 
         var userId = await GetCurrentUserIdAsync();
         if (userId is null)
@@ -461,28 +607,101 @@
             return;
         }
 
-        var result = await GetCurrentShopService.GetAsync(userId.Value);
+        var contextResult = await GetShopContextService.GetAsync(userId.Value, ShopId);
+        if (contextResult.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(contextResult.Error);
+            return;
+        }
+
+        ShopContext = contextResult.Value;
+        SelectedShopId = contextResult.Value.SelectedShopId;
+
+        if (ShipmentId.HasValue)
+        {
+            await LoadEditableShipmentAsync(userId.Value);
+        }
+        else
+        {
+            Form.SenderName = SelectedShop?.Name ?? string.Empty;
+            Form.SenderPhone = SelectedShop?.PhoneNumber ?? string.Empty;
+            Form.PickupStreet = SelectedShop?.AddressLine ?? string.Empty;
+            Form.PickupWard = SelectedShop?.Ward ?? string.Empty;
+            Form.PickupProvince = SelectedShop?.Province ?? string.Empty;
+            PickupWardOptions = GetWardOptions(Form.PickupProvince, Form.PickupWard);
+        }
+
+        await CalculateFeeEstimateAsync();
+    }
+
+    private async Task LoadEditableShipmentAsync(Guid userId)
+    {
+        if (!ShipmentId.HasValue)
+        {
+            return;
+        }
+
+        var result = await GetShipmentDetailForCurrentShopService.GetAsync(
+            userId,
+            ShipmentId.Value,
+            SelectedShopId);
         if (result.IsFailure)
         {
             ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
             return;
         }
 
-        Form.SenderName = result.Value.Name;
-        Form.SenderPhone = result.Value.PhoneNumber;
-        Form.PickupStreet = result.Value.AddressLine;
-        Form.PickupWard = result.Value.Ward;
-        Form.PickupProvince = result.Value.Province;
+        if (result.Value.Status is not (ShipmentStatus.Draft or ShipmentStatus.PendingPickup))
+        {
+            ErrorMessage = "Chi co the sua don nhap hoac don cho lay hang.";
+            return;
+        }
+
+        EditingShipment = result.Value;
+        PopulateForm(result.Value);
+    }
+
+    private void PopulateForm(ShipmentDetailResponse shipment)
+    {
+        Form.SenderName = shipment.SenderName;
+        Form.SenderPhone = shipment.SenderPhone;
+        Form.PickupStreet = shipment.PickupAddress.Street;
+        Form.PickupWard = shipment.PickupAddress.Ward;
+        Form.PickupProvince = shipment.PickupAddress.Province;
         PickupWardOptions = GetWardOptions(Form.PickupProvince, Form.PickupWard);
 
-        await CalculateFeeEstimateAsync();
+        Form.ReceiverName = shipment.ReceiverName;
+        Form.ReceiverPhone = shipment.ReceiverPhone;
+        Form.DeliveryStreet = shipment.DeliveryAddress.Street;
+        Form.DeliveryWard = shipment.DeliveryAddress.Ward;
+        Form.DeliveryProvince = shipment.DeliveryAddress.Province;
+        DeliveryWardOptions = GetWardOptions(Form.DeliveryProvince, Form.DeliveryWard);
+
+        Form.WeightKg = shipment.WeightKg;
+        Form.LengthCm = shipment.ParcelLengthCm;
+        Form.WidthCm = shipment.ParcelWidthCm;
+        Form.HeightCm = shipment.ParcelHeightCm;
+        Form.GoodsValueAmount = shipment.GoodsValueAmount;
+        Form.CodAmount = shipment.CodAmount;
+        Form.RouteType = shipment.RouteType;
+        Form.Note = shipment.Note;
+
+        EstimatedShippingFeeAmount = shipment.ShippingFeeAmount;
+        EstimatedBaseFeeAmount = shipment.BaseFeeAmount;
+        EstimatedExtraWeightFeeAmount = shipment.ExtraWeightFeeAmount;
+        EstimatedInsuranceFeeAmount = shipment.InsuranceFeeAmount;
+        EstimatedReturnFeeAmount = shipment.ReturnFeeAmount;
+        EstimatedVolumetricWeightKg = shipment.VolumetricWeightKg;
+        EstimatedChargeableWeightKg = shipment.ChargeableWeightKg;
+        EstimatedShippingFeeCurrency = shipment.Currency;
     }
 
     private async Task HandleSubmitAsync()
     {
         ErrorMessage = null;
         CreatedShipment = null;
-        IsSubmitting = true;
+        SavedShipment = null;
+        SuccessMessage = null;
 
         try
         {
@@ -493,48 +712,270 @@
                 return;
             }
 
-            var command = new CreateShipmentCommand(
-                userId.Value,
-                Form.SenderName,
-                Form.SenderPhone,
-                Form.ReceiverName,
-                Form.ReceiverPhone,
-                new ShipmentAddressDto(
-                    Form.PickupStreet,
-                    Form.PickupWard,
-                Form.PickupProvince),
-                new ShipmentAddressDto(
-                    Form.DeliveryStreet,
-                    Form.DeliveryWard,
-                    Form.DeliveryProvince),
-                Form.WeightKg,
-                Form.LengthCm,
-                Form.WidthCm,
-                Form.HeightCm,
-                Form.GoodsValueAmount,
-                Form.CodAmount,
-                Note: Form.Note);
-
-            var result = await CreateShipmentService.CreateAsync(command);
-            if (result.IsFailure)
+            if (IsEditMode && EditingStatus == ShipmentStatus.Draft)
             {
-                ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+                await SubmitDraftFromFormAsync(userId.Value);
                 return;
             }
 
-            CreatedShipment = result.Value;
-            EstimatedShippingFeeAmount = result.Value.ShippingFeeAmount;
-            EstimatedBaseFeeAmount = result.Value.BaseFeeAmount;
-            EstimatedExtraWeightFeeAmount = result.Value.ExtraWeightFeeAmount;
-            EstimatedInsuranceFeeAmount = result.Value.InsuranceFeeAmount;
-            EstimatedReturnFeeAmount = result.Value.ReturnFeeAmount;
-            EstimatedVolumetricWeightKg = result.Value.VolumetricWeightKg;
-            EstimatedChargeableWeightKg = result.Value.ChargeableWeightKg;
-            EstimatedShippingFeeCurrency = result.Value.Currency;
+            if (IsEditMode)
+            {
+                await UpdateBeforePickupAsync(userId.Value, "Da luu thay doi cho don hang");
+                return;
+            }
+
+            await CreateShipmentAsync(userId.Value);
         }
         finally
         {
             IsSubmitting = false;
+            IsSubmittingDraft = false;
+        }
+    }
+
+    private async Task HandleSaveDraftAsync()
+    {
+        ErrorMessage = null;
+        CreatedShipment = null;
+        SavedShipment = null;
+        SuccessMessage = null;
+
+        var userId = await GetCurrentUserIdAsync();
+        if (userId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        IsSavingDraft = true;
+
+        try
+        {
+            if (IsEditMode)
+            {
+                await UpdateBeforePickupAsync(userId.Value, "Da luu nhap");
+            }
+            else
+            {
+                var result = await CreateDraftShipmentService.CreateAsync(
+                    BuildCreateDraftCommand(userId.Value));
+                if (result.IsFailure)
+                {
+                    ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+                    return;
+                }
+
+                SavedShipment = result.Value;
+                SuccessMessage = "Da luu nhap";
+                ShipmentId = result.Value.ShipmentId;
+                SetEstimate(result.Value);
+                await RefreshEditingShipmentAsync(userId.Value);
+            }
+        }
+        finally
+        {
+            IsSavingDraft = false;
+            IsSubmitting = false;
+            IsSubmittingDraft = false;
+        }
+    }
+
+    private async Task CreateShipmentAsync(Guid userId)
+    {
+        IsSubmitting = true;
+
+        var result = await CreateShipmentService.CreateAsync(BuildCreateCommand(userId));
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        CreatedShipment = result.Value;
+        SetEstimate(result.Value);
+    }
+
+    private async Task UpdateBeforePickupAsync(Guid userId, string successMessage)
+    {
+        if (!ShipmentId.HasValue)
+        {
+            ErrorMessage = "Shipment id is required.";
+            return;
+        }
+
+        IsSubmitting = true;
+
+        var result = await UpdateShipmentBeforePickupService.UpdateAsync(
+            BuildUpdateCommand(userId, ShipmentId.Value));
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        SavedShipment = result.Value;
+        SuccessMessage = successMessage;
+        SetEstimate(result.Value);
+        await RefreshEditingShipmentAsync(userId);
+    }
+
+    private async Task SubmitDraftFromFormAsync(Guid userId)
+    {
+        if (!ShipmentId.HasValue)
+        {
+            ErrorMessage = "Shipment id is required.";
+            return;
+        }
+
+        IsSubmittingDraft = true;
+
+        var updateResult = await UpdateShipmentBeforePickupService.UpdateAsync(
+            BuildUpdateCommand(userId, ShipmentId.Value));
+        if (updateResult.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(updateResult.Error);
+            return;
+        }
+
+        var submitResult = await SubmitDraftShipmentService.SubmitAsync(new SubmitDraftShipmentCommand(
+            userId,
+            ShipmentId.Value,
+            SelectedShopId));
+        if (submitResult.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(submitResult.Error);
+            return;
+        }
+
+        SavedShipment = submitResult.Value;
+        SuccessMessage = "Da gui don";
+        SetEstimate(submitResult.Value);
+        await RefreshEditingShipmentAsync(userId);
+    }
+
+    private async Task RefreshEditingShipmentAsync(Guid userId)
+    {
+        if (!ShipmentId.HasValue)
+        {
+            return;
+        }
+
+        var result = await GetShipmentDetailForCurrentShopService.GetAsync(
+            userId,
+            ShipmentId.Value,
+            SelectedShopId);
+        if (result.IsSuccess)
+        {
+            EditingShipment = result.Value;
+        }
+    }
+
+    private CreateShipmentCommand BuildCreateCommand(Guid userId)
+    {
+        return new CreateShipmentCommand(
+            userId,
+            Form.SenderName,
+            Form.SenderPhone,
+            Form.ReceiverName,
+            Form.ReceiverPhone,
+            BuildPickupAddress(),
+            BuildDeliveryAddress(),
+            Form.WeightKg,
+            Form.LengthCm,
+            Form.WidthCm,
+            Form.HeightCm,
+            Form.GoodsValueAmount,
+            Form.CodAmount,
+            Note: Form.Note,
+            ShopId: SelectedShopId);
+    }
+
+    private CreateDraftShipmentCommand BuildCreateDraftCommand(Guid userId)
+    {
+        return new CreateDraftShipmentCommand(
+            userId,
+            Form.SenderName,
+            Form.SenderPhone,
+            Form.ReceiverName,
+            Form.ReceiverPhone,
+            BuildPickupAddress(),
+            BuildDeliveryAddress(),
+            Form.WeightKg,
+            Form.LengthCm,
+            Form.WidthCm,
+            Form.HeightCm,
+            Form.GoodsValueAmount,
+            Form.CodAmount,
+            Note: Form.Note,
+            ShopId: SelectedShopId);
+    }
+
+    private UpdateShipmentBeforePickupCommand BuildUpdateCommand(Guid userId, Guid shipmentId)
+    {
+        return new UpdateShipmentBeforePickupCommand(
+            userId,
+            shipmentId,
+            Form.SenderName,
+            Form.SenderPhone,
+            Form.ReceiverName,
+            Form.ReceiverPhone,
+            BuildPickupAddress(),
+            BuildDeliveryAddress(),
+            Form.WeightKg,
+            Form.LengthCm,
+            Form.WidthCm,
+            Form.HeightCm,
+            Form.GoodsValueAmount,
+            Form.CodAmount,
+            Note: Form.Note,
+            ShopId: SelectedShopId);
+    }
+
+    private ShipmentAddressDto BuildPickupAddress()
+    {
+        return new ShipmentAddressDto(
+            Form.PickupStreet,
+            Form.PickupWard,
+            Form.PickupProvince);
+    }
+
+    private ShipmentAddressDto BuildDeliveryAddress()
+    {
+        return new ShipmentAddressDto(
+            Form.DeliveryStreet,
+            Form.DeliveryWard,
+            Form.DeliveryProvince);
+    }
+
+    private void SetEstimate(CreateShipmentResponse response)
+    {
+        EstimatedShippingFeeAmount = response.ShippingFeeAmount;
+        EstimatedBaseFeeAmount = response.BaseFeeAmount;
+        EstimatedExtraWeightFeeAmount = response.ExtraWeightFeeAmount;
+        EstimatedInsuranceFeeAmount = response.InsuranceFeeAmount;
+        EstimatedReturnFeeAmount = response.ReturnFeeAmount;
+        EstimatedVolumetricWeightKg = response.VolumetricWeightKg;
+        EstimatedChargeableWeightKg = response.ChargeableWeightKg;
+        EstimatedShippingFeeCurrency = response.Currency;
+    }
+
+    private void SetEstimate(DraftShipmentResponse response)
+    {
+        EstimatedShippingFeeAmount = response.ShippingFeeAmount;
+        EstimatedBaseFeeAmount = response.BaseFeeAmount;
+        EstimatedExtraWeightFeeAmount = response.ExtraWeightFeeAmount;
+        EstimatedInsuranceFeeAmount = response.InsuranceFeeAmount;
+        EstimatedReturnFeeAmount = response.ReturnFeeAmount;
+        EstimatedVolumetricWeightKg = response.VolumetricWeightKg;
+        EstimatedChargeableWeightKg = response.ChargeableWeightKg;
+        EstimatedShippingFeeCurrency = response.Currency;
+    }
+
+    private void OnShopChanged(ChangeEventArgs args)
+    {
+        if (Guid.TryParse(args.Value?.ToString(), out var shopId))
+        {
+            NavigationManager.NavigateTo(BuildShopLink("/shipments/create", shopId));
         }
     }
 
@@ -542,6 +983,7 @@
     {
         FeeEstimateMessage = null;
         CreatedShipment = null;
+        SavedShipment = null;
 
         if (!TryClassifyRoute())
         {
@@ -609,6 +1051,13 @@
         await CalculateFeeEstimateAsync();
     }
 
+    private async Task HandlePickupProvinceChanged()
+    {
+        Form.PickupWard = string.Empty;
+        PickupWardOptions = GetWardOptions(Form.PickupProvince);
+        await CalculateFeeEstimateAsync();
+    }
+
     private bool TryClassifyRoute()
     {
         if (string.IsNullOrWhiteSpace(Form.PickupProvince)
@@ -661,6 +1110,18 @@
         return Guid.TryParse(userIdValue, out var userId)
             ? userId
             : null;
+    }
+
+    private string BuildShopLink(string path)
+    {
+        return BuildShopLink(path, SelectedShopId);
+    }
+
+    private static string BuildShopLink(string path, Guid shopId)
+    {
+        return shopId == Guid.Empty
+            ? path
+            : $"{path}?shopId={shopId:D}";
     }
 
     private async Task ResetFormAsync()

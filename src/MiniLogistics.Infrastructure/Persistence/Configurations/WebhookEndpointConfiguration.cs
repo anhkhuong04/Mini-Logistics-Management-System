@@ -16,8 +16,9 @@ public sealed class WebhookEndpointConfiguration : IEntityTypeConfiguration<Webh
             .HasMaxLength(500)
             .IsRequired();
 
-        builder.Property(endpoint => endpoint.SigningSecret)
-            .HasMaxLength(200)
+        builder.Property(endpoint => endpoint.ProtectedSigningSecret)
+            .HasColumnName("SigningSecret")
+            .HasMaxLength(2048)
             .IsRequired();
 
         builder.Property(endpoint => endpoint.IsActive)

@@ -43,6 +43,20 @@ public sealed class CodTransaction : AuditableEntity
         return new CodTransaction(shipmentId, amount);
     }
 
+    public Result UpdateAmount(Money amount)
+    {
+        if (Status is not (CodStatus.NotRequired or CodStatus.PendingCollection))
+        {
+            return Result.Failure(CodErrors.CannotChangeAmount);
+        }
+
+        Amount = amount;
+        Status = amount.IsZero ? CodStatus.NotRequired : CodStatus.PendingCollection;
+        MarkUpdated();
+
+        return Result.Success();
+    }
+
     public Result MarkCollected(ShipmentStatus shipmentStatus, Guid collectedByUserId)
     {
         if (Status == CodStatus.NotRequired)

@@ -1,0 +1,65 @@
+using FluentValidation;
+using MiniLogistics.Application.AdminUsers;
+using MiniLogistics.Application.Common;
+using MiniLogistics.Application.Identity;
+using MiniLogistics.Domain.Common;
+
+namespace MiniLogistics.Application.Shops.SetShopActiveStatus;
+
+public sealed class SetShopActiveStatusService : ISetShopActiveStatusService
+{
+    private readonly IValidator<SetShopActiveStatusCommand> _validator;
+    private readonly IIdentityService _identityService;
+    private readonly IShopRepository _shopRepository;
+
+    public SetShopActiveStatusService(
+        IValidator<SetShopActiveStatusCommand> validator,
+        IIdentityService identityService,
+        IShopRepository shopRepository)
+    {
+        _validator = validator;
+        _identityService = identityService;
+        _shopRepository = shopRepository;
+    }
+
+    public async Task<Result> SetAsync(
+        SetShopActiveStatusCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var validationResult = await _validator.ValidateAsync(command, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            var description = string.Join("; ", validationResult.Errors.Select(error => error.ErrorMessage));
+            return Result.Failure(ApplicationErrors.ValidationFailed(description));
+        }
+
+        var authorizationResult = await AdminUserAuthorization.EnsureActiveAdminAsync(
+            _identityService,
+            command.RequestedByUserId,
+            cancellationToken);
+
+        if (authorizationResult.IsFailure)
+        {
+            return authorizationResult;
+        }
+
+        var shop = await _shopRepository.GetByIdAsync(command.ShopId, cancellationToken);
+        if (shop is null)
+        {
+            return Result.Failure(ApplicationErrors.NotFound("Shop was not found."));
+        }
+
+        if (command.IsActive)
+        {
+            shop.Activate();
+        }
+        else
+        {
+            shop.Deactivate();
+        }
+
+        await _shopRepository.SaveChangesAsync(cancellationToken);
+
+        return Result.Success();
+    }
+}

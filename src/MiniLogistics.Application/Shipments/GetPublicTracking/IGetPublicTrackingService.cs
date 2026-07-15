@@ -6,5 +6,6 @@ public interface IGetPublicTrackingService
 {
     Task<Result<PublicTrackingResponse>> GetAsync(
         string trackingCode,
+        string? phoneLast4 = null,
         CancellationToken cancellationToken = default);
 }

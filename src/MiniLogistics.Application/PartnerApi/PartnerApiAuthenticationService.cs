@@ -1,4 +1,5 @@
 using MiniLogistics.Domain.Common;
+using MiniLogistics.Application.Shops;
 
 namespace MiniLogistics.Application.PartnerApi;
 
@@ -7,10 +8,14 @@ public sealed class PartnerApiAuthenticationService : IPartnerApiAuthenticationS
     private const string BearerPrefix = "Bearer ";
 
     private readonly IApiClientRepository _apiClientRepository;
+    private readonly IShopRepository _shopRepository;
 
-    public PartnerApiAuthenticationService(IApiClientRepository apiClientRepository)
+    public PartnerApiAuthenticationService(
+        IApiClientRepository apiClientRepository,
+        IShopRepository shopRepository)
     {
         _apiClientRepository = apiClientRepository;
+        _shopRepository = shopRepository;
     }
 
     public async Task<Result<PartnerApiClientContext>> AuthenticateAsync(
@@ -43,6 +48,17 @@ public sealed class PartnerApiAuthenticationService : IPartnerApiAuthenticationS
         if (!apiClient.IsActive)
         {
             return Result<PartnerApiClientContext>.Failure(PartnerApiErrors.ApiClientInactive);
+        }
+
+        var shop = await _shopRepository.GetByIdAsync(apiClient.ShopId, cancellationToken);
+        if (shop is null)
+        {
+            return Result<PartnerApiClientContext>.Failure(PartnerApiErrors.InvalidApiKey);
+        }
+
+        if (!shop.IsActive)
+        {
+            return Result<PartnerApiClientContext>.Failure(PartnerApiErrors.ShopInactive);
         }
 
         apiClient.MarkUsed();

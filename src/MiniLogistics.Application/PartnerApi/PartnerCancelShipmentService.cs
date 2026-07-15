@@ -78,11 +78,12 @@ public sealed class PartnerCancelShipmentService : IPartnerCancelShipmentService
             return Result<PartnerShipmentTrackingResponse>.Failure(cancelResult.Error);
         }
 
-        await _shipmentRepository.SaveChangesAsync(cancellationToken);
         await _webhookEventPublisher.PublishShipmentAsync(
             shipment,
+            reference,
             WebhookEventTypes.ShipmentStatusChanged,
             cancellationToken);
+        await _shipmentRepository.SaveChangesAsync(cancellationToken);
 
         var codTransaction = await _codTransactionRepository.GetByShipmentIdAsync(shipment.Id, cancellationToken);
 
