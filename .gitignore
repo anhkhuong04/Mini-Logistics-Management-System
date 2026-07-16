@@ -15,8 +15,8 @@ publish/
 
 # Local tooling and agent artifacts
 .agent/
-task.md
-overview.md
+/*.md
+!/README.md
 
 # Logs
 *.log
