@@ -7,22 +7,33 @@ namespace MiniLogistics.Application.Routing;
 
 public sealed class RouteClassificationService : IRouteClassificationService
 {
-    private static readonly IReadOnlyDictionary<string, string> ProvinceRegions = BuildProvinceRegions();
+    private readonly IRouteRegionConfigSource _configSource;
+
+    public RouteClassificationService(IRouteRegionConfigSource? configSource = null)
+    {
+        _configSource = configSource ?? DefaultRouteRegionConfigSource.Instance;
+    }
 
     public Result<RouteClassificationResult> Classify(
         string pickupProvince,
         string deliveryProvince)
     {
+        var provinceRegions = _configSource
+            .GetProvinceRegions()
+            .ToDictionary(
+                item => NormalizeProvinceName(item.Key),
+                item => item.Value,
+                StringComparer.OrdinalIgnoreCase);
         var pickupKey = NormalizeProvinceName(pickupProvince);
         var deliveryKey = NormalizeProvinceName(deliveryProvince);
 
-        if (!ProvinceRegions.TryGetValue(pickupKey, out var pickupRegion))
+        if (!provinceRegions.TryGetValue(pickupKey, out var pickupRegion))
         {
             return Result<RouteClassificationResult>.Failure(
                 RouteClassificationErrors.ProvinceNotSupported(pickupProvince));
         }
 
-        if (!ProvinceRegions.TryGetValue(deliveryKey, out var deliveryRegion))
+        if (!provinceRegions.TryGetValue(deliveryKey, out var deliveryRegion))
         {
             return Result<RouteClassificationResult>.Failure(
                 RouteClassificationErrors.ProvinceNotSupported(deliveryProvince));
@@ -38,70 +49,6 @@ public sealed class RouteClassificationService : IRouteClassificationService
             routeType,
             pickupRegion,
             deliveryRegion));
-    }
-
-    private static IReadOnlyDictionary<string, string> BuildProvinceRegions()
-    {
-        var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        AddRegion(map, "Northern Midlands and Mountains",
-            "Cao Bang",
-            "Tuyen Quang",
-            "Dien Bien",
-            "Lai Chau",
-            "Son La",
-            "Lao Cai",
-            "Thai Nguyen",
-            "Lang Son",
-            "Phu Tho");
-
-        AddRegion(map, "Red River Delta",
-            "Ha Noi",
-            "Hai Phong",
-            "Quang Ninh",
-            "Bac Ninh",
-            "Hung Yen",
-            "Ninh Binh");
-
-        AddRegion(map, "North Central and Central Coast",
-            "Thanh Hoa",
-            "Nghe An",
-            "Ha Tinh",
-            "Quang Tri",
-            "Hue",
-            "Da Nang",
-            "Quang Ngai",
-            "Khanh Hoa");
-
-        AddRegion(map, "Central Highlands",
-            "Gia Lai",
-            "Dak Lak",
-            "Lam Dong");
-
-        AddRegion(map, "Southeast",
-            "Dong Nai",
-            "Ho Chi Minh",
-            "Tay Ninh");
-
-        AddRegion(map, "Mekong Delta",
-            "Dong Thap",
-            "Vinh Long",
-            "An Giang",
-            "Can Tho",
-            "Ca Mau");
-
-        return map;
-    }
-
-    private static void AddRegion(
-        IDictionary<string, string> map,
-        string region,
-        params string[] provinces)
-    {
-        foreach (var province in provinces)
-        {
-            map[NormalizeProvinceName(province)] = region;
-        }
     }
 
     private static string NormalizeProvinceName(string value)

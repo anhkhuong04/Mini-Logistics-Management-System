@@ -79,6 +79,15 @@ public sealed class ShipperWorkingAreaRepository : IShipperWorkingAreaRepository
             .ToListAsync(cancellationToken);
     }
 
+    public Task<int> CountActiveByHubIdAsync(
+        Guid hubId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.ShipperWorkingAreas
+            .AsNoTracking()
+            .CountAsync(area => area.IsActive && area.HubId == hubId, cancellationToken);
+    }
+
     public async Task AddAsync(
         ShipperWorkingArea workingArea,
         CancellationToken cancellationToken = default)

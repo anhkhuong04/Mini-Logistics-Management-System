@@ -52,6 +52,30 @@ public sealed class FeeRuleConfiguration : IEntityTypeConfiguration<FeeRule>
         builder.Property(feeRule => feeRule.MaximumWeightKg)
             .HasPrecision(10, 3);
 
+        builder.Property(feeRule => feeRule.Version)
+            .HasDefaultValue(1)
+            .IsRequired();
+
+        builder.Property(feeRule => feeRule.InsuranceFreeThreshold)
+            .HasPrecision(18, 2)
+            .HasDefaultValue(InsuranceFeePolicy.FreeInsuranceThreshold)
+            .IsRequired();
+
+        builder.Property(feeRule => feeRule.InsuranceMaximumValue)
+            .HasPrecision(18, 2)
+            .HasDefaultValue(InsuranceFeePolicy.MaximumInsuredValue)
+            .IsRequired();
+
+        builder.Property(feeRule => feeRule.InsuranceRate)
+            .HasPrecision(10, 6)
+            .HasDefaultValue(InsuranceFeePolicy.InsuranceRate)
+            .IsRequired();
+
+        builder.Property(feeRule => feeRule.ReturnFeeRate)
+            .HasPrecision(10, 4)
+            .HasDefaultValue(0.5m)
+            .IsRequired();
+
         builder.Property(feeRule => feeRule.IsActive)
             .IsRequired();
 
@@ -106,7 +130,12 @@ public sealed class FeeRuleConfiguration : IEntityTypeConfiguration<FeeRule>
             MaximumWeightKg = (decimal?)null,
             IsActive = true,
             CreatedAtUtc = SeededAtUtc,
-            UpdatedAtUtc = (DateTimeOffset?)null
+            UpdatedAtUtc = (DateTimeOffset?)null,
+            Version = 1,
+            InsuranceFreeThreshold = InsuranceFeePolicy.FreeInsuranceThreshold,
+            InsuranceMaximumValue = InsuranceFeePolicy.MaximumInsuredValue,
+            InsuranceRate = InsuranceFeePolicy.InsuranceRate,
+            ReturnFeeRate = 0.5m
         };
     }
 }

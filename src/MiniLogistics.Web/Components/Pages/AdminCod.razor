@@ -1,0 +1,532 @@
+@page "/admin/cod"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@using System.Security.Claims
+@using System.Text
+@using MiniLogistics.Application.AdminCod
+@using MiniLogistics.Application.CashOnDelivery.MarkCodSettled
+@using MiniLogistics.Domain.CashOnDelivery
+@using MiniLogistics.Domain.Shipments
+@inject IGetAdminCodReportService GetAdminCodReportService
+@inject IMarkCodSettledService MarkCodSettledService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>COD - MiniLogistics</PageTitle>
+
+<div class="admin-cod-page">
+    <header class="admin-hero">
+        <div>
+            <p class="eyebrow">Tai chinh</p>
+            <h1>COD settlement</h1>
+            <p>Theo doi COD pending, collected va settled tach khoi operations board.</p>
+        </div>
+
+        <button type="button" class="refresh-button" disabled="@IsLoading" @onclick="LoadAsync">Lam moi</button>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert-box danger" role="alert">@ErrorMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
+    {
+        <div class="alert-box success" role="status">@SuccessMessage</div>
+    }
+
+    <section class="admin-panel cod-tabs" aria-label="COD tabs">
+        @foreach (var tab in Tabs)
+        {
+            <button type="button"
+                    class="tab-button @(StatusFilter == tab.Status ? "active" : null)"
+                    @onclick="() => SelectTabAsync(tab.Status)">
+                @tab.Label
+            </button>
+        }
+    </section>
+
+    <section class="admin-panel cod-filters">
+        <label class="field-group" for="cod-from">
+            <span>Tu ngay</span>
+            <input id="cod-from" type="date" value="@FromDateText" @onchange="OnFromDateChanged" />
+        </label>
+
+        <label class="field-group" for="cod-to">
+            <span>Den ngay</span>
+            <input id="cod-to" type="date" value="@ToDateText" @onchange="OnToDateChanged" />
+        </label>
+
+        <label class="field-group" for="cod-province">
+            <span>Province</span>
+            <input id="cod-province" placeholder="Tat ca" @bind="ProvinceFilter" @bind:event="oninput" />
+        </label>
+
+        <label class="field-group" for="cod-shipper">
+            <span>Shipper id</span>
+            <input id="cod-shipper" placeholder="Guid" @bind="ShipperIdText" @bind:event="oninput" />
+        </label>
+
+        <label class="field-group amount-field" for="cod-min">
+            <span>Min amount</span>
+            <input id="cod-min" inputmode="decimal" @bind="MinAmountText" @bind:event="oninput" />
+        </label>
+
+        <label class="field-group amount-field" for="cod-max">
+            <span>Max amount</span>
+            <input id="cod-max" inputmode="decimal" @bind="MaxAmountText" @bind:event="oninput" />
+        </label>
+
+        <div class="form-actions">
+            <button type="button" class="primary-button" disabled="@IsLoading" @onclick="LoadAsync">Ap dung</button>
+            <a class="secondary-button" href="@CsvDownloadHref" download="cod-report.csv">Export CSV</a>
+        </div>
+    </section>
+
+    @if (IsLoading)
+    {
+        <section class="admin-panel state-card" aria-live="polite">
+            <strong>Dang tai COD report</strong>
+        </section>
+    }
+    else if (Report is not null)
+    {
+        <section class="summary-grid" aria-label="COD summary">
+            <article class="metric-card warning">
+                <span>Pending collection</span>
+                <strong>@FormatMoney(Report.Summary.PendingCollectionAmount, Report.Summary.Currency)</strong>
+                <small>@Report.Summary.PendingCollectionCount.ToString("N0") don</small>
+            </article>
+            <article class="metric-card">
+                <span>Collected awaiting settlement</span>
+                <strong>@FormatMoney(Report.Summary.CollectedAwaitingSettlementAmount, Report.Summary.Currency)</strong>
+                <small>@Report.Summary.CollectedAwaitingSettlementCount.ToString("N0") don</small>
+            </article>
+            <article class="metric-card success">
+                <span>Settled</span>
+                <strong>@FormatMoney(Report.Summary.SettledAmount, Report.Summary.Currency)</strong>
+                <small>@Report.Summary.SettledCount.ToString("N0") don</small>
+            </article>
+        </section>
+
+        <section class="cod-report-grid">
+            <article class="admin-panel report-card">
+                <div class="panel-heading">
+                    <div>
+                        <p class="eyebrow">Theo shipper</p>
+                        <h2>COD performance</h2>
+                    </div>
+                </div>
+                @foreach (var group in Report.ByShipper.Take(6))
+                {
+                    <div class="group-row">
+                        <span>@group.GroupKey</span>
+                        <strong>@FormatMoney(group.PendingAmount + group.CollectedAmount + group.SettledAmount, Report.Summary.Currency)</strong>
+                        <small>@group.CollectedRate.ToString("N2")% collected/settled</small>
+                    </div>
+                }
+            </article>
+
+            <article class="admin-panel report-card">
+                <div class="panel-heading">
+                    <div>
+                        <p class="eyebrow">Theo province</p>
+                        <h2>COD distribution</h2>
+                    </div>
+                </div>
+                @foreach (var group in Report.ByProvince.Take(6))
+                {
+                    <div class="group-row">
+                        <span>@group.GroupKey</span>
+                        <strong>@FormatMoney(group.PendingAmount + group.CollectedAmount + group.SettledAmount, Report.Summary.Currency)</strong>
+                        <small>@group.ShipmentCount.ToString("N0") don</small>
+                    </div>
+                }
+            </article>
+        </section>
+
+        <section class="admin-panel cod-list-section">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Danh sach</p>
+                    <h2>COD transactions</h2>
+                </div>
+                <span class="section-count">@Report.Items.Count.ToString("N0") records</span>
+            </div>
+
+            @if (Report.Items.Count == 0)
+            {
+                <div class="state-card compact">
+                    <strong>Khong co COD transaction phu hop</strong>
+                    <p>Thu doi bo loc hoac tab trang thai.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-shell">
+                    <table class="cod-table">
+                        <thead>
+                            <tr>
+                                <th>Tracking</th>
+                                <th>Nguoi nhan</th>
+                                <th>Province</th>
+                                <th>Shipper</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Timeline</th>
+                                <th>Settlement</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Report.Items)
+                            {
+                                <tr>
+                                    <td data-label="Tracking">
+                                        <span class="tracking-code">@item.TrackingCode</span>
+                                    </td>
+                                    <td data-label="Nguoi nhan">
+                                        <strong>@item.ReceiverName</strong>
+                                        <small>@item.ReceiverPhone</small>
+                                    </td>
+                                    <td data-label="Province">@item.Province</td>
+                                    <td data-label="Shipper">
+                                        <strong>@(item.ShipperName ?? "Unassigned")</strong>
+                                        @if (item.ShipperId.HasValue)
+                                        {
+                                            <small>@item.ShipperId</small>
+                                        }
+                                    </td>
+                                    <td data-label="Amount">
+                                        <strong>@FormatMoney(item.Amount, item.Currency)</strong>
+                                    </td>
+                                    <td data-label="Status">
+                                        <span class="cod-pill @GetCodStatusClass(item.CodStatus)">@FormatCodStatus(item.CodStatus)</span>
+                                        <small>@FormatShipmentStatus(item.ShipmentStatus)</small>
+                                    </td>
+                                    <td data-label="Timeline">
+                                        <small>Tao @FormatDate(item.CreatedAtUtc)</small>
+                                        <small>Thu @(FormatNullableDate(item.CollectedAtUtc))</small>
+                                        <small>Settle @(FormatNullableDate(item.SettledAtUtc))</small>
+                                    </td>
+                                    <td data-label="Settlement">
+                                        @if (item.CodStatus == CodStatus.Collected)
+                                        {
+                                            <input class="note-input"
+                                                   placeholder="Settlement note"
+                                                   value="@GetSettlementNote(item.ShipmentId)"
+                                                   @oninput="eventArgs => SetSettlementNote(item.ShipmentId, eventArgs.Value)" />
+                                            <button type="button"
+                                                    class="settle-button"
+                                                    disabled="@IsSettling(item.ShipmentId)"
+                                                    @onclick="() => SettleAsync(item)">
+                                                @(IsSettling(item.ShipmentId) ? "Dang settle..." : "Settle")
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <span class="locked-note">Chi xem</span>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    private static readonly IReadOnlyList<CodTab> Tabs =
+    [
+        new("Tat ca", null),
+        new("Pending collection", CodStatus.PendingCollection),
+        new("Awaiting settlement", CodStatus.Collected),
+        new("Settled", CodStatus.Settled)
+    ];
+
+    private bool IsLoading { get; set; } = true;
+
+    private Guid? SettlingShipmentId { get; set; }
+
+    private string? ErrorMessage { get; set; }
+
+    private string? SuccessMessage { get; set; }
+
+    private CodStatus? StatusFilter { get; set; } = CodStatus.Collected;
+
+    private string FromDateText { get; set; } = string.Empty;
+
+    private string ToDateText { get; set; } = string.Empty;
+
+    private string ProvinceFilter { get; set; } = string.Empty;
+
+    private string ShipperIdText { get; set; } = string.Empty;
+
+    private string MinAmountText { get; set; } = string.Empty;
+
+    private string MaxAmountText { get; set; } = string.Empty;
+
+    private Dictionary<Guid, string> SettlementNotes { get; } = [];
+
+    private AdminCodReportResponse? Report { get; set; }
+
+    private string CsvDownloadHref => BuildCsvDownloadHref();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task SelectTabAsync(CodStatus? status)
+    {
+        StatusFilter = status;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        var adminUserId = await GetCurrentUserIdAsync();
+        if (adminUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        if (!TryParseGuid(ShipperIdText, out var shipperId)
+            || !TryParseAmount(MinAmountText, out var minAmount)
+            || !TryParseAmount(MaxAmountText, out var maxAmount))
+        {
+            IsLoading = false;
+            return;
+        }
+
+        var result = await GetAdminCodReportService.GetAsync(new AdminCodReportQuery(
+            adminUserId.Value,
+            StatusFilter,
+            shipperId,
+            string.IsNullOrWhiteSpace(ProvinceFilter) ? null : ProvinceFilter.Trim(),
+            ParseStartDate(FromDateText),
+            ParseEndDate(ToDateText),
+            minAmount,
+            maxAmount));
+
+        IsLoading = false;
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            Report = null;
+            return;
+        }
+
+        Report = result.Value;
+    }
+
+    private async Task SettleAsync(AdminCodTransactionResponse item)
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        var adminUserId = await GetCurrentUserIdAsync();
+        if (adminUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        SettlingShipmentId = item.ShipmentId;
+        var result = await MarkCodSettledService.MarkSettledAsync(new MarkCodSettledCommand(
+            item.ShipmentId,
+            adminUserId.Value,
+            GetSettlementNote(item.ShipmentId)));
+        SettlingShipmentId = null;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        SettlementNotes.Remove(item.ShipmentId);
+        SuccessMessage = $"Da settle COD {item.TrackingCode}.";
+        await LoadAsync();
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userIdValue = authenticationState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(userIdValue, out var userId)
+            ? userId
+            : null;
+    }
+
+    private bool TryParseGuid(string value, out Guid? result)
+    {
+        result = null;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        if (Guid.TryParse(value.Trim(), out var parsed))
+        {
+            result = parsed;
+            return true;
+        }
+
+        ErrorMessage = "Shipper id khong hop le.";
+        Report = null;
+        return false;
+    }
+
+    private bool TryParseAmount(string value, out decimal? result)
+    {
+        result = null;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        if (decimal.TryParse(value.Trim(), out var parsed))
+        {
+            result = parsed;
+            return true;
+        }
+
+        ErrorMessage = "Amount filter khong hop le.";
+        Report = null;
+        return false;
+    }
+
+    private void OnFromDateChanged(ChangeEventArgs args)
+    {
+        FromDateText = args.Value?.ToString() ?? string.Empty;
+    }
+
+    private void OnToDateChanged(ChangeEventArgs args)
+    {
+        ToDateText = args.Value?.ToString() ?? string.Empty;
+    }
+
+    private string GetSettlementNote(Guid shipmentId)
+    {
+        return SettlementNotes.TryGetValue(shipmentId, out var note) ? note : string.Empty;
+    }
+
+    private void SetSettlementNote(Guid shipmentId, object? value)
+    {
+        SettlementNotes[shipmentId] = value?.ToString() ?? string.Empty;
+    }
+
+    private bool IsSettling(Guid shipmentId)
+    {
+        return SettlingShipmentId == shipmentId;
+    }
+
+    private static DateTimeOffset? ParseStartDate(string value)
+    {
+        return DateOnly.TryParse(value, out var date)
+            ? date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Local).ToUniversalTime()
+            : null;
+    }
+
+    private static DateTimeOffset? ParseEndDate(string value)
+    {
+        return DateOnly.TryParse(value, out var date)
+            ? date.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Local).ToUniversalTime()
+            : null;
+    }
+
+    private string BuildCsvDownloadHref()
+    {
+        if (Report is null || Report.Items.Count == 0)
+        {
+            return "data:text/csv;charset=utf-8,";
+        }
+
+        var builder = new StringBuilder();
+        builder.AppendLine("tracking_code,receiver,province,shipper,amount,currency,cod_status,shipment_status,created_at,collected_at,settled_at");
+        foreach (var item in Report.Items)
+        {
+            builder.AppendLine(string.Join(
+                ",",
+                EscapeCsv(item.TrackingCode),
+                EscapeCsv(item.ReceiverName),
+                EscapeCsv(item.Province),
+                EscapeCsv(item.ShipperName ?? string.Empty),
+                item.Amount.ToString("0.##"),
+                EscapeCsv(item.Currency),
+                item.CodStatus,
+                item.ShipmentStatus,
+                item.CreatedAtUtc.ToString("O"),
+                item.CollectedAtUtc?.ToString("O") ?? string.Empty,
+                item.SettledAtUtc?.ToString("O") ?? string.Empty));
+        }
+
+        return "data:text/csv;charset=utf-8," + Uri.EscapeDataString(builder.ToString());
+    }
+
+    private static string EscapeCsv(string value)
+    {
+        return $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
+    }
+
+    private static string FormatMoney(decimal amount, string currency)
+    {
+        return $"{amount:N0} {currency}";
+    }
+
+    private static string FormatDate(DateTimeOffset value)
+    {
+        return UiDisplay.FormatLocalDateTime(value);
+    }
+
+    private static string FormatNullableDate(DateTimeOffset? value)
+    {
+        return value.HasValue ? FormatDate(value.Value) : "-";
+    }
+
+    private static string FormatCodStatus(CodStatus status)
+    {
+        return status switch
+        {
+            CodStatus.NotRequired => "Khong can thu",
+            CodStatus.PendingCollection => "Cho thu",
+            CodStatus.Collected => "Da thu",
+            CodStatus.Settled => "Da doi soat",
+            _ => status.ToString()
+        };
+    }
+
+    private static string FormatShipmentStatus(ShipmentStatus status)
+    {
+        return status switch
+        {
+            ShipmentStatus.Delivered => "Da giao",
+            ShipmentStatus.DeliveryFailed => "Giao that bai",
+            ShipmentStatus.Returned => "Da hoan",
+            ShipmentStatus.Cancelled => "Da huy",
+            _ => status.ToString()
+        };
+    }
+
+    private static string GetCodStatusClass(CodStatus status)
+    {
+        return status switch
+        {
+            CodStatus.Collected => "collected",
+            CodStatus.Settled => "settled",
+            CodStatus.PendingCollection => "pending",
+            _ => "neutral"
+        };
+    }
+
+    private sealed record CodTab(string Label, CodStatus? Status);
+}

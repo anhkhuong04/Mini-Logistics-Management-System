@@ -5,5 +5,6 @@ public enum UserRole
     Admin = 1,
     Operator = 2,
     Shop = 3,
-    Shipper = 4
+    Shipper = 4,
+    IntegrationAdmin = 5
 }

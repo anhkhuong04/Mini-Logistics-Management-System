@@ -108,6 +108,67 @@
     gap: 1rem;
 }
 
+.operations-filter-panel {
+    display: grid;
+    gap: 1rem;
+}
+
+.filter-grid {
+    display: grid;
+    gap: 0.8rem;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+}
+
+.filter-field {
+    display: grid;
+    gap: 0.4rem;
+}
+
+.filter-field span,
+.sla-toggle span {
+    color: #334155;
+    font-size: 0.78rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.filter-field input,
+.filter-field select {
+    background: #fff;
+    border: 1px solid #d7e4f2;
+    border-radius: 10px;
+    color: #071b4d;
+    min-height: 40px;
+    padding: 0 0.75rem;
+}
+
+.sla-toggle,
+.bulk-select {
+    align-items: center;
+    display: inline-flex;
+    gap: 0.5rem;
+}
+
+.sla-toggle {
+    align-self: end;
+    min-height: 40px;
+}
+
+.bulk-toolbar,
+.pagination-bar {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.bulk-toolbar span,
+.pagination-bar span {
+    color: #64748b;
+    font-size: 0.82rem;
+    font-weight: 900;
+}
+
 .section-heading {
     align-items: center;
     display: flex;
@@ -294,7 +355,8 @@
 }
 
 .fallback-reason,
-.shipper-meta {
+.shipper-meta,
+.sla-badge {
     color: #64748b;
     display: block;
     font-size: 0.78rem;
@@ -302,6 +364,10 @@
     line-height: 1.45;
     margin-top: 0.45rem;
     max-width: 18rem;
+}
+
+.sla-badge {
+    color: #b91c1c;
 }
 
 .shipper-meta.success {
@@ -353,26 +419,51 @@
     gap: 0.55rem;
 }
 
+.assignment-management {
+    border-top: 1px solid #e5eef8;
+    display: grid;
+    gap: 0.55rem;
+    margin-top: 0.2rem;
+    padding-top: 0.8rem;
+}
+
+.assignment-management-title {
+    color: #334155;
+    font-size: 0.76rem;
+    font-weight: 900;
+    text-transform: uppercase;
+}
+
+.assignment-management-title.danger {
+    color: #b91c1c;
+    margin-top: 0.3rem;
+}
+
 .operations-status-form select,
-.operations-status-form textarea {
+.operations-status-form textarea,
+.assignment-management select,
+.assignment-management textarea {
     background: #fff;
     border: 1px solid #d7e4f2;
     border-radius: 10px;
     color: #071b4d;
 }
 
-.operations-status-form select {
+.operations-status-form select,
+.assignment-management select {
     min-height: 40px;
     padding: 0 0.75rem;
 }
 
-.operations-status-form textarea {
+.operations-status-form textarea,
+.assignment-management textarea {
     min-height: 64px;
     padding: 0.65rem;
     resize: vertical;
 }
 
-.operations-status-form button {
+.operations-status-form button,
+.reassign-button {
     background: #0b63f6;
     border: 1px solid #0b63f6;
     border-radius: 10px;
@@ -383,8 +474,22 @@
     padding: 0 1rem;
 }
 
+.cancel-assignment-button {
+    background: #fff;
+    border: 1px solid #fca5a5;
+    border-radius: 10px;
+    color: #b91c1c;
+    cursor: pointer;
+    font-weight: 900;
+    min-height: 40px;
+    padding: 0 1rem;
+}
+
 .operations-status-form button:disabled,
-.operations-status-form select:disabled {
+.operations-status-form select:disabled,
+.assignment-management button:disabled,
+.assignment-management select:disabled,
+.assignment-management textarea:disabled {
     cursor: not-allowed;
     opacity: 0.65;
 }
@@ -628,7 +733,8 @@
     .retry-button,
     .cod-button,
     .settlement-button,
-    .operations-status-form button {
+    .operations-status-form button,
+    .assignment-management button {
         width: 100%;
     }
 }

@@ -3,4 +3,5 @@ namespace MiniLogistics.Application.AdminUsers.SetUserActiveStatus;
 public sealed record SetUserActiveStatusCommand(
     Guid RequestedByUserId,
     Guid TargetUserId,
-    bool IsActive);
+    bool IsActive,
+    string? Reason = null);

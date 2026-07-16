@@ -10,12 +10,25 @@ public static class InsuranceFeePolicy
 
     public static Money Calculate(Money declaredGoodsValue)
     {
-        if (declaredGoodsValue.Amount < FreeInsuranceThreshold)
+        return Calculate(
+            declaredGoodsValue,
+            FreeInsuranceThreshold,
+            MaximumInsuredValue,
+            InsuranceRate);
+    }
+
+    public static Money Calculate(
+        Money declaredGoodsValue,
+        decimal freeInsuranceThreshold,
+        decimal maximumInsuredValue,
+        decimal insuranceRate)
+    {
+        if (declaredGoodsValue.Amount < freeInsuranceThreshold)
         {
             return new Money(0, declaredGoodsValue.Currency);
         }
 
-        var insuredValue = Math.Min(declaredGoodsValue.Amount, MaximumInsuredValue);
-        return new Money(insuredValue * InsuranceRate, declaredGoodsValue.Currency);
+        var insuredValue = Math.Min(declaredGoodsValue.Amount, maximumInsuredValue);
+        return new Money(insuredValue * insuranceRate, declaredGoodsValue.Currency);
     }
 }

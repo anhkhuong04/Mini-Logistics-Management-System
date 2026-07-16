@@ -48,6 +48,25 @@ public sealed class Hub : AuditableEntity
 
     public bool IsActive { get; private set; }
 
+    public void UpdateProfile(
+        string code,
+        string name,
+        string province,
+        string? ward = null,
+        string? addressLine = null,
+        bool isRegionalSortingHub = false,
+        string country = "Vietnam")
+    {
+        Code = NormalizeCode(code);
+        Name = RequireText(name, nameof(name));
+        Province = RequireText(province, nameof(province));
+        Ward = NormalizeOptional(ward);
+        AddressLine = NormalizeOptional(addressLine);
+        Country = RequireText(country, nameof(country));
+        IsRegionalSortingHub = isRegionalSortingHub;
+        MarkUpdated();
+    }
+
     public void Rename(string name)
     {
         Name = RequireText(name, nameof(name));

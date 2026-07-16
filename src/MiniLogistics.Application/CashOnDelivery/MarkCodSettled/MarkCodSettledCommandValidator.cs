@@ -11,5 +11,8 @@ public sealed class MarkCodSettledCommandValidator : AbstractValidator<MarkCodSe
 
         RuleFor(command => command.SettledByUserId)
             .NotEmpty();
+
+        RuleFor(command => command.Note)
+            .MaximumLength(500);
     }
 }

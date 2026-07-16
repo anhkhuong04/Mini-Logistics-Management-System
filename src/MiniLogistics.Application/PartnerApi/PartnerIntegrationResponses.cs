@@ -4,7 +4,8 @@ namespace MiniLogistics.Application.PartnerApi;
 
 public sealed record PartnerIntegrationDashboardResponse(
     IReadOnlyList<PartnerIntegrationShopResponse> Shops,
-    IReadOnlyList<PartnerApiClientResponse> ApiClients);
+    IReadOnlyList<PartnerApiClientResponse> ApiClients,
+    bool GranularPermissionEnabled = false);
 
 public sealed record PartnerIntegrationShopResponse(
     Guid ShopId,
@@ -22,7 +23,16 @@ public sealed record PartnerApiClientResponse(
     DateTimeOffset CreatedAtUtc,
     PartnerWebhookEndpointResponse? WebhookEndpoint,
     IReadOnlyList<PartnerWebhookDeliveryResponse> RecentDeliveries,
+    PartnerWebhookMetricsResponse WebhookMetrics,
     IReadOnlyList<PartnerApiCredentialAuditResponse> RecentCredentialAudits);
+
+public sealed record PartnerWebhookMetricsResponse(
+    int TotalDeliveries,
+    int SucceededDeliveries,
+    int FailedDeliveries,
+    int PendingRetryDeliveries,
+    decimal SuccessRate,
+    decimal? AverageLatencyMs);
 
 public sealed record PartnerWebhookEndpointResponse(
     Guid WebhookEndpointId,
@@ -39,6 +49,7 @@ public sealed record PartnerWebhookDeliveryResponse(
     DateTimeOffset? NextAttemptAtUtc,
     DateTimeOffset? LastAttemptAtUtc,
     int? LastResponseStatusCode,
+    long? LastDurationMs,
     string? LastError,
     DateTimeOffset CreatedAtUtc);
 

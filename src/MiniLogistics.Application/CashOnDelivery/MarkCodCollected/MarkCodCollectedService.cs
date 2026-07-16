@@ -1,4 +1,5 @@
 using FluentValidation;
+using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.Shipments;
@@ -14,17 +15,20 @@ public sealed class MarkCodCollectedService : IMarkCodCollectedService
     private readonly IIdentityService _identityService;
     private readonly IShipmentRepository _shipmentRepository;
     private readonly ICodTransactionRepository _codTransactionRepository;
+    private readonly IAdminAuditService _adminAuditService;
 
     public MarkCodCollectedService(
         IValidator<MarkCodCollectedCommand> validator,
         IIdentityService identityService,
         IShipmentRepository shipmentRepository,
-        ICodTransactionRepository codTransactionRepository)
+        ICodTransactionRepository codTransactionRepository,
+        IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _shipmentRepository = shipmentRepository;
         _codTransactionRepository = codTransactionRepository;
+        _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
     public async Task<Result> MarkCollectedAsync(
@@ -66,6 +70,7 @@ public sealed class MarkCodCollectedService : IMarkCodCollectedService
             return Result.Failure(ApplicationErrors.NotFound("COD transaction was not found."));
         }
 
+        var oldCodStatus = codTransaction.Status;
         var collectResult = codTransaction.MarkCollected(
             shipment.Status,
             command.CollectedByUserId);
@@ -77,6 +82,23 @@ public sealed class MarkCodCollectedService : IMarkCodCollectedService
 
         shipment.DeactivateActiveAssignments();
 
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.CollectedByUserId,
+                AdminAuditActions.CodCollected,
+                AdminAuditTargetTypes.CodTransaction,
+                codTransaction.Id,
+                OldValue: new
+                {
+                    Status = oldCodStatus.ToString()
+                },
+                NewValue: new
+                {
+                    Status = codTransaction.Status.ToString(),
+                    codTransaction.ShipmentId,
+                    CollectedByUserId = command.CollectedByUserId
+                }),
+            cancellationToken);
         await _codTransactionRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success();

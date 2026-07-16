@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.Shops;
@@ -23,6 +24,8 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
     private readonly IWebhookDeliveryRepository _webhookDeliveryRepository;
     private readonly IPartnerApiCredentialAuditRepository _credentialAuditRepository;
     private readonly ISecretProtector _secretProtector;
+    private readonly IAdminAuditService _adminAuditService;
+    private readonly IIntegrationManagementScopeRepository? _integrationScopeRepository;
 
     public PartnerIntegrationManagementService(
         IIdentityService identityService,
@@ -31,7 +34,9 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
         IWebhookEndpointRepository webhookEndpointRepository,
         IWebhookDeliveryRepository webhookDeliveryRepository,
         IPartnerApiCredentialAuditRepository credentialAuditRepository,
-        ISecretProtector secretProtector)
+        ISecretProtector secretProtector,
+        IAdminAuditService? adminAuditService = null,
+        IIntegrationManagementScopeRepository? integrationScopeRepository = null)
     {
         _identityService = identityService;
         _shopRepository = shopRepository;
@@ -40,6 +45,8 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
         _webhookDeliveryRepository = webhookDeliveryRepository;
         _credentialAuditRepository = credentialAuditRepository;
         _secretProtector = secretProtector;
+        _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
+        _integrationScopeRepository = integrationScopeRepository;
     }
 
     public async Task<Result<PartnerIntegrationDashboardResponse>> GetDashboardAsync(
@@ -52,7 +59,7 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             return Result<PartnerIntegrationDashboardResponse>.Failure(accessResult.Error);
         }
 
-        var shops = accessResult.Value;
+        var shops = accessResult.Value.Shops;
         var shopIds = shops.Select(shop => shop.Id).ToArray();
         var apiClients = await _apiClientRepository.GetByShopIdsAsync(shopIds, cancellationToken);
         var apiClientIds = apiClients.Select(apiClient => apiClient.Id).ToArray();
@@ -97,6 +104,7 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
                 deliveriesByClient.TryGetValue(apiClient.Id, out var clientDeliveries);
                 credentialAuditsByClient.TryGetValue(apiClient.Id, out var clientAudits);
 
+                var mappedDeliveries = clientDeliveries ?? [];
                 return new PartnerApiClientResponse(
                     apiClient.Id,
                     apiClient.ShopId,
@@ -107,11 +115,13 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
                     apiClient.LastUsedAtUtc,
                     apiClient.CreatedAtUtc,
                     endpoint is null ? null : MapEndpoint(endpoint),
-                    clientDeliveries ?? [],
+                    mappedDeliveries,
+                    BuildWebhookMetrics(mappedDeliveries),
                     clientAudits ?? []);
             }).ToList());
 
-        return Result<PartnerIntegrationDashboardResponse>.Success(response);
+        return Result<PartnerIntegrationDashboardResponse>.Success(
+            response with { GranularPermissionEnabled = accessResult.Value.GranularPermissionEnabled });
     }
 
     public async Task<Result<PartnerApiClientSecretResponse>> CreateApiClientAsync(
@@ -164,6 +174,20 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             isSuccess: true,
             error: null,
             cancellationToken);
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.CurrentUserId,
+                AdminAuditActions.PartnerApiClientCreated,
+                AdminAuditTargetTypes.PartnerApiClient,
+                apiClient.Id,
+                NewValue: new
+                {
+                    apiClient.ShopId,
+                    apiClient.Name,
+                    apiClient.ApiKeyPrefix,
+                    apiClient.IsActive
+                }),
+            cancellationToken);
         await _apiClientRepository.SaveChangesAsync(cancellationToken);
 
         return Result<PartnerApiClientSecretResponse>.Success(new PartnerApiClientSecretResponse(
@@ -186,6 +210,8 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
         }
 
         var apiClient = apiClientResult.Value;
+        var oldApiKeyPrefix = apiClient.ApiKeyPrefix;
+        var oldIsActive = apiClient.IsActive;
         var apiKey = GenerateApiKey();
         apiClient.RotateKey(ApiKeyHasher.GetPrefix(apiKey), ApiKeyHasher.Hash(apiKey));
         apiClient.Activate();
@@ -197,6 +223,23 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             PartnerApiCredentialAuditActions.ApiClientKeyRotated,
             isSuccess: true,
             error: null,
+            cancellationToken);
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.CurrentUserId,
+                AdminAuditActions.PartnerApiClientKeyRotated,
+                AdminAuditTargetTypes.PartnerApiClient,
+                apiClient.Id,
+                OldValue: new
+                {
+                    ApiKeyPrefix = oldApiKeyPrefix,
+                    IsActive = oldIsActive
+                },
+                NewValue: new
+                {
+                    apiClient.ApiKeyPrefix,
+                    apiClient.IsActive
+                }),
             cancellationToken);
         await _apiClientRepository.SaveChangesAsync(cancellationToken);
 
@@ -219,6 +262,7 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             return Result.Failure(apiClientResult.Error);
         }
 
+        var oldIsActive = apiClientResult.Value.IsActive;
         if (command.IsActive)
         {
             apiClientResult.Value.Activate();
@@ -237,6 +281,21 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
                 : PartnerApiCredentialAuditActions.ApiClientDeactivated,
             isSuccess: true,
             error: null,
+            cancellationToken);
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.CurrentUserId,
+                AdminAuditActions.PartnerApiClientActiveStatusChanged,
+                AdminAuditTargetTypes.PartnerApiClient,
+                apiClientResult.Value.Id,
+                OldValue: new
+                {
+                    IsActive = oldIsActive
+                },
+                NewValue: new
+                {
+                    apiClientResult.Value.IsActive
+                }),
             cancellationToken);
         await _apiClientRepository.SaveChangesAsync(cancellationToken);
         return Result.Success();
@@ -276,6 +335,13 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             var endpoint = await _webhookEndpointRepository.GetLatestByApiClientIdAsync(
                 apiClientResult.Value.Id,
                 cancellationToken);
+            var oldEndpointValue = endpoint is null
+                ? null
+                : new
+                {
+                    endpoint.Url,
+                    endpoint.IsActive
+                };
             if (endpoint is null)
             {
                 endpoint = new WebhookEndpoint(apiClientResult.Value.Id, command.Url, protectedSigningSecret);
@@ -294,6 +360,20 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
                 PartnerApiCredentialAuditActions.WebhookEndpointUpserted,
                 isSuccess: true,
                 error: null,
+                cancellationToken);
+            await _adminAuditService.RecordAsync(
+                new AdminAuditEntry(
+                    command.CurrentUserId,
+                    AdminAuditActions.PartnerWebhookEndpointUpserted,
+                    AdminAuditTargetTypes.PartnerWebhookEndpoint,
+                    endpoint.Id,
+                    OldValue: oldEndpointValue,
+                    NewValue: new
+                    {
+                        endpoint.ApiClientId,
+                        endpoint.Url,
+                        endpoint.IsActive
+                    }),
                 cancellationToken);
             await _webhookEndpointRepository.SaveChangesAsync(cancellationToken);
             return Result<PartnerWebhookEndpointResponse>.Success(MapEndpoint(endpoint));
@@ -368,6 +448,19 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             isSuccess: true,
             error: null,
             cancellationToken);
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.CurrentUserId,
+                AdminAuditActions.PartnerWebhookTestQueued,
+                AdminAuditTargetTypes.WebhookDelivery,
+                delivery.Id,
+                NewValue: new
+                {
+                    delivery.ApiClientId,
+                    delivery.EventType,
+                    delivery.Status
+                }),
+            cancellationToken);
         await _webhookDeliveryRepository.SaveChangesAsync(cancellationToken);
 
         return Result<PartnerWebhookTestResponse>.Success(new PartnerWebhookTestResponse(
@@ -375,7 +468,7 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             delivery.EventType));
     }
 
-    private async Task<Result<IReadOnlyList<Shop>>> GetAccessibleShopsAsync(
+    private async Task<Result<IntegrationShopAccessResult>> GetAccessibleShopsAsync(
         Guid currentUserId,
         CancellationToken cancellationToken)
     {
@@ -385,7 +478,16 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             cancellationToken);
         if (adminCheck.Exists && adminCheck.IsActive && adminCheck.IsInRole)
         {
-            return Result<IReadOnlyList<Shop>>.Success(await _shopRepository.GetAllAsync(cancellationToken));
+            return await GetAdminAccessibleShopsAsync(currentUserId, cancellationToken);
+        }
+
+        var integrationAdminCheck = await _identityService.CheckUserRoleAsync(
+            currentUserId,
+            nameof(UserRole.IntegrationAdmin),
+            cancellationToken);
+        if (integrationAdminCheck.Exists && integrationAdminCheck.IsActive && integrationAdminCheck.IsInRole)
+        {
+            return await GetAdminAccessibleShopsAsync(currentUserId, cancellationToken);
         }
 
         var shopCheck = await _identityService.CheckUserRoleAsync(
@@ -394,26 +496,57 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             cancellationToken);
         if (!shopCheck.Exists)
         {
-            return Result<IReadOnlyList<Shop>>.Failure(ApplicationErrors.NotFound("Current user was not found."));
+            return Result<IntegrationShopAccessResult>.Failure(ApplicationErrors.NotFound("Current user was not found."));
         }
 
         if (!shopCheck.IsActive)
         {
-            return Result<IReadOnlyList<Shop>>.Failure(ApplicationErrors.Forbidden("Current user is not active."));
+            return Result<IntegrationShopAccessResult>.Failure(ApplicationErrors.Forbidden("Current user is not active."));
         }
 
         if (!shopCheck.IsInRole)
         {
-            return Result<IReadOnlyList<Shop>>.Failure(ApplicationErrors.Forbidden("Only Shop or Admin can manage partner integrations."));
+            return Result<IntegrationShopAccessResult>.Failure(ApplicationErrors.Forbidden("Only Shop, Admin, or IntegrationAdmin can manage partner integrations."));
         }
 
         var shops = await _shopRepository.GetAllByOwnerUserIdAsync(currentUserId, cancellationToken);
         if (shops.Count == 0)
         {
-            return Result<IReadOnlyList<Shop>>.Failure(ApplicationErrors.NotFound("Shop was not found for current user."));
+            return Result<IntegrationShopAccessResult>.Failure(ApplicationErrors.NotFound("Shop was not found for current user."));
         }
 
-        return Result<IReadOnlyList<Shop>>.Success(shops);
+        return Result<IntegrationShopAccessResult>.Success(new IntegrationShopAccessResult(shops, false));
+    }
+
+    private async Task<Result<IntegrationShopAccessResult>> GetAdminAccessibleShopsAsync(
+        Guid currentUserId,
+        CancellationToken cancellationToken)
+    {
+        var shops = await _shopRepository.GetAllAsync(cancellationToken);
+        if (_integrationScopeRepository is null)
+        {
+            return Result<IntegrationShopAccessResult>.Success(new IntegrationShopAccessResult(shops, false));
+        }
+
+        var granularPermissionEnabled = await _integrationScopeRepository.AnyActiveScopeAsync(cancellationToken);
+        if (!granularPermissionEnabled)
+        {
+            return Result<IntegrationShopAccessResult>.Success(new IntegrationShopAccessResult(shops, false));
+        }
+
+        var scopes = await _integrationScopeRepository.GetActiveByActorUserIdAsync(
+            currentUserId,
+            cancellationToken);
+        if (scopes.Any(scope => scope.IsGlobal))
+        {
+            return Result<IntegrationShopAccessResult>.Success(new IntegrationShopAccessResult(shops, true));
+        }
+
+        var filteredShops = shops
+            .Where(shop => scopes.Any(scope => scope.Matches(shop.Id, shop.Address.Province)))
+            .ToList();
+
+        return Result<IntegrationShopAccessResult>.Success(new IntegrationShopAccessResult(filteredShops, true));
     }
 
     private async Task<Result> EnsureCanManageShopAsync(
@@ -427,7 +560,7 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             return Result.Failure(accessibleShopsResult.Error);
         }
 
-        var shop = accessibleShopsResult.Value.FirstOrDefault(shop => shop.Id == shopId);
+        var shop = accessibleShopsResult.Value.Shops.FirstOrDefault(shop => shop.Id == shopId);
         if (shop is null)
         {
             return Result.Failure(ApplicationErrors.Forbidden("Current user cannot manage this shop."));
@@ -475,8 +608,38 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             delivery.NextAttemptAtUtc,
             delivery.LastAttemptAtUtc,
             delivery.LastResponseStatusCode,
+            delivery.LastDurationMs,
             delivery.LastError,
             delivery.CreatedAtUtc);
+    }
+
+    private static PartnerWebhookMetricsResponse BuildWebhookMetrics(
+        IReadOnlyList<PartnerWebhookDeliveryResponse> deliveries)
+    {
+        var total = deliveries.Count;
+        var succeeded = deliveries.Count(delivery => delivery.Status == WebhookDeliveryStatus.Succeeded);
+        var failed = deliveries.Count(delivery => delivery.Status == WebhookDeliveryStatus.Failed);
+        var pendingRetry = deliveries.Count(delivery =>
+            delivery.Status != WebhookDeliveryStatus.Succeeded
+            && delivery.NextAttemptAtUtc.HasValue);
+        var successRate = total == 0
+            ? 0
+            : decimal.Round((decimal)succeeded / total * 100, 2);
+        var durations = deliveries
+            .Where(delivery => delivery.LastDurationMs.HasValue)
+            .Select(delivery => delivery.LastDurationMs!.Value)
+            .ToList();
+        var averageLatencyMs = durations.Count == 0
+            ? (decimal?)null
+            : decimal.Round((decimal)durations.Average(), 2);
+
+        return new PartnerWebhookMetricsResponse(
+            total,
+            succeeded,
+            failed,
+            pendingRetry,
+            successRate,
+            averageLatencyMs);
     }
 
     private static PartnerApiCredentialAuditResponse MapCredentialAudit(PartnerApiCredentialAudit audit)
@@ -544,4 +707,8 @@ public sealed class PartnerIntegrationManagementService : IPartnerIntegrationMan
             .Replace("/", "_", StringComparison.Ordinal)
             .TrimEnd('=');
     }
+
+    private sealed record IntegrationShopAccessResult(
+        IReadOnlyList<Shop> Shops,
+        bool GranularPermissionEnabled);
 }

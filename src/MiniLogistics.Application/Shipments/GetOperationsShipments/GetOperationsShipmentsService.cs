@@ -1,4 +1,5 @@
-﻿using MiniLogistics.Application.CashOnDelivery;
+using MiniLogistics.Application.CashOnDelivery;
+using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Common;
@@ -9,6 +10,8 @@ namespace MiniLogistics.Application.Shipments.GetOperationsShipments;
 
 public sealed class GetOperationsShipmentsService : IGetOperationsShipmentsService
 {
+    private static readonly TimeSpan CodPendingCollectionSla = TimeSpan.FromHours(24);
+
     private static readonly ShipmentStatus[] VisibleStatuses =
     [
         ShipmentStatus.Assigned,
@@ -37,8 +40,24 @@ public sealed class GetOperationsShipmentsService : IGetOperationsShipmentsServi
     public async Task<Result<IReadOnlyList<GetOperationsShipmentResponse>>> GetAsync(
         CancellationToken cancellationToken = default)
     {
+        var result = await SearchAsync(
+            new GetOperationsShipmentsQuery(PageNumber: 1, PageSize: int.MaxValue),
+            cancellationToken);
+
+        return result.IsSuccess
+            ? Result<IReadOnlyList<GetOperationsShipmentResponse>>.Success(result.Value.Items)
+            : Result<IReadOnlyList<GetOperationsShipmentResponse>>.Failure(result.Error);
+    }
+
+    public async Task<Result<PagedResponse<GetOperationsShipmentResponse>>> SearchAsync(
+        GetOperationsShipmentsQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        IReadOnlyCollection<ShipmentStatus> statuses = query.Status.HasValue
+            ? [query.Status.Value]
+            : VisibleStatuses;
         var shipments = await _shipmentRepository.GetByStatusesAsync(
-            VisibleStatuses,
+            statuses,
             cancellationToken);
 
         var activeShipperIds = shipments
@@ -50,6 +69,7 @@ public sealed class GetOperationsShipmentsService : IGetOperationsShipmentsServi
         var users = await _identityService.GetUsersByIdsAsync(activeShipperIds, cancellationToken);
         var userById = users.ToDictionary(user => user.UserId);
 
+        var now = DateTimeOffset.UtcNow;
         var response = new List<GetOperationsShipmentResponse>();
 
         foreach (var shipment in shipments)
@@ -64,6 +84,11 @@ public sealed class GetOperationsShipmentsService : IGetOperationsShipmentsServi
                 continue;
             }
 
+            if (!Matches(query, shipment, codStatus, now))
+            {
+                continue;
+            }
+
             var activeShipperId = shipment.Assignments.FirstOrDefault(assignment => assignment.IsActive)?.ShipperId;
             var activeShipper = activeShipperId.HasValue && userById.TryGetValue(activeShipperId.Value, out var user)
                 ? user
@@ -74,10 +99,30 @@ public sealed class GetOperationsShipmentsService : IGetOperationsShipmentsServi
                 _identityService,
                 cancellationToken);
 
-            response.Add(ToResponse(shipment, codStatus, activeShipperId, activeShipper, trackingHistory));
+            response.Add(ToResponse(
+                shipment,
+                codStatus,
+                activeShipperId,
+                activeShipper,
+                trackingHistory,
+                IsSlaOverdue(shipment, codStatus, now)));
         }
 
-        return Result<IReadOnlyList<GetOperationsShipmentResponse>>.Success(response);
+        var pageNumber = Math.Max(1, query.PageNumber);
+        var pageSize = query.PageSize == int.MaxValue
+            ? int.MaxValue
+            : Math.Clamp(query.PageSize, 1, 100);
+        var items = response
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToList();
+
+        return Result<PagedResponse<GetOperationsShipmentResponse>>.Success(
+            new PagedResponse<GetOperationsShipmentResponse>(
+                items,
+                pageNumber,
+                pageSize,
+                response.Count));
     }
 
     private static GetOperationsShipmentResponse ToResponse(
@@ -85,7 +130,8 @@ public sealed class GetOperationsShipmentsService : IGetOperationsShipmentsServi
         CodStatus codStatus,
         Guid? activeShipperId,
         IdentityUserSummaryResponse? activeShipper,
-        IReadOnlyList<ShipmentStatusHistoryResponse> trackingHistory)
+        IReadOnlyList<ShipmentStatusHistoryResponse> trackingHistory,
+        bool isSlaOverdue)
     {
         return new GetOperationsShipmentResponse(
             shipment.Id,
@@ -103,7 +149,102 @@ public sealed class GetOperationsShipmentsService : IGetOperationsShipmentsServi
             activeShipperId,
             activeShipper?.FullName,
             activeShipper?.PhoneNumber,
-            trackingHistory);
+            trackingHistory,
+            isSlaOverdue);
+    }
+
+    private static bool Matches(
+        GetOperationsShipmentsQuery query,
+        Shipment shipment,
+        CodStatus codStatus,
+        DateTimeOffset now)
+    {
+        if (query.CodStatus.HasValue && codStatus != query.CodStatus.Value)
+        {
+            return false;
+        }
+
+        if (query.ShipperId.HasValue
+            && shipment.Assignments.FirstOrDefault(assignment => assignment.IsActive)?.ShipperId != query.ShipperId.Value)
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.SearchText))
+        {
+            var keyword = query.SearchText.Trim();
+            var matchesKeyword = shipment.TrackingCode.Value.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                || shipment.ReceiverName.Contains(keyword, StringComparison.OrdinalIgnoreCase)
+                || shipment.ReceiverPhone.Value.Contains(keyword, StringComparison.OrdinalIgnoreCase);
+            if (!matchesKeyword)
+            {
+                return false;
+            }
+        }
+
+        if (!string.IsNullOrWhiteSpace(query.Province))
+        {
+            var province = query.Province.Trim();
+            var matchesProvince = string.Equals(shipment.PickupAddress.Province, province, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(shipment.DeliveryAddress.Province, province, StringComparison.OrdinalIgnoreCase);
+            if (!matchesProvince)
+            {
+                return false;
+            }
+        }
+
+        if (query.FromUtc.HasValue && shipment.CreatedAtUtc < query.FromUtc.Value)
+        {
+            return false;
+        }
+
+        if (query.ToUtc.HasValue && shipment.CreatedAtUtc > query.ToUtc.Value)
+        {
+            return false;
+        }
+
+        if (query.MinCodAmount.HasValue && shipment.CodAmount.Amount < query.MinCodAmount.Value)
+        {
+            return false;
+        }
+
+        if (query.MaxCodAmount.HasValue && shipment.CodAmount.Amount > query.MaxCodAmount.Value)
+        {
+            return false;
+        }
+
+        if (query.SlaOnly && !IsSlaOverdue(shipment, codStatus, now))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsSlaOverdue(
+        Shipment shipment,
+        CodStatus codStatus,
+        DateTimeOffset now)
+    {
+        if (shipment.Status == ShipmentStatus.DeliveryFailed
+            && shipment.StatusHistory.Count(history => history.Status == ShipmentStatus.DeliveryFailed) > 1)
+        {
+            return true;
+        }
+
+        if (shipment.Status == ShipmentStatus.Delivered && codStatus == CodStatus.PendingCollection)
+        {
+            var deliveredAtUtc = shipment.StatusHistory
+                .Where(history => history.Status == ShipmentStatus.Delivered)
+                .OrderByDescending(history => history.ChangedAtUtc)
+                .Select(history => history.ChangedAtUtc)
+                .FirstOrDefault();
+            var referenceDate = deliveredAtUtc == default ? shipment.CreatedAtUtc : deliveredAtUtc;
+
+            return now - referenceDate >= CodPendingCollectionSla;
+        }
+
+        return false;
     }
 
     private static ShipmentAddressResponse ToAddressResponse(Address address)

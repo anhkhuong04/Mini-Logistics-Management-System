@@ -1,0 +1,451 @@
+@page "/admin/system-config"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@using System.Security.Claims
+@using MiniLogistics.Application.AdminSystemConfiguration
+@using MiniLogistics.Domain.Fees
+@using MiniLogistics.Domain.Shipments
+@inject IAdminSystemConfigurationService AdminSystemConfigurationService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>System configuration - MiniLogistics</PageTitle>
+
+<div class="admin-system-config-page">
+    <header class="admin-hero">
+        <div>
+            <p class="eyebrow">Production config</p>
+            <h1>System configuration</h1>
+            <p>Quan ly route classification va fee rule version co audit.</p>
+        </div>
+
+        <button type="button" class="refresh-button" disabled="@IsLoading" @onclick="LoadAsync">Lam moi</button>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert-box danger" role="alert">@ErrorMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
+    {
+        <div class="alert-box success" role="status">@SuccessMessage</div>
+    }
+
+    @if (IsLoading)
+    {
+        <section class="admin-panel state-card" aria-live="polite">
+            <strong>Dang tai system config</strong>
+        </section>
+    }
+    else
+    {
+        <section class="summary-grid" aria-label="Config summary">
+            <article>
+                <span>Route configs</span>
+                <strong>@Configuration.RouteRegions.Count.ToString("N0")</strong>
+            </article>
+            <article>
+                <span>Active route configs</span>
+                <strong>@Configuration.RouteRegions.Count(config => config.IsActive).ToString("N0")</strong>
+            </article>
+            <article>
+                <span>Fee versions</span>
+                <strong>@Configuration.FeeRules.Count.ToString("N0")</strong>
+            </article>
+            <article>
+                <span>Active fee rules</span>
+                <strong>@Configuration.FeeRules.Count(rule => rule.IsActive).ToString("N0")</strong>
+            </article>
+        </section>
+
+        <section class="admin-panel config-editor">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Routing</p>
+                    <h2>Province to region</h2>
+                </div>
+            </div>
+
+            <form class="config-form" @onsubmit="SaveRouteRegionAsync" @onsubmit:preventDefault="true">
+                <label class="field-group" for="route-province">
+                    <span>Province</span>
+                    <input id="route-province" maxlength="100" required @bind="RouteProvince" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group" for="route-region">
+                    <span>Region</span>
+                    <input id="route-region" maxlength="120" required @bind="RouteRegion" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group wide" for="route-reason">
+                    <span>Reason</span>
+                    <input id="route-reason" maxlength="500" @bind="RouteReason" @bind:event="oninput" />
+                </label>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@IsSavingRoute">
+                        @(IsSavingRoute ? "Dang luu..." : "Luu route config")
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section class="admin-panel config-editor">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Shipping fee</p>
+                    <h2>Tao fee rule version</h2>
+                </div>
+            </div>
+
+            <form class="fee-form" @onsubmit="SaveFeeRuleAsync" @onsubmit:preventDefault="true">
+                <label class="field-group" for="fee-route-type">
+                    <span>Route type</span>
+                    <select id="fee-route-type" @bind="FeeRouteType">
+                        @foreach (var routeType in RouteTypeOptions)
+                        {
+                            <option value="@routeType">@routeType</option>
+                        }
+                    </select>
+                </label>
+
+                <label class="field-group" for="base-weight">
+                    <span>Base weight kg</span>
+                    <input id="base-weight" type="number" step="0.001" min="0.001" required @bind="FeeBaseWeightKg" />
+                </label>
+
+                <label class="field-group" for="base-fee">
+                    <span>Base fee</span>
+                    <input id="base-fee" type="number" step="1000" min="0" required @bind="FeeBaseAmount" />
+                </label>
+
+                <label class="field-group" for="extra-step">
+                    <span>Extra step kg</span>
+                    <input id="extra-step" type="number" step="0.001" min="0.001" required @bind="FeeExtraStepKg" />
+                </label>
+
+                <label class="field-group" for="extra-fee">
+                    <span>Extra step fee</span>
+                    <input id="extra-fee" type="number" step="1000" min="0" required @bind="FeeExtraAmount" />
+                </label>
+
+                <label class="field-group" for="min-weight">
+                    <span>Min weight kg</span>
+                    <input id="min-weight" type="number" step="0.001" min="0" @bind="FeeMinimumWeightKgText" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group" for="max-weight">
+                    <span>Max weight kg</span>
+                    <input id="max-weight" type="number" step="0.001" min="0" @bind="FeeMaximumWeightKgText" @bind:event="oninput" />
+                </label>
+
+                <label class="field-group" for="insurance-threshold">
+                    <span>Free insurance threshold</span>
+                    <input id="insurance-threshold" type="number" step="1000" min="0" required @bind="InsuranceFreeThreshold" />
+                </label>
+
+                <label class="field-group" for="insurance-max">
+                    <span>Max insured value</span>
+                    <input id="insurance-max" type="number" step="1000" min="0" required @bind="InsuranceMaximumValue" />
+                </label>
+
+                <label class="field-group" for="insurance-rate">
+                    <span>Insurance rate</span>
+                    <input id="insurance-rate" type="number" step="0.0001" min="0" required @bind="InsuranceRate" />
+                </label>
+
+                <label class="field-group" for="return-rate">
+                    <span>Return fee rate</span>
+                    <input id="return-rate" type="number" step="0.01" min="0" required @bind="ReturnFeeRate" />
+                </label>
+
+                <label class="field-group wide" for="fee-reason">
+                    <span>Reason</span>
+                    <input id="fee-reason" maxlength="500" @bind="FeeReason" @bind:event="oninput" />
+                </label>
+
+                <div class="form-actions">
+                    <button type="submit" class="primary-button" disabled="@IsSavingFee">
+                        @(IsSavingFee ? "Dang luu..." : "Tao fee version")
+                    </button>
+                </div>
+            </form>
+        </section>
+
+        <section class="admin-panel list-section">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Routing</p>
+                    <h2>Route region versions</h2>
+                </div>
+                <span class="section-count">@Configuration.RouteRegions.Count.ToString("N0") config</span>
+            </div>
+
+            <div class="table-shell">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Province</th>
+                            <th>Region</th>
+                            <th>Version</th>
+                            <th>Status</th>
+                            <th>Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var config in Configuration.RouteRegions)
+                        {
+                            <tr>
+                                <td>@config.Province</td>
+                                <td>@config.Region</td>
+                                <td>@config.Version</td>
+                                <td><span class="status-pill @(config.IsActive ? "active" : "inactive")">@(config.IsActive ? "Active" : "Inactive")</span></td>
+                                <td>@FormatNullableDate(config.UpdatedAtUtc ?? config.CreatedAtUtc)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="admin-panel list-section">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Fee</p>
+                    <h2>Fee rule versions</h2>
+                </div>
+                <span class="section-count">@Configuration.FeeRules.Count.ToString("N0") rule</span>
+            </div>
+
+            <div class="table-shell">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Route</th>
+                            <th>Version</th>
+                            <th>Base</th>
+                            <th>Extra</th>
+                            <th>Insurance</th>
+                            <th>Return</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var rule in Configuration.FeeRules)
+                        {
+                            <tr>
+                                <td>@rule.RouteType</td>
+                                <td>@rule.Version</td>
+                                <td>@FormatMoney(rule.BaseFeeAmount) / @rule.BaseWeightKg.ToString("N3") kg</td>
+                                <td>@FormatMoney(rule.ExtraStepFeeAmount) / @rule.ExtraWeightStepKg.ToString("N3") kg</td>
+                                <td>@rule.InsuranceRate.ToString("P2") after @FormatMoney(rule.InsuranceFreeThreshold)</td>
+                                <td>@rule.ReturnFeeRate.ToString("P0") service fee</td>
+                                <td><span class="status-pill @(rule.IsActive ? "active" : "inactive")">@(rule.IsActive ? "Active" : "Inactive")</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    }
+</div>
+
+@code {
+    private static readonly RouteType[] RouteTypeOptions =
+    [
+        RouteType.IntraProvince,
+        RouteType.IntraRegion,
+        RouteType.InterRegion
+    ];
+
+    private bool IsLoading { get; set; } = true;
+
+    private bool IsSavingRoute { get; set; }
+
+    private bool IsSavingFee { get; set; }
+
+    private string? ErrorMessage { get; set; }
+
+    private string? SuccessMessage { get; set; }
+
+    private AdminSystemConfigurationResponse Configuration { get; set; } = new([], []);
+
+    private string RouteProvince { get; set; } = string.Empty;
+
+    private string RouteRegion { get; set; } = string.Empty;
+
+    private string? RouteReason { get; set; }
+
+    private RouteType FeeRouteType { get; set; } = RouteType.InterRegion;
+
+    private decimal FeeBaseWeightKg { get; set; } = 0.5m;
+
+    private decimal FeeBaseAmount { get; set; } = 35_000m;
+
+    private decimal FeeExtraStepKg { get; set; } = 0.5m;
+
+    private decimal FeeExtraAmount { get; set; } = 8_000m;
+
+    private string FeeMinimumWeightKgText { get; set; } = string.Empty;
+
+    private string FeeMaximumWeightKgText { get; set; } = string.Empty;
+
+    private decimal InsuranceFreeThreshold { get; set; } = InsuranceFeePolicy.FreeInsuranceThreshold;
+
+    private decimal InsuranceMaximumValue { get; set; } = InsuranceFeePolicy.MaximumInsuredValue;
+
+    private decimal InsuranceRate { get; set; } = InsuranceFeePolicy.InsuranceRate;
+
+    private decimal ReturnFeeRate { get; set; } = 0.5m;
+
+    private string? FeeReason { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+
+        var adminUserId = await GetCurrentUserIdAsync();
+        if (adminUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var result = await AdminSystemConfigurationService.GetAsync(adminUserId.Value);
+        IsLoading = false;
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            Configuration = new([], []);
+            return;
+        }
+
+        Configuration = result.Value;
+    }
+
+    private async Task SaveRouteRegionAsync()
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        var adminUserId = await GetCurrentUserIdAsync();
+        if (adminUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        IsSavingRoute = true;
+        var result = await AdminSystemConfigurationService.UpsertRouteRegionAsync(
+            new UpsertRouteRegionConfigCommand(
+                adminUserId.Value,
+                RouteProvince,
+                RouteRegion,
+                RouteReason));
+        IsSavingRoute = false;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        SuccessMessage = $"Da luu route config {result.Value.Province} v{result.Value.Version}.";
+        RouteProvince = string.Empty;
+        RouteRegion = string.Empty;
+        RouteReason = null;
+        await LoadAsync();
+    }
+
+    private async Task SaveFeeRuleAsync()
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        if (!TryParseOptionalDecimal(FeeMinimumWeightKgText, out var minWeight)
+            || !TryParseOptionalDecimal(FeeMaximumWeightKgText, out var maxWeight))
+        {
+            ErrorMessage = "Min/max weight khong hop le.";
+            return;
+        }
+
+        var adminUserId = await GetCurrentUserIdAsync();
+        if (adminUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        IsSavingFee = true;
+        var result = await AdminSystemConfigurationService.CreateFeeRuleVersionAsync(
+            new CreateFeeRuleVersionCommand(
+                adminUserId.Value,
+                FeeRouteType,
+                FeeBaseWeightKg,
+                FeeBaseAmount,
+                FeeExtraStepKg,
+                FeeExtraAmount,
+                minWeight,
+                maxWeight,
+                InsuranceFreeThreshold,
+                InsuranceMaximumValue,
+                InsuranceRate,
+                ReturnFeeRate,
+                FeeReason));
+        IsSavingFee = false;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        SuccessMessage = $"Da tao fee rule {result.Value.RouteType} v{result.Value.Version}.";
+        FeeReason = null;
+        await LoadAsync();
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userIdValue = authenticationState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(userIdValue, out var userId)
+            ? userId
+            : null;
+    }
+
+    private static bool TryParseOptionalDecimal(string value, out decimal? parsed)
+    {
+        parsed = null;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        if (!decimal.TryParse(value.Trim(), out var valueParsed))
+        {
+            return false;
+        }
+
+        parsed = valueParsed;
+        return true;
+    }
+
+    private static string FormatNullableDate(DateTimeOffset? value)
+    {
+        return value.HasValue ? UiDisplay.FormatLocalDateTime(value.Value) : "-";
+    }
+
+    private static string FormatMoney(decimal amount)
+    {
+        return $"{amount:N0} VND";
+    }
+}

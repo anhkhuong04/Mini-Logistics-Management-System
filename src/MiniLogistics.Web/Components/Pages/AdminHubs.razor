@@ -1,0 +1,493 @@
+@page "/admin/hubs"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@using System.Security.Claims
+@using MiniLogistics.Application.AdminHubs
+@using MiniLogistics.Application.AdminHubs.CreateHub
+@using MiniLogistics.Application.AdminHubs.GetAdminHubs
+@using MiniLogistics.Application.AdminHubs.SetHubActiveStatus
+@using MiniLogistics.Application.AdminHubs.UpdateHub
+@inject ICreateHubService CreateHubService
+@inject IGetAdminHubsService GetAdminHubsService
+@inject ISetHubActiveStatusService SetHubActiveStatusService
+@inject IUpdateHubService UpdateHubService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Hub management - MiniLogistics</PageTitle>
+
+<div class="admin-hubs-page">
+    <header class="admin-hero">
+        <div>
+            <p class="eyebrow">Routing config</p>
+            <h1>Hubs</h1>
+            <p>Quan ly hub van hanh, sorting hub va kha nang gan khu vuc lam viec cho shipper.</p>
+        </div>
+
+        <button type="button" class="refresh-button" disabled="@IsLoading" @onclick="RefreshAsync">Lam moi</button>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert-box danger" role="alert">@ErrorMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
+    {
+        <div class="alert-box success" role="status">@SuccessMessage</div>
+    }
+
+    <section class="admin-panel hub-filters">
+        <label class="field-group" for="hub-search">
+            <span>Search</span>
+            <input id="hub-search" placeholder="Code, name, province" @bind="SearchText" @bind:event="oninput" />
+        </label>
+
+        <label class="field-group" for="hub-active-filter">
+            <span>Status</span>
+            <select id="hub-active-filter" @bind="ActiveFilter">
+                <option value="All">Tat ca</option>
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+            </select>
+        </label>
+
+        <label class="field-group" for="hub-sorting-filter">
+            <span>Type</span>
+            <select id="hub-sorting-filter" @bind="SortingFilter">
+                <option value="All">Tat ca</option>
+                <option value="Sorting">Sorting hub</option>
+                <option value="Province">Province hub</option>
+            </select>
+        </label>
+
+        <label class="field-group" for="hub-province-filter">
+            <span>Province</span>
+            <input id="hub-province-filter" placeholder="Tat ca" @bind="ProvinceFilter" @bind:event="oninput" />
+        </label>
+
+        <div class="form-actions">
+            <button type="button" class="primary-button" disabled="@IsLoading" @onclick="LoadAsync">Ap dung</button>
+        </div>
+    </section>
+
+    <section class="admin-panel hub-editor">
+        <div class="panel-heading">
+            <div>
+                <p class="eyebrow">Hub config</p>
+                <h2>@(EditingHubId.HasValue ? "Sua hub" : "Tao hub")</h2>
+            </div>
+
+            @if (EditingHubId.HasValue)
+            {
+                <button type="button" class="secondary-button" @onclick="ClearForm">Tao moi</button>
+            }
+        </div>
+
+        <form class="hub-form" @onsubmit="SaveHubAsync" @onsubmit:preventDefault="true">
+            <label class="field-group" for="hub-code">
+                <span>Code</span>
+                <input id="hub-code" maxlength="40" required @bind="HubCode" @bind:event="oninput" />
+            </label>
+
+            <label class="field-group" for="hub-name">
+                <span>Name</span>
+                <input id="hub-name" maxlength="200" required @bind="HubName" @bind:event="oninput" />
+            </label>
+
+            <label class="field-group" for="hub-province">
+                <span>Province</span>
+                <input id="hub-province" maxlength="100" required @bind="HubProvince" @bind:event="oninput" />
+            </label>
+
+            <label class="field-group" for="hub-ward">
+                <span>Ward</span>
+                <input id="hub-ward" maxlength="100" @bind="HubWard" @bind:event="oninput" />
+            </label>
+
+            <label class="field-group" for="hub-address">
+                <span>Address</span>
+                <input id="hub-address" maxlength="300" @bind="HubAddressLine" @bind:event="oninput" />
+            </label>
+
+            <label class="field-group" for="hub-country">
+                <span>Country</span>
+                <input id="hub-country" maxlength="100" required @bind="HubCountry" @bind:event="oninput" />
+            </label>
+
+            <label class="sorting-toggle" for="hub-sorting">
+                <input id="hub-sorting" type="checkbox" @bind="HubIsRegionalSortingHub" />
+                <span>Regional sorting hub</span>
+            </label>
+
+            <div class="form-actions">
+                <button type="submit" class="primary-button" disabled="@IsSavingHub">
+                    @(IsSavingHub ? "Dang luu..." : EditingHubId.HasValue ? "Luu thay doi" : "Tao hub")
+                </button>
+            </div>
+        </form>
+    </section>
+
+    @if (IsLoading)
+    {
+        <section class="admin-panel state-card" aria-live="polite">
+            <strong>Dang tai hubs</strong>
+        </section>
+    }
+    else
+    {
+        <section class="summary-grid" aria-label="Hub summary">
+            <article class="metric-card">
+                <span>Total hubs</span>
+                <strong>@Hubs.Count.ToString("N0")</strong>
+            </article>
+            <article class="metric-card">
+                <span>Active</span>
+                <strong>@Hubs.Count(hub => hub.IsActive).ToString("N0")</strong>
+            </article>
+            <article class="metric-card">
+                <span>Sorting hubs</span>
+                <strong>@Hubs.Count(hub => hub.IsRegionalSortingHub).ToString("N0")</strong>
+            </article>
+            <article class="metric-card warning">
+                <span>Referenced</span>
+                <strong>@Hubs.Count(hub => hub.ActiveWorkingAreaCount > 0).ToString("N0")</strong>
+            </article>
+        </section>
+
+        <section class="admin-panel hub-list-section">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Danh sach</p>
+                    <h2>Hub records</h2>
+                </div>
+                <span class="section-count">@Hubs.Count.ToString("N0") hub</span>
+            </div>
+
+            @if (Hubs.Count == 0)
+            {
+                <div class="state-card compact">
+                    <strong>Khong co hub phu hop</strong>
+                    <p>Thu doi bo loc hoac tao hub moi.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-shell">
+                    <table class="hub-table">
+                        <thead>
+                            <tr>
+                                <th>Hub</th>
+                                <th>Location</th>
+                                <th>Type</th>
+                                <th>Working areas</th>
+                                <th>Status</th>
+                                <th>Updated</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var hub in Hubs)
+                            {
+                                <tr>
+                                    <td data-label="Hub">
+                                        <strong>@hub.Name</strong>
+                                        <small>@hub.Code</small>
+                                    </td>
+                                    <td data-label="Location">
+                                        <strong>@hub.Province</strong>
+                                        <small>@FormatAddress(hub)</small>
+                                    </td>
+                                    <td data-label="Type">
+                                        <span class="type-pill @(hub.IsRegionalSortingHub ? "sorting" : "province")">
+                                            @(hub.IsRegionalSortingHub ? "Sorting" : "Province")
+                                        </span>
+                                    </td>
+                                    <td data-label="Working areas">
+                                        <strong>@hub.ActiveWorkingAreaCount.ToString("N0") active</strong>
+                                        @if (hub.ActiveWorkingAreaCount > 0 && hub.IsActive)
+                                        {
+                                            <small class="warning-text">Deactivate se giu lich su area, nhung khong cho gan moi.</small>
+                                        }
+                                    </td>
+                                    <td data-label="Status">
+                                        <span class="status-pill @(hub.IsActive ? "active" : "inactive")">
+                                            @(hub.IsActive ? "Active" : "Inactive")
+                                        </span>
+                                    </td>
+                                    <td data-label="Updated">@FormatNullableDate(hub.UpdatedAtUtc ?? hub.CreatedAtUtc)</td>
+                                    <td data-label="Actions">
+                                        <div class="row-actions">
+                                            <button type="button" class="secondary-button" @onclick="() => EditHub(hub)">Sua</button>
+                                            <input class="reason-input"
+                                                   maxlength="500"
+                                                   placeholder="Reason"
+                                                   value="@GetHubReason(hub.HubId)"
+                                                   @oninput="eventArgs => SetHubReason(hub.HubId, eventArgs.Value)" />
+                                            <button type="button"
+                                                    class="toggle-button @(hub.IsActive ? "danger" : "success")"
+                                                    disabled="@IsToggling(hub.HubId)"
+                                                    @onclick="() => ToggleHubAsync(hub)">
+                                                @(IsToggling(hub.HubId)
+                                                    ? "Dang luu..."
+                                                    : hub.IsActive ? "Deactivate" : "Activate")
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    private bool IsLoading { get; set; } = true;
+
+    private bool IsSavingHub { get; set; }
+
+    private Guid? TogglingHubId { get; set; }
+
+    private Guid? EditingHubId { get; set; }
+
+    private string? ErrorMessage { get; set; }
+
+    private string? SuccessMessage { get; set; }
+
+    private IReadOnlyList<AdminHubResponse> Hubs { get; set; } = [];
+
+    private Dictionary<Guid, string> HubReasons { get; } = [];
+
+    private string SearchText { get; set; } = string.Empty;
+
+    private string ActiveFilter { get; set; } = "All";
+
+    private string SortingFilter { get; set; } = "All";
+
+    private string ProvinceFilter { get; set; } = string.Empty;
+
+    private string HubCode { get; set; } = string.Empty;
+
+    private string HubName { get; set; } = string.Empty;
+
+    private string HubProvince { get; set; } = string.Empty;
+
+    private string? HubWard { get; set; }
+
+    private string? HubAddressLine { get; set; }
+
+    private string HubCountry { get; set; } = "Vietnam";
+
+    private bool HubIsRegionalSortingHub { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task RefreshAsync()
+    {
+        SuccessMessage = null;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+
+        var adminUserId = await GetCurrentUserIdAsync();
+        if (adminUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var result = await GetAdminHubsService.GetAsync(new AdminHubQuery(
+            adminUserId.Value,
+            string.IsNullOrWhiteSpace(SearchText) ? null : SearchText.Trim(),
+            ParseActiveFilter(),
+            string.IsNullOrWhiteSpace(ProvinceFilter) ? null : ProvinceFilter.Trim(),
+            ParseSortingFilter()));
+
+        IsLoading = false;
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            Hubs = [];
+            return;
+        }
+
+        Hubs = result.Value;
+    }
+
+    private async Task SaveHubAsync()
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        var adminUserId = await GetCurrentUserIdAsync();
+        if (adminUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        IsSavingHub = true;
+        var result = EditingHubId.HasValue
+            ? await UpdateHubService.UpdateAsync(new UpdateHubCommand(
+                adminUserId.Value,
+                EditingHubId.Value,
+                HubCode,
+                HubName,
+                HubProvince,
+                HubWard,
+                HubAddressLine,
+                HubCountry,
+                HubIsRegionalSortingHub))
+            : await CreateHubService.CreateAsync(new CreateHubCommand(
+                adminUserId.Value,
+                HubCode,
+                HubName,
+                HubProvince,
+                HubWard,
+                HubAddressLine,
+                HubCountry,
+                HubIsRegionalSortingHub));
+        IsSavingHub = false;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        SuccessMessage = EditingHubId.HasValue
+            ? $"Da cap nhat hub {result.Value.Code}."
+            : $"Da tao hub {result.Value.Code}.";
+        ClearForm();
+        await LoadAsync();
+    }
+
+    private async Task ToggleHubAsync(AdminHubResponse hub)
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        var adminUserId = await GetCurrentUserIdAsync();
+        if (adminUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        TogglingHubId = hub.HubId;
+        var targetStatus = !hub.IsActive;
+        var result = await SetHubActiveStatusService.SetAsync(new SetHubActiveStatusCommand(
+            adminUserId.Value,
+            hub.HubId,
+            targetStatus,
+            GetHubReason(hub.HubId)));
+        TogglingHubId = null;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        HubReasons.Remove(hub.HubId);
+        SuccessMessage = targetStatus
+            ? $"Da activate hub {hub.Code}."
+            : $"Da deactivate hub {hub.Code}.";
+        await LoadAsync();
+    }
+
+    private void EditHub(AdminHubResponse hub)
+    {
+        EditingHubId = hub.HubId;
+        HubCode = hub.Code;
+        HubName = hub.Name;
+        HubProvince = hub.Province;
+        HubWard = hub.Ward;
+        HubAddressLine = hub.AddressLine;
+        HubCountry = hub.Country;
+        HubIsRegionalSortingHub = hub.IsRegionalSortingHub;
+    }
+
+    private void ClearForm()
+    {
+        EditingHubId = null;
+        HubCode = string.Empty;
+        HubName = string.Empty;
+        HubProvince = string.Empty;
+        HubWard = null;
+        HubAddressLine = null;
+        HubCountry = "Vietnam";
+        HubIsRegionalSortingHub = false;
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userIdValue = authenticationState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(userIdValue, out var userId)
+            ? userId
+            : null;
+    }
+
+    private bool? ParseActiveFilter()
+    {
+        return ActiveFilter switch
+        {
+            "Active" => true,
+            "Inactive" => false,
+            _ => null
+        };
+    }
+
+    private bool? ParseSortingFilter()
+    {
+        return SortingFilter switch
+        {
+            "Sorting" => true,
+            "Province" => false,
+            _ => null
+        };
+    }
+
+    private bool IsToggling(Guid hubId)
+    {
+        return TogglingHubId == hubId;
+    }
+
+    private string GetHubReason(Guid hubId)
+    {
+        return HubReasons.TryGetValue(hubId, out var reason)
+            ? reason
+            : string.Empty;
+    }
+
+    private void SetHubReason(Guid hubId, object? value)
+    {
+        HubReasons[hubId] = value?.ToString() ?? string.Empty;
+    }
+
+    private static string FormatAddress(AdminHubResponse hub)
+    {
+        var parts = new[] { hub.AddressLine, hub.Ward, hub.Country }
+            .Where(part => !string.IsNullOrWhiteSpace(part));
+        return string.Join(", ", parts);
+    }
+
+    private static string FormatNullableDate(DateTimeOffset? value)
+    {
+        return value.HasValue
+            ? UiDisplay.FormatLocalDateTime(value.Value)
+            : "-";
+    }
+}

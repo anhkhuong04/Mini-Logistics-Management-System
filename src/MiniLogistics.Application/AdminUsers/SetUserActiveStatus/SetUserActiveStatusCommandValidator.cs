@@ -11,5 +11,8 @@ public sealed class SetUserActiveStatusCommandValidator : AbstractValidator<SetU
 
         RuleFor(command => command.TargetUserId)
             .NotEmpty();
+
+        RuleFor(command => command.Reason)
+            .MaximumLength(500);
     }
 }

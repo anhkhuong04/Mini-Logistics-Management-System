@@ -32,6 +32,18 @@ public static class ShipmentErrors
         "Shipment.CannotCancel",
         "Shipment cannot be cancelled in its current status.");
 
+    public static readonly Error CannotReassign = new(
+        "Shipment.CannotReassign",
+        "Shipment can only be reassigned while assigned and before pickup starts.");
+
+    public static readonly Error CannotCancelAssignment = new(
+        "Shipment.CannotCancelAssignment",
+        "Shipment assignment can only be cancelled while assigned and before pickup starts.");
+
+    public static readonly Error ActiveAssignmentNotFound = new(
+        "Shipment.ActiveAssignmentNotFound",
+        "Shipment does not have an active assignment.");
+
     public static readonly Error CannotEditBeforePickup = new(
         "Shipment.CannotEditBeforePickup",
         "Only draft or pending pickup shipments without an active assignment can be edited.");

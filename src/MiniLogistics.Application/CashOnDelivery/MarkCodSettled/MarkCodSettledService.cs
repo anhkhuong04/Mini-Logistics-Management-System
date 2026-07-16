@@ -1,4 +1,5 @@
 using FluentValidation;
+using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Domain.Common;
@@ -11,15 +12,18 @@ public sealed class MarkCodSettledService : IMarkCodSettledService
     private readonly IValidator<MarkCodSettledCommand> _validator;
     private readonly IIdentityService _identityService;
     private readonly ICodTransactionRepository _codTransactionRepository;
+    private readonly IAdminAuditService _adminAuditService;
 
     public MarkCodSettledService(
         IValidator<MarkCodSettledCommand> validator,
         IIdentityService identityService,
-        ICodTransactionRepository codTransactionRepository)
+        ICodTransactionRepository codTransactionRepository,
+        IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _codTransactionRepository = codTransactionRepository;
+        _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
     public async Task<Result> MarkSettledAsync(
@@ -51,12 +55,32 @@ public sealed class MarkCodSettledService : IMarkCodSettledService
             return Result.Failure(ApplicationErrors.NotFound("COD transaction was not found."));
         }
 
+        var oldCodStatus = codTransaction.Status;
         var settleResult = codTransaction.MarkSettled(command.SettledByUserId);
         if (settleResult.IsFailure)
         {
             return settleResult;
         }
 
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.SettledByUserId,
+                AdminAuditActions.CodSettled,
+                AdminAuditTargetTypes.CodTransaction,
+                codTransaction.Id,
+                OldValue: new
+                {
+                    Status = oldCodStatus.ToString()
+                },
+                NewValue: new
+                {
+                    Status = codTransaction.Status.ToString(),
+                    codTransaction.ShipmentId,
+                    SettledByUserId = command.SettledByUserId
+                },
+                Reason: command.Note,
+                ActorRole: nameof(UserRole.Admin)),
+            cancellationToken);
         await _codTransactionRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success();

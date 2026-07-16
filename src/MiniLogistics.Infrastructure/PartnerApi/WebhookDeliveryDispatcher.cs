@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Net.Http.Headers;
 using System.Text;
 using Microsoft.Extensions.Logging;
@@ -75,15 +76,17 @@ public sealed class WebhookDeliveryDispatcher
         }
 
         var attemptedAtUtc = DateTimeOffset.UtcNow;
+        var stopwatch = Stopwatch.StartNew();
         try
         {
             using var request = BuildRequest(delivery, endpoint, attemptedAtUtc);
             using var response = await _httpClient.SendAsync(request, cancellationToken);
+            stopwatch.Stop();
             var statusCode = (int)response.StatusCode;
 
             if (response.IsSuccessStatusCode)
             {
-                delivery.MarkSucceeded(statusCode, attemptedAtUtc);
+                delivery.MarkSucceeded(statusCode, attemptedAtUtc, stopwatch.ElapsedMilliseconds);
                 _logger.LogInformation(
                     "Webhook delivery {DeliveryId} succeeded with status {StatusCode}.",
                     delivery.Id,
@@ -99,7 +102,8 @@ public sealed class WebhookDeliveryDispatcher
                     ? $"Webhook endpoint returned HTTP {statusCode}."
                     : responseText,
                 attemptedAtUtc,
-                retry: true);
+                retry: true,
+                durationMs: stopwatch.ElapsedMilliseconds);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -107,7 +111,14 @@ public sealed class WebhookDeliveryDispatcher
         }
         catch (Exception exception)
         {
-            MarkFailed(delivery, null, exception.Message, attemptedAtUtc, retry: true);
+            stopwatch.Stop();
+            MarkFailed(
+                delivery,
+                null,
+                exception.Message,
+                attemptedAtUtc,
+                retry: true,
+                durationMs: stopwatch.ElapsedMilliseconds);
         }
     }
 
@@ -140,12 +151,13 @@ public sealed class WebhookDeliveryDispatcher
         int? statusCode,
         string error,
         DateTimeOffset attemptedAtUtc,
-        bool retry)
+        bool retry,
+        long? durationMs = null)
     {
         var nextAttemptAtUtc = retry
             ? CalculateNextAttempt(delivery.RetryCount + 1, attemptedAtUtc)
             : null;
-        delivery.MarkFailed(statusCode, error, attemptedAtUtc, nextAttemptAtUtc);
+        delivery.MarkFailed(statusCode, error, attemptedAtUtc, nextAttemptAtUtc, durationMs);
 
         _logger.LogWarning(
             "Webhook delivery {DeliveryId} failed on attempt {Attempt} with status {StatusCode}. Next attempt: {NextAttemptAtUtc}. Error: {Error}",

@@ -391,6 +391,19 @@ button:disabled {
     justify-content: space-between;
 }
 
+.pagination-bar {
+    align-items: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.pagination-bar span {
+    color: var(--admin-muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
 .search-field {
     align-items: center;
     background: #fff;
@@ -549,6 +562,22 @@ button:disabled {
 .toggle-button {
     background: #fff;
     min-width: 6.5rem;
+}
+
+.user-action-stack {
+    display: grid;
+    gap: 0.5rem;
+    min-width: 11rem;
+}
+
+.reason-input {
+    background: #fff;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    color: var(--admin-text);
+    font: inherit;
+    min-height: 2.4rem;
+    padding: 0 0.75rem;
 }
 
 .toggle-button.danger {

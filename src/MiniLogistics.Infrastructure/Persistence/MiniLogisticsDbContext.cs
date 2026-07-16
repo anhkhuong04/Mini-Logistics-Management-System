@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using MiniLogistics.Domain.AdminAuditing;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Fees;
 using MiniLogistics.Domain.Operations;
@@ -31,6 +32,8 @@ public sealed class MiniLogisticsDbContext : IdentityDbContext<ApplicationUser, 
 
     public DbSet<FeeRule> FeeRules => Set<FeeRule>();
 
+    public DbSet<RouteRegionConfig> RouteRegionConfigs => Set<RouteRegionConfig>();
+
     public DbSet<Hub> Hubs => Set<Hub>();
 
     public DbSet<ShipperWorkingArea> ShipperWorkingAreas => Set<ShipperWorkingArea>();
@@ -47,7 +50,11 @@ public sealed class MiniLogisticsDbContext : IdentityDbContext<ApplicationUser, 
 
     public DbSet<PartnerApiCredentialAudit> PartnerApiCredentialAudits => Set<PartnerApiCredentialAudit>();
 
+    public DbSet<IntegrationManagementScope> IntegrationManagementScopes => Set<IntegrationManagementScope>();
+
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+
+    public DbSet<AdminAuditLog> AdminAuditLogs => Set<AdminAuditLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

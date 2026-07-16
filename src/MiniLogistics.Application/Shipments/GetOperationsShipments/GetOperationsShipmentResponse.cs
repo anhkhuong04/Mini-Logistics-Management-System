@@ -19,4 +19,5 @@ public sealed record GetOperationsShipmentResponse(
     Guid? ActiveShipperId,
     string? ActiveShipperName,
     string? ActiveShipperPhone,
-    IReadOnlyList<ShipmentStatusHistoryResponse> TrackingHistory);
+    IReadOnlyList<ShipmentStatusHistoryResponse> TrackingHistory,
+    bool IsSlaOverdue = false);

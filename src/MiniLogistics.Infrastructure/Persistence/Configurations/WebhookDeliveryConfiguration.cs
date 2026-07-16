@@ -28,6 +28,8 @@ public sealed class WebhookDeliveryConfiguration : IEntityTypeConfiguration<Webh
         builder.Property(delivery => delivery.LastError)
             .HasMaxLength(1000);
 
+        builder.Property(delivery => delivery.LastDurationMs);
+
         builder.Property(delivery => delivery.CreatedAtUtc)
             .IsRequired();
 

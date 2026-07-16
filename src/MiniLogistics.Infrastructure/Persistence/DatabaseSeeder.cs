@@ -11,7 +11,7 @@ namespace MiniLogistics.Infrastructure.Persistence;
 
 public sealed class DatabaseSeeder
 {
-    private static readonly string[] Roles = ["Admin", "Operator", "Shop", "Shipper"];
+    private static readonly string[] Roles = ["Admin", "Operator", "Shop", "Shipper", "IntegrationAdmin"];
 
     private static readonly Guid DemoAdminUserId = Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb");
     private static readonly Guid DemoOperatorUserId = Guid.Parse("cccccccc-cccc-cccc-cccc-cccccccccccc");

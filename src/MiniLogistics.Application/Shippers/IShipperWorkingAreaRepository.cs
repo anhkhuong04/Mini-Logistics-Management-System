@@ -19,6 +19,10 @@ public interface IShipperWorkingAreaRepository
         string? ward = null,
         CancellationToken cancellationToken = default);
 
+    Task<int> CountActiveByHubIdAsync(
+        Guid hubId,
+        CancellationToken cancellationToken = default);
+
     Task AddAsync(
         ShipperWorkingArea workingArea,
         CancellationToken cancellationToken = default);

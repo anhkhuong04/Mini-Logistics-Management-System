@@ -6,5 +6,6 @@ public interface IAutoAssignShipmentService
 {
     Task<Result<AutoAssignShipmentResult>> AutoAssignAsync(
         Guid shipmentId,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        Guid? requestedByUserId = null);
 }

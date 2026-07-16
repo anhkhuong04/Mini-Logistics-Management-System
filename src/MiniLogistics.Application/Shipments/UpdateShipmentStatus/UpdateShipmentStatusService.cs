@@ -1,4 +1,5 @@
 using FluentValidation;
+using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.PartnerApi;
@@ -14,17 +15,20 @@ public sealed class UpdateShipmentStatusService : IUpdateShipmentStatusService
     private readonly IIdentityService _identityService;
     private readonly IShipmentRepository _shipmentRepository;
     private readonly IWebhookEventPublisher _webhookEventPublisher;
+    private readonly IAdminAuditService _adminAuditService;
 
     public UpdateShipmentStatusService(
         IValidator<UpdateShipmentStatusCommand> validator,
         IIdentityService identityService,
         IShipmentRepository shipmentRepository,
-        IWebhookEventPublisher? webhookEventPublisher = null)
+        IWebhookEventPublisher? webhookEventPublisher = null,
+        IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _shipmentRepository = shipmentRepository;
         _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
+        _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
     public async Task<Result> UpdateAsync(
@@ -57,6 +61,7 @@ public sealed class UpdateShipmentStatusService : IUpdateShipmentStatusService
             return authorizationResult;
         }
 
+        var oldStatus = shipment.Status;
         var updateResult = shipment.UpdateStatus(
             command.NewStatus,
             command.ChangedByUserId,
@@ -70,6 +75,22 @@ public sealed class UpdateShipmentStatusService : IUpdateShipmentStatusService
         await _webhookEventPublisher.PublishShipmentAsync(
             shipment,
             WebhookEventTypes.ShipmentStatusChanged,
+            cancellationToken);
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.ChangedByUserId,
+                AdminAuditActions.ShipmentStatusChanged,
+                AdminAuditTargetTypes.Shipment,
+                shipment.Id,
+                OldValue: new
+                {
+                    Status = oldStatus.ToString()
+                },
+                NewValue: new
+                {
+                    Status = shipment.Status.ToString()
+                },
+                Reason: command.Note),
             cancellationToken);
         await _shipmentRepository.SaveChangesAsync(cancellationToken);
 

@@ -1054,7 +1054,8 @@ public sealed class PartnerApiServiceTests
 
         public Task<Result<AutoAssignShipmentResult>> AutoAssignAsync(
             Guid shipmentId,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            Guid? requestedByUserId = null)
         {
             var shipment = _shipmentRepository.Shipments.First(shipment => shipment.Id == shipmentId);
 
@@ -1078,7 +1079,8 @@ public sealed class PartnerApiServiceTests
 
         public async Task<Result<AutoAssignShipmentResult>> AutoAssignAsync(
             Guid shipmentId,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken = default,
+            Guid? requestedByUserId = null)
         {
             var shipment = _shipmentRepository.Shipments.First(shipment => shipment.Id == shipmentId);
             var assignResult = shipment.AssignShipper(

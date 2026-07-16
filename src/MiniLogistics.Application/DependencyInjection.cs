@@ -1,4 +1,12 @@
 using FluentValidation;
+using MiniLogistics.Application.AdminAuditing;
+using MiniLogistics.Application.AdminCod;
+using MiniLogistics.Application.AdminDashboard;
+using MiniLogistics.Application.AdminHubs.CreateHub;
+using MiniLogistics.Application.AdminHubs.GetAdminHubs;
+using MiniLogistics.Application.AdminHubs.SetHubActiveStatus;
+using MiniLogistics.Application.AdminHubs.UpdateHub;
+using MiniLogistics.Application.AdminSystemConfiguration;
 using MiniLogistics.Application.AdminUsers.CreateInternalUser;
 using MiniLogistics.Application.AdminUsers.GetAdminUsers;
 using MiniLogistics.Application.AdminUsers.SetShipperCapacity;
@@ -26,6 +34,8 @@ using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Application.Shops.UpdateShopProfile;
 using MiniLogistics.Application.Shipments.AssignShipperToShipment;
 using MiniLogistics.Application.Shipments.AutoAssignShipment;
+using MiniLogistics.Application.Shipments.BulkRetryAutoAssignment;
+using MiniLogistics.Application.Shipments.CancelShipmentAssignment;
 using MiniLogistics.Application.Shipments.CancelShipmentForCurrentShop;
 using MiniLogistics.Application.Shipments.CreateShipment;
 using MiniLogistics.Application.Shipments.DraftShipments;
@@ -36,6 +46,7 @@ using MiniLogistics.Application.Shipments.GetPublicTracking;
 using MiniLogistics.Application.Shipments.GetShipmentDetailForCurrentShop;
 using MiniLogistics.Application.Shipments.GetShipmentsForCurrentShop;
 using MiniLogistics.Application.Shipments.ImportShipments;
+using MiniLogistics.Application.Shipments.ReassignShipment;
 using MiniLogistics.Application.Shipments.UpdateShipmentStatus;
 
 namespace MiniLogistics.Application;
@@ -46,6 +57,14 @@ public static class DependencyInjection
     {
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
 
+        services.AddScoped<IGetAdminAuditLogsService, GetAdminAuditLogsService>();
+        services.AddScoped<IGetAdminDashboardService, GetAdminDashboardService>();
+        services.AddScoped<IGetAdminCodReportService, GetAdminCodReportService>();
+        services.AddScoped<IGetAdminHubsService, GetAdminHubsService>();
+        services.AddScoped<IAdminSystemConfigurationService, AdminSystemConfigurationService>();
+        services.AddScoped<ICreateHubService, CreateHubService>();
+        services.AddScoped<IUpdateHubService, UpdateHubService>();
+        services.AddScoped<ISetHubActiveStatusService, SetHubActiveStatusService>();
         services.AddScoped<ICreateInternalUserService, CreateInternalUserService>();
         services.AddScoped<IGetAdminUsersService, GetAdminUsersService>();
         services.AddScoped<ISetShipperCapacityService, SetShipperCapacityService>();
@@ -68,7 +87,10 @@ public static class DependencyInjection
         services.AddScoped<ISetShipperWorkingAreasService, SetShipperWorkingAreasService>();
         services.AddScoped<IShipmentAssignmentSelector, ShipmentAssignmentSelector>();
         services.AddScoped<IAutoAssignShipmentService, AutoAssignShipmentService>();
+        services.AddScoped<IBulkRetryAutoAssignmentService, BulkRetryAutoAssignmentService>();
         services.AddScoped<IAssignShipperToShipmentService, AssignShipperToShipmentService>();
+        services.AddScoped<IReassignShipmentService, ReassignShipmentService>();
+        services.AddScoped<ICancelShipmentAssignmentService, CancelShipmentAssignmentService>();
         services.AddScoped<ICancelShipmentForCurrentShopService, CancelShipmentForCurrentShopService>();
         services.AddScoped<ICreateShipmentService, CreateShipmentService>();
         services.AddScoped<ICreateDraftShipmentService, CreateDraftShipmentService>();

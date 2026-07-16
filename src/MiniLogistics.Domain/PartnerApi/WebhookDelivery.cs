@@ -69,13 +69,19 @@ public sealed class WebhookDelivery : AuditableEntity
 
     public int? LastResponseStatusCode { get; private set; }
 
+    public long? LastDurationMs { get; private set; }
+
     public string? LastError { get; private set; }
 
-    public void MarkSucceeded(int statusCode, DateTimeOffset attemptedAtUtc)
+    public void MarkSucceeded(
+        int statusCode,
+        DateTimeOffset attemptedAtUtc,
+        long? durationMs = null)
     {
         Status = WebhookDeliveryStatus.Succeeded;
         LastAttemptAtUtc = attemptedAtUtc;
         LastResponseStatusCode = statusCode;
+        LastDurationMs = NormalizeDuration(durationMs);
         LastError = null;
         NextAttemptAtUtc = null;
         MarkUpdated();
@@ -85,12 +91,14 @@ public sealed class WebhookDelivery : AuditableEntity
         int? statusCode,
         string error,
         DateTimeOffset attemptedAtUtc,
-        DateTimeOffset? nextAttemptAtUtc)
+        DateTimeOffset? nextAttemptAtUtc,
+        long? durationMs = null)
     {
         Status = WebhookDeliveryStatus.Failed;
         RetryCount++;
         LastAttemptAtUtc = attemptedAtUtc;
         LastResponseStatusCode = statusCode;
+        LastDurationMs = NormalizeDuration(durationMs);
         LastError = string.IsNullOrWhiteSpace(error) ? null : error.Trim()[..Math.Min(error.Trim().Length, 1000)];
         NextAttemptAtUtc = nextAttemptAtUtc;
         MarkUpdated();
@@ -110,5 +118,12 @@ public sealed class WebhookDelivery : AuditableEntity
         }
 
         return trimmed;
+    }
+
+    private static long? NormalizeDuration(long? durationMs)
+    {
+        return durationMs.HasValue && durationMs.Value >= 0
+            ? durationMs.Value
+            : null;
     }
 }

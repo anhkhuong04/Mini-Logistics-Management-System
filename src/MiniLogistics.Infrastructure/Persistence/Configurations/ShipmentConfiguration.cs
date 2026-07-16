@@ -187,6 +187,12 @@ public sealed class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
                 .HasPrecision(18, 2)
                 .IsRequired();
 
+            breakdownBuilder.Property(breakdown => breakdown.ReturnFeeRate)
+                .HasColumnName("ReturnFeeRate")
+                .HasPrecision(10, 4)
+                .HasDefaultValue(0.5m)
+                .IsRequired();
+
             breakdownBuilder.Property(breakdown => breakdown.TotalFee)
                 .HasConversion(
                     money => money.Amount,

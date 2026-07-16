@@ -19,9 +19,19 @@ public sealed class FeeRule : AuditableEntity
         decimal extraWeightStepKg,
         Money extraStepFee,
         decimal? minimumWeightKg = null,
-        decimal? maximumWeightKg = null)
+        decimal? maximumWeightKg = null,
+        int version = 1,
+        decimal insuranceFreeThreshold = InsuranceFeePolicy.FreeInsuranceThreshold,
+        decimal insuranceMaximumValue = InsuranceFeePolicy.MaximumInsuredValue,
+        decimal insuranceRate = InsuranceFeePolicy.InsuranceRate,
+        decimal returnFeeRate = 0.5m)
         : base(Guid.NewGuid())
     {
+        if (version <= 0)
+        {
+            throw new DomainException("Fee rule version must be greater than zero.");
+        }
+
         if (baseWeightKg <= 0)
         {
             throw new DomainException("Base weight must be greater than zero.");
@@ -47,6 +57,11 @@ public sealed class FeeRule : AuditableEntity
             throw new DomainException("Minimum weight cannot be greater than maximum weight.");
         }
 
+        if (insuranceFreeThreshold < 0 || insuranceMaximumValue < 0 || insuranceRate < 0 || returnFeeRate < 0)
+        {
+            throw new DomainException("Fee policy values cannot be negative.");
+        }
+
         RouteType = routeType;
         BaseWeightKg = decimal.Round(baseWeightKg, 3);
         BaseFee = baseFee;
@@ -54,6 +69,11 @@ public sealed class FeeRule : AuditableEntity
         ExtraStepFee = extraStepFee;
         MinimumWeightKg = minimumWeightKg;
         MaximumWeightKg = maximumWeightKg;
+        Version = version;
+        InsuranceFreeThreshold = decimal.Round(insuranceFreeThreshold, 2);
+        InsuranceMaximumValue = decimal.Round(insuranceMaximumValue, 2);
+        InsuranceRate = decimal.Round(insuranceRate, 6);
+        ReturnFeeRate = decimal.Round(returnFeeRate, 4);
         IsActive = true;
     }
 
@@ -70,6 +90,16 @@ public sealed class FeeRule : AuditableEntity
     public decimal? MinimumWeightKg { get; private set; }
 
     public decimal? MaximumWeightKg { get; private set; }
+
+    public int Version { get; private set; }
+
+    public decimal InsuranceFreeThreshold { get; private set; }
+
+    public decimal InsuranceMaximumValue { get; private set; }
+
+    public decimal InsuranceRate { get; private set; }
+
+    public decimal ReturnFeeRate { get; private set; }
 
     public bool IsActive { get; private set; }
 
@@ -100,13 +130,18 @@ public sealed class FeeRule : AuditableEntity
             ? 0
             : (int)decimal.Ceiling(extraWeightKg / ExtraWeightStepKg);
         var extraFee = ExtraStepFee * extraBlocks;
-        var insuranceFee = InsuranceFeePolicy.Calculate(request.DeclaredGoodsValue);
+        var insuranceFee = InsuranceFeePolicy.Calculate(
+            request.DeclaredGoodsValue,
+            InsuranceFreeThreshold,
+            InsuranceMaximumValue,
+            InsuranceRate);
         var zeroFee = new Money(0, BaseFee.Currency);
         var breakdown = new ShippingFeeBreakdown(
             BaseFee,
             extraFee,
             insuranceFee,
-            zeroFee);
+            zeroFee,
+            ReturnFeeRate);
 
         return new ShippingFeeQuote(
             breakdown,

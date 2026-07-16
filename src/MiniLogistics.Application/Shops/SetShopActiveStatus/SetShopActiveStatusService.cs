@@ -1,4 +1,5 @@
 using FluentValidation;
+using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.AdminUsers;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
@@ -11,15 +12,18 @@ public sealed class SetShopActiveStatusService : ISetShopActiveStatusService
     private readonly IValidator<SetShopActiveStatusCommand> _validator;
     private readonly IIdentityService _identityService;
     private readonly IShopRepository _shopRepository;
+    private readonly IAdminAuditService _adminAuditService;
 
     public SetShopActiveStatusService(
         IValidator<SetShopActiveStatusCommand> validator,
         IIdentityService identityService,
-        IShopRepository shopRepository)
+        IShopRepository shopRepository,
+        IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _shopRepository = shopRepository;
+        _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
     public async Task<Result> SetAsync(
@@ -49,6 +53,8 @@ public sealed class SetShopActiveStatusService : ISetShopActiveStatusService
             return Result.Failure(ApplicationErrors.NotFound("Shop was not found."));
         }
 
+        var oldIsActive = shop.IsActive;
+
         if (command.IsActive)
         {
             shop.Activate();
@@ -58,6 +64,22 @@ public sealed class SetShopActiveStatusService : ISetShopActiveStatusService
             shop.Deactivate();
         }
 
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.RequestedByUserId,
+                AdminAuditActions.ShopActiveStatusChanged,
+                AdminAuditTargetTypes.Shop,
+                shop.Id,
+                OldValue: new
+                {
+                    IsActive = oldIsActive
+                },
+                NewValue: new
+                {
+                    shop.IsActive
+                },
+                ActorRole: "Admin"),
+            cancellationToken);
         await _shopRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success();

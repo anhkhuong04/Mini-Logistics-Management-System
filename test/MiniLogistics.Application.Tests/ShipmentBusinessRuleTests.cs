@@ -2191,6 +2191,13 @@ public sealed class ShipmentBusinessRuleTests
             return Task.FromResult(hubs);
         }
 
+        public Task<Hub?> GetByIdAsync(
+            Guid hubId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_hubs.FirstOrDefault(hub => hub.Id == hubId));
+        }
+
         public Task<Hub?> GetByCodeAsync(
             string code,
             CancellationToken cancellationToken = default)
@@ -2260,6 +2267,13 @@ public sealed class ShipmentBusinessRuleTests
                 .ToList();
 
             return Task.FromResult(workingAreas);
+        }
+
+        public Task<int> CountActiveByHubIdAsync(
+            Guid hubId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_workingAreas.Count(area => area.IsActive && area.HubId == hubId));
         }
 
         public Task AddAsync(ShipperWorkingArea workingArea, CancellationToken cancellationToken = default)

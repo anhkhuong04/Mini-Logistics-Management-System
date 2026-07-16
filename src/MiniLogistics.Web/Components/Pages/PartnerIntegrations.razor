@@ -1,6 +1,6 @@
 @page "/partner/integrations"
 @rendermode InteractiveServer
-@attribute [Authorize(Roles = "Shop,Admin")]
+@attribute [Authorize(Roles = "Shop,Admin,IntegrationAdmin")]
 @using System.Security.Claims
 @using MiniLogistics.Application.PartnerApi
 @using MiniLogistics.Domain.PartnerApi
@@ -68,6 +68,13 @@
     else
     {
         <section class="content-card create-section">
+            @if (Dashboard.GranularPermissionEnabled)
+            {
+                <div class="scope-banner" role="status">
+                    Granular integration permission dang bat. Danh sach shop va action chi nam trong scope cua tai khoan hien tai.
+                </div>
+            }
+
             <div class="section-heading">
                 <div>
                     <p class="eyebrow">API client</p>
@@ -179,6 +186,35 @@
 
         @if (SelectedClient is not null)
         {
+            <section class="content-card webhook-metrics-section">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Webhook monitoring</p>
+                        <h2>Health cua @SelectedClient.Name</h2>
+                    </div>
+                    <span class="section-count">@SelectedClient.WebhookMetrics.TotalDeliveries.ToString("N0") delivery gan nhat</span>
+                </div>
+
+                <div class="metrics-grid">
+                    <article>
+                        <span>Success rate</span>
+                        <strong>@SelectedClient.WebhookMetrics.SuccessRate.ToString("N2")%</strong>
+                    </article>
+                    <article>
+                        <span>Avg latency</span>
+                        <strong>@FormatLatency(SelectedClient.WebhookMetrics.AverageLatencyMs)</strong>
+                    </article>
+                    <article>
+                        <span>Failed</span>
+                        <strong>@SelectedClient.WebhookMetrics.FailedDeliveries.ToString("N0")</strong>
+                    </article>
+                    <article>
+                        <span>Retry queue</span>
+                        <strong>@SelectedClient.WebhookMetrics.PendingRetryDeliveries.ToString("N0")</strong>
+                    </article>
+                </div>
+            </section>
+
             <section class="integration-grid">
                 <article class="content-card webhook-card">
                     <div class="section-heading">
@@ -238,6 +274,7 @@
                                         <th>Event</th>
                                         <th>Status</th>
                                         <th>HTTP</th>
+                                        <th>Latency</th>
                                         <th>Retry</th>
                                         <th>Last attempt</th>
                                         <th>Error</th>
@@ -257,6 +294,7 @@
                                                 </span>
                                             </td>
                                             <td data-label="HTTP">@(delivery.LastResponseStatusCode?.ToString() ?? "-")</td>
+                                            <td data-label="Latency">@FormatLatency(delivery.LastDurationMs)</td>
                                             <td data-label="Retry">@delivery.RetryCount</td>
                                             <td data-label="Last attempt">@FormatNullableDate(delivery.LastAttemptAtUtc)</td>
                                             <td data-label="Error" class="error-cell">@(delivery.LastError ?? "-")</td>
@@ -636,6 +674,16 @@
     private static string FormatNullableDate(DateTimeOffset? value)
     {
         return value.HasValue ? UiDisplay.FormatLocalDateTime(value.Value) : "-";
+    }
+
+    private static string FormatLatency(decimal? value)
+    {
+        return value.HasValue ? $"{value.Value:N0} ms" : "-";
+    }
+
+    private static string FormatLatency(long? value)
+    {
+        return value.HasValue ? $"{value.Value:N0} ms" : "-";
     }
 
     private static string GetDeliveryStatusClass(WebhookDeliveryStatus status)

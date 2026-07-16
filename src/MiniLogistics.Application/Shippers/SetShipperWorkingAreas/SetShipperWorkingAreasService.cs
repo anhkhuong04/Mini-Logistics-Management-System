@@ -1,4 +1,5 @@
 using FluentValidation;
+using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.AdminUsers;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
@@ -15,17 +16,20 @@ public sealed class SetShipperWorkingAreasService : ISetShipperWorkingAreasServi
     private readonly IIdentityService _identityService;
     private readonly IHubRepository _hubRepository;
     private readonly IShipperWorkingAreaRepository _workingAreaRepository;
+    private readonly IAdminAuditService _adminAuditService;
 
     public SetShipperWorkingAreasService(
         IValidator<SetShipperWorkingAreasCommand> validator,
         IIdentityService identityService,
         IHubRepository hubRepository,
-        IShipperWorkingAreaRepository workingAreaRepository)
+        IShipperWorkingAreaRepository workingAreaRepository,
+        IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _hubRepository = hubRepository;
         _workingAreaRepository = workingAreaRepository;
+        _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
     public async Task<Result<IReadOnlyList<ShipperWorkingAreaResponse>>> SetAsync(
@@ -91,6 +95,16 @@ public sealed class SetShipperWorkingAreasService : ISetShipperWorkingAreasServi
             command.ShipperId,
             activeOnly: false,
             cancellationToken);
+        var oldActiveAreas = currentAreas
+            .Where(area => area.IsActive)
+            .Select(area => new
+            {
+                area.HubId,
+                area.Ward,
+                area.ZoneCode
+            })
+            .ToList();
+        var addedAreas = new List<ShipperWorkingArea>();
 
         foreach (var currentArea in currentAreas.Where(area => area.IsActive))
         {
@@ -112,28 +126,50 @@ public sealed class SetShipperWorkingAreasService : ISetShipperWorkingAreasServi
             }
 
             var hub = hubById[requestedArea.HubId];
-            await _workingAreaRepository.AddAsync(
-                new ShipperWorkingArea(
-                    command.ShipperId,
-                    hub.Id,
-                    hub.Province,
-                    requestedArea.Ward,
-                    requestedArea.ZoneCode),
-                cancellationToken);
+            var newArea = new ShipperWorkingArea(
+                command.ShipperId,
+                hub.Id,
+                hub.Province,
+                requestedArea.Ward,
+                requestedArea.ZoneCode);
+            addedAreas.Add(newArea);
+            await _workingAreaRepository.AddAsync(newArea, cancellationToken);
         }
 
+        var activeAreas = currentAreas
+            .Concat(addedAreas)
+            .Where(area => area.IsActive)
+            .ToList();
+
+        var response = ShipperWorkingAreaResponseMapper.ToResponses(
+            activeAreas,
+            hubById);
+
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.RequestedByUserId,
+                AdminAuditActions.ShipperWorkingAreasChanged,
+                AdminAuditTargetTypes.Shipper,
+                command.ShipperId,
+                OldValue: new
+                {
+                    Areas = oldActiveAreas
+                },
+                NewValue: new
+                {
+                    Areas = response.Select(area => new
+                    {
+                        area.HubId,
+                        area.Ward,
+                        area.ZoneCode,
+                        area.IsActive
+                    })
+                },
+                ActorRole: nameof(UserRole.Admin)),
+            cancellationToken);
         await _workingAreaRepository.SaveChangesAsync(cancellationToken);
 
-        var activeAreas = await _workingAreaRepository.GetByShipperIdAsync(
-            command.ShipperId,
-            activeOnly: true,
-            cancellationToken);
-        var activeHubs = await _hubRepository.GetByIdsAsync(
-            activeAreas.Select(area => area.HubId).Distinct().ToList(),
-            cancellationToken);
-
-        return Result<IReadOnlyList<ShipperWorkingAreaResponse>>.Success(
-            ShipperWorkingAreaResponseMapper.ToResponses(activeAreas, activeHubs.ToDictionary(hub => hub.Id)));
+        return Result<IReadOnlyList<ShipperWorkingAreaResponse>>.Success(response);
     }
 
     private static Result<IReadOnlyList<NormalizedWorkingArea>> NormalizeRequestedAreas(

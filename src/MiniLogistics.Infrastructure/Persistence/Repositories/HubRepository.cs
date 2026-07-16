@@ -46,6 +46,14 @@ public sealed class HubRepository : IHubRepository
             .ToListAsync(cancellationToken);
     }
 
+    public Task<Hub?> GetByIdAsync(
+        Guid hubId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.Hubs
+            .FirstOrDefaultAsync(hub => hub.Id == hubId, cancellationToken);
+    }
+
     public Task<Hub?> GetByCodeAsync(
         string code,
         CancellationToken cancellationToken = default)

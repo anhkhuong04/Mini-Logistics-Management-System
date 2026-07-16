@@ -1,0 +1,321 @@
+@page "/admin/audit-logs"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@using System.Security.Claims
+@using MiniLogistics.Application.AdminAuditing
+@inject IGetAdminAuditLogsService GetAdminAuditLogsService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Audit log - MiniLogistics</PageTitle>
+
+<div class="admin-audit-page">
+    <header class="admin-hero">
+        <div>
+            <p class="eyebrow">Audit</p>
+            <h1>Admin action logs</h1>
+            <p>Theo doi cac thao tac nhay cam cua Admin/Operator tren he thong.</p>
+        </div>
+
+        <button type="button" class="refresh-button" disabled="@IsLoading" @onclick="LoadAsync">Lam moi</button>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert-box danger" role="alert">@ErrorMessage</div>
+    }
+
+    <section class="admin-panel audit-filters">
+        <label class="field-group" for="audit-actor">
+            <span>Actor user id</span>
+            <input id="audit-actor" placeholder="Guid" @bind="ActorUserIdText" @bind:event="oninput" />
+        </label>
+
+        <label class="field-group" for="audit-action">
+            <span>Action</span>
+            <select id="audit-action" @bind="ActionFilter">
+                <option value="">Tat ca</option>
+                @foreach (var action in KnownActions)
+                {
+                    <option value="@action">@action</option>
+                }
+            </select>
+        </label>
+
+        <label class="field-group" for="audit-target-type">
+            <span>Target type</span>
+            <select id="audit-target-type" @bind="TargetTypeFilter">
+                <option value="">Tat ca</option>
+                @foreach (var targetType in KnownTargetTypes)
+                {
+                    <option value="@targetType">@targetType</option>
+                }
+            </select>
+        </label>
+
+        <label class="field-group" for="audit-from">
+            <span>Tu ngay</span>
+            <input id="audit-from" type="date" value="@FromDateText" @onchange="OnFromDateChanged" />
+        </label>
+
+        <label class="field-group" for="audit-to">
+            <span>Den ngay</span>
+            <input id="audit-to" type="date" value="@ToDateText" @onchange="OnToDateChanged" />
+        </label>
+
+        <div class="form-actions">
+            <button type="button" class="primary-button" disabled="@IsLoading" @onclick="LoadAsync">Ap dung</button>
+        </div>
+    </section>
+
+    @if (IsLoading)
+    {
+        <section class="admin-panel state-card" aria-live="polite">
+            <strong>Dang tai audit log</strong>
+        </section>
+    }
+    else
+    {
+        <section class="admin-panel audit-section">
+            <div class="panel-heading">
+                <div>
+                    <p class="eyebrow">Ket qua</p>
+                    <h2>Audit entries</h2>
+                </div>
+                <span class="section-count">@AuditLogs.Count.ToString("N0") logs</span>
+            </div>
+
+            @if (AuditLogs.Count == 0)
+            {
+                <div class="state-card compact">
+                    <strong>Khong co audit log phu hop</strong>
+                    <p>Thu doi bo loc hoac ngay truy van.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-shell">
+                    <table class="audit-table">
+                        <thead>
+                            <tr>
+                                <th>Thoi gian</th>
+                                <th>Actor</th>
+                                <th>Action</th>
+                                <th>Target</th>
+                                <th>Old value</th>
+                                <th>New value</th>
+                                <th>Reason</th>
+                                <th>Request</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var auditLog in AuditLogs)
+                            {
+                                <tr>
+                                    <td data-label="Thoi gian">
+                                        <strong>@FormatDate(auditLog.CreatedAtUtc)</strong>
+                                    </td>
+                                    <td data-label="Actor">
+                                        <strong>@auditLog.ActorRole</strong>
+                                        <small>@auditLog.ActorUserId</small>
+                                    </td>
+                                    <td data-label="Action">
+                                        <span class="action-pill">@auditLog.Action</span>
+                                    </td>
+                                    <td data-label="Target">
+                                        <strong>@auditLog.TargetType</strong>
+                                        <small>@auditLog.TargetId</small>
+                                        @if (GetTargetLink(auditLog) is { } targetLink)
+                                        {
+                                            <a class="target-link" href="@targetLink">Mo lien quan</a>
+                                        }
+                                    </td>
+                                    <td data-label="Old value">
+                                        <pre>@FormatJson(auditLog.OldValueJson)</pre>
+                                    </td>
+                                    <td data-label="New value">
+                                        <pre>@FormatJson(auditLog.NewValueJson)</pre>
+                                    </td>
+                                    <td data-label="Reason">@(auditLog.Reason ?? "-")</td>
+                                    <td data-label="Request">
+                                        <strong>@(auditLog.IpAddress ?? "-")</strong>
+                                        <small>@(auditLog.UserAgent ?? "-")</small>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    private static readonly string[] KnownActions =
+    [
+        AdminAuditActions.InternalUserCreated,
+        AdminAuditActions.UserActiveStatusChanged,
+        AdminAuditActions.ShipperCapacityChanged,
+        AdminAuditActions.ShipperWorkingAreasChanged,
+        AdminAuditActions.ShopActiveStatusChanged,
+        AdminAuditActions.ShipmentManualAssigned,
+        AdminAuditActions.ShipmentReassigned,
+        AdminAuditActions.ShipmentAssignmentCancelled,
+        AdminAuditActions.ShipmentAutoAssignmentRetried,
+        AdminAuditActions.ShipmentStatusChanged,
+        AdminAuditActions.CodCollected,
+        AdminAuditActions.CodSettled,
+        AdminAuditActions.PartnerApiClientCreated,
+        AdminAuditActions.PartnerApiClientKeyRotated,
+        AdminAuditActions.PartnerApiClientActiveStatusChanged,
+        AdminAuditActions.PartnerWebhookEndpointUpserted,
+        AdminAuditActions.PartnerWebhookTestQueued,
+        AdminAuditActions.RouteRegionConfigChanged,
+        AdminAuditActions.FeeRuleVersionCreated
+    ];
+
+    private static readonly string[] KnownTargetTypes =
+    [
+        AdminAuditTargetTypes.User,
+        AdminAuditTargetTypes.Shipper,
+        AdminAuditTargetTypes.Shop,
+        AdminAuditTargetTypes.Shipment,
+        AdminAuditTargetTypes.CodTransaction,
+        AdminAuditTargetTypes.PartnerApiClient,
+        AdminAuditTargetTypes.PartnerWebhookEndpoint,
+        AdminAuditTargetTypes.WebhookDelivery,
+        AdminAuditTargetTypes.IntegrationManagementScope,
+        AdminAuditTargetTypes.RouteRegionConfig,
+        AdminAuditTargetTypes.FeeRule
+    ];
+
+    private bool IsLoading { get; set; } = true;
+
+    private string? ErrorMessage { get; set; }
+
+    private string ActorUserIdText { get; set; } = string.Empty;
+
+    private string ActionFilter { get; set; } = string.Empty;
+
+    private string TargetTypeFilter { get; set; } = string.Empty;
+
+    private string FromDateText { get; set; } = string.Empty;
+
+    private string ToDateText { get; set; } = string.Empty;
+
+    private IReadOnlyList<AdminAuditLogResponse> AuditLogs { get; set; } = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+
+        var adminUserId = await GetCurrentUserIdAsync();
+        if (adminUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        Guid? actorUserId = null;
+        if (!string.IsNullOrWhiteSpace(ActorUserIdText))
+        {
+            if (!Guid.TryParse(ActorUserIdText.Trim(), out var parsedActorUserId))
+            {
+                ErrorMessage = "Actor user id khong hop le.";
+                AuditLogs = [];
+                IsLoading = false;
+                return;
+            }
+
+            actorUserId = parsedActorUserId;
+        }
+
+        var result = await GetAdminAuditLogsService.GetAsync(new AdminAuditLogQuery(
+            adminUserId.Value,
+            actorUserId,
+            NullIfWhiteSpace(ActionFilter),
+            NullIfWhiteSpace(TargetTypeFilter),
+            ParseStartDate(FromDateText),
+            ParseEndDate(ToDateText),
+            Limit: 200));
+
+        IsLoading = false;
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            AuditLogs = [];
+            return;
+        }
+
+        AuditLogs = result.Value;
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userIdValue = authenticationState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(userIdValue, out var userId)
+            ? userId
+            : null;
+    }
+
+    private void OnFromDateChanged(ChangeEventArgs args)
+    {
+        FromDateText = args.Value?.ToString() ?? string.Empty;
+    }
+
+    private void OnToDateChanged(ChangeEventArgs args)
+    {
+        ToDateText = args.Value?.ToString() ?? string.Empty;
+    }
+
+    private static DateTimeOffset? ParseStartDate(string value)
+    {
+        return DateOnly.TryParse(value, out var date)
+            ? date.ToDateTime(TimeOnly.MinValue, DateTimeKind.Local).ToUniversalTime()
+            : null;
+    }
+
+    private static DateTimeOffset? ParseEndDate(string value)
+    {
+        return DateOnly.TryParse(value, out var date)
+            ? date.ToDateTime(TimeOnly.MaxValue, DateTimeKind.Local).ToUniversalTime()
+            : null;
+    }
+
+    private static string? NullIfWhiteSpace(string value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    private static string FormatDate(DateTimeOffset value)
+    {
+        return UiDisplay.FormatLocalDateTime(value);
+    }
+
+    private static string FormatJson(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "-" : value;
+    }
+
+    private static string? GetTargetLink(AdminAuditLogResponse auditLog)
+    {
+        return auditLog.TargetType switch
+        {
+            AdminAuditTargetTypes.PartnerApiClient
+                or AdminAuditTargetTypes.PartnerWebhookEndpoint
+                or AdminAuditTargetTypes.WebhookDelivery => "/partner/integrations",
+            AdminAuditTargetTypes.RouteRegionConfig
+                or AdminAuditTargetTypes.FeeRule => "/admin/system-config",
+            _ => null
+        };
+    }
+}

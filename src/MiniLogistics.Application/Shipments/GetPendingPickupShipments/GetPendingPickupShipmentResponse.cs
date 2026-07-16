@@ -9,4 +9,5 @@ public sealed record GetPendingPickupShipmentResponse(
     decimal CodAmount,
     decimal ShippingFeeAmount,
     string Currency,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    bool IsSlaOverdue = false);

@@ -12,6 +12,10 @@ public interface IHubRepository
         IReadOnlyCollection<Guid> hubIds,
         CancellationToken cancellationToken = default);
 
+    Task<Hub?> GetByIdAsync(
+        Guid hubId,
+        CancellationToken cancellationToken = default);
+
     Task<Hub?> GetByCodeAsync(
         string code,
         CancellationToken cancellationToken = default);

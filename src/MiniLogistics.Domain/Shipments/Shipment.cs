@@ -221,6 +221,57 @@ public sealed class Shipment : AuditableEntity
         return Result.Success();
     }
 
+    public Result ReassignShipper(Guid shipperId, Guid reassignedByUserId, string reason)
+    {
+        if (Status != ShipmentStatus.Assigned)
+        {
+            return Result.Failure(ShipmentErrors.CannotReassign);
+        }
+
+        if (shipperId == Guid.Empty)
+        {
+            return Result.Failure(ShipmentErrors.InvalidShipper);
+        }
+
+        var activeAssignment = _assignments.FirstOrDefault(assignment => assignment.IsActive);
+        if (activeAssignment is null)
+        {
+            return Result.Failure(ShipmentErrors.ActiveAssignmentNotFound);
+        }
+
+        if (activeAssignment.ShipperId == shipperId)
+        {
+            AddStatusHistory(Status, reassignedByUserId, reason);
+            MarkUpdated();
+            return Result.Success();
+        }
+
+        activeAssignment.Deactivate();
+        _assignments.Add(new ShipmentAssignment(Id, shipperId));
+        AddStatusHistory(Status, reassignedByUserId, reason);
+        MarkUpdated();
+
+        return Result.Success();
+    }
+
+    public Result CancelActiveAssignment(Guid cancelledByUserId, string reason)
+    {
+        if (Status != ShipmentStatus.Assigned)
+        {
+            return Result.Failure(ShipmentErrors.CannotCancelAssignment);
+        }
+
+        if (!_assignments.Any(assignment => assignment.IsActive))
+        {
+            return Result.Failure(ShipmentErrors.ActiveAssignmentNotFound);
+        }
+
+        DeactivateActiveAssignments();
+        ChangeStatus(ShipmentStatus.PendingPickup, cancelledByUserId, reason);
+
+        return Result.Success();
+    }
+
     public Result UpdateStatus(ShipmentStatus newStatus, Guid changedByUserId, string? note = null)
     {
         if (IsTerminalStatus(Status))
