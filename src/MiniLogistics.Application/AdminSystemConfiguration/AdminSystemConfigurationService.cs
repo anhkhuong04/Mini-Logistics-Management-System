@@ -21,6 +21,8 @@ public sealed class AdminSystemConfigurationService : IAdminSystemConfigurationS
     private readonly IValidator<UpsertRouteRegionConfigCommand> _routeValidator;
     private readonly IValidator<CreateFeeRuleVersionCommand> _feeValidator;
     private readonly IAdminAuditService _adminAuditService;
+    private readonly IFeeRuleCache? _feeRuleCache;
+    private readonly TimeProvider _timeProvider;
 
     public AdminSystemConfigurationService(
         IIdentityService identityService,
@@ -28,14 +30,18 @@ public sealed class AdminSystemConfigurationService : IAdminSystemConfigurationS
         IFeeConfigurationRepository feeConfigurationRepository,
         IValidator<UpsertRouteRegionConfigCommand> routeValidator,
         IValidator<CreateFeeRuleVersionCommand> feeValidator,
-        IAdminAuditService? adminAuditService = null)
+        TimeProvider timeProvider,
+        IAdminAuditService? adminAuditService = null,
+        IFeeRuleCache? feeRuleCache = null)
     {
         _identityService = identityService;
         _routeRegionConfigRepository = routeRegionConfigRepository;
         _feeConfigurationRepository = feeConfigurationRepository;
         _routeValidator = routeValidator;
         _feeValidator = feeValidator;
+        _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
+        _feeRuleCache = feeRuleCache;
     }
 
     public async Task<Result<AdminSystemConfigurationResponse>> GetAsync(
@@ -92,15 +98,16 @@ public sealed class AdminSystemConfigurationService : IAdminSystemConfigurationS
         var oldConfigs = await _routeRegionConfigRepository.GetActiveByProvinceAsync(
             command.Province,
             cancellationToken);
+        var now = _timeProvider.GetUtcNow();
         foreach (var oldConfig in oldConfigs)
         {
-            oldConfig.Deactivate();
+            oldConfig.Deactivate(now);
         }
 
         var version = await _routeRegionConfigRepository.GetLatestVersionAsync(
             command.Province,
             cancellationToken) + 1;
-        var config = new RouteRegionConfig(command.Province, command.Region, version);
+        var config = new RouteRegionConfig(command.Province, command.Region, now, version);
         await _routeRegionConfigRepository.AddAsync(config, cancellationToken);
         await _adminAuditService.RecordAsync(
             new AdminAuditEntry(
@@ -140,9 +147,10 @@ public sealed class AdminSystemConfigurationService : IAdminSystemConfigurationS
         var oldRules = await _feeConfigurationRepository.GetActiveRulesForUpdateAsync(
             command.RouteType,
             cancellationToken);
+        var now = _timeProvider.GetUtcNow();
         foreach (var oldRule in oldRules)
         {
-            oldRule.Deactivate();
+            oldRule.Deactivate(now);
         }
 
         var version = await _feeConfigurationRepository.GetLatestVersionAsync(
@@ -154,6 +162,7 @@ public sealed class AdminSystemConfigurationService : IAdminSystemConfigurationS
             new Money(command.BaseFeeAmount),
             command.ExtraWeightStepKg,
             new Money(command.ExtraStepFeeAmount),
+            now,
             command.MinimumWeightKg,
             command.MaximumWeightKg,
             version,
@@ -175,6 +184,7 @@ public sealed class AdminSystemConfigurationService : IAdminSystemConfigurationS
                 ActorRole: nameof(UserRole.Admin)),
             cancellationToken);
         await _feeConfigurationRepository.SaveChangesAsync(cancellationToken);
+        _feeRuleCache?.Invalidate();
 
         return Result<FeeRuleConfigResponse>.Success(ToResponse(newRule));
     }

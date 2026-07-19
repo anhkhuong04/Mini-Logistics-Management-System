@@ -2,6 +2,9 @@ using MiniLogistics.Domain.ValueObjects;
 
 namespace MiniLogistics.Domain.Fees;
 
+/// <summary>
+/// Represents the validated Shipping Fee Quote value used by the domain model.
+/// </summary>
 public sealed record ShippingFeeQuote(
     ShippingFeeBreakdown Breakdown,
     decimal ActualWeightKg,

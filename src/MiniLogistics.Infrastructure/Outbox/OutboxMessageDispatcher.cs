@@ -26,21 +26,24 @@ public sealed class OutboxMessageDispatcher
     private readonly IOutboxMessageRepository _outboxMessageRepository;
     private readonly IWebhookDeliveryRepository _webhookDeliveryRepository;
     private readonly ILogger<OutboxMessageDispatcher> _logger;
+    private readonly TimeProvider _timeProvider;
 
     public OutboxMessageDispatcher(
         IOutboxMessageRepository outboxMessageRepository,
         IWebhookDeliveryRepository webhookDeliveryRepository,
-        ILogger<OutboxMessageDispatcher> logger)
+        ILogger<OutboxMessageDispatcher> logger,
+        TimeProvider timeProvider)
     {
         _outboxMessageRepository = outboxMessageRepository;
         _webhookDeliveryRepository = webhookDeliveryRepository;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public async Task DispatchDueAsync(CancellationToken cancellationToken = default)
     {
         var messages = await _outboxMessageRepository.GetDueAsync(
-            DateTimeOffset.UtcNow,
+            _timeProvider.GetUtcNow(),
             BatchSize,
             cancellationToken);
 
@@ -59,7 +62,7 @@ public sealed class OutboxMessageDispatcher
         OutboxMessage message,
         CancellationToken cancellationToken)
     {
-        message.MarkProcessing();
+        message.MarkProcessing(_timeProvider.GetUtcNow());
 
         try
         {
@@ -84,17 +87,18 @@ public sealed class OutboxMessageDispatcher
                     payload.ApiClientId,
                     payload.EventType,
                     payload.AggregateId,
-                    payload.WebhookPayloadJson);
+                    payload.WebhookPayloadJson,
+                    _timeProvider.GetUtcNow());
 
                 await _webhookDeliveryRepository.AddAsync(delivery, cancellationToken);
             }
 
-            message.MarkSucceeded(DateTimeOffset.UtcNow);
+            message.MarkSucceeded(_timeProvider.GetUtcNow());
         }
         catch (Exception exception)
         {
-            var now = DateTimeOffset.UtcNow;
-            message.MarkFailed(exception.Message, CalculateNextAttempt(message.RetryCount + 1, now));
+            var now = _timeProvider.GetUtcNow();
+            message.MarkFailed(exception.Message, CalculateNextAttempt(message.RetryCount + 1, now), now);
             _logger.LogWarning(
                 exception,
                 "Outbox message {OutboxMessageId} failed on attempt {Attempt}. Next attempt: {NextAttemptAtUtc}.",

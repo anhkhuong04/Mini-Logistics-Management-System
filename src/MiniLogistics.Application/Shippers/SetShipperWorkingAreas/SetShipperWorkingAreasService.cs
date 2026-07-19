@@ -17,18 +17,21 @@ public sealed class SetShipperWorkingAreasService : ISetShipperWorkingAreasServi
     private readonly IHubRepository _hubRepository;
     private readonly IShipperWorkingAreaRepository _workingAreaRepository;
     private readonly IAdminAuditService _adminAuditService;
+    private readonly TimeProvider _timeProvider;
 
     public SetShipperWorkingAreasService(
         IValidator<SetShipperWorkingAreasCommand> validator,
         IIdentityService identityService,
         IHubRepository hubRepository,
         IShipperWorkingAreaRepository workingAreaRepository,
+        TimeProvider timeProvider,
         IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _hubRepository = hubRepository;
         _workingAreaRepository = workingAreaRepository;
+        _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
@@ -105,12 +108,13 @@ public sealed class SetShipperWorkingAreasService : ISetShipperWorkingAreasServi
             })
             .ToList();
         var addedAreas = new List<ShipperWorkingArea>();
+        var now = _timeProvider.GetUtcNow();
 
         foreach (var currentArea in currentAreas.Where(area => area.IsActive))
         {
             if (!requestedAreas.Value.Any(area => currentArea.Matches(area.HubId, area.Ward, area.ZoneCode)))
             {
-                currentArea.Deactivate();
+                currentArea.Deactivate(now);
             }
         }
 
@@ -121,7 +125,7 @@ public sealed class SetShipperWorkingAreasService : ISetShipperWorkingAreasServi
 
             if (existingArea is not null)
             {
-                existingArea.Activate();
+                existingArea.Activate(now);
                 continue;
             }
 
@@ -130,6 +134,7 @@ public sealed class SetShipperWorkingAreasService : ISetShipperWorkingAreasServi
                 command.ShipperId,
                 hub.Id,
                 hub.Province,
+                now,
                 requestedArea.Ward,
                 requestedArea.ZoneCode);
             addedAreas.Add(newArea);

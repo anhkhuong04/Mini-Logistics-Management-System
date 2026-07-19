@@ -1,0 +1,144 @@
+<section class="content-card operations-filter-panel">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Bo loc</p>
+            <h2>Tim va phan trang workspace</h2>
+        </div>
+        <button type="button" class="retry-button" disabled="@IsLoading" @onclick="ApplyFilters">Ap dung</button>
+    </div>
+
+    <div class="filter-grid">
+        <label class="filter-field" for="operations-search">
+            <span>Search</span>
+            <input id="operations-search" placeholder="Tracking, nguoi nhan, sdt" value="@SearchText" @oninput="eventArgs => SearchTextChanged.InvokeAsync(ToText(eventArgs))" />
+        </label>
+        <label class="filter-field" for="operations-province">
+            <span>Province</span>
+            <input id="operations-province" placeholder="Pickup/delivery province" value="@Province" @oninput="eventArgs => ProvinceChanged.InvokeAsync(ToText(eventArgs))" />
+        </label>
+        <label class="filter-field" for="operations-status">
+            <span>Status</span>
+            <select id="operations-status" value="@Status" @onchange="eventArgs => StatusChanged.InvokeAsync(ToText(eventArgs))">
+                <option value="All">Tat ca</option>
+                @foreach (var status in StatusOptions)
+                {
+                    <option value="@status">@OperationsDisplay.FormatStatus(status)</option>
+                }
+            </select>
+        </label>
+        <label class="filter-field" for="operations-cod-status">
+            <span>COD</span>
+            <select id="operations-cod-status" value="@CodStatus" @onchange="eventArgs => CodStatusChanged.InvokeAsync(ToText(eventArgs))">
+                <option value="All">Tat ca</option>
+                <option value="@MiniLogistics.Domain.CashOnDelivery.CodStatus.PendingCollection">Cho thu</option>
+                <option value="@MiniLogistics.Domain.CashOnDelivery.CodStatus.Collected">Da thu</option>
+                <option value="@MiniLogistics.Domain.CashOnDelivery.CodStatus.Settled">Da doi soat</option>
+            </select>
+        </label>
+        <label class="filter-field" for="operations-shipper">
+            <span>Shipper id</span>
+            <input id="operations-shipper" placeholder="Guid" value="@ShipperIdText" @oninput="eventArgs => ShipperIdTextChanged.InvokeAsync(ToText(eventArgs))" />
+        </label>
+        <label class="filter-field" for="operations-from">
+            <span>Tu ngay</span>
+            <input id="operations-from" type="date" value="@FromDateText" @onchange="eventArgs => FromDateTextChanged.InvokeAsync(ToText(eventArgs))" />
+        </label>
+        <label class="filter-field" for="operations-to">
+            <span>Den ngay</span>
+            <input id="operations-to" type="date" value="@ToDateText" @onchange="eventArgs => ToDateTextChanged.InvokeAsync(ToText(eventArgs))" />
+        </label>
+        <label class="filter-field" for="operations-min-cod">
+            <span>Min COD</span>
+            <input id="operations-min-cod" inputmode="decimal" value="@MinCodText" @oninput="eventArgs => MinCodTextChanged.InvokeAsync(ToText(eventArgs))" />
+        </label>
+        <label class="filter-field" for="operations-max-cod">
+            <span>Max COD</span>
+            <input id="operations-max-cod" inputmode="decimal" value="@MaxCodText" @oninput="eventArgs => MaxCodTextChanged.InvokeAsync(ToText(eventArgs))" />
+        </label>
+        <label class="sla-toggle" for="operations-sla-only">
+            <input id="operations-sla-only" type="checkbox" checked="@SlaOnly" @onchange="eventArgs => SlaOnlyChanged.InvokeAsync(ToBool(eventArgs))" />
+            <span>Chi hien SLA can chu y</span>
+        </label>
+    </div>
+</section>
+
+@code {
+    [Parameter]
+    public bool IsLoading { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<ShipmentStatus> StatusOptions { get; set; } = [];
+
+    [Parameter]
+    public string SearchText { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> SearchTextChanged { get; set; }
+
+    [Parameter]
+    public string Province { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> ProvinceChanged { get; set; }
+
+    [Parameter]
+    public string Status { get; set; } = "All";
+
+    [Parameter]
+    public EventCallback<string> StatusChanged { get; set; }
+
+    [Parameter]
+    public string CodStatus { get; set; } = "All";
+
+    [Parameter]
+    public EventCallback<string> CodStatusChanged { get; set; }
+
+    [Parameter]
+    public string ShipperIdText { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> ShipperIdTextChanged { get; set; }
+
+    [Parameter]
+    public string FromDateText { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> FromDateTextChanged { get; set; }
+
+    [Parameter]
+    public string ToDateText { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> ToDateTextChanged { get; set; }
+
+    [Parameter]
+    public string MinCodText { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> MinCodTextChanged { get; set; }
+
+    [Parameter]
+    public string MaxCodText { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> MaxCodTextChanged { get; set; }
+
+    [Parameter]
+    public bool SlaOnly { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> SlaOnlyChanged { get; set; }
+
+    [Parameter]
+    public EventCallback ApplyFilters { get; set; }
+
+    private static string ToText(ChangeEventArgs eventArgs)
+    {
+        return eventArgs.Value?.ToString() ?? string.Empty;
+    }
+
+    private static bool ToBool(ChangeEventArgs eventArgs)
+    {
+        return eventArgs.Value is bool value && value;
+    }
+}

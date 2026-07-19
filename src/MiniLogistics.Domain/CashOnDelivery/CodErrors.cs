@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.CashOnDelivery;
 
+/// <summary>
+/// Provides domain helpers or errors for Cod Errors.
+/// </summary>
 public static class CodErrors
 {
     public static readonly Error CollectionNotRequired = new(

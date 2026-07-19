@@ -3,6 +3,9 @@ using MiniLogistics.Domain.PartnerApi;
 
 namespace MiniLogistics.Application.PartnerApi;
 
+/// <summary>
+/// Defines the application contract for Webhook Event Publisher.
+/// </summary>
 public interface IWebhookEventPublisher
 {
     Task PublishShipmentAsync(

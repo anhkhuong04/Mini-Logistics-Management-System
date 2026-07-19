@@ -66,7 +66,14 @@ public static class AuthenticationEndpoints
             email,
             password,
             rememberMe,
-            lockoutOnFailure: false);
+            lockoutOnFailure: true);
+
+        if (result.IsLockedOut)
+        {
+            return RedirectWithError(
+                "/login",
+                "Account is temporarily locked because of too many failed login attempts. Please try again in 15 minutes.");
+        }
 
         if (!result.Succeeded)
         {

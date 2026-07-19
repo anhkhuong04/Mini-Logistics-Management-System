@@ -1,4 +1,5 @@
 using FluentValidation;
+using MiniLogistics.Application.Identity;
 
 namespace MiniLogistics.Application.Shops.RegisterShop;
 
@@ -16,9 +17,12 @@ public sealed class RegisterShopCommandValidator : AbstractValidator<RegisterSho
             .MaximumLength(256);
 
         RuleFor(command => command.Password)
+            .Cascade(CascadeMode.Stop)
             .NotEmpty()
-            .MinimumLength(6)
-            .MaximumLength(100);
+            .WithMessage(PasswordPolicy.RequirementMessage)
+            .MaximumLength(PasswordPolicy.MaximumLength)
+            .Must(PasswordPolicy.MeetsComplexity)
+            .WithMessage(PasswordPolicy.RequirementMessage);
 
         RuleFor(command => command.ShopName)
             .NotEmpty()

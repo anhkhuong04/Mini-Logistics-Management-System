@@ -7,10 +7,28 @@ using MiniLogistics.Web.Endpoints;
 using MiniLogistics.Web.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+const string PartnerApiCorsPolicy = "PartnerApiPolicy";
 
 // Add services to the container.
+builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+var partnerApiAllowedOrigins = builder.Configuration
+    .GetSection("Cors:PartnerApi:AllowedOrigins")
+    .Get<string[]>() ?? [];
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(PartnerApiCorsPolicy, policy =>
+    {
+        policy
+            .WithOrigins(partnerApiAllowedOrigins)
+            .WithMethods("GET", "POST")
+            .WithHeaders("Authorization", "Content-Type", "Idempotency-Key")
+            .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
+    });
+});
+builder.Services.AddExceptionHandler<PartnerApiExceptionHandler>();
+builder.Services.AddProblemDetails();
 builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSingleton<VietnamAdministrativeDivisionService>();
@@ -53,16 +71,21 @@ if (!app.Environment.IsDevelopment())
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
+app.UseWhen(
+    context => context.Request.Path.StartsWithSegments("/api"),
+    apiApp => apiApp.UseExceptionHandler());
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
+app.UseRouting();
+app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapAuthenticationEndpoints();
-app.MapPartnerApiEndpoints();
+app.MapPartnerApiEndpoints(PartnerApiCorsPolicy);
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

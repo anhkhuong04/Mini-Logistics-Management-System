@@ -9,10 +9,14 @@ public sealed class InMemoryPartnerApiRateLimiter : IPartnerApiRateLimiter
 
     private readonly ConcurrentDictionary<RateLimitKey, WindowCounter> _counters = [];
     private readonly PartnerApiRateLimitOptions _options;
+    private readonly TimeProvider _timeProvider;
 
-    public InMemoryPartnerApiRateLimiter(IOptions<PartnerApiRateLimitOptions> options)
+    public InMemoryPartnerApiRateLimiter(
+        IOptions<PartnerApiRateLimitOptions> options,
+        TimeProvider timeProvider)
     {
         _options = options.Value;
+        _timeProvider = timeProvider;
     }
 
     public bool TryAcquire(
@@ -20,7 +24,7 @@ public sealed class InMemoryPartnerApiRateLimiter : IPartnerApiRateLimiter
         PartnerApiRateLimitKind kind,
         out TimeSpan retryAfter)
     {
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
         var limit = _options.GetLimit(kind);
         var key = new RateLimitKey(apiClientId, kind);
         var counter = _counters.AddOrUpdate(

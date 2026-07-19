@@ -13,6 +13,8 @@ public sealed class LocalDbIntegrationFixture : IAsyncLifetime
 {
     private readonly string _databaseName = $"MiniLogisticsIntegration_{Guid.NewGuid():N}";
 
+    public string DemoPartnerApiKey { get; } = $"ml_test_seed_partner_key_{Guid.NewGuid():N}";
+
     public string ConnectionString =>
         $"Server=(localdb)\\MSSQLLocalDB;Database={_databaseName};Trusted_Connection=True;MultipleActiveResultSets=true;TrustServerCertificate=True";
 
@@ -22,6 +24,12 @@ public sealed class LocalDbIntegrationFixture : IAsyncLifetime
     {
         var configuration = new ConfigurationManager();
         configuration["ConnectionStrings:DefaultConnection"] = ConnectionString;
+        configuration["Seeding:Enabled"] = "true";
+        configuration["Seeding:DemoPartnerApiKey"] = DemoPartnerApiKey;
+        configuration["Seeding:DemoAdminPassword"] = CreateSeedPassword("Admin");
+        configuration["Seeding:DemoShopPassword"] = CreateSeedPassword("Shop");
+        configuration["Seeding:DemoShipperPassword"] = CreateSeedPassword("Shipper");
+        configuration["Seeding:DemoOperatorPassword"] = CreateSeedPassword("Operator");
 
         var services = new ServiceCollection();
         services.AddLogging();
@@ -64,5 +72,10 @@ public sealed class LocalDbIntegrationFixture : IAsyncLifetime
     {
         await using var scope = ServiceProvider.CreateAsyncScope();
         await action(scope.ServiceProvider);
+    }
+
+    private static string CreateSeedPassword(string role)
+    {
+        return $"{role}Seed@{Guid.NewGuid():N}1";
     }
 }

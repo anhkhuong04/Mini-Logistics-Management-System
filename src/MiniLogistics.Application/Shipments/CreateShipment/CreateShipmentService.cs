@@ -23,6 +23,7 @@ public sealed class CreateShipmentService : ICreateShipmentService
     private readonly IShopAccessService _shopAccessService;
     private readonly ICodTransactionRepository _codTransactionRepository;
     private readonly IAutoAssignShipmentService _autoAssignShipmentService;
+    private readonly TimeProvider _timeProvider;
 
     public CreateShipmentService(
         IValidator<CreateShipmentCommand> validator,
@@ -31,7 +32,8 @@ public sealed class CreateShipmentService : ICreateShipmentService
         IShipmentRepository shipmentRepository,
         IShopAccessService shopAccessService,
         ICodTransactionRepository codTransactionRepository,
-        IAutoAssignShipmentService autoAssignShipmentService)
+        IAutoAssignShipmentService autoAssignShipmentService,
+        TimeProvider timeProvider)
     {
         _validator = validator;
         _shippingFeeService = shippingFeeService;
@@ -40,6 +42,7 @@ public sealed class CreateShipmentService : ICreateShipmentService
         _shopAccessService = shopAccessService;
         _codTransactionRepository = codTransactionRepository;
         _autoAssignShipmentService = autoAssignShipmentService;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<CreateShipmentResponse>> CreateAsync(
@@ -94,7 +97,8 @@ public sealed class CreateShipmentService : ICreateShipmentService
             return Result<CreateShipmentResponse>.Failure(shippingFeeResult.Error);
         }
 
-        var trackingCode = await GenerateUniqueTrackingCodeAsync(cancellationToken);
+        var now = _timeProvider.GetUtcNow();
+        var trackingCode = await GenerateUniqueTrackingCodeAsync(now, cancellationToken);
         var shipment = Shipment.Create(
             shop.Id,
             command.SenderName,
@@ -111,9 +115,10 @@ public sealed class CreateShipmentService : ICreateShipmentService
             shippingFeeResult.Value.Breakdown,
             routeType,
             command.CreatedByUserId,
+            now,
             command.Note,
             trackingCode);
-        var codTransaction = CodTransaction.Create(shipment.Id, codAmount);
+        var codTransaction = CodTransaction.Create(shipment.Id, codAmount, now);
 
         await _shipmentRepository.AddAsync(shipment, cancellationToken);
         await _codTransactionRepository.AddAsync(codTransaction, cancellationToken);
@@ -135,11 +140,13 @@ public sealed class CreateShipmentService : ICreateShipmentService
             shipment.Status));
     }
 
-    private async Task<TrackingCode> GenerateUniqueTrackingCodeAsync(CancellationToken cancellationToken)
+    private async Task<TrackingCode> GenerateUniqueTrackingCodeAsync(
+        DateTimeOffset generatedAtUtc,
+        CancellationToken cancellationToken)
     {
         for (var attempt = 0; attempt < MaxTrackingCodeGenerationAttempts; attempt++)
         {
-            var trackingCode = TrackingCode.Generate();
+            var trackingCode = TrackingCode.Generate(generatedAtUtc);
             var exists = await _shipmentRepository.ExistsByTrackingCodeAsync(trackingCode, cancellationToken);
 
             if (!exists)

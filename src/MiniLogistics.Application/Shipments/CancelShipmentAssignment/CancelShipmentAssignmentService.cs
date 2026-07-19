@@ -15,17 +15,20 @@ public sealed class CancelShipmentAssignmentService : ICancelShipmentAssignmentS
     private readonly IShipmentRepository _shipmentRepository;
     private readonly IWebhookEventPublisher _webhookEventPublisher;
     private readonly IAdminAuditService _adminAuditService;
+    private readonly TimeProvider _timeProvider;
 
     public CancelShipmentAssignmentService(
         IValidator<CancelShipmentAssignmentCommand> validator,
         IIdentityService identityService,
         IShipmentRepository shipmentRepository,
+        TimeProvider timeProvider,
         IWebhookEventPublisher? webhookEventPublisher = null,
         IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _shipmentRepository = shipmentRepository;
+        _timeProvider = timeProvider;
         _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
@@ -60,6 +63,7 @@ public sealed class CancelShipmentAssignmentService : ICancelShipmentAssignmentS
 
         var cancelResult = shipment.CancelActiveAssignment(
             command.CancelledByUserId,
+            _timeProvider.GetUtcNow(),
             command.Reason);
         if (cancelResult.IsFailure)
         {

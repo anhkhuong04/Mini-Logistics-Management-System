@@ -12,15 +12,18 @@ public sealed class CreateAdditionalShopService : ICreateAdditionalShopService
     private readonly IValidator<CreateAdditionalShopCommand> _validator;
     private readonly IShopAccessService _shopAccessService;
     private readonly IShopRepository _shopRepository;
+    private readonly TimeProvider _timeProvider;
 
     public CreateAdditionalShopService(
         IValidator<CreateAdditionalShopCommand> validator,
         IShopAccessService shopAccessService,
-        IShopRepository shopRepository)
+        IShopRepository shopRepository,
+        TimeProvider timeProvider)
     {
         _validator = validator;
         _shopAccessService = shopAccessService;
         _shopRepository = shopRepository;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<CreateAdditionalShopResponse>> CreateAsync(
@@ -52,7 +55,8 @@ public sealed class CreateAdditionalShopService : ICreateAdditionalShopService
                     command.AddressLine,
                     command.Ward,
                     command.Province,
-                    command.Country));
+                    command.Country),
+                _timeProvider.GetUtcNow());
 
             await _shopRepository.AddAsync(shop, cancellationToken);
             await _shopRepository.SaveChangesAsync(cancellationToken);

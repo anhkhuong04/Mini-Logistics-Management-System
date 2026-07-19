@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Application.Shops.GetShopContext;
 
+/// <summary>
+/// Defines the application use case contract for Get Shop Context.
+/// </summary>
 public interface IGetShopContextService
 {
     Task<Result<GetShopContextResponse>> GetAsync(

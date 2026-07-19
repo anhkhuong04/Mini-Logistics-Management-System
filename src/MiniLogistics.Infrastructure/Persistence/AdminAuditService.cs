@@ -13,15 +13,18 @@ public sealed class AdminAuditService : IAdminAuditService
 
     private readonly IAdminAuditLogRepository _auditLogRepository;
     private readonly IIdentityService _identityService;
+    private readonly TimeProvider _timeProvider;
     private readonly IHttpContextAccessor? _httpContextAccessor;
 
     public AdminAuditService(
         IAdminAuditLogRepository auditLogRepository,
         IIdentityService identityService,
+        TimeProvider timeProvider,
         IHttpContextAccessor? httpContextAccessor = null)
     {
         _auditLogRepository = auditLogRepository;
         _identityService = identityService;
+        _timeProvider = timeProvider;
         _httpContextAccessor = httpContextAccessor;
     }
 
@@ -46,6 +49,7 @@ public sealed class AdminAuditService : IAdminAuditService
                 entry.Action,
                 entry.TargetType,
                 entry.TargetId,
+                _timeProvider.GetUtcNow(),
                 Serialize(entry.OldValue),
                 Serialize(entry.NewValue),
                 entry.Reason,

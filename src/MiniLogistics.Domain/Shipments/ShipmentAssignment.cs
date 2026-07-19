@@ -2,13 +2,16 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.Shipments;
 
+/// <summary>
+/// Represents the Shipment Assignment domain entity.
+/// </summary>
 public sealed class ShipmentAssignment : Entity
 {
     private ShipmentAssignment()
     {
     }
 
-    internal ShipmentAssignment(Guid shipmentId, Guid shipperId)
+    internal ShipmentAssignment(Guid shipmentId, Guid shipperId, DateTimeOffset assignedAtUtc)
         : base(Guid.NewGuid())
     {
         if (shipmentId == Guid.Empty)
@@ -23,7 +26,7 @@ public sealed class ShipmentAssignment : Entity
 
         ShipmentId = shipmentId;
         ShipperId = shipperId;
-        AssignedAtUtc = DateTimeOffset.UtcNow;
+        AssignedAtUtc = assignedAtUtc;
     }
 
     public Guid ShipmentId { get; private set; }
@@ -36,13 +39,13 @@ public sealed class ShipmentAssignment : Entity
 
     public bool IsActive => UnassignedAtUtc is null;
 
-    internal void Deactivate()
+    internal void Deactivate(DateTimeOffset unassignedAtUtc)
     {
         if (UnassignedAtUtc is not null)
         {
             return;
         }
 
-        UnassignedAtUtc = DateTimeOffset.UtcNow;
+        UnassignedAtUtc = unassignedAtUtc;
     }
 }

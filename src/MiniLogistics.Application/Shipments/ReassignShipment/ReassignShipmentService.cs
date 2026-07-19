@@ -15,17 +15,20 @@ public sealed class ReassignShipmentService : IReassignShipmentService
     private readonly IShipmentRepository _shipmentRepository;
     private readonly IWebhookEventPublisher _webhookEventPublisher;
     private readonly IAdminAuditService _adminAuditService;
+    private readonly TimeProvider _timeProvider;
 
     public ReassignShipmentService(
         IValidator<ReassignShipmentCommand> validator,
         IIdentityService identityService,
         IShipmentRepository shipmentRepository,
+        TimeProvider timeProvider,
         IWebhookEventPublisher? webhookEventPublisher = null,
         IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _shipmentRepository = shipmentRepository;
+        _timeProvider = timeProvider;
         _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
@@ -67,6 +70,7 @@ public sealed class ReassignShipmentService : IReassignShipmentService
         var reassignResult = shipment.ReassignShipper(
             command.NewShipperId,
             command.ReassignedByUserId,
+            _timeProvider.GetUtcNow(),
             command.Reason);
         if (reassignResult.IsFailure)
         {

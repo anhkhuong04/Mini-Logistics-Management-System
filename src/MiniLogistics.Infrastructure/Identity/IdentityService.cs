@@ -2,16 +2,24 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Domain.Common;
+using MiniLogistics.Infrastructure.Persistence;
 
 namespace MiniLogistics.Infrastructure.Identity;
 
 public sealed class IdentityService : IIdentityService
 {
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly MiniLogisticsDbContext _dbContext;
+    private readonly TimeProvider _timeProvider;
 
-    public IdentityService(UserManager<ApplicationUser> userManager)
+    public IdentityService(
+        UserManager<ApplicationUser> userManager,
+        MiniLogisticsDbContext dbContext,
+        TimeProvider timeProvider)
     {
         _userManager = userManager;
+        _dbContext = dbContext;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<Guid>> CreateUserAsync(
@@ -31,7 +39,7 @@ public sealed class IdentityService : IIdentityService
             IsActive = true,
             IsAvailableForAssignment = true,
             MaxActiveShipments = 30,
-            CreatedAtUtc = DateTimeOffset.UtcNow
+            CreatedAtUtc = _timeProvider.GetUtcNow()
         };
 
         var result = await _userManager.CreateAsync(user, password);
@@ -169,16 +177,16 @@ public sealed class IdentityService : IIdentityService
     public async Task<IReadOnlyList<IdentityUserWithRolesResponse>> ListUsersWithRolesAsync(
         CancellationToken cancellationToken = default)
     {
-        var users = await _userManager.Users
-            .OrderBy(user => user.FullName)
-            .ThenBy(user => user.Email)
-            .ToListAsync(cancellationToken);
-
-        var response = new List<IdentityUserWithRolesResponse>(users.Count);
-        foreach (var user in users)
-        {
-            var roles = await _userManager.GetRolesAsync(user);
-            response.Add(new IdentityUserWithRolesResponse(
+        var rows = await (
+            from user in _dbContext.Users.AsNoTracking()
+            join userRole in _dbContext.UserRoles.AsNoTracking()
+                on user.Id equals userRole.UserId into userRoles
+            from userRole in userRoles.DefaultIfEmpty()
+            join role in _dbContext.Roles.AsNoTracking()
+                on userRole.RoleId equals role.Id into roles
+            from role in roles.DefaultIfEmpty()
+            orderby user.FullName, user.Email, role.Name
+            select new IdentityUserRoleRow(
                 user.Id,
                 user.FullName,
                 user.Email ?? string.Empty,
@@ -186,11 +194,39 @@ public sealed class IdentityService : IIdentityService
                 user.IsActive,
                 user.IsAvailableForAssignment,
                 user.MaxActiveShipments,
-                roles.Order(StringComparer.OrdinalIgnoreCase).ToList(),
-                user.CreatedAtUtc));
-        }
+                user.CreatedAtUtc,
+                role.Name))
+            .ToListAsync(cancellationToken);
 
-        return response;
+        return rows
+            .GroupBy(row => new
+            {
+                row.UserId,
+                row.FullName,
+                row.Email,
+                row.PhoneNumber,
+                row.IsActive,
+                row.IsAvailableForAssignment,
+                row.MaxActiveShipments,
+                row.CreatedAtUtc
+            })
+            .Select(group => new IdentityUserWithRolesResponse(
+                group.Key.UserId,
+                group.Key.FullName,
+                group.Key.Email,
+                group.Key.PhoneNumber,
+                group.Key.IsActive,
+                group.Key.IsAvailableForAssignment,
+                group.Key.MaxActiveShipments,
+                group
+                    .Select(row => row.RoleName)
+                    .Where(roleName => !string.IsNullOrWhiteSpace(roleName))
+                    .Select(roleName => roleName!)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Order(StringComparer.OrdinalIgnoreCase)
+                    .ToList(),
+                group.Key.CreatedAtUtc))
+            .ToList();
     }
 
     public async Task<IReadOnlyList<ActiveShipperResponse>> GetActiveShippersAsync(
@@ -239,4 +275,15 @@ public sealed class IdentityService : IIdentityService
     {
         return string.Join("; ", errors.Select(error => error.Description));
     }
+
+    private sealed record IdentityUserRoleRow(
+        Guid UserId,
+        string FullName,
+        string Email,
+        string? PhoneNumber,
+        bool IsActive,
+        bool IsAvailableForAssignment,
+        int MaxActiveShipments,
+        DateTimeOffset CreatedAtUtc,
+        string? RoleName);
 }

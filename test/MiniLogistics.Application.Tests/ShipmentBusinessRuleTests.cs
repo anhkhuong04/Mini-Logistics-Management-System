@@ -132,7 +132,7 @@ public sealed class ShipmentBusinessRuleTests
     public async Task AssignmentSelector_ProvinceMatchWithoutPickupHub_SelectsMatchingShipper()
     {
         var targetShipment = CreateShipment(_shopUserId);
-        var provinceOnlyArea = new ShipperWorkingArea(_shipperId, Guid.NewGuid(), "Ho Chi Minh");
+        var provinceOnlyArea = new ShipperWorkingArea(_shipperId, Guid.NewGuid(), "Ho Chi Minh", TestClock.UtcNow);
         var selector = new ShipmentAssignmentSelector(
             CreateIdentityService(),
             new FakeHubRepository([]),
@@ -153,13 +153,13 @@ public sealed class ShipmentBusinessRuleTests
     {
         var targetShipment = CreateShipment(_shopUserId);
         var busyShipment = CreateAssignedShipment(_shipperId);
-        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh", TestClock.UtcNow);
         var selector = new ShipmentAssignmentSelector(
             CreateIdentityService(),
             new FakeHubRepository([hub]),
             new FakeShipperWorkingAreaRepository([
-                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh"),
-                new ShipperWorkingArea(_otherShipperId, hub.Id, "Ho Chi Minh")
+                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh", TestClock.UtcNow),
+                new ShipperWorkingArea(_otherShipperId, hub.Id, "Ho Chi Minh", TestClock.UtcNow)
             ]),
             new FakeShipmentRepository([targetShipment, busyShipment]));
 
@@ -175,13 +175,13 @@ public sealed class ShipmentBusinessRuleTests
     {
         var targetShipment = CreateShipment(_shopUserId);
         var exactWardBusyShipment = CreateAssignedShipment(_shipperId);
-        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh", TestClock.UtcNow);
         var selector = new ShipmentAssignmentSelector(
             CreateIdentityService(),
             new FakeHubRepository([hub]),
             new FakeShipperWorkingAreaRepository([
-                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh", "Ben Thanh"),
-                new ShipperWorkingArea(_otherShipperId, hub.Id, "Ho Chi Minh")
+                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh", TestClock.UtcNow, "Ben Thanh"),
+                new ShipperWorkingArea(_otherShipperId, hub.Id, "Ho Chi Minh", TestClock.UtcNow)
             ]),
             new FakeShipmentRepository([targetShipment, exactWardBusyShipment]));
 
@@ -195,7 +195,7 @@ public sealed class ShipmentBusinessRuleTests
     public async Task AssignmentSelector_NoMatchingWorkingArea_ReturnsNoEligibleShipper()
     {
         var targetShipment = CreateShipment(_shopUserId);
-        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh", TestClock.UtcNow);
         var selector = new ShipmentAssignmentSelector(
             CreateIdentityService(),
             new FakeHubRepository([hub]),
@@ -232,13 +232,13 @@ public sealed class ShipmentBusinessRuleTests
         identityService.SetShipperCapacity(_otherShipperId, isAvailableForAssignment: true, maxActiveShipments: 10);
         var targetShipment = CreateShipment(_shopUserId);
         var busyShipment = CreateAssignedShipment(_shipperId);
-        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh", TestClock.UtcNow);
         var selector = new ShipmentAssignmentSelector(
             identityService,
             new FakeHubRepository([hub]),
             new FakeShipperWorkingAreaRepository([
-                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh"),
-                new ShipperWorkingArea(_otherShipperId, hub.Id, "Ho Chi Minh")
+                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh", TestClock.UtcNow),
+                new ShipperWorkingArea(_otherShipperId, hub.Id, "Ho Chi Minh", TestClock.UtcNow)
             ]),
             new FakeShipmentRepository([targetShipment, busyShipment]));
 
@@ -255,12 +255,12 @@ public sealed class ShipmentBusinessRuleTests
         identityService.SetShipperCapacity(_shipperId, isAvailableForAssignment: true, maxActiveShipments: 1);
         var targetShipment = CreateShipment(_shopUserId);
         var busyShipment = CreateAssignedShipment(_shipperId);
-        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh", TestClock.UtcNow);
         var selector = new ShipmentAssignmentSelector(
             identityService,
             new FakeHubRepository([hub]),
             new FakeShipperWorkingAreaRepository([
-                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh")
+                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh", TestClock.UtcNow)
             ]),
             new FakeShipmentRepository([targetShipment, busyShipment]));
 
@@ -278,13 +278,13 @@ public sealed class ShipmentBusinessRuleTests
         identityService.SetShipperCapacity(_shipperId, isAvailableForAssignment: false, maxActiveShipments: 10);
         identityService.SetShipperCapacity(_otherShipperId, isAvailableForAssignment: true, maxActiveShipments: 10);
         var targetShipment = CreateShipment(_shopUserId);
-        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh", TestClock.UtcNow);
         var selector = new ShipmentAssignmentSelector(
             identityService,
             new FakeHubRepository([hub]),
             new FakeShipperWorkingAreaRepository([
-                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh"),
-                new ShipperWorkingArea(_otherShipperId, hub.Id, "Ho Chi Minh")
+                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh", TestClock.UtcNow),
+                new ShipperWorkingArea(_otherShipperId, hub.Id, "Ho Chi Minh", TestClock.UtcNow)
             ]),
             new FakeShipmentRepository([targetShipment]));
 
@@ -300,13 +300,13 @@ public sealed class ShipmentBusinessRuleTests
         var identityService = CreateIdentityService();
         identityService.AddUser(_shipperId, isActive: false, nameof(UserRole.Shipper));
         var targetShipment = CreateShipment(_shopUserId);
-        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh", TestClock.UtcNow);
         var selector = new ShipmentAssignmentSelector(
             identityService,
             new FakeHubRepository([hub]),
             new FakeShipperWorkingAreaRepository([
-                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh"),
-                new ShipperWorkingArea(_otherShipperId, hub.Id, "Ho Chi Minh")
+                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh", TestClock.UtcNow),
+                new ShipperWorkingArea(_otherShipperId, hub.Id, "Ho Chi Minh", TestClock.UtcNow)
             ]),
             new FakeShipmentRepository([targetShipment]));
 
@@ -320,19 +320,20 @@ public sealed class ShipmentBusinessRuleTests
     public async Task AutoAssignShipment_AssignsPendingPickupAndPublishesWebhook()
     {
         var targetShipment = CreateShipment(_shopUserId);
-        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh", TestClock.UtcNow);
         var shipmentRepository = new FakeShipmentRepository([targetShipment]);
         var publisher = new FakeWebhookEventPublisher();
         var selector = new ShipmentAssignmentSelector(
             CreateIdentityService(),
             new FakeHubRepository([hub]),
             new FakeShipperWorkingAreaRepository([
-                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh")
+                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh", TestClock.UtcNow)
             ]),
             shipmentRepository);
         var service = new AutoAssignShipmentService(
             shipmentRepository,
             selector,
+            TestClock.Provider,
             publisher);
 
         var result = await service.AutoAssignAsync(targetShipment.Id);
@@ -351,20 +352,20 @@ public sealed class ShipmentBusinessRuleTests
     public async Task AutoAssignShipment_DeliveredCodShipment_CanStillBeCollectedByAssignedShipper()
     {
         var targetShipment = CreateShipment(_shopUserId, codAmount: 100_000m);
-        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh", TestClock.UtcNow);
         var shipmentRepository = new FakeShipmentRepository([targetShipment]);
         var selector = new ShipmentAssignmentSelector(
             CreateIdentityService(),
             new FakeHubRepository([hub]),
             new FakeShipperWorkingAreaRepository([
-                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh")
+                new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh", TestClock.UtcNow)
             ]),
             shipmentRepository);
-        var autoAssignService = new AutoAssignShipmentService(shipmentRepository, selector);
+        var autoAssignService = new AutoAssignShipmentService(shipmentRepository, selector, TestClock.Provider);
 
         var autoAssignResult = await autoAssignService.AutoAssignAsync(targetShipment.Id);
         MoveShipmentToStatus(targetShipment, ShipmentStatus.Delivered);
-        var codTransaction = CodTransaction.Create(targetShipment.Id, new Money(100_000m));
+        var codTransaction = CodTransaction.Create(targetShipment.Id, new Money(100_000m), TestClock.UtcNow);
         var codRepository = new FakeCodTransactionRepository([codTransaction]);
         var collectService = CreateMarkCodCollectedService(shipmentRepository, codRepository);
         var collectResult = await collectService.MarkCollectedAsync(new MarkCodCollectedCommand(
@@ -393,7 +394,7 @@ public sealed class ShipmentBusinessRuleTests
             "New Demo Shipper",
             "new.shipper@example.test",
             "0900000099",
-            "Password1",
+            "Password1!",
             nameof(UserRole.Shipper)));
 
         Assert.True(result.IsSuccess);
@@ -424,7 +425,7 @@ public sealed class ShipmentBusinessRuleTests
             "Blocked Shipper",
             "blocked.shipper@example.test",
             "0900000098",
-            "Password1",
+            "Password1!",
             nameof(UserRole.Shipper)));
 
         Assert.True(result.IsFailure);
@@ -459,7 +460,8 @@ public sealed class ShipmentBusinessRuleTests
         var assignService = new AssignShipperToShipmentService(
             new AssignShipperCommandValidator(),
             identityService,
-            new FakeShipmentRepository([shipment]));
+            new FakeShipmentRepository([shipment]),
+            TestClock.Provider);
 
         var assignResult = await assignService.AssignAsync(new AssignShipperCommand(
             shipment.Id,
@@ -474,13 +476,14 @@ public sealed class ShipmentBusinessRuleTests
     [Fact]
     public async Task SetShipperWorkingAreas_DuplicateNormalizedAreas_ReturnsValidationFailure()
     {
-        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh", TestClock.UtcNow);
         var workingAreaRepository = new FakeShipperWorkingAreaRepository([]);
         var service = new SetShipperWorkingAreasService(
             new SetShipperWorkingAreasCommandValidator(),
             CreateIdentityService(),
             new FakeHubRepository([hub]),
-            workingAreaRepository);
+            workingAreaRepository,
+            TestClock.Provider);
 
         var result = await service.SetAsync(new SetShipperWorkingAreasCommand(
             _adminId,
@@ -500,14 +503,15 @@ public sealed class ShipmentBusinessRuleTests
     [Fact]
     public async Task SetShipperWorkingAreas_InactiveHub_IsRejected()
     {
-        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
-        hub.Deactivate();
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh", TestClock.UtcNow);
+        hub.Deactivate(TestClock.UtcNow);
         var workingAreaRepository = new FakeShipperWorkingAreaRepository([]);
         var service = new SetShipperWorkingAreasService(
             new SetShipperWorkingAreasCommandValidator(),
             CreateIdentityService(),
             new FakeHubRepository([hub]),
-            workingAreaRepository);
+            workingAreaRepository,
+            TestClock.Provider);
 
         var result = await service.SetAsync(new SetShipperWorkingAreasCommand(
             _adminId,
@@ -524,15 +528,16 @@ public sealed class ShipmentBusinessRuleTests
     [Fact]
     public async Task SetShipperWorkingAreas_AdminReplacesAreas_DeactivatesRemovedAreas()
     {
-        var oldHub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
-        var newHub = new Hub("SPX-HN-HUB", "SPX Ha Noi Province Hub", "Ha Noi");
-        var oldArea = new ShipperWorkingArea(_shipperId, oldHub.Id, oldHub.Province);
+        var oldHub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh", TestClock.UtcNow);
+        var newHub = new Hub("SPX-HN-HUB", "SPX Ha Noi Province Hub", "Ha Noi", TestClock.UtcNow);
+        var oldArea = new ShipperWorkingArea(_shipperId, oldHub.Id, oldHub.Province, TestClock.UtcNow);
         var workingAreaRepository = new FakeShipperWorkingAreaRepository([oldArea]);
         var service = new SetShipperWorkingAreasService(
             new SetShipperWorkingAreasCommandValidator(),
             CreateIdentityService(),
             new FakeHubRepository([oldHub, newHub]),
-            workingAreaRepository);
+            workingAreaRepository,
+            TestClock.Provider);
 
         var result = await service.SetAsync(new SetShipperWorkingAreasCommand(
             _adminId,
@@ -626,7 +631,7 @@ public sealed class ShipmentBusinessRuleTests
     public async Task MarkCodCollected_ShipmentNotDelivered_IsRejected()
     {
         var shipment = CreateAssignedShipment(_shipperId, codAmount: 100_000m);
-        var codTransaction = CodTransaction.Create(shipment.Id, new Money(100_000m));
+        var codTransaction = CodTransaction.Create(shipment.Id, new Money(100_000m), TestClock.UtcNow);
         var service = CreateMarkCodCollectedService([shipment], [codTransaction]);
 
         var result = await service.MarkCollectedAsync(new MarkCodCollectedCommand(
@@ -641,7 +646,7 @@ public sealed class ShipmentBusinessRuleTests
     public async Task MarkCodCollected_WhenCodIsNotPendingCollection_IsRejected()
     {
         var shipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 0m);
-        var codTransaction = CodTransaction.Create(shipment.Id, Money.Zero);
+        var codTransaction = CodTransaction.Create(shipment.Id, Money.Zero, TestClock.UtcNow);
         var service = CreateMarkCodCollectedService([shipment], [codTransaction]);
 
         var result = await service.MarkCollectedAsync(new MarkCodCollectedCommand(
@@ -656,7 +661,7 @@ public sealed class ShipmentBusinessRuleTests
     public async Task MarkCodCollected_AssignedShipperCanCollectDeliveredPendingCod()
     {
         var shipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 100_000m);
-        var codTransaction = CodTransaction.Create(shipment.Id, new Money(100_000m));
+        var codTransaction = CodTransaction.Create(shipment.Id, new Money(100_000m), TestClock.UtcNow);
         var repository = new FakeCodTransactionRepository([codTransaction]);
         var service = CreateMarkCodCollectedService(new FakeShipmentRepository([shipment]), repository);
 
@@ -675,8 +680,8 @@ public sealed class ShipmentBusinessRuleTests
     public async Task MarkCodSettled_AdminCanSettleCollectedCod()
     {
         var shipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 100_000m);
-        var codTransaction = CodTransaction.Create(shipment.Id, new Money(100_000m));
-        var collectResult = codTransaction.MarkCollected(shipment.Status, _shipperId);
+        var codTransaction = CodTransaction.Create(shipment.Id, new Money(100_000m), TestClock.UtcNow);
+        var collectResult = codTransaction.MarkCollected(shipment.Status, _shipperId, TestClock.UtcNow);
         var repository = new FakeCodTransactionRepository([codTransaction]);
         var service = CreateMarkCodSettledService(repository);
 
@@ -699,8 +704,8 @@ public sealed class ShipmentBusinessRuleTests
     {
         var settledByUserId = role == nameof(UserRole.Operator) ? _operatorId : _shipperId;
         var shipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 100_000m);
-        var codTransaction = CodTransaction.Create(shipment.Id, new Money(100_000m));
-        var collectResult = codTransaction.MarkCollected(shipment.Status, _shipperId);
+        var codTransaction = CodTransaction.Create(shipment.Id, new Money(100_000m), TestClock.UtcNow);
+        var collectResult = codTransaction.MarkCollected(shipment.Status, _shipperId, TestClock.UtcNow);
         var repository = new FakeCodTransactionRepository([codTransaction]);
         var service = CreateMarkCodSettledService(repository);
 
@@ -722,12 +727,15 @@ public sealed class ShipmentBusinessRuleTests
     public async Task MarkCodSettled_WhenCodIsNotCollected_IsRejected(CodStatus initialStatus)
     {
         var shipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: initialStatus == CodStatus.NotRequired ? 0m : 100_000m);
-        var codTransaction = CodTransaction.Create(shipment.Id, new Money(initialStatus == CodStatus.NotRequired ? 0m : 100_000m));
+        var codTransaction = CodTransaction.Create(
+            shipment.Id,
+            new Money(initialStatus == CodStatus.NotRequired ? 0m : 100_000m),
+            TestClock.UtcNow);
 
         if (initialStatus == CodStatus.Settled)
         {
-            var collectResult = codTransaction.MarkCollected(shipment.Status, _shipperId);
-            var settleResult = codTransaction.MarkSettled(_adminId);
+            var collectResult = codTransaction.MarkCollected(shipment.Status, _shipperId, TestClock.UtcNow);
+            var settleResult = codTransaction.MarkSettled(_adminId, TestClock.UtcNow);
             Assert.True(collectResult.IsSuccess);
             Assert.True(settleResult.IsSuccess);
         }
@@ -751,12 +759,12 @@ public sealed class ShipmentBusinessRuleTests
         var collectedShipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 100_000m);
         var pendingShipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 200_000m);
         var settledShipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 300_000m);
-        var collectedCod = CodTransaction.Create(collectedShipment.Id, new Money(100_000m));
-        var pendingCod = CodTransaction.Create(pendingShipment.Id, new Money(200_000m));
-        var settledCod = CodTransaction.Create(settledShipment.Id, new Money(300_000m));
-        var collectResult = collectedCod.MarkCollected(collectedShipment.Status, _shipperId);
-        var settledCollectResult = settledCod.MarkCollected(settledShipment.Status, _shipperId);
-        var settleResult = settledCod.MarkSettled(_adminId);
+        var collectedCod = CodTransaction.Create(collectedShipment.Id, new Money(100_000m), TestClock.UtcNow);
+        var pendingCod = CodTransaction.Create(pendingShipment.Id, new Money(200_000m), TestClock.UtcNow);
+        var settledCod = CodTransaction.Create(settledShipment.Id, new Money(300_000m), TestClock.UtcNow);
+        var collectResult = collectedCod.MarkCollected(collectedShipment.Status, _shipperId, TestClock.UtcNow);
+        var settledCollectResult = settledCod.MarkCollected(settledShipment.Status, _shipperId, TestClock.UtcNow);
+        var settleResult = settledCod.MarkSettled(_adminId, TestClock.UtcNow);
         var service = new GetCodSettlementCandidatesService(
             new FakeCodTransactionRepository([collectedCod, pendingCod, settledCod]),
             new FakeShipmentRepository([collectedShipment, pendingShipment, settledShipment]),
@@ -790,7 +798,7 @@ public sealed class ShipmentBusinessRuleTests
     public void UpdateShipmentStatus_Returned_DeactivatesAssignment()
     {
         var shipment = CreateShipmentAtStatus(ShipmentStatus.Delivering, codAmount: 100_000m);
-        var result = shipment.UpdateStatus(ShipmentStatus.Returned, _operatorId, "Recipient refused parcel.");
+        var result = shipment.UpdateStatus(ShipmentStatus.Returned, _operatorId, TestClock.UtcNow, "Recipient refused parcel.");
 
         Assert.True(result.IsSuccess);
         Assert.DoesNotContain(shipment.Assignments, assignment => assignment.IsActive);
@@ -800,7 +808,7 @@ public sealed class ShipmentBusinessRuleTests
     public async Task GetAssignedShipments_DeliveredWithPendingCod_IsVisibleToShipper()
     {
         var shipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 100_000m);
-        var codTransaction = CodTransaction.Create(shipment.Id, new Money(100_000m));
+        var codTransaction = CodTransaction.Create(shipment.Id, new Money(100_000m), TestClock.UtcNow);
         var service = CreateGetAssignedShipmentsForShipperService([shipment], [codTransaction]);
 
         var result = await service.GetAsync(_shipperId);
@@ -813,8 +821,8 @@ public sealed class ShipmentBusinessRuleTests
     public async Task GetAssignedShipments_DeliveredWithCollectedCod_IsHiddenFromShipper()
     {
         var shipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 100_000m);
-        var codTransaction = CodTransaction.Create(shipment.Id, new Money(100_000m));
-        var collectResult = codTransaction.MarkCollected(shipment.Status, _shipperId);
+        var codTransaction = CodTransaction.Create(shipment.Id, new Money(100_000m), TestClock.UtcNow);
+        var collectResult = codTransaction.MarkCollected(shipment.Status, _shipperId, TestClock.UtcNow);
         Assert.True(collectResult.IsSuccess);
 
         var service = CreateGetAssignedShipmentsForShipperService([shipment], [codTransaction]);
@@ -833,11 +841,11 @@ public sealed class ShipmentBusinessRuleTests
         var deliveredCollectedCodShipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 100_000m);
         var returnedShipment = CreateShipmentAtStatus(ShipmentStatus.Delivering, codAmount: 100_000m);
         var cancelledShipment = CreateAssignedShipment(_shipperId, codAmount: 100_000m);
-        var returnedResult = returnedShipment.UpdateStatus(ShipmentStatus.Returned, _operatorId, "Recipient refused parcel.");
-        var cancelledResult = cancelledShipment.Cancel(_shopUserId, "Shop cancelled before pickup.");
-        var deliveredPendingCod = CodTransaction.Create(deliveredPendingCodShipment.Id, new Money(100_000m));
-        var deliveredCollectedCod = CodTransaction.Create(deliveredCollectedCodShipment.Id, new Money(100_000m));
-        var collectedResult = deliveredCollectedCod.MarkCollected(deliveredCollectedCodShipment.Status, _shipperId);
+        var returnedResult = returnedShipment.UpdateStatus(ShipmentStatus.Returned, _operatorId, TestClock.UtcNow, "Recipient refused parcel.");
+        var cancelledResult = cancelledShipment.Cancel(_shopUserId, TestClock.UtcNow, "Shop cancelled before pickup.");
+        var deliveredPendingCod = CodTransaction.Create(deliveredPendingCodShipment.Id, new Money(100_000m), TestClock.UtcNow);
+        var deliveredCollectedCod = CodTransaction.Create(deliveredCollectedCodShipment.Id, new Money(100_000m), TestClock.UtcNow);
+        var collectedResult = deliveredCollectedCod.MarkCollected(deliveredCollectedCodShipment.Status, _shipperId, TestClock.UtcNow);
         var service = new GetOperationsShipmentsService(
             new FakeShipmentRepository([
                 activeShipment,
@@ -849,11 +857,12 @@ public sealed class ShipmentBusinessRuleTests
             new FakeCodTransactionRepository([
                 deliveredPendingCod,
                 deliveredCollectedCod,
-                CodTransaction.Create(activeShipment.Id, Money.Zero),
-                CodTransaction.Create(returnedShipment.Id, new Money(100_000m)),
-                CodTransaction.Create(cancelledShipment.Id, new Money(100_000m))
+                CodTransaction.Create(activeShipment.Id, Money.Zero, TestClock.UtcNow),
+                CodTransaction.Create(returnedShipment.Id, new Money(100_000m), TestClock.UtcNow),
+                CodTransaction.Create(cancelledShipment.Id, new Money(100_000m), TestClock.UtcNow)
             ]),
-            CreateIdentityService());
+            CreateIdentityService(),
+            TestClock.Provider);
 
         Assert.True(returnedResult.IsSuccess);
         Assert.True(cancelledResult.IsSuccess);
@@ -875,7 +884,7 @@ public sealed class ShipmentBusinessRuleTests
     public async Task GetAssignedShipments_AfterMarkCodCollectedService_HidesShipmentFromShipper()
     {
         var shipment = CreateShipmentAtStatus(ShipmentStatus.Delivered, codAmount: 100_000m);
-        var codTransaction = CodTransaction.Create(shipment.Id, new Money(100_000m));
+        var codTransaction = CodTransaction.Create(shipment.Id, new Money(100_000m), TestClock.UtcNow);
         var shipmentRepository = new FakeShipmentRepository([shipment]);
         var codTransactionRepository = new FakeCodTransactionRepository([codTransaction]);
         var collectService = CreateMarkCodCollectedService(shipmentRepository, codTransactionRepository);
@@ -903,18 +912,19 @@ public sealed class ShipmentBusinessRuleTests
     {
         var shop = CreateShop(_shopUserId);
         var shipment = CreateShipmentForShop(shop.Id, _shopUserId, codAmount: 100_000m);
-        var assignResult = shipment.AssignShipper(_shipperId, _operatorId, "Assign before cancel test.");
+        var assignResult = shipment.AssignShipper(_shipperId, _operatorId, TestClock.UtcNow, "Assign before cancel test.");
         var shipmentRepository = new FakeShipmentRepository([shipment]);
         var shopRepository = new FakeShopRepository([shop]);
         var service = new CancelShipmentForCurrentShopService(
             new CancelShipmentCommandValidator(),
             new ShopAccessService(CreateIdentityService(), shopRepository),
-            shipmentRepository);
+            shipmentRepository,
+            TestClock.Provider);
 
         Assert.True(assignResult.IsSuccess);
         if (statusBeforeCancel == ShipmentStatus.PickingUp)
         {
-            var pickupResult = shipment.UpdateStatus(ShipmentStatus.PickingUp, _shipperId, "Pickup started.");
+            var pickupResult = shipment.UpdateStatus(ShipmentStatus.PickingUp, _shipperId, TestClock.UtcNow, "Pickup started.");
             Assert.True(pickupResult.IsSuccess);
         }
 
@@ -959,7 +969,8 @@ public sealed class ShipmentBusinessRuleTests
             baseWeightKg: 1m,
             baseFee: new Money(35_000m),
             extraWeightStepKg: 0.5m,
-            extraStepFee: new Money(8_000m));
+            extraStepFee: new Money(8_000m),
+            createdAtUtc: TestClock.UtcNow);
         var service = new CreateShipmentService(
             new CreateShipmentCommandValidator(),
             new ShippingFeeService(new FakeFeeRuleRepository([feeRule])),
@@ -967,7 +978,8 @@ public sealed class ShipmentBusinessRuleTests
             shipmentRepository,
             new ShopAccessService(CreateIdentityService(), shopRepository),
             codTransactionRepository,
-            CreateAutoAssignService(shipmentRepository, [], []));
+            CreateAutoAssignService(shipmentRepository, [], []),
+            TestClock.Provider);
 
         var result = await service.CreateAsync(new CreateShipmentCommand(
             _shopUserId,
@@ -1012,7 +1024,7 @@ public sealed class ShipmentBusinessRuleTests
     {
         var firstShop = CreateShop(_shopUserId);
         var secondShop = CreateShop(_shopUserId);
-        secondShop.Rename("Second Shop");
+        secondShop.Rename("Second Shop", TestClock.UtcNow);
         var shipmentRepository = new FakeShipmentRepository([]);
         var codTransactionRepository = new FakeCodTransactionRepository([]);
         var shopRepository = new FakeShopRepository([firstShop, secondShop]);
@@ -1021,7 +1033,8 @@ public sealed class ShipmentBusinessRuleTests
             baseWeightKg: 1m,
             baseFee: new Money(35_000m),
             extraWeightStepKg: 0.5m,
-            extraStepFee: new Money(8_000m));
+            extraStepFee: new Money(8_000m),
+            createdAtUtc: TestClock.UtcNow);
         var service = new CreateShipmentService(
             new CreateShipmentCommandValidator(),
             new ShippingFeeService(new FakeFeeRuleRepository([feeRule])),
@@ -1029,7 +1042,8 @@ public sealed class ShipmentBusinessRuleTests
             shipmentRepository,
             new ShopAccessService(CreateIdentityService(), shopRepository),
             codTransactionRepository,
-            CreateAutoAssignService(shipmentRepository, [], []));
+            CreateAutoAssignService(shipmentRepository, [], []),
+            TestClock.Provider);
 
         var result = await service.CreateAsync(new CreateShipmentCommand(
             _shopUserId,
@@ -1073,6 +1087,45 @@ public sealed class ShipmentBusinessRuleTests
         Assert.True(result.IsSuccess);
         Assert.Single(result.Value);
         Assert.Equal(secondShipment.Id, result.Value.Single().ShipmentId);
+    }
+
+    [Fact]
+    public async Task GetShipmentsForCurrentShop_SearchAppliesStatusFilterAndPagination()
+    {
+        var shop = CreateShop(_shopUserId);
+        var assignedShipment = CreateShipmentForShop(shop.Id, _shopUserId);
+        var secondAssignedShipment = CreateShipmentForShop(shop.Id, _shopUserId);
+        var pendingShipment = CreateShipmentForShop(shop.Id, _shopUserId);
+        var otherShopShipment = CreateShipmentForShop(Guid.NewGuid(), _shopUserId);
+        ForceShipmentStatus(assignedShipment, ShipmentStatus.Assigned);
+        ForceShipmentStatus(secondAssignedShipment, ShipmentStatus.Assigned);
+        ForceShipmentStatus(pendingShipment, ShipmentStatus.PendingPickup);
+        ForceShipmentStatus(otherShopShipment, ShipmentStatus.Assigned);
+        var shipmentRepository = new FakeShipmentRepository([
+            assignedShipment,
+            secondAssignedShipment,
+            pendingShipment,
+            otherShopShipment
+        ]);
+        var shopRepository = new FakeShopRepository([shop]);
+        var service = new GetShipmentsForCurrentShopService(
+            new ShopAccessService(CreateIdentityService(), shopRepository),
+            shipmentRepository);
+
+        var result = await service.SearchAsync(new GetShipmentsForCurrentShopQuery(
+            _shopUserId,
+            shop.Id,
+            ShipmentStatus.Assigned,
+            PageNumber: 2,
+            PageSize: 1));
+
+        Assert.True(result.IsSuccess);
+        Assert.Single(result.Value.Items);
+        Assert.Equal(secondAssignedShipment.Id, result.Value.Items.Single().ShipmentId);
+        Assert.Equal(2, result.Value.PageNumber);
+        Assert.Equal(1, result.Value.PageSize);
+        Assert.Equal(2, result.Value.TotalCount);
+        Assert.Equal(2, result.Value.TotalPages);
     }
 
     [Fact]
@@ -1210,7 +1263,7 @@ public sealed class ShipmentBusinessRuleTests
     public async Task ShipmentImportPreview_InactiveShop_IsRejected()
     {
         var shop = CreateShop(_shopUserId);
-        shop.Deactivate();
+        shop.Deactivate(TestClock.UtcNow);
         var service = CreateShipmentImportService(
             new FakeShopRepository([shop]),
             new FakeShipmentRepository([]),
@@ -1233,13 +1286,14 @@ public sealed class ShipmentBusinessRuleTests
         var shipmentRepository = new FakeShipmentRepository([]);
         var codTransactionRepository = new FakeCodTransactionRepository([]);
         var shopRepository = new FakeShopRepository([shop]);
-        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh", TestClock.UtcNow);
         var feeRule = new FeeRule(
             RouteType.IntraProvince,
             baseWeightKg: 1m,
             baseFee: new Money(20_000m),
             extraWeightStepKg: 0.5m,
-            extraStepFee: new Money(5_000m));
+            extraStepFee: new Money(5_000m),
+            createdAtUtc: TestClock.UtcNow);
         var service = new CreateShipmentService(
             new CreateShipmentCommandValidator(),
             new ShippingFeeService(new FakeFeeRuleRepository([feeRule])),
@@ -1250,7 +1304,8 @@ public sealed class ShipmentBusinessRuleTests
             CreateAutoAssignService(
                 shipmentRepository,
                 [hub],
-                [new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh")]));
+                [new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh", TestClock.UtcNow)]),
+            TestClock.Provider);
 
         var result = await service.CreateAsync(new CreateShipmentCommand(
             _shopUserId,
@@ -1307,7 +1362,7 @@ public sealed class ShipmentBusinessRuleTests
             new FakeShopRepository([shop]),
             shipmentRepository);
         var createResult = await createDraftService.CreateAsync(BuildDraftCommand(shop.Id));
-        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh");
+        var hub = new Hub("SPX-HCM-HUB", "SPX Ho Chi Minh Province Hub", "Ho Chi Minh", TestClock.UtcNow);
         var submitService = CreateSubmitDraftShipmentService(
             new FakeShopRepository([shop]),
             shipmentRepository,
@@ -1315,7 +1370,7 @@ public sealed class ShipmentBusinessRuleTests
             CreateAutoAssignService(
                 shipmentRepository,
                 [hub],
-                [new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh")]));
+                [new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh", TestClock.UtcNow)]));
 
         var result = await submitService.SubmitAsync(new SubmitDraftShipmentCommand(
             _shopUserId,
@@ -1375,7 +1430,8 @@ public sealed class ShipmentBusinessRuleTests
             shipmentRepository,
             new ShopAccessService(CreateIdentityService(), new FakeShopRepository([shop])),
             codTransactionRepository,
-            CreateAutoAssignService(shipmentRepository, [], []));
+            CreateAutoAssignService(shipmentRepository, [], []),
+            TestClock.Provider);
         var createResult = await createService.CreateAsync(BuildCreateShipmentCommand(shop.Id));
         var updateService = CreateUpdateShipmentBeforePickupService(
             new FakeShopRepository([shop]),
@@ -1407,7 +1463,7 @@ public sealed class ShipmentBusinessRuleTests
     {
         var shop = CreateShop(_shopUserId);
         var shipment = CreateShipmentForShop(shop.Id, _shopUserId);
-        var assignResult = shipment.AssignShipper(_shipperId, _operatorId, "Assigned for edit rejection test.");
+        var assignResult = shipment.AssignShipper(_shipperId, _operatorId, TestClock.UtcNow, "Assigned for edit rejection test.");
         Assert.True(assignResult.IsSuccess);
         if (status != ShipmentStatus.Assigned)
         {
@@ -1416,7 +1472,7 @@ public sealed class ShipmentBusinessRuleTests
         var service = CreateUpdateShipmentBeforePickupService(
             new FakeShopRepository([shop]),
             new FakeShipmentRepository([shipment]),
-            new FakeCodTransactionRepository([CodTransaction.Create(shipment.Id, shipment.CodAmount)]));
+            new FakeCodTransactionRepository([CodTransaction.Create(shipment.Id, shipment.CodAmount, TestClock.UtcNow)]));
 
         var result = await service.UpdateAsync(BuildUpdateBeforePickupCommand(
             shop.Id,
@@ -1433,6 +1489,7 @@ public sealed class ShipmentBusinessRuleTests
         var pickupResult = shipment.UpdateStatus(
             ShipmentStatus.PickingUp,
             _shipperId,
+            TestClock.UtcNow,
             "Sensitive internal handoff note.");
         var service = new GetPublicTrackingService(new FakeShipmentRepository([shipment]));
 
@@ -1539,7 +1596,8 @@ public sealed class ShipmentBusinessRuleTests
         return new AssignShipperToShipmentService(
             new AssignShipperCommandValidator(),
             CreateIdentityService(),
-            shipmentRepository);
+            shipmentRepository,
+            TestClock.Provider);
     }
 
     private UpdateShipmentStatusService CreateUpdateStatusService(IReadOnlyList<Shipment> shipments)
@@ -1547,7 +1605,8 @@ public sealed class ShipmentBusinessRuleTests
         return new UpdateShipmentStatusService(
             new UpdateShipmentStatusCommandValidator(),
             CreateIdentityService(),
-            new FakeShipmentRepository(shipments));
+            new FakeShipmentRepository(shipments),
+            TestClock.Provider);
     }
 
     private MarkCodCollectedService CreateMarkCodCollectedService(
@@ -1567,7 +1626,8 @@ public sealed class ShipmentBusinessRuleTests
             new MarkCodCollectedCommandValidator(),
             CreateIdentityService(),
             shipmentRepository,
-            codTransactionRepository);
+            codTransactionRepository,
+            TestClock.Provider);
     }
 
     private MarkCodSettledService CreateMarkCodSettledService(FakeCodTransactionRepository codTransactionRepository)
@@ -1575,7 +1635,8 @@ public sealed class ShipmentBusinessRuleTests
         return new MarkCodSettledService(
             new MarkCodSettledCommandValidator(),
             CreateIdentityService(),
-            codTransactionRepository);
+            codTransactionRepository,
+            TestClock.Provider);
     }
 
     private GetAssignedShipmentsForShipperService CreateGetAssignedShipmentsForShipperService(
@@ -1626,7 +1687,8 @@ public sealed class ShipmentBusinessRuleTests
                 CreateIdentityService(),
                 new FakeHubRepository(hubs),
                 new FakeShipperWorkingAreaRepository(workingAreas),
-                shipmentRepository));
+                shipmentRepository),
+            TestClock.Provider);
     }
 
     private static ShippingFeeService CreateShippingFeeService()
@@ -1637,13 +1699,15 @@ public sealed class ShipmentBusinessRuleTests
                 baseWeightKg: 1m,
                 baseFee: new Money(35_000m),
                 extraWeightStepKg: 0.5m,
-                extraStepFee: new Money(8_000m)),
+                extraStepFee: new Money(8_000m),
+                createdAtUtc: TestClock.UtcNow),
             new FeeRule(
                 RouteType.IntraProvince,
                 baseWeightKg: 1m,
                 baseFee: new Money(20_000m),
                 extraWeightStepKg: 0.5m,
-                extraStepFee: new Money(5_000m))
+                extraStepFee: new Money(5_000m),
+                createdAtUtc: TestClock.UtcNow)
         ]));
     }
 
@@ -1656,7 +1720,8 @@ public sealed class ShipmentBusinessRuleTests
             CreateShippingFeeService(),
             new RouteClassificationService(),
             shipmentRepository,
-            new ShopAccessService(CreateIdentityService(), shopRepository));
+            new ShopAccessService(CreateIdentityService(), shopRepository),
+            TestClock.Provider);
     }
 
     private UpdateShipmentBeforePickupService CreateUpdateShipmentBeforePickupService(
@@ -1670,7 +1735,8 @@ public sealed class ShipmentBusinessRuleTests
             new RouteClassificationService(),
             shipmentRepository,
             new ShopAccessService(CreateIdentityService(), shopRepository),
-            codTransactionRepository);
+            codTransactionRepository,
+            TestClock.Provider);
     }
 
     private SubmitDraftShipmentService CreateSubmitDraftShipmentService(
@@ -1686,7 +1752,8 @@ public sealed class ShipmentBusinessRuleTests
             shipmentRepository,
             new ShopAccessService(CreateIdentityService(), shopRepository),
             codTransactionRepository,
-            autoAssignShipmentService);
+            autoAssignShipmentService,
+            TestClock.Provider);
     }
 
     private ShipmentImportService CreateShipmentImportService(
@@ -1700,13 +1767,15 @@ public sealed class ShipmentBusinessRuleTests
                 baseWeightKg: 1m,
                 baseFee: new Money(35_000m),
                 extraWeightStepKg: 0.5m,
-                extraStepFee: new Money(8_000m)),
+                extraStepFee: new Money(8_000m),
+                createdAtUtc: TestClock.UtcNow),
             new FeeRule(
                 RouteType.IntraProvince,
                 baseWeightKg: 1m,
                 baseFee: new Money(20_000m),
                 extraWeightStepKg: 0.5m,
-                extraStepFee: new Money(5_000m))
+                extraStepFee: new Money(5_000m),
+                createdAtUtc: TestClock.UtcNow)
         ]));
         var routeClassificationService = new RouteClassificationService();
         var shopAccessService = new ShopAccessService(CreateIdentityService(), shopRepository);
@@ -1717,7 +1786,8 @@ public sealed class ShipmentBusinessRuleTests
             shipmentRepository,
             shopAccessService,
             codTransactionRepository,
-            CreateAutoAssignService(shipmentRepository, [], []));
+            CreateAutoAssignService(shipmentRepository, [], []),
+            TestClock.Provider);
 
         return new ShipmentImportService(
             new PreviewShipmentImportCommandValidator(),
@@ -1828,7 +1898,7 @@ public sealed class ShipmentBusinessRuleTests
     private Shipment CreateAssignedShipment(Guid shipperId, decimal codAmount = 100_000m)
     {
         var shipment = CreateShipment(_shopUserId, codAmount);
-        var assignResult = shipment.AssignShipper(shipperId, _operatorId, "Assigned for test.");
+        var assignResult = shipment.AssignShipper(shipperId, _operatorId, TestClock.UtcNow, "Assigned for test.");
         Assert.True(assignResult.IsSuccess);
         return shipment;
     }
@@ -1858,7 +1928,7 @@ public sealed class ShipmentBusinessRuleTests
                 return;
             }
 
-            var result = shipment.UpdateStatus(status, _shipperId, $"Move to {status}.");
+            var result = shipment.UpdateStatus(status, _shipperId, TestClock.UtcNow, $"Move to {status}.");
             Assert.True(result.IsSuccess);
         }
 
@@ -1891,6 +1961,7 @@ public sealed class ShipmentBusinessRuleTests
             new ShippingFeeBreakdown(new Money(20_000m), Money.Zero, Money.Zero, Money.Zero),
             RouteType.IntraProvince,
             createdByUserId,
+            TestClock.UtcNow,
             "Test shipment.");
     }
 
@@ -1907,7 +1978,8 @@ public sealed class ShipmentBusinessRuleTests
             ownerUserId,
             "Demo Shop",
             new PhoneNumber("0900000000"),
-            new Address("1 Nguyen Trai", "Ben Thanh", "Ho Chi Minh"));
+            new Address("1 Nguyen Trai", "Ben Thanh", "Ho Chi Minh"),
+            TestClock.UtcNow);
     }
 
     private static string FormatFakeUserName(Guid userId)
@@ -1935,7 +2007,7 @@ public sealed class ShipmentBusinessRuleTests
                 true,
                 30,
                 roles.ToHashSet(),
-                DateTimeOffset.UtcNow);
+                TestClock.UtcNow);
         }
 
         public void SetShipperCapacity(Guid userId, bool isAvailableForAssignment, int maxActiveShipments)
@@ -1962,7 +2034,7 @@ public sealed class ShipmentBusinessRuleTests
                 true,
                 30,
                 [],
-                DateTimeOffset.UtcNow);
+                TestClock.UtcNow);
 
             return Task.FromResult(Result<Guid>.Success(userId));
         }

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Domain.Operations;
 using MiniLogistics.Domain.PartnerApi;
@@ -23,7 +24,6 @@ public sealed class DatabaseSeeder
     private const string DemoShopWard = "Phuong Ben Thanh";
     private const string DemoShopProvince = "Ho Chi Minh";
     private const string DemoApiClientName = "Demo E-commerce Integration";
-    public const string DemoPartnerApiKey = "ml_demo_partner_key_123456";
 
     private static readonly HubSeedDefinition[] HubSeeds =
     [
@@ -68,19 +68,30 @@ public sealed class DatabaseSeeder
     private readonly MiniLogisticsDbContext _dbContext;
     private readonly RoleManager<IdentityRole<Guid>> _roleManager;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly SeedingOptions _options;
+    private readonly TimeProvider _timeProvider;
 
     public DatabaseSeeder(
         MiniLogisticsDbContext dbContext,
         RoleManager<IdentityRole<Guid>> roleManager,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        IOptions<SeedingOptions> options,
+        TimeProvider timeProvider)
     {
         _dbContext = dbContext;
         _roleManager = roleManager;
         _userManager = userManager;
+        _options = options.Value;
+        _timeProvider = timeProvider;
     }
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
+        if (!_options.HasRequiredDemoCredentials())
+        {
+            return;
+        }
+
         await SeedRolesAsync();
         await SeedDemoInternalUsersAsync();
         await SeedHubsAsync(cancellationToken);
@@ -106,7 +117,7 @@ public sealed class DatabaseSeeder
         await SeedDemoUserAsync(
             DemoAdminUserId,
             "admin@minilogistics.local",
-            "Admin@123456",
+            _options.DemoAdminPassword,
             "0900000002",
             "Demo Admin",
             "Admin");
@@ -114,7 +125,7 @@ public sealed class DatabaseSeeder
         await SeedDemoUserAsync(
             DemoOperatorUserId,
             "operator@minilogistics.local",
-            "Operator@123456",
+            _options.DemoOperatorPassword,
             "0900000003",
             "Demo Operator",
             "Operator");
@@ -122,7 +133,7 @@ public sealed class DatabaseSeeder
         await SeedDemoUserAsync(
             DemoShipperUserId,
             "shipper@minilogistics.local",
-            "Shipper@123456",
+            _options.DemoShipperPassword,
             "0900000004",
             "Demo Shipper",
             "Shipper");
@@ -131,12 +142,11 @@ public sealed class DatabaseSeeder
     private async Task SeedDemoShopAsync(CancellationToken cancellationToken)
     {
         const string demoEmail = "shop@minilogistics.local";
-        const string demoPassword = "Shop@123456";
 
         var user = await SeedDemoUserAsync(
             DemoShopUserId,
             demoEmail,
-            demoPassword,
+            _options.DemoShopPassword,
             DemoShopPhone,
             "Demo Shop Owner",
             "Shop");
@@ -146,9 +156,10 @@ public sealed class DatabaseSeeder
 
         if (existingShop is not null)
         {
+            var now = _timeProvider.GetUtcNow();
             if (existingShop.Name != DemoShopName)
             {
-                existingShop.Rename(DemoShopName);
+                existingShop.Rename(DemoShopName, now);
             }
 
             if (existingShop.PhoneNumber.Value != DemoShopPhone
@@ -158,7 +169,8 @@ public sealed class DatabaseSeeder
             {
                 existingShop.UpdateContact(
                     new PhoneNumber(DemoShopPhone),
-                    CreateDemoShopAddress());
+                    CreateDemoShopAddress(),
+                    now);
             }
 
             await _dbContext.SaveChangesAsync(cancellationToken);
@@ -170,7 +182,8 @@ public sealed class DatabaseSeeder
             user.Id,
             DemoShopName,
             new PhoneNumber(DemoShopPhone),
-            CreateDemoShopAddress());
+            CreateDemoShopAddress(),
+            _timeProvider.GetUtcNow());
 
         await _dbContext.Shops.AddAsync(shop, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -179,20 +192,22 @@ public sealed class DatabaseSeeder
 
     private async Task SeedDemoApiClientAsync(Shop shop, CancellationToken cancellationToken)
     {
-        var apiKeyHash = ApiKeyHasher.Hash(DemoPartnerApiKey);
+        var demoPartnerApiKey = _options.DemoPartnerApiKey.Trim();
+        var apiKeyHash = ApiKeyHasher.Hash(demoPartnerApiKey);
         var existingClient = await _dbContext.ApiClients
             .FirstOrDefaultAsync(apiClient => apiClient.ApiKeyHash == apiKeyHash, cancellationToken);
 
         if (existingClient is not null)
         {
+            var now = _timeProvider.GetUtcNow();
             if (!existingClient.IsActive)
             {
-                existingClient.Activate();
+                existingClient.Activate(now);
             }
 
             if (existingClient.Name != DemoApiClientName)
             {
-                existingClient.Rename(DemoApiClientName);
+                existingClient.Rename(DemoApiClientName, now);
             }
 
             await _dbContext.SaveChangesAsync(cancellationToken);
@@ -202,8 +217,9 @@ public sealed class DatabaseSeeder
         var apiClient = new ApiClient(
             shop.Id,
             DemoApiClientName,
-            ApiKeyHasher.GetPrefix(DemoPartnerApiKey),
-            apiKeyHash);
+            ApiKeyHasher.GetPrefix(demoPartnerApiKey),
+            apiKeyHash,
+            _timeProvider.GetUtcNow());
 
         await _dbContext.ApiClients.AddAsync(apiClient, cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -218,29 +234,32 @@ public sealed class DatabaseSeeder
 
             if (existingHub is null)
             {
+                var now = _timeProvider.GetUtcNow();
                 await _dbContext.Hubs.AddAsync(
                     new Hub(
                         seed.Code,
                         seed.Name,
                         seed.Province,
+                        now,
                         isRegionalSortingHub: seed.IsRegionalSortingHub),
                     cancellationToken);
                 continue;
             }
 
+            var updatedAtUtc = _timeProvider.GetUtcNow();
             if (!existingHub.IsActive)
             {
-                existingHub.Activate();
+                existingHub.Activate(updatedAtUtc);
             }
 
             if (existingHub.Name != seed.Name)
             {
-                existingHub.Rename(seed.Name);
+                existingHub.Rename(seed.Name, updatedAtUtc);
             }
 
             if (existingHub.Province != seed.Province)
             {
-                existingHub.UpdateLocation(seed.Province);
+                existingHub.UpdateLocation(seed.Province, updatedAtUtc);
             }
         }
 
@@ -271,7 +290,8 @@ public sealed class DatabaseSeeder
             new ShipperWorkingArea(
                 DemoShipperUserId,
                 hoChiMinhHub.Id,
-                hoChiMinhHub.Province),
+                hoChiMinhHub.Province,
+                _timeProvider.GetUtcNow()),
             cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -303,7 +323,7 @@ public sealed class DatabaseSeeder
                 PhoneNumber = phoneNumber,
                 FullName = fullName,
                 IsActive = true,
-                CreatedAtUtc = DateTimeOffset.UtcNow,
+                CreatedAtUtc = _timeProvider.GetUtcNow(),
                 EmailConfirmed = true,
                 PhoneNumberConfirmed = true
             };

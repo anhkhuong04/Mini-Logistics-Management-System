@@ -21,6 +21,7 @@ public sealed class SubmitDraftShipmentService : ISubmitDraftShipmentService
     private readonly IShopAccessService _shopAccessService;
     private readonly ICodTransactionRepository _codTransactionRepository;
     private readonly IAutoAssignShipmentService _autoAssignShipmentService;
+    private readonly TimeProvider _timeProvider;
 
     public SubmitDraftShipmentService(
         IValidator<SubmitDraftShipmentCommand> validator,
@@ -29,7 +30,8 @@ public sealed class SubmitDraftShipmentService : ISubmitDraftShipmentService
         IShipmentRepository shipmentRepository,
         IShopAccessService shopAccessService,
         ICodTransactionRepository codTransactionRepository,
-        IAutoAssignShipmentService autoAssignShipmentService)
+        IAutoAssignShipmentService autoAssignShipmentService,
+        TimeProvider timeProvider)
     {
         _validator = validator;
         _shippingFeeService = shippingFeeService;
@@ -38,6 +40,7 @@ public sealed class SubmitDraftShipmentService : ISubmitDraftShipmentService
         _shopAccessService = shopAccessService;
         _codTransactionRepository = codTransactionRepository;
         _autoAssignShipmentService = autoAssignShipmentService;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<DraftShipmentResponse>> SubmitAsync(
@@ -84,6 +87,7 @@ public sealed class SubmitDraftShipmentService : ISubmitDraftShipmentService
         }
 
         var calculated = calculatedResult.Value;
+        var now = _timeProvider.GetUtcNow();
         var updateResult = shipment.UpdateBeforePickup(
             shipment.SenderName,
             shipment.SenderPhone,
@@ -99,13 +103,14 @@ public sealed class SubmitDraftShipmentService : ISubmitDraftShipmentService
             calculated.ShippingFeeBreakdown,
             calculated.RouteType,
             command.UserId,
+            now,
             shipment.Note);
         if (updateResult.IsFailure)
         {
             return Result<DraftShipmentResponse>.Failure(updateResult.Error);
         }
 
-        var submitResult = shipment.SubmitDraft(command.UserId);
+        var submitResult = shipment.SubmitDraft(command.UserId, now);
         if (submitResult.IsFailure)
         {
             return Result<DraftShipmentResponse>.Failure(submitResult.Error);
@@ -117,12 +122,12 @@ public sealed class SubmitDraftShipmentService : ISubmitDraftShipmentService
         if (codTransaction is null)
         {
             await _codTransactionRepository.AddAsync(
-                CodTransaction.Create(shipment.Id, calculated.CodAmount),
+                CodTransaction.Create(shipment.Id, calculated.CodAmount, now),
                 cancellationToken);
         }
         else
         {
-            var codResult = codTransaction.UpdateAmount(calculated.CodAmount);
+            var codResult = codTransaction.UpdateAmount(calculated.CodAmount, now);
             if (codResult.IsFailure)
             {
                 return Result<DraftShipmentResponse>.Failure(codResult.Error);

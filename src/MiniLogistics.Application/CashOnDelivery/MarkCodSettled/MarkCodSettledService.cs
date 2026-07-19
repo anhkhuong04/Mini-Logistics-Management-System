@@ -13,16 +13,19 @@ public sealed class MarkCodSettledService : IMarkCodSettledService
     private readonly IIdentityService _identityService;
     private readonly ICodTransactionRepository _codTransactionRepository;
     private readonly IAdminAuditService _adminAuditService;
+    private readonly TimeProvider _timeProvider;
 
     public MarkCodSettledService(
         IValidator<MarkCodSettledCommand> validator,
         IIdentityService identityService,
         ICodTransactionRepository codTransactionRepository,
+        TimeProvider timeProvider,
         IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _codTransactionRepository = codTransactionRepository;
+        _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
@@ -56,7 +59,7 @@ public sealed class MarkCodSettledService : IMarkCodSettledService
         }
 
         var oldCodStatus = codTransaction.Status;
-        var settleResult = codTransaction.MarkSettled(command.SettledByUserId);
+        var settleResult = codTransaction.MarkSettled(command.SettledByUserId, _timeProvider.GetUtcNow());
         if (settleResult.IsFailure)
         {
             return settleResult;

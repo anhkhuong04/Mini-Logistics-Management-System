@@ -19,6 +19,7 @@ public sealed class FeeRuleRepository : IFeeRuleRepository
         CancellationToken cancellationToken = default)
     {
         return await _dbContext.FeeRules
+            .AsNoTracking()
             .Where(rule => rule.IsActive && rule.RouteType == routeType)
             .OrderBy(rule => rule.MinimumWeightKg)
             .ToListAsync(cancellationToken);

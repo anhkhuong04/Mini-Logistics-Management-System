@@ -1,5 +1,8 @@
 namespace MiniLogistics.Domain.CashOnDelivery;
 
+/// <summary>
+/// Defines the supported Cod Status values in the domain model.
+/// </summary>
 public enum CodStatus
 {
     NotRequired = 0,

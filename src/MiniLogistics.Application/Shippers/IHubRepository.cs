@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Operations;
 
 namespace MiniLogistics.Application.Shippers;
 
+/// <summary>
+/// Defines persistence operations for Hub data.
+/// </summary>
 public interface IHubRepository
 {
     Task<IReadOnlyList<Hub>> GetAllAsync(

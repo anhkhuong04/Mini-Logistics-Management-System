@@ -2,6 +2,9 @@ using MiniLogistics.Application.Shipments.CreateShipment;
 
 namespace MiniLogistics.Application.Shipments.DraftShipments;
 
+/// <summary>
+/// Defines the application contract for Shipment Details Command.
+/// </summary>
 public interface IShipmentDetailsCommand
 {
     Guid UserId { get; }

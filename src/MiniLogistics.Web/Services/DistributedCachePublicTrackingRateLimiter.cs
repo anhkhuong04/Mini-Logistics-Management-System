@@ -12,13 +12,16 @@ public sealed class DistributedCachePublicTrackingRateLimiter : IPublicTrackingR
 
     private readonly IDistributedCache _cache;
     private readonly PublicTrackingRateLimitOptions _options;
+    private readonly TimeProvider _timeProvider;
 
     public DistributedCachePublicTrackingRateLimiter(
         IDistributedCache cache,
-        IOptions<PublicTrackingRateLimitOptions> options)
+        IOptions<PublicTrackingRateLimitOptions> options,
+        TimeProvider timeProvider)
     {
         _cache = cache;
         _options = options.Value;
+        _timeProvider = timeProvider;
     }
 
     public bool TryAcquire(
@@ -26,7 +29,7 @@ public sealed class DistributedCachePublicTrackingRateLimiter : IPublicTrackingR
         string trackingCode,
         out TimeSpan retryAfter)
     {
-        var nowUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var nowUnixSeconds = _timeProvider.GetUtcNow().ToUnixTimeSeconds();
         var windowStartedAtUnixSeconds = nowUnixSeconds / WindowSeconds * WindowSeconds;
         var windowEndsAtUnixSeconds = windowStartedAtUnixSeconds + WindowSeconds;
         var key = $"public-tracking-rate:{HashKey(clientKey, trackingCode)}:{windowStartedAtUnixSeconds}";

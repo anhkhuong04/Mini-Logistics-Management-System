@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Operations;
 
 namespace MiniLogistics.Application.Shippers;
 
+/// <summary>
+/// Defines persistence operations for Shipper Working Area data.
+/// </summary>
 public interface IShipperWorkingAreaRepository
 {
     Task<IReadOnlyList<ShipperWorkingArea>> GetByShipperIdAsync(

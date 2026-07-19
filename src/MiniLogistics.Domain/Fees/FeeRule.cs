@@ -4,6 +4,9 @@ using MiniLogistics.Domain.ValueObjects;
 
 namespace MiniLogistics.Domain.Fees;
 
+/// <summary>
+/// Represents the Fee Rule domain entity.
+/// </summary>
 public sealed class FeeRule : AuditableEntity
 {
     private FeeRule()
@@ -18,6 +21,7 @@ public sealed class FeeRule : AuditableEntity
         Money baseFee,
         decimal extraWeightStepKg,
         Money extraStepFee,
+        DateTimeOffset createdAtUtc,
         decimal? minimumWeightKg = null,
         decimal? maximumWeightKg = null,
         int version = 1,
@@ -25,7 +29,7 @@ public sealed class FeeRule : AuditableEntity
         decimal insuranceMaximumValue = InsuranceFeePolicy.MaximumInsuredValue,
         decimal insuranceRate = InsuranceFeePolicy.InsuranceRate,
         decimal returnFeeRate = 0.5m)
-        : base(Guid.NewGuid())
+        : base(Guid.NewGuid(), createdAtUtc)
     {
         if (version <= 0)
         {
@@ -153,15 +157,15 @@ public sealed class FeeRule : AuditableEntity
             extraBlocks);
     }
 
-    public void Activate()
+    public void Activate(DateTimeOffset updatedAtUtc)
     {
         IsActive = true;
-        MarkUpdated();
+        MarkUpdated(updatedAtUtc);
     }
 
-    public void Deactivate()
+    public void Deactivate(DateTimeOffset updatedAtUtc)
     {
         IsActive = false;
-        MarkUpdated();
+        MarkUpdated(updatedAtUtc);
     }
 }

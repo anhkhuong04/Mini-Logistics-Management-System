@@ -7,9 +7,9 @@ namespace MiniLogistics.Application.Shipments.GetPublicTracking;
 
 public sealed class GetPublicTrackingService : IGetPublicTrackingService
 {
-    private readonly IShipmentRepository _shipmentRepository;
+    private readonly IShipmentReadRepository _shipmentRepository;
 
-    public GetPublicTrackingService(IShipmentRepository shipmentRepository)
+    public GetPublicTrackingService(IShipmentReadRepository shipmentRepository)
     {
         _shipmentRepository = shipmentRepository;
     }

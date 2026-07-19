@@ -156,11 +156,23 @@ Replace with a full SQL Server connection string if needed.
 
 ### 3. Run database migrations and seed demo data
 
+Demo seeding is disabled by default. Set these environment variables with local-only
+values before running `--seed`:
+
+```powershell
+$env:Seeding__Enabled = "true"
+$env:Seeding__DemoPartnerApiKey = "<local-demo-api-key>"
+$env:Seeding__DemoAdminPassword = "<local-admin-password>"
+$env:Seeding__DemoShopPassword = "<local-shop-password>"
+$env:Seeding__DemoShipperPassword = "<local-shipper-password>"
+$env:Seeding__DemoOperatorPassword = "<local-operator-password>"
+```
+
 ```powershell
 dotnet run --project src/MiniLogistics.Web -- --migrate --seed
 ```
 
-> This creates the database schema and seeds all demo accounts and sample data.
+> This creates the database schema and seeds all demo accounts and sample data only when `Seeding__Enabled=true` and all demo secrets are provided.
 
 To re-seed data on an existing schema:
 
@@ -180,12 +192,9 @@ The app runs at: **https://localhost:5221**
 
 ## Demo Accounts
 
-| Role     | Email                        | Password        |
-| -------- | ---------------------------- | --------------- |
-| Shop     | shop@minilogistics.local     | Shop@123456     |
-| Admin    | admin@minilogistics.local    | Admin@123456    |
-| Operator | operator@minilogistics.local | Operator@123456 |
-| Shipper  | shipper@minilogistics.local  | Shipper@123456  |
+Seeded demo emails are stable (`admin@minilogistics.local`, `operator@minilogistics.local`,
+`shop@minilogistics.local`, `shipper@minilogistics.local`). Passwords and the partner API
+key must come from environment variables or another secure configuration source.
 
 ---
 

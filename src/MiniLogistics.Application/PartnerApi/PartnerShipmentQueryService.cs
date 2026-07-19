@@ -12,14 +12,14 @@ public sealed class PartnerShipmentQueryService : IPartnerShipmentQueryService
 {
     private readonly IValidator<PartnerGetShipmentCommand> _validator;
     private readonly IShopRepository _shopRepository;
-    private readonly IShipmentRepository _shipmentRepository;
+    private readonly IShipmentReadRepository _shipmentRepository;
     private readonly ICodTransactionRepository _codTransactionRepository;
     private readonly IExternalShipmentReferenceRepository _externalShipmentReferenceRepository;
 
     public PartnerShipmentQueryService(
         IValidator<PartnerGetShipmentCommand> validator,
         IShopRepository shopRepository,
-        IShipmentRepository shipmentRepository,
+        IShipmentReadRepository shipmentRepository,
         ICodTransactionRepository codTransactionRepository,
         IExternalShipmentReferenceRepository externalShipmentReferenceRepository)
     {

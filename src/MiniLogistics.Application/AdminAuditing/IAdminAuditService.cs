@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Application.AdminAuditing;
 
+/// <summary>
+/// Defines the application use case contract for Admin Audit.
+/// </summary>
 public interface IAdminAuditService
 {
     Task RecordAsync(

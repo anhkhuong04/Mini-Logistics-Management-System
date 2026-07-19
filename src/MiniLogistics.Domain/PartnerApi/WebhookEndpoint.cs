@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.PartnerApi;
 
+/// <summary>
+/// Represents the Webhook Endpoint domain entity.
+/// </summary>
 public sealed class WebhookEndpoint : AuditableEntity
 {
     private WebhookEndpoint()
@@ -13,8 +16,9 @@ public sealed class WebhookEndpoint : AuditableEntity
     public WebhookEndpoint(
         Guid apiClientId,
         string url,
-        string protectedSigningSecret)
-        : base(Guid.NewGuid())
+        string protectedSigningSecret,
+        DateTimeOffset createdAtUtc)
+        : base(Guid.NewGuid(), createdAtUtc)
     {
         if (apiClientId == Guid.Empty)
         {
@@ -23,7 +27,7 @@ public sealed class WebhookEndpoint : AuditableEntity
 
         ApiClientId = apiClientId;
         Url = RequireUrl(url);
-        ProtectedSigningSecret = RequireText(protectedSigningSecret, nameof(protectedSigningSecret), 2048);
+        ProtectedSigningSecret = DomainGuard.RequireText(protectedSigningSecret, nameof(protectedSigningSecret), 2048);
         IsActive = true;
     }
 
@@ -35,28 +39,28 @@ public sealed class WebhookEndpoint : AuditableEntity
 
     public bool IsActive { get; private set; }
 
-    public void Update(string url, string protectedSigningSecret)
+    public void Update(string url, string protectedSigningSecret, DateTimeOffset updatedAtUtc)
     {
         Url = RequireUrl(url);
-        ProtectedSigningSecret = RequireText(protectedSigningSecret, nameof(protectedSigningSecret), 2048);
-        MarkUpdated();
+        ProtectedSigningSecret = DomainGuard.RequireText(protectedSigningSecret, nameof(protectedSigningSecret), 2048);
+        MarkUpdated(updatedAtUtc);
     }
 
-    public void Activate()
+    public void Activate(DateTimeOffset updatedAtUtc)
     {
         IsActive = true;
-        MarkUpdated();
+        MarkUpdated(updatedAtUtc);
     }
 
-    public void Deactivate()
+    public void Deactivate(DateTimeOffset updatedAtUtc)
     {
         IsActive = false;
-        MarkUpdated();
+        MarkUpdated(updatedAtUtc);
     }
 
     private static string RequireUrl(string value)
     {
-        var trimmed = RequireText(value, nameof(value), 500);
+        var trimmed = DomainGuard.RequireText(value, nameof(value), 500);
         if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)
             || uri.Scheme is not ("http" or "https"))
         {
@@ -66,19 +70,4 @@ public sealed class WebhookEndpoint : AuditableEntity
         return trimmed;
     }
 
-    private static string RequireText(string value, string fieldName, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new DomainException($"{fieldName} is required.");
-        }
-
-        var trimmed = value.Trim();
-        if (trimmed.Length > maxLength)
-        {
-            throw new DomainException($"{fieldName} cannot exceed {maxLength} characters.");
-        }
-
-        return trimmed;
-    }
 }

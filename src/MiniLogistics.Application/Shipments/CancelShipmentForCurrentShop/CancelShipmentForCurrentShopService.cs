@@ -12,16 +12,19 @@ public sealed class CancelShipmentForCurrentShopService : ICancelShipmentForCurr
     private readonly IShopAccessService _shopAccessService;
     private readonly IShipmentRepository _shipmentRepository;
     private readonly IWebhookEventPublisher _webhookEventPublisher;
+    private readonly TimeProvider _timeProvider;
 
     public CancelShipmentForCurrentShopService(
         IValidator<CancelShipmentCommand> validator,
         IShopAccessService shopAccessService,
         IShipmentRepository shipmentRepository,
+        TimeProvider timeProvider,
         IWebhookEventPublisher? webhookEventPublisher = null)
     {
         _validator = validator;
         _shopAccessService = shopAccessService;
         _shipmentRepository = shipmentRepository;
+        _timeProvider = timeProvider;
         _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
     }
 
@@ -57,7 +60,7 @@ public sealed class CancelShipmentForCurrentShopService : ICancelShipmentForCurr
             return Result.Failure(ApplicationErrors.NotFound("Shipment was not found for current shop."));
         }
 
-        var cancelResult = shipment.Cancel(command.OwnerUserId, command.Reason);
+        var cancelResult = shipment.Cancel(command.OwnerUserId, _timeProvider.GetUtcNow(), command.Reason);
         if (cancelResult.IsFailure)
         {
             return cancelResult;

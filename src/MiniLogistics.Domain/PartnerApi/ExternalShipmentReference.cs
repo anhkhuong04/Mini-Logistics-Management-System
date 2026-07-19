@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.PartnerApi;
 
+/// <summary>
+/// Represents the External Shipment Reference domain entity.
+/// </summary>
 public sealed class ExternalShipmentReference : AuditableEntity
 {
     private ExternalShipmentReference()
@@ -19,8 +22,9 @@ public sealed class ExternalShipmentReference : AuditableEntity
         string externalOrderId,
         string idempotencyKey,
         string requestHash,
-        string responseSnapshotJson)
-        : base(Guid.NewGuid())
+        string responseSnapshotJson,
+        DateTimeOffset createdAtUtc)
+        : base(Guid.NewGuid(), createdAtUtc)
     {
         if (apiClientId == Guid.Empty)
         {
@@ -40,10 +44,10 @@ public sealed class ExternalShipmentReference : AuditableEntity
         ApiClientId = apiClientId;
         ShopId = shopId;
         ShipmentId = shipmentId;
-        ExternalOrderId = RequireText(externalOrderId, nameof(externalOrderId), 100);
-        IdempotencyKey = RequireText(idempotencyKey, nameof(idempotencyKey), 150);
-        RequestHash = RequireText(requestHash, nameof(requestHash), 128);
-        ResponseSnapshotJson = RequireText(responseSnapshotJson, nameof(responseSnapshotJson), 4000);
+        ExternalOrderId = DomainGuard.RequireText(externalOrderId, nameof(externalOrderId), 100);
+        IdempotencyKey = DomainGuard.RequireText(idempotencyKey, nameof(idempotencyKey), 150);
+        RequestHash = DomainGuard.RequireText(requestHash, nameof(requestHash), 128);
+        ResponseSnapshotJson = DomainGuard.RequireText(responseSnapshotJson, nameof(responseSnapshotJson), 4000);
     }
 
     public Guid ApiClientId { get; private set; }
@@ -60,25 +64,9 @@ public sealed class ExternalShipmentReference : AuditableEntity
 
     public string ResponseSnapshotJson { get; private set; }
 
-    public void UpdateResponseSnapshot(string responseSnapshotJson)
+    public void UpdateResponseSnapshot(string responseSnapshotJson, DateTimeOffset updatedAtUtc)
     {
-        ResponseSnapshotJson = RequireText(responseSnapshotJson, nameof(responseSnapshotJson), 4000);
-        MarkUpdated();
-    }
-
-    private static string RequireText(string value, string fieldName, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new DomainException($"{fieldName} is required.");
-        }
-
-        var trimmed = value.Trim();
-        if (trimmed.Length > maxLength)
-        {
-            throw new DomainException($"{fieldName} cannot exceed {maxLength} characters.");
-        }
-
-        return trimmed;
+        ResponseSnapshotJson = DomainGuard.RequireText(responseSnapshotJson, nameof(responseSnapshotJson), 4000);
+        MarkUpdated(updatedAtUtc);
     }
 }

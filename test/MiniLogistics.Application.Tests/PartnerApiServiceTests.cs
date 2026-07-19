@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text;
+using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.CashOnDelivery;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Fees;
@@ -36,7 +37,7 @@ public sealed class PartnerApiServiceTests
         var shop = CreateShop(_ownerUserId);
         var apiClient = CreateApiClient(shop.Id);
         var repository = new FakeApiClientRepository([apiClient]);
-        var service = new PartnerApiAuthenticationService(repository, new FakeShopRepository([shop]));
+        var service = new PartnerApiAuthenticationService(repository, new FakeShopRepository([shop]), TestClock.Provider);
 
         var result = await service.AuthenticateAsync($"Bearer {RawApiKey}");
 
@@ -52,9 +53,9 @@ public sealed class PartnerApiServiceTests
     public async Task Authenticate_InactiveApiClient_IsRejected()
     {
         var apiClient = CreateApiClient(Guid.NewGuid());
-        apiClient.Deactivate();
+        apiClient.Deactivate(TestClock.UtcNow);
         var repository = new FakeApiClientRepository([apiClient]);
-        var service = new PartnerApiAuthenticationService(repository, new FakeShopRepository([]));
+        var service = new PartnerApiAuthenticationService(repository, new FakeShopRepository([]), TestClock.Provider);
 
         var result = await service.AuthenticateAsync($"Bearer {RawApiKey}");
 
@@ -68,10 +69,10 @@ public sealed class PartnerApiServiceTests
     public async Task Authenticate_InactiveShop_IsRejected()
     {
         var shop = CreateShop(_ownerUserId);
-        shop.Deactivate();
+        shop.Deactivate(TestClock.UtcNow);
         var apiClient = CreateApiClient(shop.Id);
         var repository = new FakeApiClientRepository([apiClient]);
-        var service = new PartnerApiAuthenticationService(repository, new FakeShopRepository([shop]));
+        var service = new PartnerApiAuthenticationService(repository, new FakeShopRepository([shop]), TestClock.Provider);
 
         var result = await service.AuthenticateAsync($"Bearer {RawApiKey}");
 
@@ -160,7 +161,8 @@ public sealed class PartnerApiServiceTests
         var endpoint = new WebhookEndpoint(
             apiClientId,
             "https://partner.example.test/webhooks/minilogistics",
-            "protected-secret");
+            "protected-secret",
+            TestClock.UtcNow);
         var shipmentRepository = new FakeShipmentRepository([]);
         var codTransactionRepository = new FakeCodTransactionRepository([]);
         var referenceRepository = new FakeExternalShipmentReferenceRepository([]);
@@ -168,7 +170,8 @@ public sealed class PartnerApiServiceTests
         var publisher = new WebhookEventPublisher(
             referenceRepository,
             new FakeWebhookEndpointRepository([endpoint]),
-            outboxRepository);
+            outboxRepository,
+            TestClock.Provider);
         var service = CreateShipmentService(
             shop,
             shipmentRepository,
@@ -499,7 +502,8 @@ public sealed class PartnerApiServiceTests
         var endpoint = new WebhookEndpoint(
             apiClientId,
             "https://partner.example.test/webhooks/minilogistics",
-            "secret-for-signing");
+            "secret-for-signing",
+            TestClock.UtcNow);
         var shipmentRepository = new FakeShipmentRepository([]);
         var codTransactionRepository = new FakeCodTransactionRepository([]);
         var referenceRepository = new FakeExternalShipmentReferenceRepository([]);
@@ -508,7 +512,8 @@ public sealed class PartnerApiServiceTests
         var publisher = new WebhookEventPublisher(
             referenceRepository,
             endpointRepository,
-            outboxRepository);
+            outboxRepository,
+            TestClock.Provider);
         var createService = CreateShipmentService(
             shop,
             shipmentRepository,
@@ -521,6 +526,7 @@ public sealed class PartnerApiServiceTests
             shipmentRepository,
             codTransactionRepository,
             referenceRepository,
+            TestClock.Provider,
             publisher);
 
         var cancelResult = await cancelService.CancelAsync(new PartnerCancelShipmentCommand(
@@ -572,9 +578,9 @@ public sealed class PartnerApiServiceTests
             referenceRepository);
         var createResult = await createService.CreateAsync(CreateShipmentCommand(apiClientId, shop.Id));
         var shipment = shipmentRepository.Shipments.Single();
-        Assert.True(shipment.AssignShipper(shipperId, _ownerUserId, "Assign for pickup.").IsSuccess);
-        Assert.True(shipment.UpdateStatus(ShipmentStatus.PickingUp, shipperId, "Picking up.").IsSuccess);
-        Assert.True(shipment.UpdateStatus(ShipmentStatus.PickedUp, shipperId, "Picked up.").IsSuccess);
+        Assert.True(shipment.AssignShipper(shipperId, _ownerUserId, TestClock.UtcNow, "Assign for pickup.").IsSuccess);
+        Assert.True(shipment.UpdateStatus(ShipmentStatus.PickingUp, shipperId, TestClock.UtcNow, "Picking up.").IsSuccess);
+        Assert.True(shipment.UpdateStatus(ShipmentStatus.PickedUp, shipperId, TestClock.UtcNow, "Picked up.").IsSuccess);
         var cancelService = CreateCancelShipmentService(
             shop,
             shipmentRepository,
@@ -614,7 +620,7 @@ public sealed class PartnerApiServiceTests
     {
         var shop = CreateShop(_ownerUserId);
         var apiClientRepository = new FakeApiClientRepository([]);
-        var service = CreateIntegrationManagementService(
+        var service = CreateIntegrationManagementFacade(
             FakeIdentityService.For(_ownerUserId, UserRole.Shop),
             new FakeShopRepository([shop]),
             apiClientRepository,
@@ -638,14 +644,14 @@ public sealed class PartnerApiServiceTests
     public async Task IntegrationManagement_ShopDashboardIncludesAllOwnedShops()
     {
         var firstShop = CreateShop(_ownerUserId);
-        firstShop.Rename("First Shop");
+        firstShop.Rename("First Shop", TestClock.UtcNow);
         var secondShop = CreateShop(_ownerUserId);
-        secondShop.Rename("Second Shop");
+        secondShop.Rename("Second Shop", TestClock.UtcNow);
         var otherShop = CreateShop(Guid.NewGuid());
         var firstClient = CreateApiClient(firstShop.Id);
         var secondClient = CreateApiClient(secondShop.Id);
         var otherClient = CreateApiClient(otherShop.Id);
-        var service = CreateIntegrationManagementService(
+        var service = CreateIntegrationManagementFacade(
             FakeIdentityService.For(_ownerUserId, UserRole.Shop),
             new FakeShopRepository([firstShop, secondShop, otherShop]),
             new FakeApiClientRepository([firstClient, secondClient, otherClient]),
@@ -671,7 +677,7 @@ public sealed class PartnerApiServiceTests
         var shop = CreateShop(_ownerUserId);
         var otherShop = CreateShop(Guid.NewGuid());
         var apiClientRepository = new FakeApiClientRepository([]);
-        var service = CreateIntegrationManagementService(
+        var service = CreateIntegrationManagementFacade(
             FakeIdentityService.For(_ownerUserId, UserRole.Shop),
             new FakeShopRepository([shop, otherShop]),
             apiClientRepository,
@@ -692,9 +698,9 @@ public sealed class PartnerApiServiceTests
     public async Task IntegrationManagement_InactiveShopIsReadableButCannotCreateApiClient()
     {
         var shop = CreateShop(_ownerUserId);
-        shop.Deactivate();
+        shop.Deactivate(TestClock.UtcNow);
         var apiClientRepository = new FakeApiClientRepository([]);
-        var service = CreateIntegrationManagementService(
+        var service = CreateIntegrationManagementFacade(
             FakeIdentityService.For(_ownerUserId, UserRole.Shop),
             new FakeShopRepository([shop]),
             apiClientRepository,
@@ -722,7 +728,7 @@ public sealed class PartnerApiServiceTests
         var secondShop = CreateShop(Guid.NewGuid());
         var firstClient = CreateApiClient(firstShop.Id);
         var secondClient = CreateApiClient(secondShop.Id);
-        var service = CreateIntegrationManagementService(
+        var service = CreateIntegrationManagementFacade(
             FakeIdentityService.For(adminId, UserRole.Admin),
             new FakeShopRepository([firstShop, secondShop]),
             new FakeApiClientRepository([firstClient, secondClient]),
@@ -746,7 +752,7 @@ public sealed class PartnerApiServiceTests
         var apiClientRepository = new FakeApiClientRepository([apiClient]);
         var endpointRepository = new FakeWebhookEndpointRepository([]);
         var deliveryRepository = new FakeWebhookDeliveryRepository([]);
-        var service = CreateIntegrationManagementService(
+        var service = CreateIntegrationManagementFacade(
             FakeIdentityService.For(_ownerUserId, UserRole.Shop),
             new FakeShopRepository([shop]),
             apiClientRepository,
@@ -790,7 +796,7 @@ public sealed class PartnerApiServiceTests
         var apiClient = CreateApiClient(shop.Id);
         var apiClientRepository = new FakeApiClientRepository([apiClient]);
         var credentialAuditRepository = new FakePartnerApiCredentialAuditRepository([]);
-        var service = CreateIntegrationManagementService(
+        var service = CreateIntegrationManagementFacade(
             FakeIdentityService.For(_ownerUserId, UserRole.Shop),
             shopRepository,
             apiClientRepository,
@@ -801,7 +807,7 @@ public sealed class PartnerApiServiceTests
         var rotateResult = await service.RotateApiClientKeyAsync(new RotatePartnerApiClientKeyCommand(
             _ownerUserId,
             apiClient.Id));
-        var oldKeyAuthentication = await new PartnerApiAuthenticationService(apiClientRepository, shopRepository)
+        var oldKeyAuthentication = await new PartnerApiAuthenticationService(apiClientRepository, shopRepository, TestClock.Provider)
             .AuthenticateAsync($"Bearer {RawApiKey}");
 
         Assert.True(rotateResult.IsSuccess);
@@ -823,7 +829,7 @@ public sealed class PartnerApiServiceTests
         var apiClient = CreateApiClient(shop.Id);
         var apiClientRepository = new FakeApiClientRepository([apiClient]);
         var credentialAuditRepository = new FakePartnerApiCredentialAuditRepository([]);
-        var service = CreateIntegrationManagementService(
+        var service = CreateIntegrationManagementFacade(
             FakeIdentityService.For(_ownerUserId, UserRole.Shop),
             shopRepository,
             apiClientRepository,
@@ -835,7 +841,7 @@ public sealed class PartnerApiServiceTests
             _ownerUserId,
             apiClient.Id,
             IsActive: false));
-        var authenticationResult = await new PartnerApiAuthenticationService(apiClientRepository, shopRepository)
+        var authenticationResult = await new PartnerApiAuthenticationService(apiClientRepository, shopRepository, TestClock.Provider)
             .AuthenticateAsync($"Bearer {RawApiKey}");
 
         Assert.True(deactivateResult.IsSuccess);
@@ -856,7 +862,7 @@ public sealed class PartnerApiServiceTests
         var endpointRepository = new FakeWebhookEndpointRepository([]);
         var credentialAuditRepository = new FakePartnerApiCredentialAuditRepository([]);
         var secretProtector = new FakeSecretProtector();
-        var service = CreateIntegrationManagementService(
+        var service = CreateIntegrationManagementFacade(
             FakeIdentityService.For(_ownerUserId, UserRole.Shop),
             new FakeShopRepository([shop]),
             new FakeApiClientRepository([apiClient]),
@@ -910,6 +916,7 @@ public sealed class PartnerApiServiceTests
             codTransactionRepository,
             referenceRepository,
             autoAssignShipmentService ?? new NoOpAutoAssignShipmentService(shipmentRepository),
+            TestClock.Provider,
             webhookEventPublisher);
     }
 
@@ -940,7 +947,7 @@ public sealed class PartnerApiServiceTests
             referenceRepository);
     }
 
-    private static PartnerIntegrationManagementService CreateIntegrationManagementService(
+    private static PartnerIntegrationManagementFacade CreateIntegrationManagementFacade(
         IIdentityService identityService,
         FakeShopRepository shopRepository,
         FakeApiClientRepository apiClientRepository,
@@ -949,14 +956,90 @@ public sealed class PartnerApiServiceTests
         FakePartnerApiCredentialAuditRepository? credentialAuditRepository = null,
         ISecretProtector? secretProtector = null)
     {
-        return new PartnerIntegrationManagementService(
+        var auditRepository = credentialAuditRepository ?? new FakePartnerApiCredentialAuditRepository([]);
+        var scopeService = new IntegrationScopeService(
             identityService,
             shopRepository,
+            apiClientRepository);
+        var dashboardBuilder = new PartnerIntegrationDashboardBuilder(
+            scopeService,
             apiClientRepository,
             endpointRepository,
             deliveryRepository,
-            credentialAuditRepository ?? new FakePartnerApiCredentialAuditRepository([]),
-            secretProtector ?? new FakeSecretProtector());
+            auditRepository);
+
+        return new PartnerIntegrationManagementFacade(
+            new ApiClientManagementService(
+                scopeService,
+                apiClientRepository,
+                new PartnerCredentialAuditWriter(auditRepository, TestClock.Provider),
+                TestClock.Provider,
+                NullAdminAuditService.Instance),
+            new WebhookManagementService(
+                scopeService,
+                dashboardBuilder,
+                endpointRepository,
+                deliveryRepository,
+                new PartnerCredentialAuditWriter(auditRepository, TestClock.Provider),
+                secretProtector ?? new FakeSecretProtector(),
+                TestClock.Provider,
+                NullAdminAuditService.Instance));
+    }
+
+    private sealed class PartnerIntegrationManagementFacade
+    {
+        private readonly IApiClientManagementService _apiClients;
+        private readonly IWebhookManagementService _webhooks;
+
+        public PartnerIntegrationManagementFacade(
+            IApiClientManagementService apiClients,
+            IWebhookManagementService webhooks)
+        {
+            _apiClients = apiClients;
+            _webhooks = webhooks;
+        }
+
+        public Task<Result<PartnerIntegrationDashboardResponse>> GetDashboardAsync(
+            Guid currentUserId,
+            CancellationToken cancellationToken = default)
+        {
+            return _webhooks.GetDashboardAsync(currentUserId, cancellationToken);
+        }
+
+        public Task<Result<PartnerApiClientSecretResponse>> CreateApiClientAsync(
+            CreatePartnerApiClientCommand command,
+            CancellationToken cancellationToken = default)
+        {
+            return _apiClients.CreateApiClientAsync(command, cancellationToken);
+        }
+
+        public Task<Result<PartnerApiClientSecretResponse>> RotateApiClientKeyAsync(
+            RotatePartnerApiClientKeyCommand command,
+            CancellationToken cancellationToken = default)
+        {
+            return _apiClients.RotateApiClientKeyAsync(command, cancellationToken);
+        }
+
+        public Task<Result> SetApiClientActiveStatusAsync(
+            SetPartnerApiClientActiveStatusCommand command,
+            CancellationToken cancellationToken = default)
+        {
+            return _apiClients.SetApiClientActiveStatusAsync(command, cancellationToken);
+        }
+
+        public Task<Result<PartnerWebhookEndpointResponse>> UpsertWebhookEndpointAsync(
+            UpsertPartnerWebhookEndpointCommand command,
+            CancellationToken cancellationToken = default)
+        {
+            return _webhooks.UpsertWebhookEndpointAsync(command, cancellationToken);
+        }
+
+        public Task<Result<PartnerWebhookTestResponse>> TestWebhookAsync(
+            TestPartnerWebhookCommand command,
+            CancellationToken cancellationToken = default)
+        {
+            return _webhooks.TestWebhookAsync(command, cancellationToken);
+        }
     }
 
     private static PartnerCancelShipmentService CreateCancelShipmentService(
@@ -983,7 +1066,8 @@ public sealed class PartnerApiServiceTests
             new FakeShopRepository(shops),
             shipmentRepository,
             codTransactionRepository,
-            referenceRepository);
+            referenceRepository,
+            TestClock.Provider);
     }
 
     private static ShippingFeeService CreateShippingFeeService()
@@ -994,7 +1078,8 @@ public sealed class PartnerApiServiceTests
                 1m,
                 new Money(35_000m),
                 0.5m,
-                new Money(8_000m))
+                new Money(8_000m),
+                TestClock.UtcNow)
         ]));
     }
 
@@ -1004,7 +1089,8 @@ public sealed class PartnerApiServiceTests
             ownerUserId,
             "Demo Mini Shop",
             new PhoneNumber("0900000001"),
-            new Address("123 Nguyen Trai", "Ben Thanh", "Ho Chi Minh"));
+            new Address("123 Nguyen Trai", "Ben Thanh", "Ho Chi Minh"),
+            TestClock.UtcNow);
     }
 
     private static ApiClient CreateApiClient(Guid shopId)
@@ -1013,7 +1099,8 @@ public sealed class PartnerApiServiceTests
             shopId,
             "Demo E-commerce Integration",
             ApiKeyHasher.GetPrefix(RawApiKey),
-            ApiKeyHasher.Hash(RawApiKey));
+            ApiKeyHasher.Hash(RawApiKey),
+            TestClock.UtcNow);
     }
 
     private static PartnerCreateShipmentCommand CreateShipmentCommand(
@@ -1086,6 +1173,7 @@ public sealed class PartnerApiServiceTests
             var assignResult = shipment.AssignShipper(
                 _shipperId,
                 SystemActorIds.AutoAssignment,
+                TestClock.UtcNow,
                 "Auto assigned from partner test.");
             if (assignResult.IsFailure)
             {

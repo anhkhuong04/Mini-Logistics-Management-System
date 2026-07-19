@@ -6,6 +6,7 @@ using MiniLogistics.Application.CashOnDelivery;
 using MiniLogistics.Application.CashOnDelivery.GetCodSettlementCandidates;
 using MiniLogistics.Application.CashOnDelivery.MarkCodCollected;
 using MiniLogistics.Application.CashOnDelivery.MarkCodSettled;
+using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Shipments.AssignShipperToShipment;
 using MiniLogistics.Application.Shipments.CancelShipmentForCurrentShop;
@@ -50,7 +51,7 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
 
         var repeatedCounts = await GetSeedCountsAsync();
 
-        Assert.Equal(4, initialCounts.Roles);
+        Assert.Equal(5, initialCounts.Roles);
         Assert.Equal(4, initialCounts.Users);
         Assert.Equal(1, initialCounts.Shops);
         Assert.Equal(1, initialCounts.ApiClients);
@@ -68,10 +69,30 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
             Assert.Equal(shop.Id, apiClient.ShopId);
             Assert.True(apiClient.IsActive);
             Assert.Equal("Demo E-commerce Integration", apiClient.Name);
-            Assert.Equal(ApiKeyHasher.GetPrefix(DatabaseSeeder.DemoPartnerApiKey), apiClient.ApiKeyPrefix);
-            Assert.Equal(ApiKeyHasher.Hash(DatabaseSeeder.DemoPartnerApiKey), apiClient.ApiKeyHash);
-            Assert.NotEqual(DatabaseSeeder.DemoPartnerApiKey, apiClient.ApiKeyHash);
+            Assert.Equal(ApiKeyHasher.GetPrefix(_fixture.DemoPartnerApiKey), apiClient.ApiKeyPrefix);
+            Assert.Equal(ApiKeyHasher.Hash(_fixture.DemoPartnerApiKey), apiClient.ApiKeyHash);
+            Assert.NotEqual(_fixture.DemoPartnerApiKey, apiClient.ApiKeyHash);
         });
+    }
+
+    [Fact]
+    public async Task IdentityService_ListUsersWithRoles_ReturnsSeededUsersAndRoles()
+    {
+        var users = await _fixture.ExecuteAsync(services =>
+            services.GetRequiredService<IIdentityService>().ListUsersWithRolesAsync());
+
+        Assert.Contains(users, user =>
+            user.UserId == DemoAdminUserId
+            && user.Roles.SequenceEqual(["Admin"]));
+        Assert.Contains(users, user =>
+            user.UserId == DemoOperatorUserId
+            && user.Roles.SequenceEqual(["Operator"]));
+        Assert.Contains(users, user =>
+            user.UserId == DemoShopUserId
+            && user.Roles.SequenceEqual(["Shop"]));
+        Assert.Contains(users, user =>
+            user.UserId == DemoShipperUserId
+            && user.Roles.SequenceEqual(["Shipper"]));
     }
 
     [Fact]

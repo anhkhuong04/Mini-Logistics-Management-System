@@ -20,7 +20,7 @@ public sealed class PartnerIntegrationP3Tests
     {
         var hcmShop = CreateShop("HCM Shop", "Ho Chi Minh");
         var hnShop = CreateShop("HN Shop", "Ha Noi");
-        var service = CreateService(
+        var service = CreateWebhookService(
             [hcmShop, hnShop],
             [],
             new FakeIntegrationScopeRepository(anyScopeConfigured: false, []));
@@ -37,12 +37,12 @@ public sealed class PartnerIntegrationP3Tests
     {
         var hcmShop = CreateShop("HCM Shop", "Ho Chi Minh");
         var hnShop = CreateShop("HN Shop", "Ha Noi");
-        var service = CreateService(
+        var service = CreateApiClientService(
             [hcmShop, hnShop],
             [],
             new FakeIntegrationScopeRepository(
                 anyScopeConfigured: true,
-                [new IntegrationManagementScope(_adminId, province: "Ho Chi Minh")]));
+                [new IntegrationManagementScope(_adminId, TestClock.UtcNow, province: "Ho Chi Minh")]));
 
         var result = await service.CreateApiClientAsync(new CreatePartnerApiClientCommand(
             _adminId,
@@ -57,12 +57,12 @@ public sealed class PartnerIntegrationP3Tests
     public async Task Dashboard_ComputesWebhookMetricsWithoutExposingSecrets()
     {
         var shop = CreateShop("HCM Shop", "Ho Chi Minh");
-        var apiClient = new ApiClient(shop.Id, "Storefront", "ml_live_abcd", "hashed-key");
+        var apiClient = new ApiClient(shop.Id, "Storefront", "ml_live_abcd", "hashed-key", TestClock.UtcNow);
         var succeeded = CreateDelivery(apiClient.Id);
-        succeeded.MarkSucceeded(200, DateTimeOffset.UtcNow, durationMs: 120);
+        succeeded.MarkSucceeded(200, TestClock.UtcNow, durationMs: 120);
         var failed = CreateDelivery(apiClient.Id);
-        failed.MarkFailed(500, "Server error", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMinutes(5), durationMs: 400);
-        var service = CreateService(
+        failed.MarkFailed(500, "Server error", TestClock.UtcNow, TestClock.UtcNow.AddMinutes(5), durationMs: 400);
+        var service = CreateWebhookService(
             [shop],
             [apiClient],
             new FakeIntegrationScopeRepository(anyScopeConfigured: false, []),
@@ -83,21 +83,57 @@ public sealed class PartnerIntegrationP3Tests
             error => Assert.DoesNotContain("hashed-key", error));
     }
 
-    private PartnerIntegrationManagementService CreateService(
+    private WebhookManagementService CreateWebhookService(
         IReadOnlyList<Shop> shops,
         IReadOnlyList<ApiClient> apiClients,
         IIntegrationManagementScopeRepository scopeRepository,
         IReadOnlyList<WebhookDelivery>? deliveries = null)
     {
-        return new PartnerIntegrationManagementService(
+        var apiClientRepository = new FakeApiClientRepository(apiClients);
+        var auditRepository = new FakePartnerApiCredentialAuditRepository();
+        var endpointRepository = new FakeWebhookEndpointRepository();
+        var deliveryRepository = new FakeWebhookDeliveryRepository(deliveries ?? []);
+        var scopeService = CreateScopeService(shops, apiClientRepository, scopeRepository);
+        return new WebhookManagementService(
+            scopeService,
+            new PartnerIntegrationDashboardBuilder(
+                scopeService,
+                apiClientRepository,
+                endpointRepository,
+                deliveryRepository,
+                auditRepository),
+            endpointRepository,
+            deliveryRepository,
+            new PartnerCredentialAuditWriter(auditRepository, TestClock.Provider),
+            new FakeSecretProtector(),
+            TestClock.Provider,
+            NullAdminAuditService.Instance);
+    }
+
+    private ApiClientManagementService CreateApiClientService(
+        IReadOnlyList<Shop> shops,
+        IReadOnlyList<ApiClient> apiClients,
+        IIntegrationManagementScopeRepository scopeRepository)
+    {
+        var apiClientRepository = new FakeApiClientRepository(apiClients);
+        var auditRepository = new FakePartnerApiCredentialAuditRepository();
+        return new ApiClientManagementService(
+            CreateScopeService(shops, apiClientRepository, scopeRepository),
+            apiClientRepository,
+            new PartnerCredentialAuditWriter(auditRepository, TestClock.Provider),
+            TestClock.Provider,
+            NullAdminAuditService.Instance);
+    }
+
+    private IntegrationScopeService CreateScopeService(
+        IReadOnlyList<Shop> shops,
+        IApiClientRepository apiClientRepository,
+        IIntegrationManagementScopeRepository scopeRepository)
+    {
+        return new IntegrationScopeService(
             new FakeIdentityService(_adminId),
             new FakeShopRepository(shops),
-            new FakeApiClientRepository(apiClients),
-            new FakeWebhookEndpointRepository(),
-            new FakeWebhookDeliveryRepository(deliveries ?? []),
-            new FakePartnerApiCredentialAuditRepository(),
-            new FakeSecretProtector(),
-            NullAdminAuditService.Instance,
+            apiClientRepository,
             scopeRepository);
     }
 
@@ -107,7 +143,8 @@ public sealed class PartnerIntegrationP3Tests
             Guid.NewGuid(),
             name,
             new PhoneNumber("0900000000"),
-            new Address("1 Test", "Ward", province));
+            new Address("1 Test", "Ward", province),
+            TestClock.UtcNow);
     }
 
     private static WebhookDelivery CreateDelivery(Guid apiClientId)
@@ -118,7 +155,8 @@ public sealed class PartnerIntegrationP3Tests
             apiClientId,
             WebhookEventTypes.ShipmentStatusChanged,
             Guid.NewGuid(),
-            "{}");
+            "{}",
+            TestClock.UtcNow);
     }
 
     private sealed class FakeIntegrationScopeRepository : IIntegrationManagementScopeRepository

@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.ValueObjects;
 
+/// <summary>
+/// Represents the validated Money value used by the domain model.
+/// </summary>
 public sealed record Money
 {
     public static readonly Money Zero = new(0);

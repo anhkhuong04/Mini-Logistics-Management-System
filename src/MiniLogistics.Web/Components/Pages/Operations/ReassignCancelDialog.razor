@@ -1,0 +1,157 @@
+@if (OperationsDisplay.CanManageAssignment(Shipment))
+{
+    <div class="assignment-management">
+        <div class="assignment-management-title">Điều phối lại</div>
+        <label class="sr-only" for="@($"reassign-shipper-{Shipment.ShipmentId}")">Chọn shipper mới</label>
+        <select id="@($"reassign-shipper-{Shipment.ShipmentId}")"
+                value="@GetReassignShipperValue()"
+                disabled="@IsBusy()"
+                @onchange="eventArgs => SelectShipper.InvokeAsync(new ReassignShipperSelectionChanged(Shipment, eventArgs.Value?.ToString()))">
+            <option value="">Chọn shipper mới</option>
+            @foreach (var shipper in GetShipperOptions())
+            {
+                var isAreaMatch = OperationsDisplay.IsShipperAreaMatch(Shipment, shipper);
+                <option value="@shipper.UserId">
+                    @OperationsDisplay.FormatReassignShipperOption(shipper, isAreaMatch, ActiveShipmentCountResolver(shipper.UserId))
+                </option>
+            }
+        </select>
+        @if (TryGetReassignShipper(out var reassignShipper)
+            && !OperationsDisplay.IsShipperAreaMatch(Shipment, reassignShipper))
+        {
+            <small class="field-hint danger">@reassignShipper.FullName chưa match pickup @Shipment.PickupAddress.Province.</small>
+        }
+        <textarea rows="2"
+                  maxlength="500"
+                  placeholder="Lý do reassign..."
+                  value="@GetReassignReason()"
+                  disabled="@IsBusy()"
+                  @oninput="eventArgs => ReassignReasonChanged.InvokeAsync(new ShipmentTextChanged(Shipment.ShipmentId, ToText(eventArgs)))"></textarea>
+        <button type="button"
+                class="reassign-button"
+                disabled="@IsBusy()"
+                @onclick="() => ReassignShipment.InvokeAsync(Shipment)">
+            @(IsReassigning() ? "Đang reassign..." : "Reassign")
+        </button>
+
+        <div class="assignment-management-title danger">Hủy phân công</div>
+        <textarea rows="2"
+                  maxlength="500"
+                  placeholder="Lý do hủy phân công..."
+                  value="@GetCancelReason()"
+                  disabled="@IsBusy()"
+                  @oninput="eventArgs => CancelReasonChanged.InvokeAsync(new ShipmentTextChanged(Shipment.ShipmentId, ToText(eventArgs)))"></textarea>
+        <button type="button"
+                class="cancel-assignment-button"
+                disabled="@IsBusy()"
+                @onclick="() => CancelAssignment.InvokeAsync(Shipment)">
+            @(IsCancellingAssignment() ? "Đang hủy..." : "Hủy phân công")
+        </button>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired]
+    public GetOperationsShipmentResponse Shipment { get; set; } = default!;
+
+    [Parameter]
+    public IReadOnlyList<GetActiveShipperResponse> ActiveShippers { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, Guid> ReassignShipperIds { get; set; } = new Dictionary<Guid, Guid>();
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, string> ReassignReasons { get; set; } = new Dictionary<Guid, string>();
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, string> CancelAssignmentReasons { get; set; } = new Dictionary<Guid, string>();
+
+    [Parameter]
+    public Guid? ReassigningShipmentId { get; set; }
+
+    [Parameter]
+    public Guid? CancellingAssignmentShipmentId { get; set; }
+
+    [Parameter]
+    public Func<Guid, int> ActiveShipmentCountResolver { get; set; } = _ => 0;
+
+    [Parameter]
+    public EventCallback<ReassignShipperSelectionChanged> SelectShipper { get; set; }
+
+    [Parameter]
+    public EventCallback<ShipmentTextChanged> ReassignReasonChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<GetOperationsShipmentResponse> ReassignShipment { get; set; }
+
+    [Parameter]
+    public EventCallback<ShipmentTextChanged> CancelReasonChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<GetOperationsShipmentResponse> CancelAssignment { get; set; }
+
+    private IReadOnlyList<GetActiveShipperResponse> GetShipperOptions()
+    {
+        return OperationsDisplay.GetReassignShipperOptions(Shipment, ActiveShippers);
+    }
+
+    private bool TryGetReassignShipper(out GetActiveShipperResponse shipper)
+    {
+        shipper = null!;
+
+        if (!ReassignShipperIds.TryGetValue(Shipment.ShipmentId, out var shipperId))
+        {
+            return false;
+        }
+
+        var selectedShipper = ActiveShippers.FirstOrDefault(shipper => shipper.UserId == shipperId);
+        if (selectedShipper is null)
+        {
+            return false;
+        }
+
+        shipper = selectedShipper;
+        return true;
+    }
+
+    private string GetReassignShipperValue()
+    {
+        return ReassignShipperIds.TryGetValue(Shipment.ShipmentId, out var shipperId)
+            ? shipperId.ToString()
+            : string.Empty;
+    }
+
+    private string GetReassignReason()
+    {
+        return ReassignReasons.TryGetValue(Shipment.ShipmentId, out var reason)
+            ? reason.Trim()
+            : string.Empty;
+    }
+
+    private string GetCancelReason()
+    {
+        return CancelAssignmentReasons.TryGetValue(Shipment.ShipmentId, out var reason)
+            ? reason.Trim()
+            : string.Empty;
+    }
+
+    private bool IsReassigning()
+    {
+        return ReassigningShipmentId == Shipment.ShipmentId;
+    }
+
+    private bool IsCancellingAssignment()
+    {
+        return CancellingAssignmentShipmentId == Shipment.ShipmentId;
+    }
+
+    private bool IsBusy()
+    {
+        return IsReassigning() || IsCancellingAssignment();
+    }
+
+    private static string ToText(ChangeEventArgs eventArgs)
+    {
+        return eventArgs.Value?.ToString() ?? string.Empty;
+    }
+}

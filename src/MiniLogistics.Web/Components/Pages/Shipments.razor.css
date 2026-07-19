@@ -58,6 +58,68 @@
     padding: 1.25rem;
 }
 
+.shipment-list-card {
+    display: grid;
+    gap: 1rem;
+}
+
+.shipment-list-toolbar {
+    align-items: end;
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: minmax(16rem, 1fr) minmax(12rem, 16rem) auto;
+}
+
+.shipment-list-toolbar label {
+    color: #071b4d;
+    display: grid;
+    font-weight: 800;
+    gap: 0.4rem;
+}
+
+.shipment-list-toolbar input,
+.shipment-list-toolbar select {
+    border: 1px solid #d7e4f2;
+    border-radius: 8px;
+    min-height: 42px;
+    padding: 0.6rem 0.75rem;
+}
+
+.shipment-list-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.table-empty-state {
+    align-items: center;
+    color: #071b4d;
+    display: grid;
+    gap: 0.5rem;
+    justify-items: center;
+    min-height: 180px;
+    text-align: center;
+}
+
+.table-empty-state p {
+    color: #64748b;
+    margin: 0;
+}
+
+.pagination-bar {
+    align-items: center;
+    color: #64748b;
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+}
+
+.pagination-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
 .table-shell {
     overflow-x: auto;
 }
@@ -304,8 +366,18 @@
     .heading-actions,
     .import-header,
     .import-upload-row,
-    .import-actions {
+    .import-actions,
+    .pagination-bar,
+    .pagination-actions {
         align-items: stretch;
         flex-direction: column;
+    }
+
+    .shipment-list-toolbar {
+        grid-template-columns: 1fr;
+    }
+
+    .shipment-list-actions {
+        justify-content: stretch;
     }
 }

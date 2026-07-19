@@ -18,18 +18,21 @@ public sealed class UpdateHubService : IUpdateHubService
     private readonly IHubRepository _hubRepository;
     private readonly IShipperWorkingAreaRepository _workingAreaRepository;
     private readonly IAdminAuditService _adminAuditService;
+    private readonly TimeProvider _timeProvider;
 
     public UpdateHubService(
         IValidator<UpdateHubCommand> validator,
         IIdentityService identityService,
         IHubRepository hubRepository,
         IShipperWorkingAreaRepository workingAreaRepository,
+        TimeProvider timeProvider,
         IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _hubRepository = hubRepository;
         _workingAreaRepository = workingAreaRepository;
+        _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
@@ -70,6 +73,7 @@ public sealed class UpdateHubService : IUpdateHubService
             command.Code,
             command.Name,
             command.Province,
+            _timeProvider.GetUtcNow(),
             command.Ward,
             command.AddressLine,
             command.IsRegionalSortingHub,

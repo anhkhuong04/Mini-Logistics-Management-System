@@ -16,6 +16,7 @@ public sealed class PartnerCancelShipmentService : IPartnerCancelShipmentService
     private readonly ICodTransactionRepository _codTransactionRepository;
     private readonly IExternalShipmentReferenceRepository _externalShipmentReferenceRepository;
     private readonly IWebhookEventPublisher _webhookEventPublisher;
+    private readonly TimeProvider _timeProvider;
 
     public PartnerCancelShipmentService(
         IValidator<PartnerCancelShipmentCommand> validator,
@@ -23,6 +24,7 @@ public sealed class PartnerCancelShipmentService : IPartnerCancelShipmentService
         IShipmentRepository shipmentRepository,
         ICodTransactionRepository codTransactionRepository,
         IExternalShipmentReferenceRepository externalShipmentReferenceRepository,
+        TimeProvider timeProvider,
         IWebhookEventPublisher? webhookEventPublisher = null)
     {
         _validator = validator;
@@ -30,6 +32,7 @@ public sealed class PartnerCancelShipmentService : IPartnerCancelShipmentService
         _shipmentRepository = shipmentRepository;
         _codTransactionRepository = codTransactionRepository;
         _externalShipmentReferenceRepository = externalShipmentReferenceRepository;
+        _timeProvider = timeProvider;
         _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
     }
 
@@ -72,7 +75,7 @@ public sealed class PartnerCancelShipmentService : IPartnerCancelShipmentService
             return Result<PartnerShipmentTrackingResponse>.Failure(ApplicationErrors.NotFound("Shipment was not found for API client."));
         }
 
-        var cancelResult = shipment.Cancel(shop.OwnerUserId, command.Reason);
+        var cancelResult = shipment.Cancel(shop.OwnerUserId, _timeProvider.GetUtcNow(), command.Reason);
         if (cancelResult.IsFailure)
         {
             return Result<PartnerShipmentTrackingResponse>.Failure(cancelResult.Error);

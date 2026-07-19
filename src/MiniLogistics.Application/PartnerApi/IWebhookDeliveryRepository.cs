@@ -2,6 +2,9 @@ using MiniLogistics.Domain.PartnerApi;
 
 namespace MiniLogistics.Application.PartnerApi;
 
+/// <summary>
+/// Defines persistence operations for Webhook Delivery data.
+/// </summary>
 public interface IWebhookDeliveryRepository
 {
     Task<bool> ExistsAsync(

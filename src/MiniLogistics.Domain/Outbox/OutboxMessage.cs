@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.Outbox;
 
+/// <summary>
+/// Represents the Outbox Message domain entity.
+/// </summary>
 public sealed class OutboxMessage : AuditableEntity
 {
     private OutboxMessage()
@@ -15,8 +18,9 @@ public sealed class OutboxMessage : AuditableEntity
         string type,
         Guid aggregateId,
         string payloadJson,
+        DateTimeOffset createdAtUtc,
         DateTimeOffset? nextAttemptAtUtc = null)
-        : base(id)
+        : base(id, createdAtUtc)
     {
         if (id == Guid.Empty)
         {
@@ -28,11 +32,11 @@ public sealed class OutboxMessage : AuditableEntity
             throw new DomainException("Aggregate id is required.");
         }
 
-        Type = RequireText(type, nameof(type), 120);
+        Type = DomainGuard.RequireText(type, nameof(type), 120);
         AggregateId = aggregateId;
-        PayloadJson = RequireText(payloadJson, nameof(payloadJson), 4000);
+        PayloadJson = DomainGuard.RequireText(payloadJson, nameof(payloadJson), 4000);
         Status = OutboxMessageStatus.Pending;
-        NextAttemptAtUtc = nextAttemptAtUtc ?? DateTimeOffset.UtcNow;
+        NextAttemptAtUtc = nextAttemptAtUtc ?? createdAtUtc;
     }
 
     public string Type { get; private set; }
@@ -51,10 +55,10 @@ public sealed class OutboxMessage : AuditableEntity
 
     public string? LastError { get; private set; }
 
-    public void MarkProcessing()
+    public void MarkProcessing(DateTimeOffset processingAtUtc)
     {
         Status = OutboxMessageStatus.Processing;
-        MarkUpdated();
+        MarkUpdated(processingAtUtc);
     }
 
     public void MarkSucceeded(DateTimeOffset processedAtUtc)
@@ -63,44 +67,18 @@ public sealed class OutboxMessage : AuditableEntity
         ProcessedAtUtc = processedAtUtc;
         NextAttemptAtUtc = null;
         LastError = null;
-        MarkUpdated();
+        MarkUpdated(processedAtUtc);
     }
 
     public void MarkFailed(
         string error,
-        DateTimeOffset? nextAttemptAtUtc)
+        DateTimeOffset? nextAttemptAtUtc,
+        DateTimeOffset failedAtUtc)
     {
         Status = OutboxMessageStatus.Failed;
         RetryCount++;
-        LastError = TrimOptional(error, 1000);
+        LastError = DomainGuard.TrimOptional(error, 1000);
         NextAttemptAtUtc = nextAttemptAtUtc;
-        MarkUpdated();
-    }
-
-    private static string RequireText(string value, string fieldName, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new DomainException($"{fieldName} is required.");
-        }
-
-        var trimmed = value.Trim();
-        if (trimmed.Length > maxLength)
-        {
-            throw new DomainException($"{fieldName} cannot exceed {maxLength} characters.");
-        }
-
-        return trimmed;
-    }
-
-    private static string? TrimOptional(string? value, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        var trimmed = value.Trim();
-        return trimmed[..Math.Min(trimmed.Length, maxLength)];
+        MarkUpdated(failedAtUtc);
     }
 }

@@ -36,6 +36,7 @@ public sealed class AdminAuditActionTests
             new SetShopActiveStatusCommandValidator(),
             CreateIdentityService(),
             new FakeShopRepository([shop]),
+            TestClock.Provider,
             auditService);
 
         var result = await service.SetAsync(new SetShopActiveStatusCommand(
@@ -77,8 +78,8 @@ public sealed class AdminAuditActionTests
     public async Task MarkCodSettled_WritesAdminAuditLog()
     {
         var shipmentId = Guid.NewGuid();
-        var codTransaction = CodTransaction.Create(shipmentId, new Money(100_000m));
-        var collectResult = codTransaction.MarkCollected(ShipmentStatus.Delivered, _shipperId);
+        var codTransaction = CodTransaction.Create(shipmentId, new Money(100_000m), TestClock.UtcNow);
+        var collectResult = codTransaction.MarkCollected(ShipmentStatus.Delivered, _shipperId, TestClock.UtcNow);
         Assert.True(collectResult.IsSuccess, collectResult.Error.Description);
 
         var auditService = new FakeAdminAuditService();
@@ -86,6 +87,7 @@ public sealed class AdminAuditActionTests
             new MarkCodSettledCommandValidator(),
             CreateIdentityService(),
             new FakeCodTransactionRepository([codTransaction]),
+            TestClock.Provider,
             auditService);
 
         var result = await service.MarkSettledAsync(new MarkCodSettledCommand(
@@ -109,6 +111,7 @@ public sealed class AdminAuditActionTests
             new ReassignShipmentCommandValidator(),
             CreateIdentityService(),
             shipmentRepository,
+            TestClock.Provider,
             adminAuditService: auditService);
 
         var result = await service.ReassignAsync(new ReassignShipmentCommand(
@@ -119,7 +122,7 @@ public sealed class AdminAuditActionTests
 
         Assert.True(result.IsSuccess, result.Error.Description);
         Assert.Equal(ShipmentStatus.Assigned, shipment.Status);
-        Assert.Single(shipment.Assignments.Where(assignment => assignment.IsActive));
+        Assert.Single(shipment.Assignments, assignment => assignment.IsActive);
         Assert.Contains(shipment.Assignments, assignment => assignment.ShipperId == _shipperId && !assignment.IsActive);
         Assert.Contains(shipment.Assignments, assignment => assignment.ShipperId == _alternateShipperId && assignment.IsActive);
         Assert.Equal(1, shipmentRepository.SaveChangesCount);
@@ -141,6 +144,7 @@ public sealed class AdminAuditActionTests
             new CancelShipmentAssignmentCommandValidator(),
             CreateIdentityService(),
             shipmentRepository,
+            TestClock.Provider,
             adminAuditService: auditService);
 
         var result = await service.CancelAsync(new CancelShipmentAssignmentCommand(
@@ -150,7 +154,7 @@ public sealed class AdminAuditActionTests
 
         Assert.True(result.IsSuccess, result.Error.Description);
         Assert.Equal(ShipmentStatus.PendingPickup, shipment.Status);
-        Assert.Empty(shipment.Assignments.Where(assignment => assignment.IsActive));
+        Assert.DoesNotContain(shipment.Assignments, assignment => assignment.IsActive);
         Assert.Equal(1, shipmentRepository.SaveChangesCount);
 
         var auditEntry = Assert.Single(auditService.Entries);
@@ -177,6 +181,7 @@ public sealed class AdminAuditActionTests
         var result = shipment.ReassignShipper(
             _alternateShipperId,
             _operatorId,
+            TestClock.UtcNow,
             "Attempt after pickup flow started.");
 
         Assert.True(result.IsFailure);
@@ -189,7 +194,8 @@ public sealed class AdminAuditActionTests
             _shopOwnerId,
             "Audit Shop",
             new PhoneNumber("0912345678"),
-            new Address("1 Le Loi", "Ben Thanh", "Ho Chi Minh"));
+            new Address("1 Le Loi", "Ben Thanh", "Ho Chi Minh"),
+            TestClock.UtcNow);
     }
 
     private FakeIdentityService CreateIdentityService()
@@ -206,7 +212,7 @@ public sealed class AdminAuditActionTests
     private Shipment CreateAssignedShipment()
     {
         var shipment = CreateShipment();
-        var assignResult = shipment.AssignShipper(_shipperId, _operatorId, "Assigned for audit test.");
+        var assignResult = shipment.AssignShipper(_shipperId, _operatorId, TestClock.UtcNow, "Assigned for audit test.");
         Assert.True(assignResult.IsSuccess, assignResult.Error.Description);
         return shipment;
     }
@@ -228,7 +234,8 @@ public sealed class AdminAuditActionTests
             new Money(100_000m),
             new ShippingFeeBreakdown(new Money(20_000m), Money.Zero, Money.Zero, Money.Zero),
             RouteType.InterRegion,
-            _shopOwnerId);
+            _shopOwnerId,
+            TestClock.UtcNow);
     }
 
     private void MoveShipmentToStatus(Shipment shipment, ShipmentStatus targetStatus)
@@ -240,7 +247,7 @@ public sealed class AdminAuditActionTests
 
         if (targetStatus == ShipmentStatus.Cancelled)
         {
-            var cancelResult = shipment.UpdateStatus(ShipmentStatus.Cancelled, _operatorId, "Cancelled.");
+            var cancelResult = shipment.UpdateStatus(ShipmentStatus.Cancelled, _operatorId, TestClock.UtcNow, "Cancelled.");
             Assert.True(cancelResult.IsSuccess, cancelResult.Error.Description);
             return;
         }
@@ -250,6 +257,7 @@ public sealed class AdminAuditActionTests
             var result = shipment.UpdateStatus(
                 nextStatus,
                 _operatorId,
+                TestClock.UtcNow,
                 nextStatus == ShipmentStatus.DeliveryFailed ? "Receiver unavailable." : null);
             Assert.True(result.IsSuccess, result.Error.Description);
         }

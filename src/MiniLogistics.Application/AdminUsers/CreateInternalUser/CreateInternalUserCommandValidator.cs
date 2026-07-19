@@ -1,4 +1,5 @@
 using FluentValidation;
+using MiniLogistics.Application.Identity;
 using MiniLogistics.Domain.Users;
 
 namespace MiniLogistics.Application.AdminUsers.CreateInternalUser;
@@ -25,9 +26,12 @@ public sealed class CreateInternalUserCommandValidator : AbstractValidator<Creat
             .WithMessage("Phone number is invalid.");
 
         RuleFor(command => command.Password)
+            .Cascade(CascadeMode.Stop)
             .NotEmpty()
-            .MinimumLength(6)
-            .MaximumLength(100);
+            .WithMessage(PasswordPolicy.RequirementMessage)
+            .MaximumLength(PasswordPolicy.MaximumLength)
+            .Must(PasswordPolicy.MeetsComplexity)
+            .WithMessage(PasswordPolicy.RequirementMessage);
 
         RuleFor(command => command.Role)
             .Must(BeInternalRole)

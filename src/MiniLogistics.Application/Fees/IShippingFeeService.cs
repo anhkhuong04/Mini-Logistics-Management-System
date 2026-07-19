@@ -5,6 +5,9 @@ using MiniLogistics.Domain.Fees;
 
 namespace MiniLogistics.Application.Fees;
 
+/// <summary>
+/// Defines the application use case contract for Shipping Fee.
+/// </summary>
 public interface IShippingFeeService
 {
     Task<Result<ShippingFeeQuote>> CalculateAsync(

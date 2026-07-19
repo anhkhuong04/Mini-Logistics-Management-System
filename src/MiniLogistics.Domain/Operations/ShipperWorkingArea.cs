@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.Operations;
 
+/// <summary>
+/// Represents the Shipper Working Area domain entity.
+/// </summary>
 public sealed class ShipperWorkingArea : AuditableEntity
 {
     private ShipperWorkingArea()
@@ -13,9 +16,10 @@ public sealed class ShipperWorkingArea : AuditableEntity
         Guid shipperId,
         Guid hubId,
         string province,
+        DateTimeOffset createdAtUtc,
         string? ward = null,
         string? zoneCode = null)
-        : base(Guid.NewGuid())
+        : base(Guid.NewGuid(), createdAtUtc)
     {
         if (shipperId == Guid.Empty)
         {
@@ -29,7 +33,7 @@ public sealed class ShipperWorkingArea : AuditableEntity
 
         ShipperId = shipperId;
         HubId = hubId;
-        Province = RequireText(province, nameof(province));
+        Province = DomainGuard.RequireText(province, nameof(province));
         Ward = NormalizeOptional(ward);
         ZoneCode = NormalizeOptional(zoneCode);
         IsActive = true;
@@ -54,7 +58,7 @@ public sealed class ShipperWorkingArea : AuditableEntity
             && string.Equals(NormalizeOptional(ZoneCode), NormalizeOptional(zoneCode), StringComparison.OrdinalIgnoreCase);
     }
 
-    public void Activate()
+    public void Activate(DateTimeOffset updatedAtUtc)
     {
         if (IsActive)
         {
@@ -62,10 +66,10 @@ public sealed class ShipperWorkingArea : AuditableEntity
         }
 
         IsActive = true;
-        MarkUpdated();
+        MarkUpdated(updatedAtUtc);
     }
 
-    public void Deactivate()
+    public void Deactivate(DateTimeOffset updatedAtUtc)
     {
         if (!IsActive)
         {
@@ -73,17 +77,7 @@ public sealed class ShipperWorkingArea : AuditableEntity
         }
 
         IsActive = false;
-        MarkUpdated();
-    }
-
-    private static string RequireText(string value, string fieldName)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new DomainException($"{fieldName} is required.");
-        }
-
-        return value.Trim();
+        MarkUpdated(updatedAtUtc);
     }
 
     private static string? NormalizeOptional(string? value)

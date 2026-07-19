@@ -4,6 +4,9 @@ using MiniLogistics.Domain.ValueObjects;
 
 namespace MiniLogistics.Domain.Shipments;
 
+/// <summary>
+/// Represents the Shipment domain entity.
+/// </summary>
 public sealed class Shipment : AuditableEntity
 {
     private readonly List<ShipmentAssignment> _assignments = [];
@@ -45,9 +48,10 @@ public sealed class Shipment : AuditableEntity
         RouteType routeType,
         string? note,
         Guid createdByUserId,
+        DateTimeOffset createdAtUtc,
         ShipmentStatus initialStatus,
         string initialHistoryNote)
-        : base(Guid.NewGuid())
+        : base(Guid.NewGuid(), createdAtUtc)
     {
         if (shopId == Guid.Empty)
         {
@@ -56,9 +60,9 @@ public sealed class Shipment : AuditableEntity
 
         ShopId = shopId;
         TrackingCode = trackingCode;
-        SenderName = RequireText(senderName, nameof(senderName));
+        SenderName = DomainGuard.RequireText(senderName, nameof(senderName));
         SenderPhone = senderPhone;
-        ReceiverName = RequireText(receiverName, nameof(receiverName));
+        ReceiverName = DomainGuard.RequireText(receiverName, nameof(receiverName));
         ReceiverPhone = receiverPhone;
         PickupAddress = pickupAddress;
         DeliveryAddress = deliveryAddress;
@@ -73,7 +77,7 @@ public sealed class Shipment : AuditableEntity
         Note = note?.Trim();
         Status = initialStatus;
 
-        AddStatusHistory(Status, createdByUserId, initialHistoryNote);
+        AddStatusHistory(Status, createdByUserId, initialHistoryNote, createdAtUtc);
     }
 
     public Guid ShopId { get; private set; }
@@ -132,12 +136,13 @@ public sealed class Shipment : AuditableEntity
         ShippingFeeBreakdown shippingFeeBreakdown,
         RouteType routeType,
         Guid createdByUserId,
+        DateTimeOffset createdAtUtc,
         string? note = null,
         TrackingCode? trackingCode = null)
     {
         return new Shipment(
             shopId,
-            trackingCode ?? TrackingCode.Generate(),
+            trackingCode ?? TrackingCode.Generate(createdAtUtc),
             senderName,
             senderPhone,
             receiverName,
@@ -153,6 +158,7 @@ public sealed class Shipment : AuditableEntity
             routeType,
             note,
             createdByUserId,
+            createdAtUtc,
             ShipmentStatus.PendingPickup,
             "Shipment created.");
     }
@@ -173,12 +179,13 @@ public sealed class Shipment : AuditableEntity
         ShippingFeeBreakdown shippingFeeBreakdown,
         RouteType routeType,
         Guid createdByUserId,
+        DateTimeOffset createdAtUtc,
         string? note = null,
         TrackingCode? trackingCode = null)
     {
         return new Shipment(
             shopId,
-            trackingCode ?? TrackingCode.Generate(),
+            trackingCode ?? TrackingCode.Generate(createdAtUtc),
             senderName,
             senderPhone,
             receiverName,
@@ -194,11 +201,16 @@ public sealed class Shipment : AuditableEntity
             routeType,
             note,
             createdByUserId,
+            createdAtUtc,
             ShipmentStatus.Draft,
             "Draft created.");
     }
 
-    public Result AssignShipper(Guid shipperId, Guid assignedByUserId, string? note = null)
+    public Result AssignShipper(
+        Guid shipperId,
+        Guid assignedByUserId,
+        DateTimeOffset assignedAtUtc,
+        string? note = null)
     {
         if (Status != ShipmentStatus.PendingPickup)
         {
@@ -215,13 +227,17 @@ public sealed class Shipment : AuditableEntity
             return Result.Failure(ShipmentErrors.ActiveAssignmentExists);
         }
 
-        _assignments.Add(new ShipmentAssignment(Id, shipperId));
-        ChangeStatus(ShipmentStatus.Assigned, assignedByUserId, note ?? "Shipper assigned.");
+        _assignments.Add(new ShipmentAssignment(Id, shipperId, assignedAtUtc));
+        ChangeStatus(ShipmentStatus.Assigned, assignedByUserId, assignedAtUtc, note ?? "Shipper assigned.");
 
         return Result.Success();
     }
 
-    public Result ReassignShipper(Guid shipperId, Guid reassignedByUserId, string reason)
+    public Result ReassignShipper(
+        Guid shipperId,
+        Guid reassignedByUserId,
+        DateTimeOffset reassignedAtUtc,
+        string reason)
     {
         if (Status != ShipmentStatus.Assigned)
         {
@@ -241,20 +257,23 @@ public sealed class Shipment : AuditableEntity
 
         if (activeAssignment.ShipperId == shipperId)
         {
-            AddStatusHistory(Status, reassignedByUserId, reason);
-            MarkUpdated();
+            AddStatusHistory(Status, reassignedByUserId, reason, reassignedAtUtc);
+            MarkUpdated(reassignedAtUtc);
             return Result.Success();
         }
 
-        activeAssignment.Deactivate();
-        _assignments.Add(new ShipmentAssignment(Id, shipperId));
-        AddStatusHistory(Status, reassignedByUserId, reason);
-        MarkUpdated();
+        activeAssignment.Deactivate(reassignedAtUtc);
+        _assignments.Add(new ShipmentAssignment(Id, shipperId, reassignedAtUtc));
+        AddStatusHistory(Status, reassignedByUserId, reason, reassignedAtUtc);
+        MarkUpdated(reassignedAtUtc);
 
         return Result.Success();
     }
 
-    public Result CancelActiveAssignment(Guid cancelledByUserId, string reason)
+    public Result CancelActiveAssignment(
+        Guid cancelledByUserId,
+        DateTimeOffset cancelledAtUtc,
+        string reason)
     {
         if (Status != ShipmentStatus.Assigned)
         {
@@ -266,13 +285,17 @@ public sealed class Shipment : AuditableEntity
             return Result.Failure(ShipmentErrors.ActiveAssignmentNotFound);
         }
 
-        DeactivateActiveAssignments();
-        ChangeStatus(ShipmentStatus.PendingPickup, cancelledByUserId, reason);
+        DeactivateActiveAssignments(cancelledAtUtc);
+        ChangeStatus(ShipmentStatus.PendingPickup, cancelledByUserId, cancelledAtUtc, reason);
 
         return Result.Success();
     }
 
-    public Result UpdateStatus(ShipmentStatus newStatus, Guid changedByUserId, string? note = null)
+    public Result UpdateStatus(
+        ShipmentStatus newStatus,
+        Guid changedByUserId,
+        DateTimeOffset changedAtUtc,
+        string? note = null)
     {
         if (IsTerminalStatus(Status))
         {
@@ -294,18 +317,18 @@ public sealed class Shipment : AuditableEntity
             ApplyReturnFee();
         }
 
-        ChangeStatus(newStatus, changedByUserId, note);
+        ChangeStatus(newStatus, changedByUserId, changedAtUtc, note);
 
         if (newStatus == ShipmentStatus.Returned
             || (newStatus == ShipmentStatus.Delivered && CodAmount.IsZero))
         {
-            DeactivateActiveAssignments();
+            DeactivateActiveAssignments(changedAtUtc);
         }
 
         return Result.Success();
     }
 
-    public Result Cancel(Guid cancelledByUserId, string reason)
+    public Result Cancel(Guid cancelledByUserId, DateTimeOffset cancelledAtUtc, string reason)
     {
         if (Status is ShipmentStatus.PickedUp
             or ShipmentStatus.InTransit
@@ -318,9 +341,9 @@ public sealed class Shipment : AuditableEntity
             return Result.Failure(ShipmentErrors.CannotCancel);
         }
 
-        DeactivateActiveAssignments();
+        DeactivateActiveAssignments(cancelledAtUtc);
 
-        ChangeStatus(ShipmentStatus.Cancelled, cancelledByUserId, reason);
+        ChangeStatus(ShipmentStatus.Cancelled, cancelledByUserId, cancelledAtUtc, reason);
 
         return Result.Success();
     }
@@ -340,6 +363,7 @@ public sealed class Shipment : AuditableEntity
         ShippingFeeBreakdown shippingFeeBreakdown,
         RouteType routeType,
         Guid changedByUserId,
+        DateTimeOffset changedAtUtc,
         string? note = null)
     {
         if (Status is not (ShipmentStatus.Draft or ShipmentStatus.PendingPickup)
@@ -348,9 +372,9 @@ public sealed class Shipment : AuditableEntity
             return Result.Failure(ShipmentErrors.CannotEditBeforePickup);
         }
 
-        SenderName = RequireText(senderName, nameof(senderName));
+        SenderName = DomainGuard.RequireText(senderName, nameof(senderName));
         SenderPhone = senderPhone;
-        ReceiverName = RequireText(receiverName, nameof(receiverName));
+        ReceiverName = DomainGuard.RequireText(receiverName, nameof(receiverName));
         ReceiverPhone = receiverPhone;
         PickupAddress = pickupAddress;
         DeliveryAddress = deliveryAddress;
@@ -364,45 +388,61 @@ public sealed class Shipment : AuditableEntity
         RouteType = routeType;
         Note = note?.Trim();
 
-        AddStatusHistory(Status, changedByUserId, "Shipment details updated before pickup.");
-        MarkUpdated();
+        AddStatusHistory(Status, changedByUserId, "Shipment details updated before pickup.", changedAtUtc);
+        MarkUpdated(changedAtUtc);
 
         return Result.Success();
     }
 
-    public Result SubmitDraft(Guid submittedByUserId)
+    public Result SubmitDraft(Guid submittedByUserId, DateTimeOffset submittedAtUtc)
     {
         if (Status != ShipmentStatus.Draft)
         {
             return Result.Failure(ShipmentErrors.OnlyDraftCanBeSubmitted);
         }
 
-        ChangeStatus(ShipmentStatus.PendingPickup, submittedByUserId, "Draft submitted.");
+        ChangeStatus(ShipmentStatus.PendingPickup, submittedByUserId, submittedAtUtc, "Draft submitted.");
 
         return Result.Success();
     }
 
-    public void DeactivateActiveAssignments()
+    public Result CompleteCodCollection(DateTimeOffset completedAtUtc)
+    {
+        if (Status != ShipmentStatus.Delivered)
+        {
+            return Result.Failure(ShipmentErrors.CodCollectionRequiresDeliveredShipment);
+        }
+
+        DeactivateActiveAssignments(completedAtUtc);
+
+        return Result.Success();
+    }
+
+    internal void DeactivateActiveAssignments(DateTimeOffset deactivatedAtUtc)
     {
         var deactivatedAny = false;
 
         foreach (var assignment in _assignments.Where(assignment => assignment.IsActive))
         {
-            assignment.Deactivate();
+            assignment.Deactivate(deactivatedAtUtc);
             deactivatedAny = true;
         }
 
         if (deactivatedAny)
         {
-            MarkUpdated();
+            MarkUpdated(deactivatedAtUtc);
         }
     }
 
-    private void ChangeStatus(ShipmentStatus newStatus, Guid changedByUserId, string? note)
+    private void ChangeStatus(
+        ShipmentStatus newStatus,
+        Guid changedByUserId,
+        DateTimeOffset changedAtUtc,
+        string? note)
     {
         Status = newStatus;
-        AddStatusHistory(newStatus, changedByUserId, note);
-        MarkUpdated();
+        AddStatusHistory(newStatus, changedByUserId, note, changedAtUtc);
+        MarkUpdated(changedAtUtc);
     }
 
     private void ApplyReturnFee()
@@ -411,9 +451,13 @@ public sealed class Shipment : AuditableEntity
         ShippingFee = ShippingFeeBreakdown.TotalFee;
     }
 
-    private void AddStatusHistory(ShipmentStatus status, Guid changedByUserId, string? note)
+    private void AddStatusHistory(
+        ShipmentStatus status,
+        Guid changedByUserId,
+        string? note,
+        DateTimeOffset changedAtUtc)
     {
-        _statusHistory.Add(new ShipmentStatusHistory(Id, status, changedByUserId, note));
+        _statusHistory.Add(new ShipmentStatusHistory(Id, status, changedByUserId, note, changedAtUtc));
     }
 
     private static bool CanTransitionTo(ShipmentStatus currentStatus, ShipmentStatus newStatus)
@@ -437,13 +481,4 @@ public sealed class Shipment : AuditableEntity
         return status is ShipmentStatus.Delivered or ShipmentStatus.Returned or ShipmentStatus.Cancelled;
     }
 
-    private static string RequireText(string value, string fieldName)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new DomainException($"{fieldName} is required.");
-        }
-
-        return value.Trim();
-    }
 }

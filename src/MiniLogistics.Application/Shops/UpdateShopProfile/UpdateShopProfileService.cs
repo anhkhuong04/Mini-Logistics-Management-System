@@ -11,15 +11,18 @@ public sealed class UpdateShopProfileService : IUpdateShopProfileService
     private readonly IValidator<UpdateShopProfileCommand> _validator;
     private readonly IShopAccessService _shopAccessService;
     private readonly IShopRepository _shopRepository;
+    private readonly TimeProvider _timeProvider;
 
     public UpdateShopProfileService(
         IValidator<UpdateShopProfileCommand> validator,
         IShopAccessService shopAccessService,
-        IShopRepository shopRepository)
+        IShopRepository shopRepository,
+        TimeProvider timeProvider)
     {
         _validator = validator;
         _shopAccessService = shopAccessService;
         _shopRepository = shopRepository;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<UpdateShopProfileResponse>> UpdateAsync(
@@ -45,16 +48,18 @@ public sealed class UpdateShopProfileService : IUpdateShopProfileService
         }
 
         var shop = shopResult.Value;
+        var now = _timeProvider.GetUtcNow();
         try
         {
-            shop.Rename(command.Name);
+            shop.Rename(command.Name, now);
             shop.UpdateContact(
                 new PhoneNumber(command.PhoneNumber),
                 new Address(
                     command.AddressLine,
                     command.Ward,
                     command.Province,
-                    command.Country));
+                    command.Country),
+                now);
         }
         catch (DomainException exception)
         {

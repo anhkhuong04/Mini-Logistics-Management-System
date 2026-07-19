@@ -21,7 +21,7 @@ public sealed class AdminDashboardAndCodReportServiceTests
         var fromUtc = new DateTimeOffset(2026, 7, 16, 0, 0, 0, TimeSpan.Zero);
         var toUtc = fromUtc.AddDays(1);
         var repository = new FakeDashboardMetricsRepository();
-        var service = new GetAdminDashboardService(CreateIdentityService(), repository);
+        var service = new GetAdminDashboardService(CreateIdentityService(), repository, TestClock.Provider);
 
         var result = await service.GetAsync(new AdminDashboardQuery(
             _adminId,
@@ -45,7 +45,7 @@ public sealed class AdminDashboardAndCodReportServiceTests
     public async Task GetAdminDashboard_RejectsInactiveAdmin()
     {
         var repository = new FakeDashboardMetricsRepository();
-        var service = new GetAdminDashboardService(CreateIdentityService(), repository);
+        var service = new GetAdminDashboardService(CreateIdentityService(), repository, TestClock.Provider);
 
         var result = await service.GetAsync(new AdminDashboardQuery(_inactiveAdminId));
 
@@ -172,15 +172,15 @@ public sealed class AdminDashboardAndCodReportServiceTests
                         "VND",
                         CodStatus.Collected,
                         ShipmentStatus.Delivered,
-                        DateTimeOffset.UtcNow,
-                        DateTimeOffset.UtcNow,
+                        TestClock.UtcNow,
+                        TestClock.UtcNow,
                         query.ShipperId,
                         null,
                         null)
                 ],
                 [new AdminCodGroupSummary("Shipper", 2, 100_000m, 250_000m, 500_000m, 80m)],
                 [new AdminCodGroupSummary("Ha Noi", 2, 100_000m, 250_000m, 500_000m, 80m)],
-                [new AdminCodDailySummary(DateOnly.FromDateTime(DateTime.UtcNow), 2, 100_000m, 250_000m, 500_000m)]));
+                [new AdminCodDailySummary(DateOnly.FromDateTime(TestClock.UtcNow.UtcDateTime), 2, 100_000m, 250_000m, 500_000m)]));
         }
     }
 

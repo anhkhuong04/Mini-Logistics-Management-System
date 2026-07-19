@@ -38,14 +38,21 @@ public static class DependencyInjection
                 connectionString,
                 sqlOptions => sqlOptions.MigrationsAssembly(typeof(MiniLogisticsDbContext).Assembly.FullName));
         });
+        services.Configure<SeedingOptions>(
+            configuration.GetSection(SeedingOptions.SectionName));
+        services.AddMemoryCache();
 
         services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
             {
-                options.Password.RequiredLength = 6;
-                options.Password.RequireNonAlphanumeric = false;
-                options.Password.RequireUppercase = false;
-                options.Password.RequireLowercase = false;
+                options.Password.RequiredLength = PasswordPolicy.RequiredLength;
+                options.Password.RequireNonAlphanumeric = true;
+                options.Password.RequireUppercase = true;
+                options.Password.RequireLowercase = true;
                 options.Password.RequireDigit = true;
+                options.Password.RequiredUniqueChars = PasswordPolicy.RequiredUniqueChars;
+                options.Lockout.MaxFailedAccessAttempts = 5;
+                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
+                options.Lockout.AllowedForNewUsers = true;
                 options.User.RequireUniqueEmail = true;
                 options.SignIn.RequireConfirmedAccount = false;
             })
@@ -59,12 +66,20 @@ public static class DependencyInjection
             options.LogoutPath = "/auth/logout";
         });
 
-        services.AddScoped<IShipmentRepository, ShipmentRepository>();
-        services.AddScoped<IFeeRuleRepository, FeeRuleRepository>();
+        services.AddScoped<ShipmentRepository>();
+        services.AddScoped<IShipmentRepository>(provider => provider.GetRequiredService<ShipmentRepository>());
+        services.AddScoped<IShipmentReadRepository>(provider => provider.GetRequiredService<ShipmentRepository>());
+        services.AddScoped<IShipmentWriteRepository>(provider => provider.GetRequiredService<ShipmentRepository>());
+        services.AddScoped<FeeRuleRepository>();
+        services.AddScoped<FeeRuleCache>();
+        services.AddScoped<IFeeRuleRepository>(provider => provider.GetRequiredService<FeeRuleCache>());
+        services.AddScoped<IFeeRuleCache>(provider => provider.GetRequiredService<FeeRuleCache>());
         services.AddScoped<IFeeConfigurationRepository, FeeConfigurationRepository>();
         services.AddScoped<IShopRepository, ShopRepository>();
-        services.AddScoped<IHubRepository, HubRepository>();
-        services.AddScoped<IRouteRegionConfigRepository, RouteRegionConfigRepository>();
+        services.AddScoped<HubRepository>();
+        services.AddScoped<IHubRepository, CachedHubRepository>();
+        services.AddScoped<RouteRegionConfigRepository>();
+        services.AddScoped<IRouteRegionConfigRepository, CachedRouteRegionConfigRepository>();
         services.AddScoped<IRouteRegionConfigSource>(provider => provider.GetRequiredService<IRouteRegionConfigRepository>());
         services.AddScoped<IShipperWorkingAreaRepository, ShipperWorkingAreaRepository>();
         services.AddScoped<ICodTransactionRepository, CodTransactionRepository>();

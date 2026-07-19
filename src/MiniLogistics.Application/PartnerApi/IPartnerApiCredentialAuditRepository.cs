@@ -2,6 +2,9 @@ using MiniLogistics.Domain.PartnerApi;
 
 namespace MiniLogistics.Application.PartnerApi;
 
+/// <summary>
+/// Defines persistence operations for Partner Api Credential Audit data.
+/// </summary>
 public interface IPartnerApiCredentialAuditRepository
 {
     Task<IReadOnlyList<PartnerApiCredentialAudit>> GetRecentByApiClientIdsAsync(

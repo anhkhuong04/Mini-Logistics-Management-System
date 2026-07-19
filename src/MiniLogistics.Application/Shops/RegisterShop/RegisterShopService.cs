@@ -14,15 +14,18 @@ public sealed class RegisterShopService : IRegisterShopService
     private readonly IValidator<RegisterShopCommand> _validator;
     private readonly IIdentityService _identityService;
     private readonly IShopRepository _shopRepository;
+    private readonly TimeProvider _timeProvider;
 
     public RegisterShopService(
         IValidator<RegisterShopCommand> validator,
         IIdentityService identityService,
-        IShopRepository shopRepository)
+        IShopRepository shopRepository,
+        TimeProvider timeProvider)
     {
         _validator = validator;
         _identityService = identityService;
         _shopRepository = shopRepository;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<RegisterShopResponse>> RegisterAsync(
@@ -68,7 +71,8 @@ public sealed class RegisterShopService : IRegisterShopService
                 command.AddressLine,
                 command.Ward,
                 command.Province,
-                command.Country));
+                command.Country),
+            _timeProvider.GetUtcNow());
 
         await _shopRepository.AddAsync(shop, cancellationToken);
         await _shopRepository.SaveChangesAsync(cancellationToken);

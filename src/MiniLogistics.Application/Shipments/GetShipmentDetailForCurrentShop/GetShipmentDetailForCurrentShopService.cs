@@ -11,12 +11,12 @@ public sealed class GetShipmentDetailForCurrentShopService : IGetShipmentDetailF
 {
     private readonly IIdentityService _identityService;
     private readonly IShopAccessService _shopAccessService;
-    private readonly IShipmentRepository _shipmentRepository;
+    private readonly IShipmentReadRepository _shipmentRepository;
 
     public GetShipmentDetailForCurrentShopService(
         IIdentityService identityService,
         IShopAccessService shopAccessService,
-        IShipmentRepository shipmentRepository)
+        IShipmentReadRepository shipmentRepository)
     {
         _identityService = identityService;
         _shopAccessService = shopAccessService;

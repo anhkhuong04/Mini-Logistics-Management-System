@@ -9,13 +9,16 @@ public sealed class GetAdminDashboardService : IGetAdminDashboardService
 {
     private readonly IIdentityService _identityService;
     private readonly IAdminDashboardMetricsRepository _metricsRepository;
+    private readonly TimeProvider _timeProvider;
 
     public GetAdminDashboardService(
         IIdentityService identityService,
-        IAdminDashboardMetricsRepository metricsRepository)
+        IAdminDashboardMetricsRepository metricsRepository,
+        TimeProvider timeProvider)
     {
         _identityService = identityService;
         _metricsRepository = metricsRepository;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<AdminDashboardResponse>> GetAsync(
@@ -37,7 +40,7 @@ public sealed class GetAdminDashboardService : IGetAdminDashboardService
             return Result<AdminDashboardResponse>.Failure(authorizationResult.Error);
         }
 
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
         var fromUtc = query.FromUtc ?? new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
         var toUtc = query.ToUtc ?? now;
         if (toUtc < fromUtc)

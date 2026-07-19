@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.ValueObjects;
 
+/// <summary>
+/// Represents the validated Address value used by the domain model.
+/// </summary>
 public sealed record Address
 {
     public Address(
@@ -10,10 +13,10 @@ public sealed record Address
         string province,
         string country = "Vietnam")
     {
-        Street = RequireText(street, nameof(street));
-        Ward = RequireText(ward, nameof(ward));
-        Province = RequireText(province, nameof(province));
-        Country = RequireText(country, nameof(country));
+        Street = DomainGuard.RequireText(street, nameof(street));
+        Ward = DomainGuard.RequireText(ward, nameof(ward));
+        Province = DomainGuard.RequireText(province, nameof(province));
+        Country = DomainGuard.RequireText(country, nameof(country));
     }
 
     public string Street { get; }
@@ -26,13 +29,4 @@ public sealed record Address
 
     public string FullAddress => string.Join(", ", Street, Ward, Province, Country);
 
-    private static string RequireText(string value, string fieldName)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new DomainException($"{fieldName} is required.");
-        }
-
-        return value.Trim();
-    }
 }

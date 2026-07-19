@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.Operations;
 
+/// <summary>
+/// Represents the Hub domain entity.
+/// </summary>
 public sealed class Hub : AuditableEntity
 {
     private Hub()
@@ -16,18 +19,19 @@ public sealed class Hub : AuditableEntity
         string code,
         string name,
         string province,
+        DateTimeOffset createdAtUtc,
         string? ward = null,
         string? addressLine = null,
         bool isRegionalSortingHub = false,
         string country = "Vietnam")
-        : base(Guid.NewGuid())
+        : base(Guid.NewGuid(), createdAtUtc)
     {
         Code = NormalizeCode(code);
-        Name = RequireText(name, nameof(name));
-        Province = RequireText(province, nameof(province));
+        Name = DomainGuard.RequireText(name, nameof(name));
+        Province = DomainGuard.RequireText(province, nameof(province));
         Ward = NormalizeOptional(ward);
         AddressLine = NormalizeOptional(addressLine);
-        Country = RequireText(country, nameof(country));
+        Country = DomainGuard.RequireText(country, nameof(country));
         IsRegionalSortingHub = isRegionalSortingHub;
         IsActive = true;
     }
@@ -52,41 +56,43 @@ public sealed class Hub : AuditableEntity
         string code,
         string name,
         string province,
+        DateTimeOffset updatedAtUtc,
         string? ward = null,
         string? addressLine = null,
         bool isRegionalSortingHub = false,
         string country = "Vietnam")
     {
         Code = NormalizeCode(code);
-        Name = RequireText(name, nameof(name));
-        Province = RequireText(province, nameof(province));
+        Name = DomainGuard.RequireText(name, nameof(name));
+        Province = DomainGuard.RequireText(province, nameof(province));
         Ward = NormalizeOptional(ward);
         AddressLine = NormalizeOptional(addressLine);
-        Country = RequireText(country, nameof(country));
+        Country = DomainGuard.RequireText(country, nameof(country));
         IsRegionalSortingHub = isRegionalSortingHub;
-        MarkUpdated();
+        MarkUpdated(updatedAtUtc);
     }
 
-    public void Rename(string name)
+    public void Rename(string name, DateTimeOffset updatedAtUtc)
     {
-        Name = RequireText(name, nameof(name));
-        MarkUpdated();
+        Name = DomainGuard.RequireText(name, nameof(name));
+        MarkUpdated(updatedAtUtc);
     }
 
     public void UpdateLocation(
         string province,
+        DateTimeOffset updatedAtUtc,
         string? ward = null,
         string? addressLine = null,
         string country = "Vietnam")
     {
-        Province = RequireText(province, nameof(province));
+        Province = DomainGuard.RequireText(province, nameof(province));
         Ward = NormalizeOptional(ward);
         AddressLine = NormalizeOptional(addressLine);
-        Country = RequireText(country, nameof(country));
-        MarkUpdated();
+        Country = DomainGuard.RequireText(country, nameof(country));
+        MarkUpdated(updatedAtUtc);
     }
 
-    public void Activate()
+    public void Activate(DateTimeOffset updatedAtUtc)
     {
         if (IsActive)
         {
@@ -94,10 +100,10 @@ public sealed class Hub : AuditableEntity
         }
 
         IsActive = true;
-        MarkUpdated();
+        MarkUpdated(updatedAtUtc);
     }
 
-    public void Deactivate()
+    public void Deactivate(DateTimeOffset updatedAtUtc)
     {
         if (!IsActive)
         {
@@ -105,22 +111,12 @@ public sealed class Hub : AuditableEntity
         }
 
         IsActive = false;
-        MarkUpdated();
+        MarkUpdated(updatedAtUtc);
     }
 
     private static string NormalizeCode(string value)
     {
-        return RequireText(value, nameof(value)).ToUpperInvariant();
-    }
-
-    private static string RequireText(string value, string fieldName)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new DomainException($"{fieldName} is required.");
-        }
-
-        return value.Trim();
+        return DomainGuard.RequireText(value, nameof(value)).ToUpperInvariant();
     }
 
     private static string? NormalizeOptional(string? value)

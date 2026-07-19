@@ -3,6 +3,9 @@ using MiniLogistics.Domain.Shipments;
 
 namespace MiniLogistics.Application.Routing;
 
+/// <summary>
+/// Defines the application use case contract for Route Classification.
+/// </summary>
 public interface IRouteClassificationService
 {
     Result<RouteClassificationResult> Classify(

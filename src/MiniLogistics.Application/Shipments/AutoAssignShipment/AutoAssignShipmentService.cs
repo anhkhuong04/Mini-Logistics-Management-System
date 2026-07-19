@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.PartnerApi;
@@ -13,17 +14,23 @@ public sealed class AutoAssignShipmentService : IAutoAssignShipmentService
     private readonly IShipmentAssignmentSelector _assignmentSelector;
     private readonly IWebhookEventPublisher _webhookEventPublisher;
     private readonly IAdminAuditService _adminAuditService;
+    private readonly TimeProvider _timeProvider;
+    private readonly ILogger<AutoAssignShipmentService>? _logger;
 
     public AutoAssignShipmentService(
         IShipmentRepository shipmentRepository,
         IShipmentAssignmentSelector assignmentSelector,
+        TimeProvider timeProvider,
         IWebhookEventPublisher? webhookEventPublisher = null,
-        IAdminAuditService? adminAuditService = null)
+        IAdminAuditService? adminAuditService = null,
+        ILogger<AutoAssignShipmentService>? logger = null)
     {
         _shipmentRepository = shipmentRepository;
         _assignmentSelector = assignmentSelector;
+        _timeProvider = timeProvider;
         _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
+        _logger = logger;
     }
 
     public async Task<Result<AutoAssignShipmentResult>> AutoAssignAsync(
@@ -33,21 +40,32 @@ public sealed class AutoAssignShipmentService : IAutoAssignShipmentService
     {
         if (shipmentId == Guid.Empty)
         {
+            _logger?.LogWarning("Auto-assignment rejected because shipment id is empty");
             return Result<AutoAssignShipmentResult>.Failure(
                 ApplicationErrors.ValidationFailed("Shipment id is required."));
         }
+
+        _logger?.LogInformation(
+            "Auto-assigning shipment {ShipmentId} requested by {RequestedByUserId}",
+            shipmentId,
+            requestedByUserId);
 
         var shipment = await _shipmentRepository.GetTrackedByIdAsync(
             shipmentId,
             cancellationToken);
         if (shipment is null)
         {
+            _logger?.LogWarning("Auto-assignment skipped because shipment {ShipmentId} was not found", shipmentId);
             return Result<AutoAssignShipmentResult>.Failure(
                 ApplicationErrors.NotFound("Shipment was not found."));
         }
 
         if (shipment.Status != ShipmentStatus.PendingPickup)
         {
+            _logger?.LogInformation(
+                "Auto-assignment skipped for shipment {ShipmentId} because status is {ShipmentStatus}",
+                shipment.Id,
+                shipment.Status);
             return Result<AutoAssignShipmentResult>.Success(
                 AutoAssignShipmentResult.Skipped(
                     shipment,
@@ -58,6 +76,10 @@ public sealed class AutoAssignShipmentService : IAutoAssignShipmentService
         if (selection.Status == ShipmentAssignmentSelectionStatus.NoEligibleShipper
             || selection.ShipperId is null)
         {
+            _logger?.LogWarning(
+                "Auto-assignment found no eligible shipper for shipment {ShipmentId}: {Reason}",
+                shipment.Id,
+                selection.Reason);
             return Result<AutoAssignShipmentResult>.Success(
                 AutoAssignShipmentResult.NoEligibleShipper(shipment, selection.Reason));
         }
@@ -65,9 +87,15 @@ public sealed class AutoAssignShipmentService : IAutoAssignShipmentService
         var assignResult = shipment.AssignShipper(
             selection.ShipperId.Value,
             SystemActorIds.AutoAssignment,
+            _timeProvider.GetUtcNow(),
             $"Auto assigned. {selection.Reason}");
         if (assignResult.IsFailure)
         {
+            _logger?.LogWarning(
+                "Auto-assignment failed for shipment {ShipmentId} with error {ErrorCode}: {ErrorDescription}",
+                shipment.Id,
+                assignResult.Error.Code,
+                assignResult.Error.Description);
             return Result<AutoAssignShipmentResult>.Failure(assignResult.Error);
         }
 
@@ -97,6 +125,11 @@ public sealed class AutoAssignShipmentService : IAutoAssignShipmentService
         }
 
         await _shipmentRepository.SaveChangesAsync(cancellationToken);
+
+        _logger?.LogInformation(
+            "Auto-assigned shipment {ShipmentId} to shipper {ShipperId}",
+            shipment.Id,
+            selection.ShipperId.Value);
 
         return Result<AutoAssignShipmentResult>.Success(
             AutoAssignShipmentResult.Assigned(

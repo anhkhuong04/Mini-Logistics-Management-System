@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Shops;
 
 namespace MiniLogistics.Application.Shops;
 
+/// <summary>
+/// Defines persistence operations for Shop data.
+/// </summary>
 public interface IShopRepository
 {
     Task<Shop?> GetByIdAsync(

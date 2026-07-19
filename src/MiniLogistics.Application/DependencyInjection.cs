@@ -1,53 +1,9 @@
 using FluentValidation;
-using MiniLogistics.Application.AdminAuditing;
-using MiniLogistics.Application.AdminCod;
-using MiniLogistics.Application.AdminDashboard;
-using MiniLogistics.Application.AdminHubs.CreateHub;
-using MiniLogistics.Application.AdminHubs.GetAdminHubs;
-using MiniLogistics.Application.AdminHubs.SetHubActiveStatus;
-using MiniLogistics.Application.AdminHubs.UpdateHub;
-using MiniLogistics.Application.AdminSystemConfiguration;
-using MiniLogistics.Application.AdminUsers.CreateInternalUser;
-using MiniLogistics.Application.AdminUsers.GetAdminUsers;
-using MiniLogistics.Application.AdminUsers.SetShipperCapacity;
-using MiniLogistics.Application.AdminUsers.SetUserActiveStatus;
-using MiniLogistics.Application.CashOnDelivery.GetCodSettlementCandidates;
 using Microsoft.Extensions.DependencyInjection;
-using MiniLogistics.Application.CashOnDelivery.MarkCodCollected;
-using MiniLogistics.Application.CashOnDelivery.MarkCodSettled;
-using MiniLogistics.Application.Fees;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using MiniLogistics.Application.PartnerApi;
-using MiniLogistics.Application.Routing;
-using MiniLogistics.Application.Shippers.GetActiveShippers;
-using MiniLogistics.Application.Shippers.GetLogisticsHubs;
-using MiniLogistics.Application.Shippers.GetShipperWorkingAreas;
-using MiniLogistics.Application.Shippers.SetShipperWorkingAreas;
 using MiniLogistics.Application.Shipments.AssignmentSelection;
-using MiniLogistics.Application.Shops.CreateAdditionalShop;
-using MiniLogistics.Application.Shops.GetAdminShops;
-using MiniLogistics.Application.Shops.GetCurrentShop;
-using MiniLogistics.Application.Shops.GetShopContext;
-using MiniLogistics.Application.Shops.GetShopProfile;
-using MiniLogistics.Application.Shops.RegisterShop;
-using MiniLogistics.Application.Shops.SetShopActiveStatus;
-using MiniLogistics.Application.Shops.ShopAccess;
-using MiniLogistics.Application.Shops.UpdateShopProfile;
-using MiniLogistics.Application.Shipments.AssignShipperToShipment;
-using MiniLogistics.Application.Shipments.AutoAssignShipment;
-using MiniLogistics.Application.Shipments.BulkRetryAutoAssignment;
-using MiniLogistics.Application.Shipments.CancelShipmentAssignment;
-using MiniLogistics.Application.Shipments.CancelShipmentForCurrentShop;
-using MiniLogistics.Application.Shipments.CreateShipment;
-using MiniLogistics.Application.Shipments.DraftShipments;
-using MiniLogistics.Application.Shipments.GetAssignedShipmentsForShipper;
-using MiniLogistics.Application.Shipments.GetOperationsShipments;
-using MiniLogistics.Application.Shipments.GetPendingPickupShipments;
-using MiniLogistics.Application.Shipments.GetPublicTracking;
-using MiniLogistics.Application.Shipments.GetShipmentDetailForCurrentShop;
-using MiniLogistics.Application.Shipments.GetShipmentsForCurrentShop;
 using MiniLogistics.Application.Shipments.ImportShipments;
-using MiniLogistics.Application.Shipments.ReassignShipment;
-using MiniLogistics.Application.Shipments.UpdateShipmentStatus;
 
 namespace MiniLogistics.Application;
 
@@ -55,66 +11,25 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
+        services.TryAddSingleton(TimeProvider.System);
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
 
-        services.AddScoped<IGetAdminAuditLogsService, GetAdminAuditLogsService>();
-        services.AddScoped<IGetAdminDashboardService, GetAdminDashboardService>();
-        services.AddScoped<IGetAdminCodReportService, GetAdminCodReportService>();
-        services.AddScoped<IGetAdminHubsService, GetAdminHubsService>();
-        services.AddScoped<IAdminSystemConfigurationService, AdminSystemConfigurationService>();
-        services.AddScoped<ICreateHubService, CreateHubService>();
-        services.AddScoped<IUpdateHubService, UpdateHubService>();
-        services.AddScoped<ISetHubActiveStatusService, SetHubActiveStatusService>();
-        services.AddScoped<ICreateInternalUserService, CreateInternalUserService>();
-        services.AddScoped<IGetAdminUsersService, GetAdminUsersService>();
-        services.AddScoped<ISetShipperCapacityService, SetShipperCapacityService>();
-        services.AddScoped<ISetUserActiveStatusService, SetUserActiveStatusService>();
-        services.AddScoped<IMarkCodCollectedService, MarkCodCollectedService>();
-        services.AddScoped<IMarkCodSettledService, MarkCodSettledService>();
-        services.AddScoped<IGetCodSettlementCandidatesService, GetCodSettlementCandidatesService>();
-        services.AddScoped<IPartnerApiAuthenticationService, PartnerApiAuthenticationService>();
-        services.AddScoped<IPartnerQuoteService, PartnerQuoteService>();
-        services.AddScoped<IPartnerCreateShipmentService, PartnerCreateShipmentService>();
-        services.AddScoped<IPartnerShipmentQueryService, PartnerShipmentQueryService>();
-        services.AddScoped<IPartnerCancelShipmentService, PartnerCancelShipmentService>();
-        services.AddScoped<IPartnerIntegrationManagementService, PartnerIntegrationManagementService>();
+        services.Scan(scan => scan
+            .FromAssemblies(typeof(DependencyInjection).Assembly)
+            .AddClasses(classes => classes.Where(type =>
+                type.Name.EndsWith("Service", StringComparison.Ordinal)
+                && type.GetConstructors().Length > 0
+                && type != typeof(ShipmentImportService)))
+            .AsImplementedInterfaces()
+            .WithScopedLifetime());
+
+        services.AddScoped<PartnerCredentialAuditWriter>();
+        services.AddScoped<PartnerIntegrationDashboardBuilder>();
         services.AddScoped<IWebhookEventPublisher, WebhookEventPublisher>();
-        services.AddScoped<IShippingFeeService, ShippingFeeService>();
-        services.AddScoped<IRouteClassificationService, RouteClassificationService>();
-        services.AddScoped<IGetActiveShippersService, GetActiveShippersService>();
-        services.AddScoped<IGetLogisticsHubsService, GetLogisticsHubsService>();
-        services.AddScoped<IGetShipperWorkingAreasService, GetShipperWorkingAreasService>();
-        services.AddScoped<ISetShipperWorkingAreasService, SetShipperWorkingAreasService>();
         services.AddScoped<IShipmentAssignmentSelector, ShipmentAssignmentSelector>();
-        services.AddScoped<IAutoAssignShipmentService, AutoAssignShipmentService>();
-        services.AddScoped<IBulkRetryAutoAssignmentService, BulkRetryAutoAssignmentService>();
-        services.AddScoped<IAssignShipperToShipmentService, AssignShipperToShipmentService>();
-        services.AddScoped<IReassignShipmentService, ReassignShipmentService>();
-        services.AddScoped<ICancelShipmentAssignmentService, CancelShipmentAssignmentService>();
-        services.AddScoped<ICancelShipmentForCurrentShopService, CancelShipmentForCurrentShopService>();
-        services.AddScoped<ICreateShipmentService, CreateShipmentService>();
-        services.AddScoped<ICreateDraftShipmentService, CreateDraftShipmentService>();
-        services.AddScoped<IUpdateShipmentBeforePickupService, UpdateShipmentBeforePickupService>();
-        services.AddScoped<ISubmitDraftShipmentService, SubmitDraftShipmentService>();
-        services.AddScoped<IGetAssignedShipmentsForShipperService, GetAssignedShipmentsForShipperService>();
-        services.AddScoped<IGetOperationsShipmentsService, GetOperationsShipmentsService>();
-        services.AddScoped<IGetPendingPickupShipmentsService, GetPendingPickupShipmentsService>();
-        services.AddScoped<IGetShipmentsForCurrentShopService, GetShipmentsForCurrentShopService>();
-        services.AddScoped<IGetShipmentDetailForCurrentShopService, GetShipmentDetailForCurrentShopService>();
         services.AddScoped<ShipmentImportService>();
         services.AddScoped<IPreviewShipmentImportService>(provider => provider.GetRequiredService<ShipmentImportService>());
         services.AddScoped<IConfirmShipmentImportService>(provider => provider.GetRequiredService<ShipmentImportService>());
-        services.AddScoped<IGetPublicTrackingService, GetPublicTrackingService>();
-        services.AddScoped<IUpdateShipmentStatusService, UpdateShipmentStatusService>();
-        services.AddScoped<IGetCurrentShopService, GetCurrentShopService>();
-        services.AddScoped<IShopAccessService, ShopAccessService>();
-        services.AddScoped<IGetShopContextService, GetShopContextService>();
-        services.AddScoped<ICreateAdditionalShopService, CreateAdditionalShopService>();
-        services.AddScoped<IGetShopProfileService, GetShopProfileService>();
-        services.AddScoped<IUpdateShopProfileService, UpdateShopProfileService>();
-        services.AddScoped<IGetAdminShopsService, GetAdminShopsService>();
-        services.AddScoped<ISetShopActiveStatusService, SetShopActiveStatusService>();
-        services.AddScoped<IRegisterShopService, RegisterShopService>();
 
         return services;
     }

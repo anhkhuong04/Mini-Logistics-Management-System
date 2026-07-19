@@ -1,5 +1,8 @@
 namespace MiniLogistics.Application.Routing;
 
+/// <summary>
+/// Defines read access to Route Region Config Source data.
+/// </summary>
 public interface IRouteRegionConfigSource
 {
     IReadOnlyDictionary<string, string> GetProvinceRegions();

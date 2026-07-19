@@ -4,6 +4,9 @@ using MiniLogistics.Domain.ValueObjects;
 
 namespace MiniLogistics.Domain.CashOnDelivery;
 
+/// <summary>
+/// Represents the Cod Transaction domain entity.
+/// </summary>
 public sealed class CodTransaction : AuditableEntity
 {
     private CodTransaction()
@@ -11,8 +14,8 @@ public sealed class CodTransaction : AuditableEntity
         Amount = Money.Zero;
     }
 
-    private CodTransaction(Guid shipmentId, Money amount)
-        : base(Guid.NewGuid())
+    private CodTransaction(Guid shipmentId, Money amount, DateTimeOffset createdAtUtc)
+        : base(Guid.NewGuid(), createdAtUtc)
     {
         if (shipmentId == Guid.Empty)
         {
@@ -38,12 +41,12 @@ public sealed class CodTransaction : AuditableEntity
 
     public Guid? SettledByUserId { get; private set; }
 
-    public static CodTransaction Create(Guid shipmentId, Money amount)
+    public static CodTransaction Create(Guid shipmentId, Money amount, DateTimeOffset createdAtUtc)
     {
-        return new CodTransaction(shipmentId, amount);
+        return new CodTransaction(shipmentId, amount, createdAtUtc);
     }
 
-    public Result UpdateAmount(Money amount)
+    public Result UpdateAmount(Money amount, DateTimeOffset updatedAtUtc)
     {
         if (Status is not (CodStatus.NotRequired or CodStatus.PendingCollection))
         {
@@ -52,12 +55,15 @@ public sealed class CodTransaction : AuditableEntity
 
         Amount = amount;
         Status = amount.IsZero ? CodStatus.NotRequired : CodStatus.PendingCollection;
-        MarkUpdated();
+        MarkUpdated(updatedAtUtc);
 
         return Result.Success();
     }
 
-    public Result MarkCollected(ShipmentStatus shipmentStatus, Guid collectedByUserId)
+    public Result MarkCollected(
+        ShipmentStatus shipmentStatus,
+        Guid collectedByUserId,
+        DateTimeOffset collectedAtUtc)
     {
         if (Status == CodStatus.NotRequired)
         {
@@ -75,14 +81,14 @@ public sealed class CodTransaction : AuditableEntity
         }
 
         Status = CodStatus.Collected;
-        CollectedAtUtc = DateTimeOffset.UtcNow;
+        CollectedAtUtc = collectedAtUtc;
         CollectedByUserId = collectedByUserId;
-        MarkUpdated();
+        MarkUpdated(collectedAtUtc);
 
         return Result.Success();
     }
 
-    public Result MarkSettled(Guid settledByUserId)
+    public Result MarkSettled(Guid settledByUserId, DateTimeOffset settledAtUtc)
     {
         if (Status != CodStatus.Collected)
         {
@@ -90,9 +96,9 @@ public sealed class CodTransaction : AuditableEntity
         }
 
         Status = CodStatus.Settled;
-        SettledAtUtc = DateTimeOffset.UtcNow;
+        SettledAtUtc = settledAtUtc;
         SettledByUserId = settledByUserId;
-        MarkUpdated();
+        MarkUpdated(settledAtUtc);
 
         return Result.Success();
     }

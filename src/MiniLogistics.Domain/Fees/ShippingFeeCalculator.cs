@@ -4,6 +4,9 @@ using MiniLogistics.Domain.ValueObjects;
 
 namespace MiniLogistics.Domain.Fees;
 
+/// <summary>
+/// Provides domain helpers or errors for Shipping Fee Calculator.
+/// </summary>
 public static class ShippingFeeCalculator
 {
     public static Result<ShippingFeeQuote> Calculate(

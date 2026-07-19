@@ -73,7 +73,7 @@ Authorization: Bearer {api_key}
 Vi du:
 
 ```http
-Authorization: Bearer ml_demo_partner_key_123456
+Authorization: Bearer <partner-api-key>
 ```
 
 Moi API client chi co quyen thao tac voi shipment thuoc shop cua minh.
@@ -219,7 +219,7 @@ Website nen hien `totalFeeAmount` cho khach hang. Cac field con lai dung de hien
 
 ```bash
 curl -X POST "http://localhost:5221/api/v1/partner/shipping/quote" \
-  -H "Authorization: Bearer ml_demo_partner_key_123456" \
+  -H "Authorization: Bearer <partner-api-key>" \
   -H "Content-Type: application/json" \
   -d '{
     "externalOrderId": "ECOM-10001",
@@ -335,7 +335,7 @@ Neu website retry vi timeout/network:
 
 ```bash
 curl -X POST "http://localhost:5221/api/v1/partner/shipments" \
-  -H "Authorization: Bearer ml_demo_partner_key_123456" \
+  -H "Authorization: Bearer <partner-api-key>" \
   -H "Idempotency-Key: ECOM-10001" \
   -H "Content-Type: application/json" \
   -d '{

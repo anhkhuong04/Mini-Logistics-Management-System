@@ -5,7 +5,7 @@
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:5221" },
-    { "key": "apiKey", "value": "ml_demo_partner_key_123456" },
+    { "key": "apiKey", "value": "<partner-api-key>" },
     { "key": "trackingCode", "value": "ML202606290001" }
   ],
   "auth": {

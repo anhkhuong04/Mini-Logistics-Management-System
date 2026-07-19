@@ -19,6 +19,7 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
     private readonly IShipmentRepository _shipmentRepository;
     private readonly IShopAccessService _shopAccessService;
     private readonly ICodTransactionRepository _codTransactionRepository;
+    private readonly TimeProvider _timeProvider;
 
     public UpdateShipmentBeforePickupService(
         IValidator<UpdateShipmentBeforePickupCommand> validator,
@@ -26,7 +27,8 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
         IRouteClassificationService routeClassificationService,
         IShipmentRepository shipmentRepository,
         IShopAccessService shopAccessService,
-        ICodTransactionRepository codTransactionRepository)
+        ICodTransactionRepository codTransactionRepository,
+        TimeProvider timeProvider)
     {
         _validator = validator;
         _shippingFeeService = shippingFeeService;
@@ -34,6 +36,7 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
         _shipmentRepository = shipmentRepository;
         _shopAccessService = shopAccessService;
         _codTransactionRepository = codTransactionRepository;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<DraftShipmentResponse>> UpdateAsync(
@@ -79,6 +82,7 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
         }
 
         var calculated = calculatedResult.Value;
+        var now = _timeProvider.GetUtcNow();
         var updateResult = shipment.UpdateBeforePickup(
             command.SenderName,
             new PhoneNumber(command.SenderPhone),
@@ -94,6 +98,7 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
             calculated.ShippingFeeBreakdown,
             calculated.RouteType,
             command.UserId,
+            now,
             command.Note);
         if (updateResult.IsFailure)
         {
@@ -108,12 +113,12 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
             if (codTransaction is null)
             {
                 await _codTransactionRepository.AddAsync(
-                    CodTransaction.Create(shipment.Id, calculated.CodAmount),
+                    CodTransaction.Create(shipment.Id, calculated.CodAmount, now),
                     cancellationToken);
             }
             else
             {
-                var codResult = codTransaction.UpdateAmount(calculated.CodAmount);
+                var codResult = codTransaction.UpdateAmount(calculated.CodAmount, now);
                 if (codResult.IsFailure)
                 {
                     return Result<DraftShipmentResponse>.Failure(codResult.Error);

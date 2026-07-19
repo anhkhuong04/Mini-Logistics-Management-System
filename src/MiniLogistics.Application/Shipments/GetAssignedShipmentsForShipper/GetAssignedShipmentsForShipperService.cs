@@ -12,12 +12,12 @@ namespace MiniLogistics.Application.Shipments.GetAssignedShipmentsForShipper;
 public sealed class GetAssignedShipmentsForShipperService : IGetAssignedShipmentsForShipperService
 {
     private readonly IIdentityService _identityService;
-    private readonly IShipmentRepository _shipmentRepository;
+    private readonly IShipmentReadRepository _shipmentRepository;
     private readonly ICodTransactionRepository _codTransactionRepository;
 
     public GetAssignedShipmentsForShipperService(
         IIdentityService identityService,
-        IShipmentRepository shipmentRepository,
+        IShipmentReadRepository shipmentRepository,
         ICodTransactionRepository codTransactionRepository)
     {
         _identityService = identityService;

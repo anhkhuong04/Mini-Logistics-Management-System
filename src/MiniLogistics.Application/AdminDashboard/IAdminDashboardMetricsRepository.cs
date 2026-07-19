@@ -1,5 +1,8 @@
 namespace MiniLogistics.Application.AdminDashboard;
 
+/// <summary>
+/// Defines persistence operations for Admin Dashboard Metrics data.
+/// </summary>
 public interface IAdminDashboardMetricsRepository
 {
     Task<AdminDashboardRepositoryMetrics> GetAsync(

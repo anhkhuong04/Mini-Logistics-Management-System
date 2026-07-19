@@ -1,0 +1,182 @@
+<td>
+    <label class="sr-only" for="@($"shipper-{Shipment.ShipmentId}")">Chọn shipper</label>
+    <select id="@($"shipper-{Shipment.ShipmentId}")"
+            class="@GetSelectClass()"
+            value="@GetSelectedShipperValue()"
+            disabled="@(ActiveShippers.Count == 0 || IsBusy())"
+            @onchange="eventArgs => SelectShipper.InvokeAsync(new PendingShipperSelectionChanged(Shipment, eventArgs.Value?.ToString()))">
+        <option value="">Chọn shipper</option>
+        @if (MatchedOptions.Count > 0)
+        {
+            <optgroup label="Phù hợp khu vực pickup">
+                @foreach (var option in MatchedOptions)
+                {
+                    <option value="@option.Shipper.UserId">@OperationsDisplay.FormatShipperOption(option)</option>
+                }
+            </optgroup>
+        }
+        @if (OverrideOptions.Count > 0)
+        {
+            <optgroup label="Manual override">
+                @foreach (var option in OverrideOptions)
+                {
+                    <option value="@option.Shipper.UserId">@OperationsDisplay.FormatShipperOption(option)</option>
+                }
+            </optgroup>
+        }
+    </select>
+
+    @if (TryGetSelectedShipper(out var selectedShipper))
+    {
+        var isAreaMatch = Insight.Matches(selectedShipper.UserId);
+        <p class="shipper-meta @(isAreaMatch ? "success" : "warning")">
+            @OperationsDisplay.FormatSelectedShipperMeta(
+                Shipment,
+                selectedShipper,
+                isAreaMatch,
+                ActiveShipmentCountResolver(selectedShipper.UserId))
+        </p>
+    }
+    else
+    {
+        <p class="shipper-meta">@OperationsDisplay.FormatDefaultShipperMeta(Shipment, MatchedOptions.Count)</p>
+    }
+
+    @if (RowMessages.TryGetValue(Shipment.ShipmentId, out var rowMessage))
+    {
+        <p class="row-message @rowMessage.Kind">@rowMessage.Text</p>
+    }
+</td>
+<td>
+    <div class="assignment-actions">
+        <label class="bulk-select">
+            <input type="checkbox"
+                   checked="@SelectedShipmentIds.Contains(Shipment.ShipmentId)"
+                   @onchange="eventArgs => ToggleSelection.InvokeAsync(new PendingShipmentSelectionChanged(Shipment.ShipmentId, ToBool(eventArgs)))" />
+            <span>Chon bulk</span>
+        </label>
+        <button type="button"
+                class="retry-button"
+                disabled="@IsBusy()"
+                @onclick="() => RetryAutoAssign.InvokeAsync(Shipment)">
+            @(IsRetrying() ? "Đang retry..." : "Retry auto")
+        </button>
+        <button type="button"
+                class="assign-button"
+                disabled="@IsBusy()"
+                @onclick="() => AssignShipment.InvokeAsync(Shipment)">
+            @(IsAssigning() ? "Đang phân công..." : "Phân công")
+        </button>
+    </div>
+</td>
+
+@code {
+    [Parameter, EditorRequired]
+    public GetPendingPickupShipmentResponse Shipment { get; set; } = default!;
+
+    [Parameter, EditorRequired]
+    public OperationsPendingAssignmentInsight Insight { get; set; } = default!;
+
+    [Parameter]
+    public IReadOnlyList<OperationsShipperOption> ShipperOptions { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyList<GetActiveShipperResponse> ActiveShippers { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, Guid> SelectedShipperIds { get; set; } = new Dictionary<Guid, Guid>();
+
+    [Parameter]
+    public IReadOnlySet<Guid> SelectedShipmentIds { get; set; } = new HashSet<Guid>();
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, OperationsRowMessage> RowMessages { get; set; } = new Dictionary<Guid, OperationsRowMessage>();
+
+    [Parameter]
+    public Guid? AssigningShipmentId { get; set; }
+
+    [Parameter]
+    public Guid? RetryingShipmentId { get; set; }
+
+    [Parameter]
+    public Func<Guid, int> ActiveShipmentCountResolver { get; set; } = _ => 0;
+
+    [Parameter]
+    public EventCallback<PendingShipperSelectionChanged> SelectShipper { get; set; }
+
+    [Parameter]
+    public EventCallback<PendingShipmentSelectionChanged> ToggleSelection { get; set; }
+
+    [Parameter]
+    public EventCallback<GetPendingPickupShipmentResponse> RetryAutoAssign { get; set; }
+
+    [Parameter]
+    public EventCallback<GetPendingPickupShipmentResponse> AssignShipment { get; set; }
+
+    private IReadOnlyList<OperationsShipperOption> MatchedOptions =>
+        ShipperOptions.Where(option => option.MatchesPickupArea).ToList();
+
+    private IReadOnlyList<OperationsShipperOption> OverrideOptions =>
+        ShipperOptions.Where(option => !option.MatchesPickupArea).ToList();
+
+    private bool TryGetSelectedShipper(out GetActiveShipperResponse shipper)
+    {
+        shipper = null!;
+
+        if (!SelectedShipperIds.TryGetValue(Shipment.ShipmentId, out var shipperId))
+        {
+            return false;
+        }
+
+        var selectedShipper = ActiveShippers.FirstOrDefault(shipper => shipper.UserId == shipperId);
+        if (selectedShipper is null)
+        {
+            return false;
+        }
+
+        shipper = selectedShipper;
+        return true;
+    }
+
+    private string GetSelectedShipperValue()
+    {
+        return SelectedShipperIds.TryGetValue(Shipment.ShipmentId, out var shipperId)
+            ? shipperId.ToString()
+            : string.Empty;
+    }
+
+    private string GetSelectClass()
+    {
+        if (!RowMessages.TryGetValue(Shipment.ShipmentId, out var rowMessage))
+        {
+            return "shipper-select";
+        }
+
+        return rowMessage.Kind switch
+        {
+            "danger" => "shipper-select invalid",
+            "warning" => "shipper-select warning",
+            _ => "shipper-select"
+        };
+    }
+
+    private bool IsAssigning()
+    {
+        return AssigningShipmentId == Shipment.ShipmentId;
+    }
+
+    private bool IsRetrying()
+    {
+        return RetryingShipmentId == Shipment.ShipmentId;
+    }
+
+    private bool IsBusy()
+    {
+        return IsAssigning() || IsRetrying();
+    }
+
+    private static bool ToBool(ChangeEventArgs eventArgs)
+    {
+        return eventArgs.Value is bool value && value;
+    }
+}

@@ -31,6 +31,7 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
     private readonly IExternalShipmentReferenceRepository _externalShipmentReferenceRepository;
     private readonly IAutoAssignShipmentService _autoAssignShipmentService;
     private readonly IWebhookEventPublisher _webhookEventPublisher;
+    private readonly TimeProvider _timeProvider;
 
     public PartnerCreateShipmentService(
         IValidator<PartnerCreateShipmentCommand> validator,
@@ -41,6 +42,7 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
         ICodTransactionRepository codTransactionRepository,
         IExternalShipmentReferenceRepository externalShipmentReferenceRepository,
         IAutoAssignShipmentService autoAssignShipmentService,
+        TimeProvider timeProvider,
         IWebhookEventPublisher? webhookEventPublisher = null)
     {
         _validator = validator;
@@ -51,6 +53,7 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
         _codTransactionRepository = codTransactionRepository;
         _externalShipmentReferenceRepository = externalShipmentReferenceRepository;
         _autoAssignShipmentService = autoAssignShipmentService;
+        _timeProvider = timeProvider;
         _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
     }
 
@@ -138,7 +141,8 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
             return Result<PartnerCreateShipmentResult>.Failure(feeResult.Error);
         }
 
-        var trackingCode = await GenerateUniqueTrackingCodeAsync(cancellationToken);
+        var now = _timeProvider.GetUtcNow();
+        var trackingCode = await GenerateUniqueTrackingCodeAsync(now, cancellationToken);
         var shipment = Shipment.Create(
             shop.Id,
             senderName,
@@ -155,9 +159,10 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
             feeResult.Value.Breakdown,
             routeResult.Value.RouteType,
             shop.OwnerUserId,
+            now,
             command.Note,
             trackingCode);
-        var codTransaction = CodTransaction.Create(shipment.Id, codAmount);
+        var codTransaction = CodTransaction.Create(shipment.Id, codAmount, now);
 
         var response = ToResponse(shipment, command.ExternalOrderId);
         var responseJson = JsonSerializer.Serialize(response, SnapshotJsonOptions);
@@ -168,7 +173,8 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
             command.ExternalOrderId,
             command.IdempotencyKey,
             requestHash,
-            responseJson);
+            responseJson,
+            now);
 
         await _shipmentRepository.AddAsync(shipment, cancellationToken);
         await _codTransactionRepository.AddAsync(codTransaction, cancellationToken);
@@ -185,18 +191,22 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
         var finalResponse = ToResponse(shipment, command.ExternalOrderId);
         if (finalResponse.Status != response.Status)
         {
-            reference.UpdateResponseSnapshot(JsonSerializer.Serialize(finalResponse, SnapshotJsonOptions));
+            reference.UpdateResponseSnapshot(
+                JsonSerializer.Serialize(finalResponse, SnapshotJsonOptions),
+                _timeProvider.GetUtcNow());
             await _shipmentRepository.SaveChangesAsync(cancellationToken);
         }
 
         return Result<PartnerCreateShipmentResult>.Success(new PartnerCreateShipmentResult(finalResponse, false));
     }
 
-    private async Task<TrackingCode> GenerateUniqueTrackingCodeAsync(CancellationToken cancellationToken)
+    private async Task<TrackingCode> GenerateUniqueTrackingCodeAsync(
+        DateTimeOffset generatedAtUtc,
+        CancellationToken cancellationToken)
     {
         for (var attempt = 0; attempt < MaxTrackingCodeGenerationAttempts; attempt++)
         {
-            var trackingCode = TrackingCode.Generate();
+            var trackingCode = TrackingCode.Generate(generatedAtUtc);
             var exists = await _shipmentRepository.ExistsByTrackingCodeAsync(trackingCode, cancellationToken);
 
             if (!exists)

@@ -3,6 +3,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.Shipments;
 
+/// <summary>
+/// Represents the validated Tracking Code value used by the domain model.
+/// </summary>
 public sealed record TrackingCode
 {
     private const string Prefix = "ML";
@@ -19,9 +22,9 @@ public sealed record TrackingCode
 
     public string Value { get; }
 
-    public static TrackingCode Generate()
+    public static TrackingCode Generate(DateTimeOffset generatedAtUtc)
     {
-        var datePart = DateTimeOffset.UtcNow.ToString("yyyyMMddHHmmss");
+        var datePart = generatedAtUtc.ToString("yyyyMMddHHmmss");
         var randomPart = RandomNumberGenerator.GetInt32(1000, 9999).ToString();
 
         return new TrackingCode($"{Prefix}{datePart}{randomPart}");

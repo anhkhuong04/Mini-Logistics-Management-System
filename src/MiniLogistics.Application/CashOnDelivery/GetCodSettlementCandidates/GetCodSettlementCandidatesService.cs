@@ -8,12 +8,12 @@ namespace MiniLogistics.Application.CashOnDelivery.GetCodSettlementCandidates;
 public sealed class GetCodSettlementCandidatesService : IGetCodSettlementCandidatesService
 {
     private readonly ICodTransactionRepository _codTransactionRepository;
-    private readonly IShipmentRepository _shipmentRepository;
+    private readonly IShipmentReadRepository _shipmentRepository;
     private readonly IIdentityService _identityService;
 
     public GetCodSettlementCandidatesService(
         ICodTransactionRepository codTransactionRepository,
-        IShipmentRepository shipmentRepository,
+        IShipmentReadRepository shipmentRepository,
         IIdentityService identityService)
     {
         _codTransactionRepository = codTransactionRepository;

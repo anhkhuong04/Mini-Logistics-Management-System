@@ -1,5 +1,8 @@
 namespace MiniLogistics.Domain.Common;
 
+/// <summary>
+/// Base type for domain entities with a stable identifier.
+/// </summary>
 public abstract class Entity
 {
     protected Entity()
@@ -16,5 +19,5 @@ public abstract class Entity
         Id = id;
     }
 
-    public Guid Id { get; protected set; }
+    public Guid Id { get; private set; }
 }

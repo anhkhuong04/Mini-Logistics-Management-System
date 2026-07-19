@@ -2,6 +2,9 @@ using MiniLogistics.Domain.CashOnDelivery;
 
 namespace MiniLogistics.Application.CashOnDelivery;
 
+/// <summary>
+/// Defines persistence operations for Cod Transaction data.
+/// </summary>
 public interface ICodTransactionRepository
 {
     Task<IReadOnlyList<CodTransaction>> GetByStatusesAsync(

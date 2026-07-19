@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.AdminAuditing;
 
+/// <summary>
+/// Represents the Admin Audit Log domain entity.
+/// </summary>
 public sealed class AdminAuditLog : AuditableEntity
 {
     private AdminAuditLog()
@@ -17,12 +20,13 @@ public sealed class AdminAuditLog : AuditableEntity
         string action,
         string targetType,
         Guid targetId,
+        DateTimeOffset createdAtUtc,
         string? oldValueJson = null,
         string? newValueJson = null,
         string? reason = null,
         string? ipAddress = null,
         string? userAgent = null)
-        : base(Guid.NewGuid())
+        : base(Guid.NewGuid(), createdAtUtc)
     {
         if (actorUserId == Guid.Empty)
         {
@@ -35,15 +39,15 @@ public sealed class AdminAuditLog : AuditableEntity
         }
 
         ActorUserId = actorUserId;
-        ActorRole = RequireText(actorRole, nameof(actorRole), 50);
-        Action = RequireText(action, nameof(action), 120);
-        TargetType = RequireText(targetType, nameof(targetType), 80);
+        ActorRole = DomainGuard.RequireText(actorRole, nameof(actorRole), 50);
+        Action = DomainGuard.RequireText(action, nameof(action), 120);
+        TargetType = DomainGuard.RequireText(targetType, nameof(targetType), 80);
         TargetId = targetId;
-        OldValueJson = TrimOptional(oldValueJson, 4000);
-        NewValueJson = TrimOptional(newValueJson, 4000);
-        Reason = TrimOptional(reason, 500);
-        IpAddress = TrimOptional(ipAddress, 64);
-        UserAgent = TrimOptional(userAgent, 300);
+        OldValueJson = DomainGuard.TrimOptional(oldValueJson, 4000);
+        NewValueJson = DomainGuard.TrimOptional(newValueJson, 4000);
+        Reason = DomainGuard.TrimOptional(reason, 500);
+        IpAddress = DomainGuard.TrimOptional(ipAddress, 64);
+        UserAgent = DomainGuard.TrimOptional(userAgent, 300);
     }
 
     public Guid ActorUserId { get; private set; }
@@ -66,30 +70,4 @@ public sealed class AdminAuditLog : AuditableEntity
 
     public string? UserAgent { get; private set; }
 
-    private static string RequireText(string value, string fieldName, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new DomainException($"{fieldName} is required.");
-        }
-
-        var trimmed = value.Trim();
-        if (trimmed.Length > maxLength)
-        {
-            throw new DomainException($"{fieldName} cannot exceed {maxLength} characters.");
-        }
-
-        return trimmed;
-    }
-
-    private static string? TrimOptional(string? value, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        var trimmed = value.Trim();
-        return trimmed[..Math.Min(trimmed.Length, maxLength)];
-    }
 }

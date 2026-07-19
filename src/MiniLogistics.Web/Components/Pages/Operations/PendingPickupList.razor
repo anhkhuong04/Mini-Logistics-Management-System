@@ -1,0 +1,192 @@
+<section class="content-card workspace-section">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Phân công</p>
+            <h2>Đơn chờ phân công</h2>
+        </div>
+        <span class="section-count">@TotalCount.ToString("N0") đơn</span>
+    </div>
+
+    <BulkRetryPanel PendingShipmentCount="Shipments.Count"
+                    SelectedCount="SelectedShipmentIds.Count"
+                    IsBulkRetrying="IsBulkRetrying"
+                    Message="BulkRetryMessage"
+                    SelectVisible="SelectVisible"
+                    ClearSelection="ClearSelection"
+                    RetrySelected="BulkRetry" />
+
+    @if (Shipments.Count == 0)
+    {
+        <div class="state-card compact">
+            <span class="state-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" />
+                </svg>
+            </span>
+            <strong>Không có đơn PendingPickup</strong>
+            <p>Đơn shop mới tạo ở trạng thái PendingPickup sẽ xuất hiện tại đây.</p>
+        </div>
+    }
+    else
+    {
+        @if (ActiveShippers.Count == 0)
+        {
+            <div class="alert-box warning" role="status">
+                Chưa có shipper active. Các đơn PendingPickup vẫn được giữ lại để Operations theo dõi và retry sau.
+            </div>
+        }
+
+        <div class="table-shell">
+            <table class="assignments-table pending-table">
+                <thead>
+                    <tr>
+                        <th>Mã vận đơn</th>
+                        <th>Người nhận</th>
+                        <th>Tuyến</th>
+                        <th>COD</th>
+                        <th>Phí ship</th>
+                        <th>Ngày tạo</th>
+                        <th>Fallback</th>
+                        <th>Shipper</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var shipment in Shipments)
+                    {
+                        var insight = GetPendingInsight(shipment);
+                        var shipperOptions = OperationsAssignmentUiModels.BuildShipperOptions(
+                            shipment,
+                            insight,
+                            ActiveShippers,
+                            ActiveShipmentCountResolver);
+
+                        <tr>
+                            <td><span class="tracking-code">@shipment.TrackingCode</span></td>
+                            <td>@shipment.ReceiverName</td>
+                            <td>
+                                <span class="route-text">@shipment.PickupProvince</span>
+                                <svg class="route-arrow" viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="m13 5 7 7-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6L13 5Z" />
+                                </svg>
+                                <span class="route-text">@shipment.DeliveryProvince</span>
+                            </td>
+                            <td>@OperationsDisplay.FormatMoney(shipment.CodAmount, shipment.Currency)</td>
+                            <td>@OperationsDisplay.FormatMoney(shipment.ShippingFeeAmount, shipment.Currency)</td>
+                            <td>@OperationsDisplay.FormatDate(shipment.CreatedAtUtc)</td>
+                            <td>
+                                <span class="fallback-pill @(insight.HasMatchedShippers ? "info" : "warning")">
+                                    @(insight.HasMatchedShippers ? "Có ứng viên" : "Cần manual")
+                                </span>
+                                <small class="fallback-reason">@insight.FallbackReason</small>
+                                <SlaIndicatorBadge Visible="shipment.IsSlaOverdue" Text="Qua SLA pending pickup" />
+                            </td>
+                            <AssignShipperDialog Shipment="shipment"
+                                                 Insight="insight"
+                                                 ShipperOptions="shipperOptions"
+                                                 ActiveShippers="ActiveShippers"
+                                                 SelectedShipperIds="SelectedShipperIds"
+                                                 SelectedShipmentIds="SelectedShipmentIds"
+                                                 RowMessages="RowMessages"
+                                                 AssigningShipmentId="AssigningShipmentId"
+                                                 RetryingShipmentId="RetryingShipmentId"
+                                                 ActiveShipmentCountResolver="ActiveShipmentCountResolver"
+                                                 SelectShipper="SelectShipper"
+                                                 ToggleSelection="ToggleSelection"
+                                                 RetryAutoAssign="RetryAutoAssign"
+                                                 AssignShipment="AssignShipment" />
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="pagination-bar">
+            <span>Trang @PageNumber.ToString("N0") / @TotalPages.ToString("N0")</span>
+            <button type="button" class="retry-button" disabled="@(PageNumber <= 1)" @onclick="PreviousPage">Truoc</button>
+            <button type="button" class="retry-button" disabled="@(PageNumber >= TotalPages)" @onclick="NextPage">Sau</button>
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<GetPendingPickupShipmentResponse> Shipments { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyList<GetActiveShipperResponse> ActiveShippers { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, OperationsPendingAssignmentInsight> PendingAssignmentInsights { get; set; }
+        = new Dictionary<Guid, OperationsPendingAssignmentInsight>();
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, Guid> SelectedShipperIds { get; set; } = new Dictionary<Guid, Guid>();
+
+    [Parameter]
+    public IReadOnlySet<Guid> SelectedShipmentIds { get; set; } = new HashSet<Guid>();
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, OperationsRowMessage> RowMessages { get; set; } = new Dictionary<Guid, OperationsRowMessage>();
+
+    [Parameter]
+    public int TotalCount { get; set; }
+
+    [Parameter]
+    public int PageNumber { get; set; } = 1;
+
+    [Parameter]
+    public int TotalPages { get; set; } = 1;
+
+    [Parameter]
+    public bool IsBulkRetrying { get; set; }
+
+    [Parameter]
+    public string? BulkRetryMessage { get; set; }
+
+    [Parameter]
+    public Guid? AssigningShipmentId { get; set; }
+
+    [Parameter]
+    public Guid? RetryingShipmentId { get; set; }
+
+    [Parameter]
+    public Func<Guid, int> ActiveShipmentCountResolver { get; set; } = _ => 0;
+
+    [Parameter]
+    public EventCallback SelectVisible { get; set; }
+
+    [Parameter]
+    public EventCallback ClearSelection { get; set; }
+
+    [Parameter]
+    public EventCallback BulkRetry { get; set; }
+
+    [Parameter]
+    public EventCallback<PendingShipperSelectionChanged> SelectShipper { get; set; }
+
+    [Parameter]
+    public EventCallback<PendingShipmentSelectionChanged> ToggleSelection { get; set; }
+
+    [Parameter]
+    public EventCallback<GetPendingPickupShipmentResponse> RetryAutoAssign { get; set; }
+
+    [Parameter]
+    public EventCallback<GetPendingPickupShipmentResponse> AssignShipment { get; set; }
+
+    [Parameter]
+    public EventCallback PreviousPage { get; set; }
+
+    [Parameter]
+    public EventCallback NextPage { get; set; }
+
+    private OperationsPendingAssignmentInsight GetPendingInsight(GetPendingPickupShipmentResponse shipment)
+    {
+        if (PendingAssignmentInsights.TryGetValue(shipment.ShipmentId, out var insight))
+        {
+            return insight;
+        }
+
+        return OperationsAssignmentUiModels.BuildPendingInsights([shipment], ActiveShippers)[shipment.ShipmentId];
+    }
+}

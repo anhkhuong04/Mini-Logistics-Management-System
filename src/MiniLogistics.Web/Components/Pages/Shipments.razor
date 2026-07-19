@@ -75,7 +75,7 @@
             <strong>Đang tải danh sách đơn hàng</strong>
         </section>
     }
-    else if (ShipmentItems.Count == 0)
+    else if (ShipmentTotalCount == 0 && !HasActiveShipmentFilters)
     {
         <section class="content-card state-card">
             <span class="state-icon">
@@ -90,7 +90,45 @@
     }
     else
     {
-        <section class="content-card">
+        <section class="content-card shipment-list-card">
+            <div class="shipment-list-toolbar">
+                <label>
+                    Search
+                    <input type="search" @bind="ShipmentSearchText" placeholder="Tracking code or receiver" />
+                </label>
+                <label>
+                    Status
+                    <select @bind="SelectedStatusFilter">
+                        <option value="">All statuses</option>
+                        @foreach (var status in ShipmentStatusFilters)
+                        {
+                            <option value="@status.ToString()">@FormatStatus(status)</option>
+                        }
+                    </select>
+                </label>
+                <div class="shipment-list-actions">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="ApplyShipmentFiltersAsync" disabled="@IsLoadingShipments">
+                        Filter
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="ClearShipmentFiltersAsync" disabled="@(!HasActiveShipmentFilters || IsLoadingShipments)">
+                        Reset
+                    </button>
+                </div>
+            </div>
+
+            @if (IsLoadingShipments)
+            {
+                <div class="table-empty-state" aria-live="polite">Loading shipments...</div>
+            }
+            else if (ShipmentItems.Count == 0)
+            {
+                <div class="table-empty-state">
+                    <strong>No matching shipments</strong>
+                    <p>Adjust the tracking code or status filter.</p>
+                </div>
+            }
+            else
+            {
             <div class="table-shell">
                 <table class="shipments-table">
                     <thead>
@@ -143,6 +181,19 @@
                         }
                     </tbody>
                 </table>
+            </div>
+            }
+
+            <div class="pagination-bar" aria-label="Shipment pagination">
+                <span>@ShipmentPageSummary</span>
+                <div class="pagination-actions">
+                    <button type="button" class="btn btn-outline-secondary" @onclick="PreviousShipmentPageAsync" disabled="@(ShipmentPageNumber <= 1 || IsLoadingShipments)">
+                        Previous
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" @onclick="NextShipmentPageAsync" disabled="@(ShipmentPageNumber >= ShipmentTotalPages || IsLoadingShipments)">
+                        Next
+                    </button>
+                </div>
             </div>
         </section>
     }
@@ -328,6 +379,7 @@
 
 @code {
     private const long MaxImportFileSize = 2_000_000;
+    private const int ShipmentPageSize = 20;
 
     private const string CsvTemplate = """
 clientOrderCode,receiverName,receiverPhone,deliveryStreet,deliveryWard,deliveryProvince,deliveryCountry,weightKg,lengthCm,widthCm,heightCm,goodsValueAmount,codAmount,note
@@ -363,6 +415,41 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
     private ShipmentImportConfirmResponse? ImportConfirmResult { get; set; }
 
     private IReadOnlyList<ShipmentListItemResponse> ShipmentItems { get; set; } = [];
+
+    private int ShipmentPageNumber { get; set; } = 1;
+
+    private int ShipmentTotalCount { get; set; }
+
+    private int ShipmentTotalPages { get; set; }
+
+    private bool IsLoadingShipments { get; set; }
+
+    private string ShipmentSearchText { get; set; } = string.Empty;
+
+    private string SelectedStatusFilter { get; set; } = string.Empty;
+
+    private bool HasActiveShipmentFilters =>
+        !string.IsNullOrWhiteSpace(ShipmentSearchText)
+        || !string.IsNullOrWhiteSpace(SelectedStatusFilter);
+
+    private string ShipmentPageSummary => ShipmentTotalCount == 0
+        ? "0 shipments"
+        : $"Page {ShipmentPageNumber:N0} of {ShipmentTotalPages:N0} - {ShipmentTotalCount:N0} shipments";
+
+    private static readonly ShipmentStatus[] ShipmentStatusFilters =
+    [
+        ShipmentStatus.Draft,
+        ShipmentStatus.PendingPickup,
+        ShipmentStatus.Assigned,
+        ShipmentStatus.PickingUp,
+        ShipmentStatus.PickedUp,
+        ShipmentStatus.InTransit,
+        ShipmentStatus.Delivering,
+        ShipmentStatus.Delivered,
+        ShipmentStatus.DeliveryFailed,
+        ShipmentStatus.Returned,
+        ShipmentStatus.Cancelled
+    ];
 
     private bool CanPreviewImport => SelectedShop?.IsActive == true && !IsPreviewingImport && !IsConfirmingImport;
 
@@ -405,7 +492,7 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
     {
         IsLoading = true;
         ErrorMessage = null;
-        ShipmentItems = [];
+        ResetShipmentResults();
 
         var userId = await GetCurrentUserIdAsync();
         if (userId is null)
@@ -428,6 +515,7 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
         if (previousShopId != Guid.Empty && previousShopId != SelectedShopId)
         {
             ClearImportState();
+            ShipmentPageNumber = 1;
         }
 
         await LoadShipmentItemsAsync(userId.Value);
@@ -436,15 +524,98 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
 
     private async Task LoadShipmentItemsAsync(Guid userId)
     {
-        var result = await GetShipmentsForCurrentShopService.GetAsync(userId, SelectedShopId);
-        if (result.IsFailure)
+        IsLoadingShipments = true;
+        try
         {
-            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            var result = await GetShipmentsForCurrentShopService.SearchAsync(
+                new GetShipmentsForCurrentShopQuery(
+                    userId,
+                    SelectedShopId,
+                    ParseStatusFilter(),
+                    ShipmentSearchText,
+                    ShipmentPageNumber,
+                    ShipmentPageSize));
+
+            if (result.IsFailure)
+            {
+                ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+                ResetShipmentResults();
+                return;
+            }
+
+            ShipmentItems = result.Value.Items;
+            ShipmentPageNumber = result.Value.PageNumber;
+            ShipmentTotalCount = result.Value.TotalCount;
+            ShipmentTotalPages = result.Value.TotalPages;
         }
-        else
+        finally
         {
-            ShipmentItems = result.Value;
+            IsLoadingShipments = false;
         }
+    }
+
+    private async Task ApplyShipmentFiltersAsync()
+    {
+        ShipmentPageNumber = 1;
+        await ReloadShipmentItemsForCurrentUserAsync();
+    }
+
+    private async Task ClearShipmentFiltersAsync()
+    {
+        ShipmentSearchText = string.Empty;
+        SelectedStatusFilter = string.Empty;
+        ShipmentPageNumber = 1;
+        await ReloadShipmentItemsForCurrentUserAsync();
+    }
+
+    private async Task PreviousShipmentPageAsync()
+    {
+        if (ShipmentPageNumber <= 1)
+        {
+            return;
+        }
+
+        ShipmentPageNumber--;
+        await ReloadShipmentItemsForCurrentUserAsync();
+    }
+
+    private async Task NextShipmentPageAsync()
+    {
+        if (ShipmentPageNumber >= ShipmentTotalPages)
+        {
+            return;
+        }
+
+        ShipmentPageNumber++;
+        await ReloadShipmentItemsForCurrentUserAsync();
+    }
+
+    private async Task ReloadShipmentItemsForCurrentUserAsync()
+    {
+        ErrorMessage = null;
+
+        var userId = await GetCurrentUserIdAsync();
+        if (userId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        await LoadShipmentItemsAsync(userId.Value);
+    }
+
+    private ShipmentStatus? ParseStatusFilter()
+    {
+        return Enum.TryParse<ShipmentStatus>(SelectedStatusFilter, out var status)
+            ? status
+            : null;
+    }
+
+    private void ResetShipmentResults()
+    {
+        ShipmentItems = [];
+        ShipmentTotalCount = 0;
+        ShipmentTotalPages = 0;
     }
 
     private void OnShopChanged(ChangeEventArgs args)
@@ -560,6 +731,7 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
             ImportConfirmResult = result.Value;
             ImportPreview = null;
             ImportSuccessMessage = $"Da tao {result.Value.CreatedRows:N0}/{result.Value.TotalRows:N0} don hang.";
+            ShipmentPageNumber = 1;
             await LoadShipmentItemsAsync(userId.Value);
         }
         finally

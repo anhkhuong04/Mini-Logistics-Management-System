@@ -19,7 +19,8 @@ public sealed class PartnerApiRateLimiterTests
                 CreateShipmentLimitPerMinute = 1,
                 TrackingLimitPerMinute = 1,
                 CancelShipmentLimitPerMinute = 1
-            }));
+            }),
+            TestClock.Provider);
         var firstApiClientId = Guid.NewGuid();
         var secondApiClientId = Guid.NewGuid();
 

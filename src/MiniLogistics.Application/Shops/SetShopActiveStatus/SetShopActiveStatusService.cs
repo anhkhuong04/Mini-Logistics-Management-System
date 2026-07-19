@@ -13,16 +13,19 @@ public sealed class SetShopActiveStatusService : ISetShopActiveStatusService
     private readonly IIdentityService _identityService;
     private readonly IShopRepository _shopRepository;
     private readonly IAdminAuditService _adminAuditService;
+    private readonly TimeProvider _timeProvider;
 
     public SetShopActiveStatusService(
         IValidator<SetShopActiveStatusCommand> validator,
         IIdentityService identityService,
         IShopRepository shopRepository,
+        TimeProvider timeProvider,
         IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _shopRepository = shopRepository;
+        _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
@@ -57,11 +60,11 @@ public sealed class SetShopActiveStatusService : ISetShopActiveStatusService
 
         if (command.IsActive)
         {
-            shop.Activate();
+            shop.Activate(_timeProvider.GetUtcNow());
         }
         else
         {
-            shop.Deactivate();
+            shop.Deactivate(_timeProvider.GetUtcNow());
         }
 
         await _adminAuditService.RecordAsync(

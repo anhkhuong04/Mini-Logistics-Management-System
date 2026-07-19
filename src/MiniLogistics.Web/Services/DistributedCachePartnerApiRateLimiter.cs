@@ -11,13 +11,16 @@ public sealed class DistributedCachePartnerApiRateLimiter : IPartnerApiRateLimit
 
     private readonly IDistributedCache _cache;
     private readonly PartnerApiRateLimitOptions _options;
+    private readonly TimeProvider _timeProvider;
 
     public DistributedCachePartnerApiRateLimiter(
         IDistributedCache cache,
-        IOptions<PartnerApiRateLimitOptions> options)
+        IOptions<PartnerApiRateLimitOptions> options,
+        TimeProvider timeProvider)
     {
         _cache = cache;
         _options = options.Value;
+        _timeProvider = timeProvider;
     }
 
     public bool TryAcquire(
@@ -25,7 +28,7 @@ public sealed class DistributedCachePartnerApiRateLimiter : IPartnerApiRateLimit
         PartnerApiRateLimitKind kind,
         out TimeSpan retryAfter)
     {
-        var nowUnixSeconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        var nowUnixSeconds = _timeProvider.GetUtcNow().ToUnixTimeSeconds();
         var windowStartedAtUnixSeconds = nowUnixSeconds / WindowSeconds * WindowSeconds;
         var windowEndsAtUnixSeconds = windowStartedAtUnixSeconds + WindowSeconds;
         var key = $"partner-api-rate:{apiClientId:N}:{kind}:{windowStartedAtUnixSeconds}";

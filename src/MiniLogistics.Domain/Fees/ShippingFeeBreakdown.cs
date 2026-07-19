@@ -2,6 +2,9 @@ using MiniLogistics.Domain.ValueObjects;
 
 namespace MiniLogistics.Domain.Fees;
 
+/// <summary>
+/// Represents the validated Shipping Fee Breakdown value used by the domain model.
+/// </summary>
 public sealed record ShippingFeeBreakdown
 {
     private ShippingFeeBreakdown()

@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.PartnerApi;
 
+/// <summary>
+/// Represents the Partner Api Request Audit domain entity.
+/// </summary>
 public sealed class PartnerApiRequestAudit : AuditableEntity
 {
     private PartnerApiRequestAudit()
@@ -28,8 +31,9 @@ public sealed class PartnerApiRequestAudit : AuditableEntity
         Guid? shipmentId,
         string? trackingCode,
         string? errorCode,
-        string? errorMessage)
-        : base(Guid.NewGuid())
+        string? errorMessage,
+        DateTimeOffset createdAtUtc)
+        : base(Guid.NewGuid(), createdAtUtc)
     {
         if (apiClientId == Guid.Empty)
         {
@@ -43,20 +47,20 @@ public sealed class PartnerApiRequestAudit : AuditableEntity
 
         ApiClientId = apiClientId;
         ShopId = shopId;
-        Method = RequireText(method, nameof(method), 20);
-        Path = RequireText(path, nameof(path), 300);
-        TraceId = RequireText(traceId, nameof(traceId), 100);
-        ExternalOrderId = TrimOptional(externalOrderId, 100);
-        IdempotencyKey = TrimOptional(idempotencyKey, 150);
-        RequestHash = RequireText(requestHash, nameof(requestHash), 128);
+        Method = DomainGuard.RequireText(method, nameof(method), 20);
+        Path = DomainGuard.RequireText(path, nameof(path), 300);
+        TraceId = DomainGuard.RequireText(traceId, nameof(traceId), 100);
+        ExternalOrderId = DomainGuard.TrimOptional(externalOrderId, 100);
+        IdempotencyKey = DomainGuard.TrimOptional(idempotencyKey, 150);
+        RequestHash = DomainGuard.RequireText(requestHash, nameof(requestHash), 128);
         StatusCode = statusCode;
         DurationMs = Math.Max(0, durationMs);
         IsSuccess = isSuccess;
         IsIdempotentReplay = isIdempotentReplay;
         ShipmentId = shipmentId;
-        TrackingCode = TrimOptional(trackingCode, 50);
-        ErrorCode = TrimOptional(errorCode, 100);
-        ErrorMessage = TrimOptional(errorMessage, 500);
+        TrackingCode = DomainGuard.TrimOptional(trackingCode, 50);
+        ErrorCode = DomainGuard.TrimOptional(errorCode, 100);
+        ErrorMessage = DomainGuard.TrimOptional(errorMessage, 500);
     }
 
     public Guid ApiClientId { get; private set; }
@@ -91,30 +95,4 @@ public sealed class PartnerApiRequestAudit : AuditableEntity
 
     public string? ErrorMessage { get; private set; }
 
-    private static string RequireText(string value, string fieldName, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new DomainException($"{fieldName} is required.");
-        }
-
-        var trimmed = value.Trim();
-        if (trimmed.Length > maxLength)
-        {
-            throw new DomainException($"{fieldName} cannot exceed {maxLength} characters.");
-        }
-
-        return trimmed;
-    }
-
-    private static string? TrimOptional(string? value, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return null;
-        }
-
-        var trimmed = value.Trim();
-        return trimmed[..Math.Min(trimmed.Length, maxLength)];
-    }
 }

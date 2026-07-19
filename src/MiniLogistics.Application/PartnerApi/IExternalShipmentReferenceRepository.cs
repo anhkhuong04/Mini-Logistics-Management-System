@@ -2,6 +2,9 @@ using MiniLogistics.Domain.PartnerApi;
 
 namespace MiniLogistics.Application.PartnerApi;
 
+/// <summary>
+/// Defines persistence operations for External Shipment Reference data.
+/// </summary>
 public interface IExternalShipmentReferenceRepository
 {
     Task<ExternalShipmentReference?> GetByApiClientAndIdempotencyKeyAsync(

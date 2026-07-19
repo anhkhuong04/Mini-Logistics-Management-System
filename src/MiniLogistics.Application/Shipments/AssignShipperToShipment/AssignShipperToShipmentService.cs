@@ -15,17 +15,20 @@ public sealed class AssignShipperToShipmentService : IAssignShipperToShipmentSer
     private readonly IShipmentRepository _shipmentRepository;
     private readonly IWebhookEventPublisher _webhookEventPublisher;
     private readonly IAdminAuditService _adminAuditService;
+    private readonly TimeProvider _timeProvider;
 
     public AssignShipperToShipmentService(
         IValidator<AssignShipperCommand> validator,
         IIdentityService identityService,
         IShipmentRepository shipmentRepository,
+        TimeProvider timeProvider,
         IWebhookEventPublisher? webhookEventPublisher = null,
         IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _shipmentRepository = shipmentRepository;
+        _timeProvider = timeProvider;
         _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
@@ -71,6 +74,7 @@ public sealed class AssignShipperToShipmentService : IAssignShipperToShipmentSer
         var assignResult = shipment.AssignShipper(
             command.ShipperId,
             command.AssignedByUserId,
+            _timeProvider.GetUtcNow(),
             command.Note);
 
         if (assignResult.IsFailure)

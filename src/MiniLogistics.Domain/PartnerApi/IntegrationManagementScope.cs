@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.PartnerApi;
 
+/// <summary>
+/// Represents the Integration Management Scope domain entity.
+/// </summary>
 public sealed class IntegrationManagementScope : AuditableEntity
 {
     private IntegrationManagementScope()
@@ -11,10 +14,11 @@ public sealed class IntegrationManagementScope : AuditableEntity
 
     public IntegrationManagementScope(
         Guid actorUserId,
+        DateTimeOffset createdAtUtc,
         Guid? shopId = null,
         string? province = null,
         bool isGlobal = false)
-        : base(Guid.NewGuid())
+        : base(Guid.NewGuid(), createdAtUtc)
     {
         if (actorUserId == Guid.Empty)
         {
@@ -43,7 +47,7 @@ public sealed class IntegrationManagementScope : AuditableEntity
 
     public bool IsActive { get; private set; }
 
-    public void Activate()
+    public void Activate(DateTimeOffset updatedAtUtc)
     {
         if (IsActive)
         {
@@ -51,10 +55,10 @@ public sealed class IntegrationManagementScope : AuditableEntity
         }
 
         IsActive = true;
-        MarkUpdated();
+        MarkUpdated(updatedAtUtc);
     }
 
-    public void Deactivate()
+    public void Deactivate(DateTimeOffset updatedAtUtc)
     {
         if (!IsActive)
         {
@@ -62,7 +66,7 @@ public sealed class IntegrationManagementScope : AuditableEntity
         }
 
         IsActive = false;
-        MarkUpdated();
+        MarkUpdated(updatedAtUtc);
     }
 
     public bool Matches(Guid shopId, string shopProvince)

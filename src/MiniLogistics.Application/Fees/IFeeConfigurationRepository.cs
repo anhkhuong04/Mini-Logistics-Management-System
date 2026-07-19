@@ -3,6 +3,9 @@ using MiniLogistics.Domain.Shipments;
 
 namespace MiniLogistics.Application.Fees;
 
+/// <summary>
+/// Defines persistence operations for Fee Configuration data.
+/// </summary>
 public interface IFeeConfigurationRepository
 {
     Task<IReadOnlyList<FeeRule>> GetAllAsync(CancellationToken cancellationToken = default);

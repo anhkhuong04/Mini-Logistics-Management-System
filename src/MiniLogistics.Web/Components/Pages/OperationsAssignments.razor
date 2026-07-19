@@ -17,6 +17,7 @@
 @using MiniLogistics.Application.Shippers.GetActiveShippers
 @using MiniLogistics.Domain.CashOnDelivery
 @using MiniLogistics.Domain.Shipments
+@using MiniLogistics.Web.Components.Pages.Operations
 @inject IAssignShipperToShipmentService AssignShipperToShipmentService
 @inject IAutoAssignShipmentService AutoAssignShipmentService
 @inject IBulkRetryAutoAssignmentService BulkRetryAutoAssignmentService
@@ -89,7 +90,7 @@
                 </article>
                 <article>
                     <span>COD cần hỗ trợ</span>
-                    <strong>@OperationsShipments.Count(shipment => CanMarkCodCollected(shipment)).ToString("N0")</strong>
+                    <strong>@OperationsShipments.Count(OperationsDisplay.CanMarkCodCollected).ToString("N0")</strong>
                 </article>
                 @if (IsAdminUser)
                 {
@@ -101,502 +102,87 @@
             </div>
         </section>
 
-        <section class="content-card operations-filter-panel">
-            <div class="section-heading">
-                <div>
-                    <p class="eyebrow">Bo loc</p>
-                    <h2>Tim va phan trang workspace</h2>
-                </div>
-                <button type="button" class="retry-button" disabled="@IsLoading" @onclick="ApplyFiltersAsync">Ap dung</button>
-            </div>
+        <OperationsFilterBar IsLoading="IsLoading"
+                             StatusOptions="OperationStatusFilterOptions"
+                             SearchText="FilterSearchText"
+                             SearchTextChanged="value => FilterSearchText = value"
+                             Province="FilterProvince"
+                             ProvinceChanged="value => FilterProvince = value"
+                             Status="FilterStatus"
+                             StatusChanged="value => FilterStatus = value"
+                             CodStatus="FilterCodStatus"
+                             CodStatusChanged="value => FilterCodStatus = value"
+                             ShipperIdText="FilterShipperIdText"
+                             ShipperIdTextChanged="value => FilterShipperIdText = value"
+                             FromDateText="FilterFromDateText"
+                             FromDateTextChanged="value => FilterFromDateText = value"
+                             ToDateText="FilterToDateText"
+                             ToDateTextChanged="value => FilterToDateText = value"
+                             MinCodText="FilterMinCodText"
+                             MinCodTextChanged="value => FilterMinCodText = value"
+                             MaxCodText="FilterMaxCodText"
+                             MaxCodTextChanged="value => FilterMaxCodText = value"
+                             SlaOnly="FilterSlaOnly"
+                             SlaOnlyChanged="value => FilterSlaOnly = value"
+                             ApplyFilters="ApplyFiltersAsync" />
 
-            <div class="filter-grid">
-                <label class="filter-field" for="operations-search">
-                    <span>Search</span>
-                    <input id="operations-search" placeholder="Tracking, nguoi nhan, sdt" @bind="FilterSearchText" @bind:event="oninput" />
-                </label>
-                <label class="filter-field" for="operations-province">
-                    <span>Province</span>
-                    <input id="operations-province" placeholder="Pickup/delivery province" @bind="FilterProvince" @bind:event="oninput" />
-                </label>
-                <label class="filter-field" for="operations-status">
-                    <span>Status</span>
-                    <select id="operations-status" @bind="FilterStatus">
-                        <option value="All">Tat ca</option>
-                        @foreach (var status in OperationStatusFilterOptions)
-                        {
-                            <option value="@status">@FormatStatus(status)</option>
-                        }
-                    </select>
-                </label>
-                <label class="filter-field" for="operations-cod-status">
-                    <span>COD</span>
-                    <select id="operations-cod-status" @bind="FilterCodStatus">
-                        <option value="All">Tat ca</option>
-                        <option value="@CodStatus.PendingCollection">Cho thu</option>
-                        <option value="@CodStatus.Collected">Da thu</option>
-                        <option value="@CodStatus.Settled">Da doi soat</option>
-                    </select>
-                </label>
-                <label class="filter-field" for="operations-shipper">
-                    <span>Shipper id</span>
-                    <input id="operations-shipper" placeholder="Guid" @bind="FilterShipperIdText" @bind:event="oninput" />
-                </label>
-                <label class="filter-field" for="operations-from">
-                    <span>Tu ngay</span>
-                    <input id="operations-from" type="date" value="@FilterFromDateText" @onchange="OnFilterFromChanged" />
-                </label>
-                <label class="filter-field" for="operations-to">
-                    <span>Den ngay</span>
-                    <input id="operations-to" type="date" value="@FilterToDateText" @onchange="OnFilterToChanged" />
-                </label>
-                <label class="filter-field" for="operations-min-cod">
-                    <span>Min COD</span>
-                    <input id="operations-min-cod" inputmode="decimal" @bind="FilterMinCodText" @bind:event="oninput" />
-                </label>
-                <label class="filter-field" for="operations-max-cod">
-                    <span>Max COD</span>
-                    <input id="operations-max-cod" inputmode="decimal" @bind="FilterMaxCodText" @bind:event="oninput" />
-                </label>
-                <label class="sla-toggle" for="operations-sla-only">
-                    <input id="operations-sla-only" type="checkbox" @bind="FilterSlaOnly" />
-                    <span>Chi hien SLA can chu y</span>
-                </label>
-            </div>
-        </section>
+        <PendingPickupList Shipments="PendingShipments"
+                           ActiveShippers="ActiveShippers"
+                           PendingAssignmentInsights="PendingAssignmentInsights"
+                           SelectedShipperIds="SelectedShipperIds"
+                           SelectedShipmentIds="SelectedPendingShipmentIds"
+                           RowMessages="RowMessages"
+                           TotalCount="PendingTotalCount"
+                           PageNumber="PendingPageNumber"
+                           TotalPages="PendingTotalPages"
+                           IsBulkRetrying="IsBulkRetrying"
+                           BulkRetryMessage="BulkRetryMessage"
+                           AssigningShipmentId="AssigningShipmentId"
+                           RetryingShipmentId="RetryingShipmentId"
+                           ActiveShipmentCountResolver="GetActiveShipmentCount"
+                           SelectVisible="SelectVisiblePendingShipments"
+                           ClearSelection="ClearPendingSelection"
+                           BulkRetry="BulkRetryAutoAssignAsync"
+                           SelectShipper="SelectShipper"
+                           ToggleSelection="TogglePendingSelection"
+                           RetryAutoAssign="RetryAutoAssignAsync"
+                           AssignShipment="AssignAsync"
+                           PreviousPage="PreviousPendingPageAsync"
+                           NextPage="NextPendingPageAsync" />
 
-        <section class="content-card workspace-section">
-            <div class="section-heading">
-                <div>
-                    <p class="eyebrow">Phân công</p>
-                    <h2>Đơn chờ phân công</h2>
-                </div>
-                <span class="section-count">@PendingTotalCount.ToString("N0") đơn</span>
-            </div>
-
-            <div class="bulk-toolbar">
-                <span>@SelectedPendingShipmentIds.Count.ToString("N0") don da chon</span>
-                <button type="button" class="retry-button" disabled="@(PendingShipments.Count == 0)" @onclick="SelectVisiblePendingShipments">
-                    Chon trang nay
-                </button>
-                <button type="button" class="retry-button" disabled="@(SelectedPendingShipmentIds.Count == 0)" @onclick="ClearPendingSelection">
-                    Bo chon
-                </button>
-                <button type="button" class="assign-button" disabled="@(SelectedPendingShipmentIds.Count == 0 || IsBulkRetrying)" @onclick="BulkRetryAutoAssignAsync">
-                    @(IsBulkRetrying ? "Dang bulk retry..." : "Bulk retry auto")
-                </button>
-            </div>
-
-            @if (!string.IsNullOrWhiteSpace(BulkRetryMessage))
-            {
-                <div class="alert-box warning" role="status">@BulkRetryMessage</div>
-            }
-
-            @if (PendingShipments.Count == 0)
-            {
-                <div class="state-card compact">
-                    <span class="state-icon">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" />
-                        </svg>
-                    </span>
-                    <strong>Không có đơn PendingPickup</strong>
-                    <p>Đơn shop mới tạo ở trạng thái PendingPickup sẽ xuất hiện tại đây.</p>
-                </div>
-            }
-            else
-            {
-                @if (ActiveShippers.Count == 0)
-                {
-                    <div class="alert-box warning" role="status">
-                        Chưa có shipper active. Các đơn PendingPickup vẫn được giữ lại để Operations theo dõi và retry sau.
-                    </div>
-                }
-
-                <div class="table-shell">
-                    <table class="assignments-table pending-table">
-                        <thead>
-                            <tr>
-                                <th>Mã vận đơn</th>
-                                <th>Người nhận</th>
-                                <th>Tuyến</th>
-                                <th>COD</th>
-                                <th>Phí ship</th>
-                                <th>Ngày tạo</th>
-                                <th>Fallback</th>
-                                <th>Shipper</th>
-                                <th>Thao tác</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var shipment in PendingShipments)
-                            {
-                                var insight = GetPendingInsight(shipment);
-                                var shipperOptions = GetShipperOptions(shipment, insight);
-                                var matchedOptions = shipperOptions.Where(option => option.MatchesPickupArea).ToList();
-                                var overrideOptions = shipperOptions.Where(option => !option.MatchesPickupArea).ToList();
-
-                                <tr>
-                                    <td><span class="tracking-code">@shipment.TrackingCode</span></td>
-                                    <td>@shipment.ReceiverName</td>
-                                    <td>
-                                        <span class="route-text">@shipment.PickupProvince</span>
-                                        <svg class="route-arrow" viewBox="0 0 24 24" aria-hidden="true">
-                                            <path d="m13 5 7 7-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6L13 5Z" />
-                                        </svg>
-                                        <span class="route-text">@shipment.DeliveryProvince</span>
-                                    </td>
-                                    <td>@FormatMoney(shipment.CodAmount, shipment.Currency)</td>
-                                    <td>@FormatMoney(shipment.ShippingFeeAmount, shipment.Currency)</td>
-                                    <td>@FormatDate(shipment.CreatedAtUtc)</td>
-                                    <td>
-                                        <span class="fallback-pill @(insight.HasMatchedShippers ? "info" : "warning")">
-                                            @(insight.HasMatchedShippers ? "Có ứng viên" : "Cần manual")
-                                        </span>
-                                        <small class="fallback-reason">@insight.FallbackReason</small>
-                                        @if (shipment.IsSlaOverdue)
-                                        {
-                                            <small class="sla-badge">Qua SLA pending pickup</small>
-                                        }
-                                    </td>
-                                    <td>
-                                        <label class="sr-only" for="@($"shipper-{shipment.ShipmentId}")">Chọn shipper</label>
-                                        <select id="@($"shipper-{shipment.ShipmentId}")"
-                                                class="@GetSelectClass(shipment.ShipmentId)"
-                                                value="@GetSelectedShipperValue(shipment.ShipmentId)"
-                                                disabled="@(ActiveShippers.Count == 0 || IsPendingActionBusy(shipment.ShipmentId))"
-                                                @onchange="eventArgs => SelectShipper(shipment, eventArgs.Value?.ToString())">
-                                            <option value="">Chọn shipper</option>
-                                            @if (matchedOptions.Count > 0)
-                                            {
-                                                <optgroup label="Phù hợp khu vực pickup">
-                                                    @foreach (var option in matchedOptions)
-                                                    {
-                                                        <option value="@option.Shipper.UserId">@FormatShipperOption(option)</option>
-                                                    }
-                                                </optgroup>
-                                            }
-                                            @if (overrideOptions.Count > 0)
-                                            {
-                                                <optgroup label="Manual override">
-                                                    @foreach (var option in overrideOptions)
-                                                    {
-                                                        <option value="@option.Shipper.UserId">@FormatShipperOption(option)</option>
-                                                    }
-                                                </optgroup>
-                                            }
-                                        </select>
-                                        @if (TryGetSelectedShipper(shipment.ShipmentId, out var selectedShipper))
-                                        {
-                                            <p class="shipper-meta @GetSelectedShipperMetaClass(shipment, selectedShipper)">
-                                                @FormatSelectedShipperMeta(shipment, selectedShipper)
-                                            </p>
-                                        }
-                                        else
-                                        {
-                                            <p class="shipper-meta">@FormatDefaultShipperMeta(shipment, matchedOptions.Count)</p>
-                                        }
-                                        @if (RowMessages.TryGetValue(shipment.ShipmentId, out var rowMessage))
-                                        {
-                                            <p class="row-message @rowMessage.Kind">@rowMessage.Text</p>
-                                        }
-                                    </td>
-                                    <td>
-                                        <div class="assignment-actions">
-                                            <label class="bulk-select">
-                                                <input type="checkbox"
-                                                       checked="@SelectedPendingShipmentIds.Contains(shipment.ShipmentId)"
-                                                       @onchange="eventArgs => TogglePendingSelection(shipment.ShipmentId, eventArgs.Value)" />
-                                                <span>Chon bulk</span>
-                                            </label>
-                                            <button type="button"
-                                                    class="retry-button"
-                                                    disabled="@IsPendingActionBusy(shipment.ShipmentId)"
-                                                    @onclick="() => RetryAutoAssignAsync(shipment)">
-                                                @(IsRetrying(shipment.ShipmentId) ? "Đang retry..." : "Retry auto")
-                                            </button>
-                                            <button type="button"
-                                                    class="assign-button"
-                                                    disabled="@IsPendingActionBusy(shipment.ShipmentId)"
-                                                    @onclick="() => AssignAsync(shipment)">
-                                                @(IsAssigning(shipment.ShipmentId) ? "Đang phân công..." : "Phân công")
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="pagination-bar">
-                    <span>Trang @PendingPageNumber.ToString("N0") / @PendingTotalPages.ToString("N0")</span>
-                    <button type="button" class="retry-button" disabled="@(PendingPageNumber <= 1)" @onclick="PreviousPendingPageAsync">Truoc</button>
-                    <button type="button" class="retry-button" disabled="@(PendingPageNumber >= PendingTotalPages)" @onclick="NextPendingPageAsync">Sau</button>
-                </div>
-            }
-        </section>
-
-        <section class="content-card workspace-section">
-            <div class="section-heading">
-                <div>
-                    <p class="eyebrow">Theo dõi vận hành</p>
-                    <h2>Đơn đang được xử lý</h2>
-                </div>
-                <span class="section-count">@OperationsShipments.Count.ToString("N0") đơn</span>
-            </div>
-
-            @if (OperationsShipments.Count == 0)
-            {
-                <div class="state-card compact">
-                    <span class="state-icon">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" />
-                        </svg>
-                    </span>
-                    <strong>Không có đơn đang vận hành</strong>
-                    <p>Đơn sau khi assign sẽ xuất hiện tại đây để operator theo dõi.</p>
-                </div>
-            }
-            else
-            {
-                <div class="table-shell">
-                    <table class="assignments-table operations-table">
-                        <thead>
-                            <tr>
-                                <th>Mã vận đơn</th>
-                                <th>Người nhận</th>
-                                <th>Shipper</th>
-                                <th>Trạng thái</th>
-                                <th>COD</th>
-                                <th>Tuyến giao</th>
-                                <th>Hỗ trợ vận hành</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var shipment in OperationsShipments)
-                            {
-                                <tr>
-                                    <td><span class="tracking-code">@shipment.TrackingCode</span></td>
-                                    <td>
-                                        <strong>@shipment.ReceiverName</strong>
-                                        <small>@shipment.ReceiverPhone</small>
-                                    </td>
-                                    <td>
-                                        <strong>@FormatAssignedShipper(shipment)</strong>
-                                        @if (!string.IsNullOrWhiteSpace(shipment.ActiveShipperPhone))
-                                        {
-                                            <small>@shipment.ActiveShipperPhone</small>
-                                        }
-                                    </td>
-                                    <td>
-                                        <span class="status-pill @GetStatusClass(shipment.Status)">@FormatStatus(shipment.Status)</span>
-                                        @if (shipment.IsSlaOverdue)
-                                        {
-                                            <small class="sla-badge">Can chu y SLA</small>
-                                        }
-                                    </td>
-                                    <td>
-                                        <strong>@FormatMoney(shipment.CodAmount, shipment.Currency)</strong>
-                                        <small class="cod-pill @GetCodStatusClass(shipment.CodStatus)">@FormatCodStatus(shipment.CodStatus)</small>
-                                    </td>
-                                    <td>
-                                        <span class="route-text">@shipment.PickupAddress.Province</span>
-                                        <svg class="route-arrow" viewBox="0 0 24 24" aria-hidden="true">
-                                            <path d="m13 5 7 7-7 7-1.4-1.4 4.6-4.6H4v-2h12.2l-4.6-4.6L13 5Z" />
-                                        </svg>
-                                        <span class="route-text">@shipment.DeliveryAddress.Province</span>
-                                    </td>
-                                    <td>
-                                        <div class="operations-actions">
-                                            @if (CanMarkCodCollected(shipment))
-                                            {
-                                                <button type="button"
-                                                        class="cod-button"
-                                                        disabled="@IsCollectingCod(shipment.ShipmentId)"
-                                                        @onclick="() => MarkCodCollectedAsync(shipment)">
-                                                    @(IsCollectingCod(shipment.ShipmentId) ? "Đang xác nhận COD..." : "Xác nhận COD đã thu")
-                                                </button>
-                                            }
-
-                                            @if (GetNextStatuses(shipment.Status).Count > 0)
-                                            {
-                                                <form class="operations-status-form" @onsubmit="() => UpdateStatusAsync(shipment)" @onsubmit:preventDefault="true">
-                                                    <label class="sr-only" for="@($"next-status-{shipment.ShipmentId}")">Cập nhật trạng thái</label>
-                                                    <select id="@($"next-status-{shipment.ShipmentId}")"
-                                                            value="@GetSelectedStatusValue(shipment)"
-                                                            disabled="@IsUpdating(shipment.ShipmentId)"
-                                                            @onchange="eventArgs => SelectStatus(shipment.ShipmentId, eventArgs.Value?.ToString())">
-                                                        @foreach (var status in GetNextStatuses(shipment.Status))
-                                                        {
-                                                            <option value="@status">@FormatStatus(status)</option>
-                                                        }
-                                                    </select>
-
-                                                    @if (IsSelectedStatusNoteRequired(shipment))
-                                                    {
-                                                        <small class="field-hint danger">Bắt buộc ghi lý do giao thất bại.</small>
-                                                    }
-
-                                                    <textarea rows="2"
-                                                              maxlength="500"
-                                                              placeholder="Ghi chú hỗ trợ vận hành..."
-                                                              @bind="StatusNotes[shipment.ShipmentId]"
-                                                              @bind:event="oninput"></textarea>
-
-                                                    <button type="submit" disabled="@IsUpdating(shipment.ShipmentId)">
-                                                        @(IsUpdating(shipment.ShipmentId) ? "Đang cập nhật..." : "Cập nhật trạng thái")
-                                                    </button>
-                                                </form>
-                                            }
-
-                                            @if (CanManageAssignment(shipment))
-                                            {
-                                                <div class="assignment-management">
-                                                    <div class="assignment-management-title">Điều phối lại</div>
-                                                    <label class="sr-only" for="@($"reassign-shipper-{shipment.ShipmentId}")">Chọn shipper mới</label>
-                                                    <select id="@($"reassign-shipper-{shipment.ShipmentId}")"
-                                                            value="@GetReassignShipperValue(shipment)"
-                                                            disabled="@IsAssignmentActionBusy(shipment.ShipmentId)"
-                                                            @onchange="eventArgs => SelectReassignShipper(shipment, eventArgs.Value?.ToString())">
-                                                        <option value="">Chọn shipper mới</option>
-                                                        @foreach (var shipper in GetReassignShipperOptions(shipment))
-                                                        {
-                                                            <option value="@shipper.UserId">@FormatReassignShipperOption(shipment, shipper)</option>
-                                                        }
-                                                    </select>
-                                                    @if (TryGetReassignShipper(shipment, out var reassignShipper)
-                                                        && !IsShipperAreaMatch(shipment, reassignShipper.UserId))
-                                                    {
-                                                        <small class="field-hint danger">@reassignShipper.FullName chưa match pickup @shipment.PickupAddress.Province.</small>
-                                                    }
-                                                    <textarea rows="2"
-                                                              maxlength="500"
-                                                              placeholder="Lý do reassign..."
-                                                              value="@GetReassignReason(shipment.ShipmentId)"
-                                                              disabled="@IsAssignmentActionBusy(shipment.ShipmentId)"
-                                                              @oninput="eventArgs => SetReassignReason(shipment.ShipmentId, eventArgs.Value?.ToString())"></textarea>
-                                                    <button type="button"
-                                                            class="reassign-button"
-                                                            disabled="@IsAssignmentActionBusy(shipment.ShipmentId)"
-                                                            @onclick="() => ReassignAsync(shipment)">
-                                                        @(IsReassigning(shipment.ShipmentId) ? "Đang reassign..." : "Reassign")
-                                                    </button>
-
-                                                    <div class="assignment-management-title danger">Hủy phân công</div>
-                                                    <textarea rows="2"
-                                                              maxlength="500"
-                                                              placeholder="Lý do hủy phân công..."
-                                                              value="@GetCancelAssignmentReason(shipment.ShipmentId)"
-                                                              disabled="@IsAssignmentActionBusy(shipment.ShipmentId)"
-                                                              @oninput="eventArgs => SetCancelAssignmentReason(shipment.ShipmentId, eventArgs.Value?.ToString())"></textarea>
-                                                    <button type="button"
-                                                            class="cancel-assignment-button"
-                                                            disabled="@IsAssignmentActionBusy(shipment.ShipmentId)"
-                                                            @onclick="() => CancelAssignmentAsync(shipment)">
-                                                        @(IsCancellingAssignment(shipment.ShipmentId) ? "Đang hủy..." : "Hủy phân công")
-                                                    </button>
-                                                </div>
-                                            }
-
-                                            @if (RowMessages.TryGetValue(shipment.ShipmentId, out var rowMessage))
-                                            {
-                                                <p class="row-message @rowMessage.Kind">@rowMessage.Text</p>
-                                            }
-                                        </div>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="pagination-bar">
-                    <span>Trang @OperationsPageNumber.ToString("N0") / @OperationsTotalPages.ToString("N0")</span>
-                    <button type="button" class="retry-button" disabled="@(OperationsPageNumber <= 1)" @onclick="PreviousOperationsPageAsync">Truoc</button>
-                    <button type="button" class="retry-button" disabled="@(OperationsPageNumber >= OperationsTotalPages)" @onclick="NextOperationsPageAsync">Sau</button>
-                </div>
-            }
-        </section>
+        <OperationsShipmentList Shipments="OperationsShipments"
+                                ActiveShippers="ActiveShippers"
+                                SelectedStatuses="SelectedStatuses"
+                                StatusNotes="StatusNotes"
+                                ReassignShipperIds="ReassignShipperIds"
+                                ReassignReasons="ReassignReasons"
+                                CancelAssignmentReasons="CancelAssignmentReasons"
+                                RowMessages="RowMessages"
+                                UpdatingShipmentId="UpdatingShipmentId"
+                                ReassigningShipmentId="ReassigningShipmentId"
+                                CancellingAssignmentShipmentId="CancellingAssignmentShipmentId"
+                                CollectingCodShipmentId="CollectingCodShipmentId"
+                                PageNumber="OperationsPageNumber"
+                                TotalPages="OperationsTotalPages"
+                                ActiveShipmentCountResolver="GetActiveShipmentCount"
+                                MarkCodCollected="MarkCodCollectedAsync"
+                                UpdateStatus="UpdateStatusAsync"
+                                SelectStatus="SelectStatus"
+                                StatusNoteChanged="SetStatusNote"
+                                SelectReassignShipper="SelectReassignShipper"
+                                ReassignReasonChanged="SetReassignReason"
+                                ReassignShipment="ReassignAsync"
+                                CancelReasonChanged="SetCancelAssignmentReason"
+                                CancelAssignment="CancelAssignmentAsync"
+                                PreviousPage="PreviousOperationsPageAsync"
+                                NextPage="NextOperationsPageAsync" />
 
         @if (IsAdminUser)
         {
-            <section class="content-card workspace-section">
-                <div class="section-heading">
-                    <div>
-                        <p class="eyebrow">Đối soát COD</p>
-                        <h2>COD đã thu chờ đối soát</h2>
-                    </div>
-                    <span class="section-count">@CodSettlementCandidates.Count.ToString("N0") khoản</span>
-                </div>
-
-                @if (CodSettlementCandidates.Count == 0)
-                {
-                    <div class="state-card compact">
-                        <span class="state-icon">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M5 4h14v16H5V4Zm2 2v12h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Z" />
-                            </svg>
-                        </span>
-                        <strong>Không có COD chờ đối soát</strong>
-                        <p>COD sau khi shipper hoặc vận hành xác nhận đã thu sẽ xuất hiện tại đây cho Admin chốt đối soát.</p>
-                    </div>
-                }
-                else
-                {
-                    <div class="table-shell">
-                        <table class="assignments-table settlement-table">
-                            <thead>
-                                <tr>
-                                    <th>Mã vận đơn</th>
-                                    <th>Người nhận</th>
-                                    <th>COD</th>
-                                    <th>Người thu</th>
-                                    <th>Ngày thu</th>
-                                    <th>Trạng thái</th>
-                                    <th>Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var cod in CodSettlementCandidates)
-                                {
-                                    <tr>
-                                        <td><span class="tracking-code">@cod.TrackingCode</span></td>
-                                        <td>
-                                            <strong>@cod.ReceiverName</strong>
-                                            <small>@cod.ReceiverPhone</small>
-                                        </td>
-                                        <td><strong>@FormatMoney(cod.CodAmount, cod.Currency)</strong></td>
-                                        <td>
-                                            <strong>@FormatCollectedBy(cod)</strong>
-                                            @if (!string.IsNullOrWhiteSpace(cod.CollectedByEmail))
-                                            {
-                                                <small>@cod.CollectedByEmail</small>
-                                            }
-                                        </td>
-                                        <td>@FormatNullableDate(cod.CollectedAtUtc)</td>
-                                        <td>
-                                            <small class="cod-pill @GetCodStatusClass(cod.CodStatus)">@FormatCodStatus(cod.CodStatus)</small>
-                                        </td>
-                                        <td>
-                                            <button type="button"
-                                                    class="settlement-button"
-                                                    disabled="@IsSettlingCod(cod.ShipmentId)"
-                                                    @onclick="() => MarkCodSettledAsync(cod)">
-                                                @(IsSettlingCod(cod.ShipmentId) ? "Đang đối soát..." : "Đối soát COD")
-                                            </button>
-                                            @if (RowMessages.TryGetValue(cod.ShipmentId, out var rowMessage))
-                                            {
-                                                <p class="row-message @rowMessage.Kind">@rowMessage.Text</p>
-                                            }
-                                        </td>
-                                    </tr>
-                                }
-                            </tbody>
-                        </table>
-                    </div>
-                }
-            </section>
+            <CodSettlementList Candidates="CodSettlementCandidates"
+                               RowMessages="RowMessages"
+                               SettlingCodShipmentId="SettlingCodShipmentId"
+                               MarkCodSettled="MarkCodSettledAsync" />
         }
     }
 </div>
@@ -676,7 +262,7 @@
 
     private Dictionary<Guid, string> CancelAssignmentReasons { get; } = [];
 
-    private Dictionary<Guid, RowMessage> RowMessages { get; } = [];
+    private Dictionary<Guid, OperationsRowMessage> RowMessages { get; } = [];
 
     private HashSet<Guid> SelectedPendingShipmentIds { get; } = [];
 
@@ -762,16 +348,15 @@
         await LoadAsync(clearMessages: false);
     }
 
-    private void TogglePendingSelection(Guid shipmentId, object? value)
+    private void TogglePendingSelection(PendingShipmentSelectionChanged change)
     {
-        var isSelected = value is bool boolValue && boolValue;
-        if (isSelected)
+        if (change.IsSelected)
         {
-            SelectedPendingShipmentIds.Add(shipmentId);
+            SelectedPendingShipmentIds.Add(change.ShipmentId);
             return;
         }
 
-        SelectedPendingShipmentIds.Remove(shipmentId);
+        SelectedPendingShipmentIds.Remove(change.ShipmentId);
     }
 
     private void SelectVisiblePendingShipments()
@@ -932,7 +517,7 @@
 
         if (!SelectedShipperIds.TryGetValue(shipment.ShipmentId, out var shipperId))
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", "Vui lòng chọn shipper active trước.");
+            RowMessages[shipment.ShipmentId] = new OperationsRowMessage("danger", "Vui lòng chọn shipper active trước.");
             return;
         }
 
@@ -959,7 +544,7 @@
 
         if (result.IsFailure)
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
+            RowMessages[shipment.ShipmentId] = new OperationsRowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
             return;
         }
 
@@ -992,7 +577,7 @@
 
         if (result.IsFailure)
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
+            RowMessages[shipment.ShipmentId] = new OperationsRowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
             return;
         }
 
@@ -1008,7 +593,7 @@
         var prefix = autoAssignResult.Status == AutoAssignShipmentStatus.NoEligibleShipper
             ? "Auto assign chưa tìm được shipper"
             : "Auto assign bỏ qua";
-        RowMessages[shipment.ShipmentId] = new RowMessage("warning", $"{prefix}: {autoAssignResult.Reason}");
+        RowMessages[shipment.ShipmentId] = new OperationsRowMessage("warning", $"{prefix}: {autoAssignResult.Reason}");
     }
 
     private async Task UpdateStatusAsync(GetOperationsShipmentResponse shipment)
@@ -1016,23 +601,23 @@
         SuccessMessage = null;
         RowMessages.Remove(shipment.ShipmentId);
 
-        var nextStatuses = GetNextStatuses(shipment.Status);
+        var nextStatuses = OperationsDisplay.GetNextStatuses(shipment.Status);
         if (nextStatuses.Count == 0)
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", "Đơn này không còn trạng thái tiếp theo.");
+            RowMessages[shipment.ShipmentId] = new OperationsRowMessage("danger", "Đơn này không còn trạng thái tiếp theo.");
             return;
         }
 
         if (!SelectedStatuses.TryGetValue(shipment.ShipmentId, out var nextStatus)
             || !nextStatuses.Contains(nextStatus))
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", "Vui lòng chọn trạng thái hợp lệ.");
+            RowMessages[shipment.ShipmentId] = new OperationsRowMessage("danger", "Vui lòng chọn trạng thái hợp lệ.");
             return;
         }
 
         if (nextStatus == ShipmentStatus.DeliveryFailed && string.IsNullOrWhiteSpace(GetNote(shipment.ShipmentId)))
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", "Giao thất bại cần có ghi chú lý do.");
+            RowMessages[shipment.ShipmentId] = new OperationsRowMessage("danger", "Giao thất bại cần có ghi chú lý do.");
             return;
         }
 
@@ -1055,12 +640,12 @@
 
         if (result.IsFailure)
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
+            RowMessages[shipment.ShipmentId] = new OperationsRowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
             return;
         }
 
         StatusNotes[shipment.ShipmentId] = string.Empty;
-        SuccessMessage = $"Đã cập nhật {shipment.TrackingCode} sang {FormatStatus(nextStatus)}.";
+        SuccessMessage = $"Đã cập nhật {shipment.TrackingCode} sang {OperationsDisplay.FormatStatus(nextStatus)}.";
         await LoadAsync(clearMessages: false);
     }
 
@@ -1069,22 +654,22 @@
         SuccessMessage = null;
         RowMessages.Remove(shipment.ShipmentId);
 
-        if (!CanManageAssignment(shipment))
+        if (!OperationsDisplay.CanManageAssignment(shipment))
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", "Chỉ reassign được đơn đang ở trạng thái Assigned.");
+            RowMessages[shipment.ShipmentId] = new OperationsRowMessage("danger", "Chỉ reassign được đơn đang ở trạng thái Assigned.");
             return;
         }
 
         if (!ReassignShipperIds.TryGetValue(shipment.ShipmentId, out var newShipperId))
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", "Vui lòng chọn shipper mới.");
+            RowMessages[shipment.ShipmentId] = new OperationsRowMessage("danger", "Vui lòng chọn shipper mới.");
             return;
         }
 
         var reason = GetReassignReason(shipment.ShipmentId);
         if (string.IsNullOrWhiteSpace(reason))
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", "Reassign cần có lý do.");
+            RowMessages[shipment.ShipmentId] = new OperationsRowMessage("danger", "Reassign cần có lý do.");
             return;
         }
 
@@ -1106,7 +691,7 @@
 
         if (result.IsFailure)
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
+            RowMessages[shipment.ShipmentId] = new OperationsRowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
             return;
         }
 
@@ -1123,16 +708,16 @@
         SuccessMessage = null;
         RowMessages.Remove(shipment.ShipmentId);
 
-        if (!CanManageAssignment(shipment))
+        if (!OperationsDisplay.CanManageAssignment(shipment))
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", "Chỉ hủy phân công được đơn đang ở trạng thái Assigned.");
+            RowMessages[shipment.ShipmentId] = new OperationsRowMessage("danger", "Chỉ hủy phân công được đơn đang ở trạng thái Assigned.");
             return;
         }
 
         var reason = GetCancelAssignmentReason(shipment.ShipmentId);
         if (string.IsNullOrWhiteSpace(reason))
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", "Hủy phân công cần có lý do.");
+            RowMessages[shipment.ShipmentId] = new OperationsRowMessage("danger", "Hủy phân công cần có lý do.");
             return;
         }
 
@@ -1153,7 +738,7 @@
 
         if (result.IsFailure)
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
+            RowMessages[shipment.ShipmentId] = new OperationsRowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
             return;
         }
 
@@ -1167,9 +752,9 @@
         SuccessMessage = null;
         RowMessages.Remove(shipment.ShipmentId);
 
-        if (!CanMarkCodCollected(shipment))
+        if (!OperationsDisplay.CanMarkCodCollected(shipment))
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", "COD chỉ được xác nhận khi đơn đã giao và COD đang chờ thu.");
+            RowMessages[shipment.ShipmentId] = new OperationsRowMessage("danger", "COD chỉ được xác nhận khi đơn đã giao và COD đang chờ thu.");
             return;
         }
 
@@ -1190,7 +775,7 @@
 
         if (result.IsFailure)
         {
-            RowMessages[shipment.ShipmentId] = new RowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
+            RowMessages[shipment.ShipmentId] = new OperationsRowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
             return;
         }
 
@@ -1220,7 +805,7 @@
 
         if (result.IsFailure)
         {
-            RowMessages[cod.ShipmentId] = new RowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
+            RowMessages[cod.ShipmentId] = new OperationsRowMessage("danger", UiDisplay.ToErrorMessage(result.Error));
             return;
         }
 
@@ -1326,16 +911,6 @@
             : value.Trim();
     }
 
-    private void OnFilterFromChanged(ChangeEventArgs args)
-    {
-        FilterFromDateText = args.Value?.ToString() ?? string.Empty;
-    }
-
-    private void OnFilterToChanged(ChangeEventArgs args)
-    {
-        FilterToDateText = args.Value?.ToString() ?? string.Empty;
-    }
-
     private async Task<Guid?> GetCurrentUserIdAsync()
     {
         var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -1353,11 +928,12 @@
         return authenticationState.User.IsInRole(role);
     }
 
-    private void SelectShipper(GetPendingPickupShipmentResponse shipment, string? value)
+    private void SelectShipper(PendingShipperSelectionChanged change)
     {
+        var shipment = change.Shipment;
         RowMessages.Remove(shipment.ShipmentId);
 
-        if (Guid.TryParse(value, out var shipperId))
+        if (Guid.TryParse(change.Value, out var shipperId))
         {
             SelectedShipperIds[shipment.ShipmentId] = shipperId;
 
@@ -1366,7 +942,7 @@
                 var shipperName = ActiveShippers.FirstOrDefault(shipper => shipper.UserId == shipperId)?.FullName
                     ?? "Shipper đã chọn";
 
-                RowMessages[shipment.ShipmentId] = new RowMessage(
+                RowMessages[shipment.ShipmentId] = new OperationsRowMessage(
                     "warning",
                     $"{shipperName} chưa match pickup {shipment.PickupProvince}. Manual override vẫn được phép.");
             }
@@ -1377,21 +953,23 @@
         SelectedShipperIds.Remove(shipment.ShipmentId);
     }
 
-    private void SelectStatus(Guid shipmentId, string? value)
+    private void SelectStatus(ShipmentStatusSelectionChanged change)
     {
+        var shipmentId = change.ShipmentId;
         RowMessages.Remove(shipmentId);
 
-        if (Enum.TryParse<ShipmentStatus>(value, out var status))
+        if (Enum.TryParse<ShipmentStatus>(change.Value, out var status))
         {
             SelectedStatuses[shipmentId] = status;
         }
     }
 
-    private void SelectReassignShipper(GetOperationsShipmentResponse shipment, string? value)
+    private void SelectReassignShipper(ReassignShipperSelectionChanged change)
     {
+        var shipment = change.Shipment;
         RowMessages.Remove(shipment.ShipmentId);
 
-        if (Guid.TryParse(value, out var shipperId))
+        if (Guid.TryParse(change.Value, out var shipperId))
         {
             ReassignShipperIds[shipment.ShipmentId] = shipperId;
 
@@ -1400,7 +978,7 @@
                 var shipperName = ActiveShippers.FirstOrDefault(shipper => shipper.UserId == shipperId)?.FullName
                     ?? "Shipper đã chọn";
 
-                RowMessages[shipment.ShipmentId] = new RowMessage(
+                RowMessages[shipment.ShipmentId] = new OperationsRowMessage(
                     "warning",
                     $"{shipperName} chưa match pickup {shipment.PickupAddress.Province}. Reassign vẫn được phép với lý do rõ ràng.");
             }
@@ -1411,28 +989,19 @@
         ReassignShipperIds.Remove(shipment.ShipmentId);
     }
 
-    private void SetReassignReason(Guid shipmentId, string? value)
+    private void SetStatusNote(ShipmentTextChanged change)
     {
-        ReassignReasons[shipmentId] = value ?? string.Empty;
+        StatusNotes[change.ShipmentId] = change.Value;
     }
 
-    private void SetCancelAssignmentReason(Guid shipmentId, string? value)
+    private void SetReassignReason(ShipmentTextChanged change)
     {
-        CancelAssignmentReasons[shipmentId] = value ?? string.Empty;
+        ReassignReasons[change.ShipmentId] = change.Value;
     }
 
-    private string GetSelectedShipperValue(Guid shipmentId)
+    private void SetCancelAssignmentReason(ShipmentTextChanged change)
     {
-        return SelectedShipperIds.TryGetValue(shipmentId, out var shipperId)
-            ? shipperId.ToString()
-            : string.Empty;
-    }
-
-    private string GetReassignShipperValue(GetOperationsShipmentResponse shipment)
-    {
-        return ReassignShipperIds.TryGetValue(shipment.ShipmentId, out var shipperId)
-            ? shipperId.ToString()
-            : string.Empty;
+        CancelAssignmentReasons[change.ShipmentId] = change.Value;
     }
 
     private string GetReassignReason(Guid shipmentId)
@@ -1459,55 +1028,6 @@
         return OperationsAssignmentUiModels.BuildPendingInsights([shipment], ActiveShippers)[shipment.ShipmentId];
     }
 
-    private IReadOnlyList<OperationsShipperOption> GetShipperOptions(
-        GetPendingPickupShipmentResponse shipment,
-        OperationsPendingAssignmentInsight insight)
-    {
-        return OperationsAssignmentUiModels.BuildShipperOptions(
-            shipment,
-            insight,
-            ActiveShippers,
-            GetActiveShipmentCount);
-    }
-
-    private bool TryGetSelectedShipper(Guid shipmentId, out GetActiveShipperResponse shipper)
-    {
-        shipper = null!;
-
-        if (!SelectedShipperIds.TryGetValue(shipmentId, out var shipperId))
-        {
-            return false;
-        }
-
-        var selectedShipper = ActiveShippers.FirstOrDefault(shipper => shipper.UserId == shipperId);
-        if (selectedShipper is null)
-        {
-            return false;
-        }
-
-        shipper = selectedShipper;
-        return true;
-    }
-
-    private bool TryGetReassignShipper(GetOperationsShipmentResponse shipment, out GetActiveShipperResponse shipper)
-    {
-        shipper = null!;
-
-        if (!ReassignShipperIds.TryGetValue(shipment.ShipmentId, out var shipperId))
-        {
-            return false;
-        }
-
-        var selectedShipper = ActiveShippers.FirstOrDefault(shipper => shipper.UserId == shipperId);
-        if (selectedShipper is null)
-        {
-            return false;
-        }
-
-        shipper = selectedShipper;
-        return true;
-    }
-
     private bool IsShipperAreaMatch(
         GetPendingPickupShipmentResponse shipment,
         Guid shipperId)
@@ -1530,113 +1050,11 @@
             && string.Equals(area.Province, shipment.PickupAddress.Province, StringComparison.OrdinalIgnoreCase));
     }
 
-    private IReadOnlyList<GetActiveShipperResponse> GetReassignShipperOptions(GetOperationsShipmentResponse shipment)
-    {
-        return ActiveShippers
-            .Where(shipper => shipper.UserId != shipment.ActiveShipperId)
-            .OrderByDescending(shipper => IsShipperAreaMatch(shipment, shipper.UserId))
-            .ThenBy(shipper => shipper.FullName)
-            .ToList();
-    }
-
-    private string GetSelectedStatusValue(GetOperationsShipmentResponse shipment)
-    {
-        if (SelectedStatuses.TryGetValue(shipment.ShipmentId, out var status))
-        {
-            return status.ToString();
-        }
-
-        var nextStatuses = GetNextStatuses(shipment.Status);
-        return nextStatuses.Count > 0
-            ? nextStatuses[0].ToString()
-            : string.Empty;
-    }
-
-    private string GetSelectClass(Guid shipmentId)
-    {
-        if (!RowMessages.TryGetValue(shipmentId, out var rowMessage))
-        {
-            return "shipper-select";
-        }
-
-        return rowMessage.Kind switch
-        {
-            "danger" => "shipper-select invalid",
-            "warning" => "shipper-select warning",
-            _ => "shipper-select"
-        };
-    }
-
-    private string GetSelectedShipperMetaClass(
-        GetPendingPickupShipmentResponse shipment,
-        GetActiveShipperResponse shipper)
-    {
-        return IsShipperAreaMatch(shipment, shipper.UserId)
-            ? "success"
-            : "warning";
-    }
-
-    private bool IsAssigning(Guid shipmentId)
-    {
-        return AssigningShipmentId == shipmentId;
-    }
-
-    private bool IsRetrying(Guid shipmentId)
-    {
-        return RetryingShipmentId == shipmentId;
-    }
-
-    private bool IsPendingActionBusy(Guid shipmentId)
-    {
-        return IsAssigning(shipmentId) || IsRetrying(shipmentId);
-    }
-
-    private bool IsUpdating(Guid shipmentId)
-    {
-        return UpdatingShipmentId == shipmentId;
-    }
-
-    private bool IsReassigning(Guid shipmentId)
-    {
-        return ReassigningShipmentId == shipmentId;
-    }
-
-    private bool IsCancellingAssignment(Guid shipmentId)
-    {
-        return CancellingAssignmentShipmentId == shipmentId;
-    }
-
-    private bool IsAssignmentActionBusy(Guid shipmentId)
-    {
-        return IsReassigning(shipmentId) || IsCancellingAssignment(shipmentId);
-    }
-
-    private bool IsCollectingCod(Guid shipmentId)
-    {
-        return CollectingCodShipmentId == shipmentId;
-    }
-
-    private bool IsSettlingCod(Guid shipmentId)
-    {
-        return SettlingCodShipmentId == shipmentId;
-    }
-
     private string? GetNote(Guid shipmentId)
     {
         return StatusNotes.TryGetValue(shipmentId, out var note) && !string.IsNullOrWhiteSpace(note)
             ? note.Trim()
             : null;
-    }
-
-    private bool IsSelectedStatusNoteRequired(GetOperationsShipmentResponse shipment)
-    {
-        return SelectedStatuses.TryGetValue(shipment.ShipmentId, out var status)
-            && status == ShipmentStatus.DeliveryFailed;
-    }
-
-    private static bool CanManageAssignment(GetOperationsShipmentResponse shipment)
-    {
-        return shipment.Status == ShipmentStatus.Assigned;
     }
 
     private void TrimSelectionsToCurrentShipments()
@@ -1722,7 +1140,7 @@
     {
         foreach (var shipment in OperationsShipments)
         {
-            var nextStatuses = GetNextStatuses(shipment.Status);
+            var nextStatuses = OperationsDisplay.GetNextStatuses(shipment.Status);
             if (nextStatuses.Count == 0)
             {
                 SelectedStatuses.Remove(shipment.ShipmentId);
@@ -1735,7 +1153,7 @@
 
             StatusNotes.TryAdd(shipment.ShipmentId, string.Empty);
 
-            if (!CanManageAssignment(shipment))
+            if (!OperationsDisplay.CanManageAssignment(shipment))
             {
                 ReassignShipperIds.Remove(shipment.ShipmentId);
                 ReassignReasons.Remove(shipment.ShipmentId);
@@ -1747,7 +1165,7 @@
                 || ActiveShippers.All(shipper => shipper.UserId != selectedShipperId)
                 || selectedShipperId == shipment.ActiveShipperId)
             {
-                var defaultShipper = GetReassignShipperOptions(shipment).FirstOrDefault();
+                var defaultShipper = OperationsDisplay.GetReassignShipperOptions(shipment, ActiveShippers).FirstOrDefault();
                 if (defaultShipper is null)
                 {
                     ReassignShipperIds.Remove(shipment.ShipmentId);
@@ -1763,207 +1181,10 @@
         }
     }
 
-    private static bool CanMarkCodCollected(GetOperationsShipmentResponse shipment)
-    {
-        return shipment.Status == ShipmentStatus.Delivered
-            && shipment.CodStatus == CodStatus.PendingCollection;
-    }
-
-    private static IReadOnlyList<ShipmentStatus> GetNextStatuses(ShipmentStatus status)
-    {
-        return status switch
-        {
-            ShipmentStatus.Assigned => [ShipmentStatus.PickingUp, ShipmentStatus.Cancelled],
-            ShipmentStatus.PickingUp => [ShipmentStatus.PickedUp, ShipmentStatus.Cancelled],
-            ShipmentStatus.PickedUp => [ShipmentStatus.InTransit, ShipmentStatus.Returned],
-            ShipmentStatus.InTransit => [ShipmentStatus.Delivering, ShipmentStatus.Returned],
-            ShipmentStatus.Delivering => [ShipmentStatus.Delivered, ShipmentStatus.DeliveryFailed, ShipmentStatus.Returned],
-            ShipmentStatus.DeliveryFailed => [ShipmentStatus.Delivering, ShipmentStatus.Returned],
-            _ => []
-        };
-    }
-
-    private static string FormatAssignedShipper(GetOperationsShipmentResponse shipment)
-    {
-        if (!string.IsNullOrWhiteSpace(shipment.ActiveShipperName))
-        {
-            return shipment.ActiveShipperName;
-        }
-
-        return shipment.ActiveShipperId.HasValue
-            ? shipment.ActiveShipperId.Value.ToString()[..8]
-            : "Chưa rõ";
-    }
-
-    private static string FormatDate(DateTimeOffset value)
-    {
-        return UiDisplay.FormatLocalDateTime(value);
-    }
-
-    private static string FormatNullableDate(DateTimeOffset? value)
-    {
-        return value.HasValue
-            ? UiDisplay.FormatLocalDateTime(value.Value)
-            : "Chưa ghi nhận";
-    }
-
-    private static string FormatCollectedBy(GetCodSettlementCandidateResponse cod)
-    {
-        if (!string.IsNullOrWhiteSpace(cod.CollectedByName))
-        {
-            return cod.CollectedByName;
-        }
-
-        return cod.CollectedByUserId.HasValue
-            ? cod.CollectedByUserId.Value.ToString()[..8]
-            : "Chưa rõ";
-    }
-
-    private static string FormatMoney(decimal amount, string currency)
-    {
-        return $"{amount:N0} {currency}";
-    }
-
     private int GetActiveShipmentCount(Guid shipperId)
     {
         return OperationsShipments.Count(shipment =>
             shipment.ActiveShipperId == shipperId
             && ShipmentLoadStatuses.ActiveAssignmentStatuses.Contains(shipment.Status));
     }
-
-    private string FormatShipperOption(OperationsShipperOption option)
-    {
-        var matchLabel = option.MatchesPickupArea ? "Phù hợp" : "Override";
-        var availabilityLabel = option.Shipper.IsAvailableForAssignment
-            ? "nhận auto"
-            : "tạm ngưng";
-        var capacityLabel = option.IsAtCapacity
-            ? $"đầy {option.ActiveShipmentCount:N0}/{option.Shipper.MaxActiveShipments:N0}"
-            : $"tải {option.ActiveShipmentCount:N0}/{option.Shipper.MaxActiveShipments:N0}";
-
-        return $"{FormatShipper(option.Shipper)} | {matchLabel} | {availabilityLabel} | {FormatWorkingAreas(option.Shipper)} | {capacityLabel}";
-    }
-
-    private string FormatReassignShipperOption(
-        GetOperationsShipmentResponse shipment,
-        GetActiveShipperResponse shipper)
-    {
-        var matchLabel = IsShipperAreaMatch(shipment, shipper.UserId) ? "Phù hợp" : "Override";
-        var activeShipmentCount = GetActiveShipmentCount(shipper.UserId);
-        var capacityLabel = activeShipmentCount >= shipper.MaxActiveShipments
-            ? $"đầy {activeShipmentCount:N0}/{shipper.MaxActiveShipments:N0}"
-            : $"tải {activeShipmentCount:N0}/{shipper.MaxActiveShipments:N0}";
-
-        return $"{FormatShipper(shipper)} | {matchLabel} | {FormatWorkingAreas(shipper)} | {capacityLabel}";
-    }
-
-    private static string FormatShipper(GetActiveShipperResponse shipper)
-    {
-        return string.IsNullOrWhiteSpace(shipper.PhoneNumber)
-            ? $"{shipper.FullName} - {shipper.Email}"
-            : $"{shipper.FullName} - {shipper.PhoneNumber}";
-    }
-
-    private static string FormatWorkingAreas(GetActiveShipperResponse shipper)
-    {
-        var activeAreas = shipper.WorkingAreas
-            .Where(area => area.IsActive)
-            .ToList();
-
-        if (activeAreas.Count == 0)
-        {
-            return "Chưa gán khu vực";
-        }
-
-        var displayedAreas = activeAreas
-            .Select(area => string.IsNullOrWhiteSpace(area.HubCode)
-                ? area.Province
-                : $"{area.HubCode}/{area.Province}")
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Take(2)
-            .ToList();
-        var hiddenAreaCount = activeAreas.Count - displayedAreas.Count;
-        var suffix = hiddenAreaCount > 0 ? $" +{hiddenAreaCount:N0}" : string.Empty;
-
-        return $"{string.Join(", ", displayedAreas)}{suffix}";
-    }
-
-    private static string FormatDefaultShipperMeta(
-        GetPendingPickupShipmentResponse shipment,
-        int matchedShipperCount)
-    {
-        if (matchedShipperCount > 0)
-        {
-            return $"Ưu tiên {matchedShipperCount:N0} shipper match pickup {shipment.PickupProvince}.";
-        }
-
-        return $"Chưa có shipper match pickup {shipment.PickupProvince}; dùng manual override nếu cần.";
-    }
-
-    private string FormatSelectedShipperMeta(
-        GetPendingPickupShipmentResponse shipment,
-        GetActiveShipperResponse shipper)
-    {
-        var activeLoad = GetActiveShipmentCount(shipper.UserId);
-        var workingAreas = FormatWorkingAreas(shipper);
-        var availability = shipper.IsAvailableForAssignment ? "đang nhận auto" : "tạm ngưng auto";
-        var capacity = $"{activeLoad:N0}/{shipper.MaxActiveShipments:N0}";
-
-        return IsShipperAreaMatch(shipment, shipper.UserId)
-            ? $"Match pickup {shipment.PickupProvince}; {availability}; tải {capacity}; {workingAreas}."
-            : $"Manual override ngoài pickup {shipment.PickupProvince}; {availability}; tải {capacity}; {workingAreas}.";
-    }
-
-    private static string FormatStatus(ShipmentStatus status)
-    {
-        return status switch
-        {
-            ShipmentStatus.PendingPickup => "Chờ lấy hàng",
-            ShipmentStatus.Assigned => "Đã phân công",
-            ShipmentStatus.PickingUp => "Đang lấy hàng",
-            ShipmentStatus.PickedUp => "Đã lấy hàng",
-            ShipmentStatus.InTransit => "Đang vận chuyển",
-            ShipmentStatus.Delivering => "Đang giao",
-            ShipmentStatus.Delivered => "Đã giao",
-            ShipmentStatus.DeliveryFailed => "Giao thất bại",
-            ShipmentStatus.Returned => "Đã hoàn",
-            ShipmentStatus.Cancelled => "Đã hủy",
-            _ => status.ToString()
-        };
-    }
-
-    private static string GetStatusClass(ShipmentStatus status)
-    {
-        return status switch
-        {
-            ShipmentStatus.Delivered => "success",
-            ShipmentStatus.Cancelled or ShipmentStatus.DeliveryFailed or ShipmentStatus.Returned => "danger",
-            ShipmentStatus.InTransit or ShipmentStatus.Delivering or ShipmentStatus.PickedUp => "info",
-            _ => "warning"
-        };
-    }
-
-    private static string FormatCodStatus(CodStatus status)
-    {
-        return status switch
-        {
-            CodStatus.NotRequired => "Không yêu cầu",
-            CodStatus.PendingCollection => "Chờ thu",
-            CodStatus.Collected => "Đã thu",
-            CodStatus.Settled => "Đã đối soát",
-            _ => status.ToString()
-        };
-    }
-
-    private static string GetCodStatusClass(CodStatus status)
-    {
-        return status switch
-        {
-            CodStatus.PendingCollection => "warning",
-            CodStatus.Collected or CodStatus.Settled => "success",
-            _ => "neutral"
-        };
-    }
-
-    private sealed record RowMessage(string Kind, string Text);
 }

@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.ValueObjects;
 
+/// <summary>
+/// Represents the validated Parcel Dimensions value used by the domain model.
+/// </summary>
 public sealed record ParcelDimensions
 {
     public const decimal DefaultVolumetricDivisor = 5000m;

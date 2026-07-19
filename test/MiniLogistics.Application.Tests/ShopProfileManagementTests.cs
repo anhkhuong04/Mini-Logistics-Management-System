@@ -25,7 +25,7 @@ public sealed class ShopProfileManagementTests
         var identityService = CreateIdentityService();
         var shop = CreateShop();
         var repository = new FakeShopRepository([shop]);
-        shop.Deactivate();
+        shop.Deactivate(TestClock.UtcNow);
         var service = new GetShopProfileService(new ShopAccessService(identityService, repository));
 
         var result = await service.GetAsync(_shopOwnerId);
@@ -43,7 +43,8 @@ public sealed class ShopProfileManagementTests
         var service = new UpdateShopProfileService(
             new UpdateShopProfileCommandValidator(),
             new ShopAccessService(CreateIdentityService(), repository),
-            repository);
+            repository,
+            TestClock.Provider);
 
         var result = await service.UpdateAsync(new UpdateShopProfileCommand(
             _shopOwnerId,
@@ -65,12 +66,13 @@ public sealed class ShopProfileManagementTests
     public async Task UpdateShopProfile_InactiveShop_IsRejected()
     {
         var shop = CreateShop();
-        shop.Deactivate();
+        shop.Deactivate(TestClock.UtcNow);
         var repository = new FakeShopRepository([shop]);
         var service = new UpdateShopProfileService(
             new UpdateShopProfileCommandValidator(),
             new ShopAccessService(CreateIdentityService(), repository),
-            repository);
+            repository,
+            TestClock.Provider);
 
         var result = await service.UpdateAsync(new UpdateShopProfileCommand(
             _shopOwnerId,
@@ -94,7 +96,8 @@ public sealed class ShopProfileManagementTests
         var service = new UpdateShopProfileService(
             new UpdateShopProfileCommandValidator(),
             new ShopAccessService(CreateIdentityService(), repository),
-            repository);
+            repository,
+            TestClock.Provider);
 
         var result = await service.UpdateAsync(new UpdateShopProfileCommand(
             _operatorId,
@@ -117,7 +120,8 @@ public sealed class ShopProfileManagementTests
         var service = new SetShopActiveStatusService(
             new SetShopActiveStatusCommandValidator(),
             CreateIdentityService(),
-            repository);
+            repository,
+            TestClock.Provider);
 
         var deactivateResult = await service.SetAsync(new SetShopActiveStatusCommand(
             _adminId,
@@ -142,7 +146,8 @@ public sealed class ShopProfileManagementTests
         var service = new SetShopActiveStatusService(
             new SetShopActiveStatusCommandValidator(),
             CreateIdentityService(),
-            repository);
+            repository,
+            TestClock.Provider);
 
         var result = await service.SetAsync(new SetShopActiveStatusCommand(
             _operatorId,
@@ -164,7 +169,8 @@ public sealed class ShopProfileManagementTests
             new Address(
                 "1 Le Loi",
                 "Ben Thanh",
-                "Ho Chi Minh"));
+                "Ho Chi Minh"),
+            TestClock.UtcNow);
     }
 
     private FakeIdentityService CreateIdentityService()

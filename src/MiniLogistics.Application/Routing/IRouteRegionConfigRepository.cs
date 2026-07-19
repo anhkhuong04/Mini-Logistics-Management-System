@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Operations;
 
 namespace MiniLogistics.Application.Routing;
 
+/// <summary>
+/// Defines persistence operations for Route Region Config data.
+/// </summary>
 public interface IRouteRegionConfigRepository : IRouteRegionConfigSource
 {
     Task<IReadOnlyList<RouteRegionConfig>> GetAllAsync(

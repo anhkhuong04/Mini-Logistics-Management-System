@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using MiniLogistics.Application.AdminDashboard;
+using MiniLogistics.Application.Shipments;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.PartnerApi;
 using MiniLogistics.Domain.Shipments;

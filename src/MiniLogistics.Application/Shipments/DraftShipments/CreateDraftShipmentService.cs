@@ -18,19 +18,22 @@ public sealed class CreateDraftShipmentService : ICreateDraftShipmentService
     private readonly IRouteClassificationService _routeClassificationService;
     private readonly IShipmentRepository _shipmentRepository;
     private readonly IShopAccessService _shopAccessService;
+    private readonly TimeProvider _timeProvider;
 
     public CreateDraftShipmentService(
         IValidator<CreateDraftShipmentCommand> validator,
         IShippingFeeService shippingFeeService,
         IRouteClassificationService routeClassificationService,
         IShipmentRepository shipmentRepository,
-        IShopAccessService shopAccessService)
+        IShopAccessService shopAccessService,
+        TimeProvider timeProvider)
     {
         _validator = validator;
         _shippingFeeService = shippingFeeService;
         _routeClassificationService = routeClassificationService;
         _shipmentRepository = shipmentRepository;
         _shopAccessService = shopAccessService;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<DraftShipmentResponse>> CreateAsync(
@@ -65,7 +68,8 @@ public sealed class CreateDraftShipmentService : ICreateDraftShipmentService
         }
 
         var calculated = calculatedResult.Value;
-        var trackingCode = await GenerateUniqueTrackingCodeAsync(cancellationToken);
+        var now = _timeProvider.GetUtcNow();
+        var trackingCode = await GenerateUniqueTrackingCodeAsync(now, cancellationToken);
         var shipment = Shipment.CreateDraft(
             shopResult.Value.Id,
             command.SenderName,
@@ -82,6 +86,7 @@ public sealed class CreateDraftShipmentService : ICreateDraftShipmentService
             calculated.ShippingFeeBreakdown,
             calculated.RouteType,
             command.UserId,
+            now,
             command.Note,
             trackingCode);
 
@@ -91,11 +96,13 @@ public sealed class CreateDraftShipmentService : ICreateDraftShipmentService
         return Result<DraftShipmentResponse>.Success(DraftShipmentMapping.ToResponse(shipment));
     }
 
-    private async Task<TrackingCode> GenerateUniqueTrackingCodeAsync(CancellationToken cancellationToken)
+    private async Task<TrackingCode> GenerateUniqueTrackingCodeAsync(
+        DateTimeOffset generatedAtUtc,
+        CancellationToken cancellationToken)
     {
         for (var attempt = 0; attempt < MaxTrackingCodeGenerationAttempts; attempt++)
         {
-            var trackingCode = TrackingCode.Generate();
+            var trackingCode = TrackingCode.Generate(generatedAtUtc);
             var exists = await _shipmentRepository.ExistsByTrackingCodeAsync(trackingCode, cancellationToken);
 
             if (!exists)

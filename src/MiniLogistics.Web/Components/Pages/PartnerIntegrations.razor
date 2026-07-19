@@ -4,7 +4,8 @@
 @using System.Security.Claims
 @using MiniLogistics.Application.PartnerApi
 @using MiniLogistics.Domain.PartnerApi
-@inject IPartnerIntegrationManagementService PartnerIntegrationManagementService
+@inject IApiClientManagementService ApiClientManagementService
+@inject IWebhookManagementService WebhookManagementService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
@@ -439,7 +440,7 @@
 
         var previousShopId = ShopId ?? SelectedShopId;
         var previousClientId = SelectedClientId;
-        var result = await PartnerIntegrationManagementService.GetDashboardAsync(currentUserId.Value);
+        var result = await WebhookManagementService.GetDashboardAsync(currentUserId.Value);
         if (result.IsFailure)
         {
             ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
@@ -472,7 +473,7 @@
         }
 
         IsCreatingClient = true;
-        var result = await PartnerIntegrationManagementService.CreateApiClientAsync(new CreatePartnerApiClientCommand(
+        var result = await ApiClientManagementService.CreateApiClientAsync(new CreatePartnerApiClientCommand(
             currentUserId.Value,
             SelectedShopId,
             CreateClientName));
@@ -504,7 +505,7 @@
             return;
         }
 
-        var result = await PartnerIntegrationManagementService.RotateApiClientKeyAsync(new RotatePartnerApiClientKeyCommand(
+        var result = await ApiClientManagementService.RotateApiClientKeyAsync(new RotatePartnerApiClientKeyCommand(
             currentUserId.Value,
             apiClientId));
         if (result.IsFailure)
@@ -533,7 +534,7 @@
         }
 
         var targetStatus = !client.IsActive;
-        var result = await PartnerIntegrationManagementService.SetApiClientActiveStatusAsync(new SetPartnerApiClientActiveStatusCommand(
+        var result = await ApiClientManagementService.SetApiClientActiveStatusAsync(new SetPartnerApiClientActiveStatusCommand(
             currentUserId.Value,
             client.ApiClientId,
             targetStatus));
@@ -567,7 +568,7 @@
         }
 
         IsSavingWebhook = true;
-        var result = await PartnerIntegrationManagementService.UpsertWebhookEndpointAsync(new UpsertPartnerWebhookEndpointCommand(
+        var result = await WebhookManagementService.UpsertWebhookEndpointAsync(new UpsertPartnerWebhookEndpointCommand(
             currentUserId.Value,
             SelectedClientId.Value,
             WebhookUrl,
@@ -603,7 +604,7 @@
         }
 
         IsTestingWebhook = true;
-        var result = await PartnerIntegrationManagementService.TestWebhookAsync(new TestPartnerWebhookCommand(
+        var result = await WebhookManagementService.TestWebhookAsync(new TestPartnerWebhookCommand(
             currentUserId.Value,
             SelectedClientId.Value));
         IsTestingWebhook = false;

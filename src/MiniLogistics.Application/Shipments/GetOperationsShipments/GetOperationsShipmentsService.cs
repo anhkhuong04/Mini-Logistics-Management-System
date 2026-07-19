@@ -23,18 +23,21 @@ public sealed class GetOperationsShipmentsService : IGetOperationsShipmentsServi
         ShipmentStatus.Delivered
     ];
 
-    private readonly IShipmentRepository _shipmentRepository;
+    private readonly IShipmentReadRepository _shipmentRepository;
     private readonly ICodTransactionRepository _codTransactionRepository;
     private readonly IIdentityService _identityService;
+    private readonly TimeProvider _timeProvider;
 
     public GetOperationsShipmentsService(
-        IShipmentRepository shipmentRepository,
+        IShipmentReadRepository shipmentRepository,
         ICodTransactionRepository codTransactionRepository,
-        IIdentityService identityService)
+        IIdentityService identityService,
+        TimeProvider timeProvider)
     {
         _shipmentRepository = shipmentRepository;
         _codTransactionRepository = codTransactionRepository;
         _identityService = identityService;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<IReadOnlyList<GetOperationsShipmentResponse>>> GetAsync(
@@ -69,7 +72,7 @@ public sealed class GetOperationsShipmentsService : IGetOperationsShipmentsServi
         var users = await _identityService.GetUsersByIdsAsync(activeShipperIds, cancellationToken);
         var userById = users.ToDictionary(user => user.UserId);
 
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
         var response = new List<GetOperationsShipmentResponse>();
 
         foreach (var shipment in shipments)

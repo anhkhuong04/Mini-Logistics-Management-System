@@ -44,7 +44,8 @@ public sealed class SystemConfigurationP3Tests
             0.5m,
             new Money(35_000m),
             0.5m,
-            new Money(8_000m));
+            new Money(8_000m),
+            TestClock.UtcNow);
         var feeRepository = new FakeFeeConfigurationRepository([oldRule]);
         var auditService = new FakeAdminAuditService();
         var service = new AdminSystemConfigurationService(
@@ -53,6 +54,7 @@ public sealed class SystemConfigurationP3Tests
             feeRepository,
             new UpsertRouteRegionConfigCommandValidator(),
             new CreateFeeRuleVersionCommandValidator(),
+            TestClock.Provider,
             auditService);
 
         var result = await service.CreateFeeRuleVersionAsync(new CreateFeeRuleVersionCommand(

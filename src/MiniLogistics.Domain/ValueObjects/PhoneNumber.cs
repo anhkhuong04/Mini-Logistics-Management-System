@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.ValueObjects;
 
+/// <summary>
+/// Represents the validated Phone Number value used by the domain model.
+/// </summary>
 public sealed record PhoneNumber
 {
     public PhoneNumber(string value)

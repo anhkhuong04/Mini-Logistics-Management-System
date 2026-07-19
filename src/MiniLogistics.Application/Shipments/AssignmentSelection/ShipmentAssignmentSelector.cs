@@ -10,13 +10,13 @@ public sealed class ShipmentAssignmentSelector : IShipmentAssignmentSelector
     private readonly IIdentityService _identityService;
     private readonly IHubRepository _hubRepository;
     private readonly IShipperWorkingAreaRepository _workingAreaRepository;
-    private readonly IShipmentRepository _shipmentRepository;
+    private readonly IShipmentReadRepository _shipmentRepository;
 
     public ShipmentAssignmentSelector(
         IIdentityService identityService,
         IHubRepository hubRepository,
         IShipperWorkingAreaRepository workingAreaRepository,
-        IShipmentRepository shipmentRepository)
+        IShipmentReadRepository shipmentRepository)
     {
         _identityService = identityService;
         _hubRepository = hubRepository;

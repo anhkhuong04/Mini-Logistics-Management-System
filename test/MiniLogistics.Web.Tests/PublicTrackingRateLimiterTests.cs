@@ -16,7 +16,8 @@ public sealed class PublicTrackingRateLimiterTests
             Options.Create(new PublicTrackingRateLimitOptions
             {
                 LimitPerMinute = 1
-            }));
+            }),
+            TestClock.Provider);
 
         var firstAllowed = limiter.TryAcquire(
             "203.0.113.10",

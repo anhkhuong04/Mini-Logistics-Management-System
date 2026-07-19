@@ -2,6 +2,9 @@ using MiniLogistics.Domain.ValueObjects;
 
 namespace MiniLogistics.Domain.Fees;
 
+/// <summary>
+/// Provides domain helpers or errors for Insurance Fee Policy.
+/// </summary>
 public static class InsuranceFeePolicy
 {
     public const decimal FreeInsuranceThreshold = 1_000_000m;

@@ -42,7 +42,8 @@ public sealed class OutboxMessageDispatcherTests
             payload.ApiClientId,
             payload.EventType,
             payload.AggregateId,
-            payload.WebhookPayloadJson);
+            payload.WebhookPayloadJson,
+            TestClock.UtcNow);
         var outboxRepository = new FakeOutboxMessageRepository([message]);
         var deliveryRepository = new FakeWebhookDeliveryRepository([existingDelivery]);
         var dispatcher = CreateDispatcher(outboxRepository, deliveryRepository);
@@ -61,7 +62,8 @@ public sealed class OutboxMessageDispatcherTests
             Guid.NewGuid(),
             OutboxMessageTypes.WebhookShipmentCreated,
             Guid.NewGuid(),
-            "{}");
+            "{}",
+            TestClock.UtcNow);
         var outboxRepository = new FakeOutboxMessageRepository([message]);
         var deliveryRepository = new FakeWebhookDeliveryRepository([]);
         var dispatcher = CreateDispatcher(outboxRepository, deliveryRepository);
@@ -81,7 +83,8 @@ public sealed class OutboxMessageDispatcherTests
         return new OutboxMessageDispatcher(
             outboxRepository,
             deliveryRepository,
-            NullLogger<OutboxMessageDispatcher>.Instance);
+            NullLogger<OutboxMessageDispatcher>.Instance,
+            TestClock.Provider);
     }
 
     private static OutboxMessage CreateWebhookOutboxMessage()
@@ -95,7 +98,7 @@ public sealed class OutboxMessageDispatcherTests
                 "MLG123456",
                 "ECOM-10001",
                 "PendingPickup",
-                DateTimeOffset.UtcNow),
+                TestClock.UtcNow),
             JsonOptions);
         var outboxPayload = new WebhookDeliveryOutboxPayload(
             Guid.NewGuid(),
@@ -108,7 +111,8 @@ public sealed class OutboxMessageDispatcherTests
             eventId,
             OutboxMessageTypes.WebhookShipmentCreated,
             aggregateId,
-            JsonSerializer.Serialize(outboxPayload, JsonOptions));
+            JsonSerializer.Serialize(outboxPayload, JsonOptions),
+            TestClock.UtcNow);
     }
 
     private sealed class FakeOutboxMessageRepository : IOutboxMessageRepository

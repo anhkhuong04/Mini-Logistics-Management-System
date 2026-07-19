@@ -16,7 +16,8 @@ public sealed class WebhookDeliveryDispatcherTests
         var endpoint = new WebhookEndpoint(
             apiClientId,
             "https://partner.example.test/webhooks",
-            FakeSecretProtector.ProtectValue("secret"));
+            FakeSecretProtector.ProtectValue("secret"),
+            TestClock.UtcNow);
         var delivery = CreateDelivery(endpoint, apiClientId);
         var endpointRepository = new FakeWebhookEndpointRepository([endpoint]);
         var deliveryRepository = new FakeWebhookDeliveryRepository([delivery]);
@@ -46,7 +47,8 @@ public sealed class WebhookDeliveryDispatcherTests
         var endpoint = new WebhookEndpoint(
             apiClientId,
             "https://partner.example.test/webhooks",
-            FakeSecretProtector.ProtectValue("secret"));
+            FakeSecretProtector.ProtectValue("secret"),
+            TestClock.UtcNow);
         var delivery = CreateDelivery(endpoint, apiClientId);
         var endpointRepository = new FakeWebhookEndpointRepository([endpoint]);
         var deliveryRepository = new FakeWebhookDeliveryRepository([delivery]);
@@ -54,7 +56,7 @@ public sealed class WebhookDeliveryDispatcherTests
         {
             Content = new StringContent("temporary failure")
         });
-        var beforeDispatch = DateTimeOffset.UtcNow;
+        var beforeDispatch = TestClock.UtcNow;
         var dispatcher = CreateDispatcher(handler, deliveryRepository, endpointRepository);
 
         await dispatcher.DispatchDueAsync();
@@ -79,7 +81,8 @@ public sealed class WebhookDeliveryDispatcherTests
             deliveryRepository,
             endpointRepository,
             new FakeSecretProtector(),
-            NullLogger<WebhookDeliveryDispatcher>.Instance);
+            NullLogger<WebhookDeliveryDispatcher>.Instance,
+            TestClock.Provider);
     }
 
     private static WebhookDelivery CreateDelivery(WebhookEndpoint endpoint, Guid apiClientId)
@@ -90,7 +93,8 @@ public sealed class WebhookDeliveryDispatcherTests
             apiClientId,
             WebhookEventTypes.ShipmentStatusChanged,
             Guid.NewGuid(),
-            "{\"event\":\"shipment.status_changed\"}");
+            "{\"event\":\"shipment.status_changed\"}",
+            TestClock.UtcNow);
     }
 
     private sealed class FakeHttpMessageHandler : HttpMessageHandler

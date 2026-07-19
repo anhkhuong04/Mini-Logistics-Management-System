@@ -1,5 +1,8 @@
 namespace MiniLogistics.Domain.Common;
 
+/// <summary>
+/// Represents Result in the domain model.
+/// </summary>
 public class Result
 {
     protected Result(bool isSuccess, Error error)
@@ -29,6 +32,9 @@ public class Result
     public static Result Failure(Error error) => new(false, error);
 }
 
+/// <summary>
+/// Represents Result in the domain model.
+/// </summary>
 public class Result<T> : Result
 {
     private readonly T? _value;

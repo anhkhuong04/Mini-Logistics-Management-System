@@ -17,16 +17,19 @@ public sealed class CreateHubService : ICreateHubService
     private readonly IIdentityService _identityService;
     private readonly IHubRepository _hubRepository;
     private readonly IAdminAuditService _adminAuditService;
+    private readonly TimeProvider _timeProvider;
 
     public CreateHubService(
         IValidator<CreateHubCommand> validator,
         IIdentityService identityService,
         IHubRepository hubRepository,
+        TimeProvider timeProvider,
         IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _hubRepository = hubRepository;
+        _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
@@ -60,6 +63,7 @@ public sealed class CreateHubService : ICreateHubService
             command.Code,
             command.Name,
             command.Province,
+            _timeProvider.GetUtcNow(),
             command.Ward,
             command.AddressLine,
             command.IsRegionalSortingHub,

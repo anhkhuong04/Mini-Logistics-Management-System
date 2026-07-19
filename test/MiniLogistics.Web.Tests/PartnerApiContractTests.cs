@@ -10,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using MiniLogistics.Application.PartnerApi;
+using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.PartnerApi;
 using MiniLogistics.Domain.Shops;
 using MiniLogistics.Domain.ValueObjects;
@@ -100,6 +101,48 @@ public sealed class PartnerApiContractTests
     }
 
     [Fact]
+    public async Task PartnerApiPreflight_WhenOriginAllowed_ReturnsCorsHeaders()
+    {
+        const string allowedOrigin = "https://localhost:7195";
+        await using var factory = new PartnerApiWebApplicationFactory();
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Options, "/api/v1/partner/shipments");
+        request.Headers.Add("Origin", allowedOrigin);
+        request.Headers.Add("Access-Control-Request-Method", "POST");
+        request.Headers.Add("Access-Control-Request-Headers", "Authorization, Content-Type, Idempotency-Key");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.True(response.Headers.TryGetValues("Access-Control-Allow-Origin", out var allowedOrigins));
+        Assert.Equal(allowedOrigin, allowedOrigins.Single());
+        Assert.True(response.Headers.TryGetValues("Access-Control-Allow-Methods", out var allowedMethods));
+        Assert.Contains("POST", string.Join(",", allowedMethods), StringComparison.OrdinalIgnoreCase);
+        Assert.True(response.Headers.TryGetValues("Access-Control-Allow-Headers", out var allowedHeaders));
+        var headerValue = string.Join(",", allowedHeaders);
+        Assert.Contains("Authorization", headerValue, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Content-Type", headerValue, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("Idempotency-Key", headerValue, StringComparison.OrdinalIgnoreCase);
+        Assert.True(response.Headers.TryGetValues("Access-Control-Max-Age", out var maxAgeValues));
+        Assert.Equal("600", maxAgeValues.Single());
+    }
+
+    [Fact]
+    public async Task PartnerApiPreflight_WhenOriginNotAllowed_DoesNotReturnAllowOrigin()
+    {
+        await using var factory = new PartnerApiWebApplicationFactory();
+        using var client = factory.CreateClient();
+        using var request = new HttpRequestMessage(HttpMethod.Options, "/api/v1/partner/shipments");
+        request.Headers.Add("Origin", "https://evil.example.test");
+        request.Headers.Add("Access-Control-Request-Method", "POST");
+
+        var response = await client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+        Assert.False(response.Headers.TryGetValues("Access-Control-Allow-Origin", out _));
+    }
+
+    [Fact]
     public async Task Quote_WhenShopInactive_ReturnsForbidden()
     {
         await using var factory = new PartnerApiWebApplicationFactory(isShopActive: false);
@@ -134,14 +177,54 @@ public sealed class PartnerApiContractTests
         Assert.Equal("PartnerApi.ShopInactive", document.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 
+    [Fact]
+    public async Task Quote_WhenUnhandledException_ReturnsSanitizedServerError()
+    {
+        await using var factory = new PartnerApiWebApplicationFactory(throwQuote: true);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestApiKey);
+
+        var response = await client.PostAsJsonAsync("/api/v1/partner/shipping/quote", new
+        {
+            deliveryAddress = new
+            {
+                street = "9 Le Loi",
+                ward = "Hoan Kiem",
+                province = "Ha Noi",
+                country = "Vietnam"
+            },
+            parcel = new
+            {
+                weightKg = 1,
+                lengthCm = 10,
+                widthCm = 10,
+                heightCm = 10
+            },
+            goodsValueAmount = 100000,
+            codAmount = 0,
+            currency = "VND"
+        });
+
+        var json = await response.Content.ReadAsStringAsync();
+        using var document = JsonDocument.Parse(json);
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("Internal.ServerError", document.RootElement.GetProperty("error").GetProperty("code").GetString());
+        Assert.False(string.IsNullOrWhiteSpace(document.RootElement.GetProperty("error").GetProperty("traceId").GetString()));
+        Assert.DoesNotContain(nameof(InvalidOperationException), json);
+        Assert.DoesNotContain("quote service failed", json);
+    }
+
     private sealed class PartnerApiWebApplicationFactory : WebApplicationFactory<Program>
     {
         private readonly string _databaseName = "MiniLogisticsContractTests-" + Guid.NewGuid();
         private readonly bool _isShopActive;
+        private readonly bool _throwQuote;
 
-        public PartnerApiWebApplicationFactory(bool isShopActive = true)
+        public PartnerApiWebApplicationFactory(bool isShopActive = true, bool throwQuote = false)
         {
             _isShopActive = isShopActive;
+            _throwQuote = throwQuote;
         }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -150,6 +233,12 @@ public sealed class PartnerApiContractTests
             {
                 services.RemoveAll<DbContextOptions<MiniLogisticsDbContext>>();
                 services.RemoveAll<IHostedService>();
+                if (_throwQuote)
+                {
+                    services.RemoveAll<IPartnerQuoteService>();
+                    services.AddScoped<IPartnerQuoteService, ThrowingPartnerQuoteService>();
+                }
+
                 var inMemoryProvider = new ServiceCollection()
                     .AddEntityFrameworkInMemoryDatabase()
                     .BuildServiceProvider();
@@ -168,21 +257,33 @@ public sealed class PartnerApiContractTests
                     Guid.Parse("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
                     "Contract Test Shop",
                     new PhoneNumber("0900000001"),
-                    new Address("123 Nguyen Trai", "Ben Thanh", "Ho Chi Minh"));
+                    new Address("123 Nguyen Trai", "Ben Thanh", "Ho Chi Minh"),
+                    TestClock.UtcNow);
                 var apiClient = new ApiClient(
                     shop.Id,
                     "Contract Test Client",
                     ApiKeyHasher.GetPrefix(TestApiKey),
-                    ApiKeyHasher.Hash(TestApiKey));
+                    ApiKeyHasher.Hash(TestApiKey),
+                    TestClock.UtcNow);
                 if (!_isShopActive)
                 {
-                    shop.Deactivate();
+                    shop.Deactivate(TestClock.UtcNow);
                 }
 
                 dbContext.Shops.Add(shop);
                 dbContext.ApiClients.Add(apiClient);
                 dbContext.SaveChanges();
             });
+        }
+    }
+
+    private sealed class ThrowingPartnerQuoteService : IPartnerQuoteService
+    {
+        public Task<Result<PartnerShippingQuoteResponse>> QuoteAsync(
+            PartnerQuoteCommand command,
+            CancellationToken cancellationToken = default)
+        {
+            throw new InvalidOperationException("quote service failed");
         }
     }
 }

@@ -2,6 +2,9 @@ using MiniLogistics.Domain.PartnerApi;
 
 namespace MiniLogistics.Application.PartnerApi;
 
+/// <summary>
+/// Defines persistence operations for Api Client data.
+/// </summary>
 public interface IApiClientRepository
 {
     Task<ApiClient?> GetByIdAsync(

@@ -3,6 +3,9 @@ using MiniLogistics.Domain.ValueObjects;
 
 namespace MiniLogistics.Domain.Shops;
 
+/// <summary>
+/// Represents the Shop domain entity.
+/// </summary>
 public sealed class Shop : AuditableEntity
 {
     private Shop()
@@ -16,8 +19,9 @@ public sealed class Shop : AuditableEntity
         Guid ownerUserId,
         string name,
         PhoneNumber phoneNumber,
-        Address address)
-        : base(Guid.NewGuid())
+        Address address,
+        DateTimeOffset createdAtUtc)
+        : base(Guid.NewGuid(), createdAtUtc)
     {
         if (ownerUserId == Guid.Empty)
         {
@@ -25,7 +29,7 @@ public sealed class Shop : AuditableEntity
         }
 
         OwnerUserId = ownerUserId;
-        Name = RequireText(name, nameof(name));
+        Name = DomainGuard.RequireText(name, nameof(name));
         PhoneNumber = phoneNumber;
         Address = address;
         IsActive = true;
@@ -41,38 +45,29 @@ public sealed class Shop : AuditableEntity
 
     public bool IsActive { get; private set; }
 
-    public void Rename(string name)
+    public void Rename(string name, DateTimeOffset updatedAtUtc)
     {
-        Name = RequireText(name, nameof(name));
-        MarkUpdated();
+        Name = DomainGuard.RequireText(name, nameof(name));
+        MarkUpdated(updatedAtUtc);
     }
 
-    public void UpdateContact(PhoneNumber phoneNumber, Address address)
+    public void UpdateContact(PhoneNumber phoneNumber, Address address, DateTimeOffset updatedAtUtc)
     {
         PhoneNumber = phoneNumber;
         Address = address;
-        MarkUpdated();
+        MarkUpdated(updatedAtUtc);
     }
 
-    public void Activate()
+    public void Activate(DateTimeOffset updatedAtUtc)
     {
         IsActive = true;
-        MarkUpdated();
+        MarkUpdated(updatedAtUtc);
     }
 
-    public void Deactivate()
+    public void Deactivate(DateTimeOffset updatedAtUtc)
     {
         IsActive = false;
-        MarkUpdated();
+        MarkUpdated(updatedAtUtc);
     }
 
-    private static string RequireText(string value, string fieldName)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new DomainException($"{fieldName} is required.");
-        }
-
-        return value.Trim();
-    }
 }

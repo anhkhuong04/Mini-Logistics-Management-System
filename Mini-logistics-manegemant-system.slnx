@@ -7,6 +7,7 @@
   </Folder>
   <Folder Name="/test/">
     <Project Path="test/MiniLogistics.Application.Tests/MiniLogistics.Application.Tests.csproj" />
+    <Project Path="test/MiniLogistics.Domain.Tests/MiniLogistics.Domain.Tests.csproj" />
     <Project Path="test/MiniLogistics.Infrastructure.Tests/MiniLogistics.Infrastructure.Tests.csproj" />
     <Project Path="test/MiniLogistics.Web.Tests/MiniLogistics.Web.Tests.csproj" />
   </Folder>

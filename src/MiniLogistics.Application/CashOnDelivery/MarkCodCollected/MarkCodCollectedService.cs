@@ -16,18 +16,21 @@ public sealed class MarkCodCollectedService : IMarkCodCollectedService
     private readonly IShipmentRepository _shipmentRepository;
     private readonly ICodTransactionRepository _codTransactionRepository;
     private readonly IAdminAuditService _adminAuditService;
+    private readonly TimeProvider _timeProvider;
 
     public MarkCodCollectedService(
         IValidator<MarkCodCollectedCommand> validator,
         IIdentityService identityService,
         IShipmentRepository shipmentRepository,
         ICodTransactionRepository codTransactionRepository,
+        TimeProvider timeProvider,
         IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _shipmentRepository = shipmentRepository;
         _codTransactionRepository = codTransactionRepository;
+        _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
@@ -71,16 +74,22 @@ public sealed class MarkCodCollectedService : IMarkCodCollectedService
         }
 
         var oldCodStatus = codTransaction.Status;
+        var now = _timeProvider.GetUtcNow();
         var collectResult = codTransaction.MarkCollected(
             shipment.Status,
-            command.CollectedByUserId);
+            command.CollectedByUserId,
+            now);
 
         if (collectResult.IsFailure)
         {
             return collectResult;
         }
 
-        shipment.DeactivateActiveAssignments();
+        var completeShipmentCodCollectionResult = shipment.CompleteCodCollection(now);
+        if (completeShipmentCodCollectionResult.IsFailure)
+        {
+            return completeShipmentCodCollectionResult;
+        }
 
         await _adminAuditService.RecordAsync(
             new AdminAuditEntry(

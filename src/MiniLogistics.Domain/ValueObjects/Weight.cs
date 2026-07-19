@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.ValueObjects;
 
+/// <summary>
+/// Represents the validated Weight value used by the domain model.
+/// </summary>
 public sealed record Weight
 {
     public Weight(decimal kilograms)

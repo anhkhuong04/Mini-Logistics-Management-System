@@ -26,25 +26,28 @@ public sealed class WebhookDeliveryDispatcher
     private readonly IWebhookEndpointRepository _webhookEndpointRepository;
     private readonly ISecretProtector _secretProtector;
     private readonly ILogger<WebhookDeliveryDispatcher> _logger;
+    private readonly TimeProvider _timeProvider;
 
     public WebhookDeliveryDispatcher(
         HttpClient httpClient,
         IWebhookDeliveryRepository webhookDeliveryRepository,
         IWebhookEndpointRepository webhookEndpointRepository,
         ISecretProtector secretProtector,
-        ILogger<WebhookDeliveryDispatcher> logger)
+        ILogger<WebhookDeliveryDispatcher> logger,
+        TimeProvider timeProvider)
     {
         _httpClient = httpClient;
         _webhookDeliveryRepository = webhookDeliveryRepository;
         _webhookEndpointRepository = webhookEndpointRepository;
         _secretProtector = secretProtector;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public async Task DispatchDueAsync(CancellationToken cancellationToken = default)
     {
         var deliveries = await _webhookDeliveryRepository.GetDueAsync(
-            DateTimeOffset.UtcNow,
+            _timeProvider.GetUtcNow(),
             BatchSize,
             cancellationToken);
 
@@ -70,12 +73,12 @@ public sealed class WebhookDeliveryDispatcher
                 delivery,
                 null,
                 "Webhook endpoint is inactive or missing.",
-                DateTimeOffset.UtcNow,
+                _timeProvider.GetUtcNow(),
                 retry: false);
             return;
         }
 
-        var attemptedAtUtc = DateTimeOffset.UtcNow;
+        var attemptedAtUtc = _timeProvider.GetUtcNow();
         var stopwatch = Stopwatch.StartNew();
         try
         {

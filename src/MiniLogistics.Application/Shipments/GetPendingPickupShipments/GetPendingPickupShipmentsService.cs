@@ -8,11 +8,15 @@ public sealed class GetPendingPickupShipmentsService : IGetPendingPickupShipment
 {
     private static readonly TimeSpan PendingPickupSla = TimeSpan.FromHours(4);
 
-    private readonly IShipmentRepository _shipmentRepository;
+    private readonly IShipmentReadRepository _shipmentRepository;
+    private readonly TimeProvider _timeProvider;
 
-    public GetPendingPickupShipmentsService(IShipmentRepository shipmentRepository)
+    public GetPendingPickupShipmentsService(
+        IShipmentReadRepository shipmentRepository,
+        TimeProvider timeProvider)
     {
         _shipmentRepository = shipmentRepository;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<IReadOnlyList<GetPendingPickupShipmentResponse>>> GetAsync(
@@ -35,7 +39,7 @@ public sealed class GetPendingPickupShipmentsService : IGetPendingPickupShipment
             ShipmentStatus.PendingPickup,
             cancellationToken);
 
-        var now = DateTimeOffset.UtcNow;
+        var now = _timeProvider.GetUtcNow();
         var response = shipments
             .Where(shipment => Matches(query, shipment, now))
             .Select(shipment => ToResponse(shipment, now))
@@ -92,9 +96,7 @@ public sealed class GetPendingPickupShipmentsService : IGetPendingPickupShipment
         if (!string.IsNullOrWhiteSpace(query.Province))
         {
             var province = query.Province.Trim();
-            var matchesProvince = string.Equals(shipment.PickupAddress.Province, province, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(shipment.DeliveryAddress.Province, province, StringComparison.OrdinalIgnoreCase);
-            if (!matchesProvince)
+            if (!string.Equals(shipment.PickupAddress.Province, province, StringComparison.OrdinalIgnoreCase))
             {
                 return false;
             }

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Shipments;
 using MiniLogistics.Domain.Shipments;
 
@@ -32,6 +33,48 @@ public sealed class ShipmentRepository : IShipmentRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<PagedResult<Shipment>> GetByShopIdPagedAsync(
+        Guid shopId,
+        int pageNumber,
+        int pageSize,
+        ShipmentStatus? statusFilter = null,
+        string? trackingCodeSearch = null,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedPageNumber = NormalizePageNumber(pageNumber);
+        var normalizedPageSize = NormalizePageSize(pageSize);
+        var query = _dbContext.Shipments
+            .AsNoTracking()
+            .Where(shipment => shipment.ShopId == shopId);
+
+        if (statusFilter.HasValue)
+        {
+            query = query.Where(shipment => shipment.Status == statusFilter.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(trackingCodeSearch))
+        {
+            var keyword = trackingCodeSearch.Trim();
+            var trackingCode = new TrackingCode(keyword);
+            query = query.Where(shipment =>
+                shipment.TrackingCode == trackingCode
+                || shipment.ReceiverName.Contains(keyword));
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderByDescending(shipment => shipment.CreatedAtUtc)
+            .Skip((normalizedPageNumber - 1) * normalizedPageSize)
+            .Take(normalizedPageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<Shipment>(
+            items,
+            normalizedPageNumber,
+            normalizedPageSize,
+            totalCount);
+    }
+
     public async Task<IReadOnlyList<Shipment>> GetByStatusAsync(
         ShipmentStatus status,
         CancellationToken cancellationToken = default)
@@ -41,6 +84,32 @@ public sealed class ShipmentRepository : IShipmentRepository
             .Where(shipment => shipment.Status == status)
             .OrderBy(shipment => shipment.CreatedAtUtc)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<PagedResult<Shipment>> GetByStatusPagedAsync(
+        ShipmentStatus status,
+        int pageNumber,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedPageNumber = NormalizePageNumber(pageNumber);
+        var normalizedPageSize = NormalizePageSize(pageSize);
+        var query = _dbContext.Shipments
+            .AsNoTracking()
+            .Where(shipment => shipment.Status == status);
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query
+            .OrderBy(shipment => shipment.CreatedAtUtc)
+            .Skip((normalizedPageNumber - 1) * normalizedPageSize)
+            .Take(normalizedPageSize)
+            .ToListAsync(cancellationToken);
+
+        return new PagedResult<Shipment>(
+            items,
+            normalizedPageNumber,
+            normalizedPageSize,
+            totalCount);
     }
 
     public async Task<IReadOnlyList<Shipment>> GetByStatusesAsync(
@@ -193,5 +262,15 @@ public sealed class ShipmentRepository : IShipmentRepository
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         return _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static int NormalizePageNumber(int pageNumber)
+    {
+        return Math.Max(1, pageNumber);
+    }
+
+    private static int NormalizePageSize(int pageSize)
+    {
+        return Math.Clamp(pageSize, 1, 100);
     }
 }

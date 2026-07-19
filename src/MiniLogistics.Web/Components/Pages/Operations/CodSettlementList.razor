@@ -1,0 +1,95 @@
+<section class="content-card workspace-section">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Đối soát COD</p>
+            <h2>COD đã thu chờ đối soát</h2>
+        </div>
+        <span class="section-count">@Candidates.Count.ToString("N0") khoản</span>
+    </div>
+
+    @if (Candidates.Count == 0)
+    {
+        <div class="state-card compact">
+            <span class="state-icon">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M5 4h14v16H5V4Zm2 2v12h10V6H7Zm2 2h6v2H9V8Zm0 4h6v2H9v-2Z" />
+                </svg>
+            </span>
+            <strong>Không có COD chờ đối soát</strong>
+            <p>COD sau khi shipper hoặc vận hành xác nhận đã thu sẽ xuất hiện tại đây cho Admin chốt đối soát.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-shell">
+            <table class="assignments-table settlement-table">
+                <thead>
+                    <tr>
+                        <th>Mã vận đơn</th>
+                        <th>Người nhận</th>
+                        <th>COD</th>
+                        <th>Người thu</th>
+                        <th>Ngày thu</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var cod in Candidates)
+                    {
+                        <tr>
+                            <td><span class="tracking-code">@cod.TrackingCode</span></td>
+                            <td>
+                                <strong>@cod.ReceiverName</strong>
+                                <small>@cod.ReceiverPhone</small>
+                            </td>
+                            <td><strong>@OperationsDisplay.FormatMoney(cod.CodAmount, cod.Currency)</strong></td>
+                            <td>
+                                <strong>@OperationsDisplay.FormatCollectedBy(cod)</strong>
+                                @if (!string.IsNullOrWhiteSpace(cod.CollectedByEmail))
+                                {
+                                    <small>@cod.CollectedByEmail</small>
+                                }
+                            </td>
+                            <td>@OperationsDisplay.FormatNullableDate(cod.CollectedAtUtc)</td>
+                            <td>
+                                <small class="cod-pill @OperationsDisplay.GetCodStatusClass(cod.CodStatus)">@OperationsDisplay.FormatCodStatus(cod.CodStatus)</small>
+                            </td>
+                            <td>
+                                <button type="button"
+                                        class="settlement-button"
+                                        disabled="@IsSettlingCod(cod.ShipmentId)"
+                                        @onclick="() => MarkCodSettled.InvokeAsync(cod)">
+                                    @(IsSettlingCod(cod.ShipmentId) ? "Đang đối soát..." : "Đối soát COD")
+                                </button>
+                                @if (RowMessages.TryGetValue(cod.ShipmentId, out var rowMessage))
+                                {
+                                    <p class="row-message @rowMessage.Kind">@rowMessage.Text</p>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<GetCodSettlementCandidateResponse> Candidates { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, OperationsRowMessage> RowMessages { get; set; } = new Dictionary<Guid, OperationsRowMessage>();
+
+    [Parameter]
+    public Guid? SettlingCodShipmentId { get; set; }
+
+    [Parameter]
+    public EventCallback<GetCodSettlementCandidateResponse> MarkCodSettled { get; set; }
+
+    private bool IsSettlingCod(Guid shipmentId)
+    {
+        return SettlingCodShipmentId == shipmentId;
+    }
+}

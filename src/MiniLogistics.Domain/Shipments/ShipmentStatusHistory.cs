@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.Shipments;
 
+/// <summary>
+/// Represents the Shipment Status History domain entity.
+/// </summary>
 public sealed class ShipmentStatusHistory : Entity
 {
     private ShipmentStatusHistory()
@@ -13,7 +16,8 @@ public sealed class ShipmentStatusHistory : Entity
         Guid shipmentId,
         ShipmentStatus status,
         Guid changedByUserId,
-        string? note)
+        string? note,
+        DateTimeOffset changedAtUtc)
         : base(Guid.NewGuid())
     {
         if (shipmentId == Guid.Empty)
@@ -30,7 +34,7 @@ public sealed class ShipmentStatusHistory : Entity
         Status = status;
         ChangedByUserId = changedByUserId;
         Note = note?.Trim() ?? string.Empty;
-        ChangedAtUtc = DateTimeOffset.UtcNow;
+        ChangedAtUtc = changedAtUtc;
     }
 
     public Guid ShipmentId { get; private set; }

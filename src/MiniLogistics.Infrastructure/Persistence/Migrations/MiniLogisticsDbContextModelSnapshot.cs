@@ -289,6 +289,24 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                         .HasPrecision(10, 3)
                         .HasColumnType("decimal(10,3)");
 
+                    b.Property<decimal>("InsuranceFreeThreshold")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(1000000m);
+
+                    b.Property<decimal>("InsuranceMaximumValue")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)")
+                        .HasDefaultValue(20000000m);
+
+                    b.Property<decimal>("InsuranceRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(10, 6)
+                        .HasColumnType("decimal(10,6)")
+                        .HasDefaultValue(0.005m);
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
@@ -300,6 +318,12 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                         .HasPrecision(10, 3)
                         .HasColumnType("decimal(10,3)");
 
+                    b.Property<decimal>("ReturnFeeRate")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(10, 4)
+                        .HasColumnType("decimal(10,4)")
+                        .HasDefaultValue(0.5m);
+
                     b.Property<string>("RouteType")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -307,6 +331,11 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Version")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
 
                     b.HasKey("Id");
 
@@ -323,8 +352,13 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                             CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             ExtraStepFee = 3000m,
                             ExtraWeightStepKg = 0.5m,
+                            InsuranceFreeThreshold = 1000000m,
+                            InsuranceMaximumValue = 20000000m,
+                            InsuranceRate = 0.005m,
                             IsActive = true,
-                            RouteType = "IntraProvince"
+                            ReturnFeeRate = 0.5m,
+                            RouteType = "IntraProvince",
+                            Version = 1
                         },
                         new
                         {
@@ -334,8 +368,13 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                             CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             ExtraStepFee = 4000m,
                             ExtraWeightStepKg = 0.5m,
+                            InsuranceFreeThreshold = 1000000m,
+                            InsuranceMaximumValue = 20000000m,
+                            InsuranceRate = 0.005m,
                             IsActive = true,
-                            RouteType = "IntraRegion"
+                            ReturnFeeRate = 0.5m,
+                            RouteType = "IntraRegion",
+                            Version = 1
                         },
                         new
                         {
@@ -345,8 +384,13 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                             CreatedAtUtc = new DateTimeOffset(new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified), new TimeSpan(0, 0, 0, 0, 0)),
                             ExtraStepFee = 8000m,
                             ExtraWeightStepKg = 0.5m,
+                            InsuranceFreeThreshold = 1000000m,
+                            InsuranceMaximumValue = 20000000m,
+                            InsuranceRate = 0.005m,
                             IsActive = true,
-                            RouteType = "InterRegion"
+                            ReturnFeeRate = 0.5m,
+                            RouteType = "InterRegion",
+                            Version = 1
                         });
                 });
 
@@ -405,6 +449,42 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                     b.HasIndex("Province");
 
                     b.ToTable("Hubs", (string)null);
+                });
+
+            modelBuilder.Entity("MiniLogistics.Domain.Operations.RouteRegionConfig", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Province")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Region")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("nvarchar(120)");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Province", "IsActive");
+
+                    b.HasIndex("Province", "Version");
+
+                    b.ToTable("RouteRegionConfigs", (string)null);
                 });
 
             modelBuilder.Entity("MiniLogistics.Domain.Operations.ShipperWorkingArea", b =>
@@ -610,6 +690,44 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                     b.ToTable("ExternalShipmentReferences", (string)null);
                 });
 
+            modelBuilder.Entity("MiniLogistics.Domain.PartnerApi.IntegrationManagementScope", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ActorUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsGlobal")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Province")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid?>("ShopId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ShopId");
+
+                    b.HasIndex("ActorUserId", "IsActive");
+
+                    b.HasIndex("Province", "IsActive");
+
+                    b.ToTable("IntegrationManagementScopes", (string)null);
+                });
+
             modelBuilder.Entity("MiniLogistics.Domain.PartnerApi.PartnerApiCredentialAudit", b =>
                 {
                     b.Property<Guid>("Id")
@@ -778,6 +896,9 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTimeOffset?>("LastAttemptAtUtc")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<long?>("LastDurationMs")
+                        .HasColumnType("bigint");
 
                     b.Property<string>("LastError")
                         .HasMaxLength(1000)
@@ -1240,6 +1361,14 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MiniLogistics.Domain.PartnerApi.IntegrationManagementScope", b =>
+                {
+                    b.HasOne("MiniLogistics.Domain.Shops.Shop", null)
+                        .WithMany()
+                        .HasForeignKey("ShopId")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("MiniLogistics.Domain.PartnerApi.PartnerApiCredentialAudit", b =>
                 {
                     b.HasOne("MiniLogistics.Domain.PartnerApi.ApiClient", null)
@@ -1325,6 +1454,13 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                                 .HasPrecision(18, 2)
                                 .HasColumnType("decimal(18,2)")
                                 .HasColumnName("ReturnFee");
+
+                            b1.Property<decimal>("ReturnFeeRate")
+                                .ValueGeneratedOnAdd()
+                                .HasPrecision(10, 4)
+                                .HasColumnType("decimal(10,4)")
+                                .HasDefaultValue(0.5m)
+                                .HasColumnName("ReturnFeeRate");
 
                             b1.Property<decimal>("TotalFee")
                                 .HasPrecision(18, 2)

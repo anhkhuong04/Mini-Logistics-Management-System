@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.Operations;
 
+/// <summary>
+/// Represents the Route Region Config domain entity.
+/// </summary>
 public sealed class RouteRegionConfig : AuditableEntity
 {
     private RouteRegionConfig()
@@ -13,16 +16,17 @@ public sealed class RouteRegionConfig : AuditableEntity
     public RouteRegionConfig(
         string province,
         string region,
+        DateTimeOffset createdAtUtc,
         int version = 1)
-        : base(Guid.NewGuid())
+        : base(Guid.NewGuid(), createdAtUtc)
     {
         if (version <= 0)
         {
             throw new DomainException("Route region config version must be greater than zero.");
         }
 
-        Province = RequireText(province, nameof(province), 100);
-        Region = RequireText(region, nameof(region), 120);
+        Province = DomainGuard.RequireText(province, nameof(province), 100);
+        Region = DomainGuard.RequireText(region, nameof(region), 120);
         Version = version;
         IsActive = true;
     }
@@ -35,7 +39,7 @@ public sealed class RouteRegionConfig : AuditableEntity
 
     public bool IsActive { get; private set; }
 
-    public void Deactivate()
+    public void Deactivate(DateTimeOffset updatedAtUtc)
     {
         if (!IsActive)
         {
@@ -43,22 +47,7 @@ public sealed class RouteRegionConfig : AuditableEntity
         }
 
         IsActive = false;
-        MarkUpdated();
+        MarkUpdated(updatedAtUtc);
     }
 
-    private static string RequireText(string value, string fieldName, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new DomainException($"{fieldName} is required.");
-        }
-
-        var trimmed = value.Trim();
-        if (trimmed.Length > maxLength)
-        {
-            throw new DomainException($"{fieldName} cannot exceed {maxLength} characters.");
-        }
-
-        return trimmed;
-    }
 }

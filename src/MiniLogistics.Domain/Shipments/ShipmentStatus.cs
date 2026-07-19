@@ -1,5 +1,8 @@
 namespace MiniLogistics.Domain.Shipments;
 
+/// <summary>
+/// Defines the supported Shipment Status values in the domain model.
+/// </summary>
 public enum ShipmentStatus
 {
     Draft = 0,

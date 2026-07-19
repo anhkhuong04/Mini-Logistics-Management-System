@@ -1,0 +1,40 @@
+<div class="bulk-toolbar">
+    <span>@SelectedCount.ToString("N0") don da chon</span>
+    <button type="button" class="retry-button" disabled="@(PendingShipmentCount == 0)" @onclick="SelectVisible">
+        Chon trang nay
+    </button>
+    <button type="button" class="retry-button" disabled="@(SelectedCount == 0)" @onclick="ClearSelection">
+        Bo chon
+    </button>
+    <button type="button" class="assign-button" disabled="@(SelectedCount == 0 || IsBulkRetrying)" @onclick="RetrySelected">
+        @(IsBulkRetrying ? "Dang bulk retry..." : "Bulk retry auto")
+    </button>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Message))
+{
+    <div class="alert-box warning" role="status">@Message</div>
+}
+
+@code {
+    [Parameter]
+    public int PendingShipmentCount { get; set; }
+
+    [Parameter]
+    public int SelectedCount { get; set; }
+
+    [Parameter]
+    public bool IsBulkRetrying { get; set; }
+
+    [Parameter]
+    public string? Message { get; set; }
+
+    [Parameter]
+    public EventCallback SelectVisible { get; set; }
+
+    [Parameter]
+    public EventCallback ClearSelection { get; set; }
+
+    [Parameter]
+    public EventCallback RetrySelected { get; set; }
+}

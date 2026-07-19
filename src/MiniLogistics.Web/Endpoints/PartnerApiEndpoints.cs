@@ -14,9 +14,13 @@ public static class PartnerApiEndpoints
 {
     private static readonly JsonSerializerOptions RequestHashJsonOptions = new(JsonSerializerDefaults.Web);
 
-    public static IEndpointRouteBuilder MapPartnerApiEndpoints(this IEndpointRouteBuilder endpoints)
+    public static IEndpointRouteBuilder MapPartnerApiEndpoints(
+        this IEndpointRouteBuilder endpoints,
+        string corsPolicyName)
     {
-        var group = endpoints.MapGroup("/api/v1/partner");
+        var group = endpoints
+            .MapGroup("/api/v1/partner")
+            .RequireCors(corsPolicyName);
 
         group.MapPost("/shipping/quote", QuoteAsync);
         group.MapPost("/shipments", CreateShipmentAsync);
@@ -78,9 +82,10 @@ public static class PartnerApiEndpoints
         IPartnerApiAuthenticationService authenticationService,
         IPartnerCreateShipmentService createShipmentService,
         IPartnerApiRateLimiter rateLimiter,
-        IPartnerApiRequestAuditRepository auditRepository)
+        IPartnerApiRequestAuditRepository auditRepository,
+        TimeProvider timeProvider)
     {
-        var startedAtUtc = DateTimeOffset.UtcNow;
+        var startedAtUtc = timeProvider.GetUtcNow();
         var authenticationResult = await AuthenticateAsync(httpContext, authenticationService);
         if (authenticationResult.IsFailure)
         {
@@ -107,7 +112,8 @@ public static class PartnerApiEndpoints
                 isIdempotentReplay: false,
                 shipment: null,
                 error: validationError,
-                auditRepository);
+                auditRepository,
+                timeProvider);
 
             return ToErrorResult(
                 validationError,
@@ -150,7 +156,8 @@ public static class PartnerApiEndpoints
                 isIdempotentReplay: false,
                 shipment: null,
                 error: createResult.Error,
-                auditRepository);
+                auditRepository,
+                timeProvider);
 
             return ToErrorResult(createResult.Error, httpContext);
         }
@@ -169,7 +176,8 @@ public static class PartnerApiEndpoints
             isIdempotentReplay: createResult.Value.IsIdempotentReplay,
             shipment: createResult.Value.Shipment,
             error: null,
-            auditRepository);
+            auditRepository,
+            timeProvider);
 
         return createResult.Value.IsIdempotentReplay
             ? Results.Ok(createResult.Value.Shipment)
@@ -273,8 +281,10 @@ public static class PartnerApiEndpoints
         bool isIdempotentReplay,
         PartnerShipmentResponse? shipment,
         Error? error,
-        IPartnerApiRequestAuditRepository auditRepository)
+        IPartnerApiRequestAuditRepository auditRepository,
+        TimeProvider timeProvider)
     {
+        var completedAtUtc = timeProvider.GetUtcNow();
         var audit = new PartnerApiRequestAudit(
             context.ApiClientId,
             context.ShopId,
@@ -285,21 +295,22 @@ public static class PartnerApiEndpoints
             idempotencyKey,
             ComputeRequestHash(request),
             statusCode,
-            CalculateDurationMs(startedAtUtc),
+            CalculateDurationMs(startedAtUtc, completedAtUtc),
             isSuccess,
             isIdempotentReplay,
             shipment?.ShipmentId,
             shipment?.TrackingCode,
             error?.Code,
-            error?.Description);
+            error?.Description,
+            completedAtUtc);
 
         await auditRepository.AddAsync(audit, httpContext.RequestAborted);
         await auditRepository.SaveChangesAsync(httpContext.RequestAborted);
     }
 
-    private static int CalculateDurationMs(DateTimeOffset startedAtUtc)
+    private static int CalculateDurationMs(DateTimeOffset startedAtUtc, DateTimeOffset completedAtUtc)
     {
-        var elapsed = DateTimeOffset.UtcNow - startedAtUtc;
+        var elapsed = completedAtUtc - startedAtUtc;
         return (int)Math.Clamp(elapsed.TotalMilliseconds, 0, int.MaxValue);
     }
 
@@ -346,50 +357,4 @@ public static class PartnerApiEndpoints
         };
     }
 
-    public sealed record PartnerQuoteRequest(
-        string? ExternalOrderId,
-        PartnerAddressRequest? PickupAddress,
-        PartnerAddressRequest? DeliveryAddress,
-        PartnerParcelRequest? Parcel,
-        decimal GoodsValueAmount,
-        decimal CodAmount,
-        string? Currency);
-
-    public sealed record PartnerCreateShipmentRequest(
-        string? ExternalOrderId,
-        PartnerPartyRequest? Sender,
-        PartnerPartyRequest? Receiver,
-        PartnerAddressRequest? PickupAddress,
-        PartnerAddressRequest? DeliveryAddress,
-        PartnerParcelRequest? Parcel,
-        decimal GoodsValueAmount,
-        decimal CodAmount,
-        string? Currency,
-        string? Note);
-
-    public sealed record PartnerCancelShipmentRequest(
-        string? Reason);
-
-    public sealed record PartnerPartyRequest(
-        string? Name,
-        string? Phone);
-
-    public sealed record PartnerAddressRequest(
-        string? Street,
-        string? Ward,
-        string? Province,
-        string? Country);
-
-    public sealed record PartnerParcelRequest(
-        decimal WeightKg,
-        decimal LengthCm,
-        decimal WidthCm,
-        decimal HeightCm);
-
-    public sealed record PartnerApiErrorResponse(PartnerApiError Error);
-
-    public sealed record PartnerApiError(
-        string Code,
-        string Message,
-        string TraceId);
 }

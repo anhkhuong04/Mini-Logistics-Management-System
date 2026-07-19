@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.Shipments;
 
+/// <summary>
+/// Provides domain helpers or errors for Shipment Errors.
+/// </summary>
 public static class ShipmentErrors
 {
     public static readonly Error CannotAssign = new(
@@ -51,4 +54,8 @@ public static class ShipmentErrors
     public static readonly Error OnlyDraftCanBeSubmitted = new(
         "Shipment.OnlyDraftCanBeSubmitted",
         "Only draft shipments can be submitted.");
+
+    public static readonly Error CodCollectionRequiresDeliveredShipment = new(
+        "Shipment.CodCollectionRequiresDeliveredShipment",
+        "Shipment assignments can only be closed after COD collection for delivered shipments.");
 }

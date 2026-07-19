@@ -2,6 +2,9 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Domain.PartnerApi;
 
+/// <summary>
+/// Represents the Api Client domain entity.
+/// </summary>
 public sealed class ApiClient : AuditableEntity
 {
     private ApiClient()
@@ -15,8 +18,9 @@ public sealed class ApiClient : AuditableEntity
         Guid shopId,
         string name,
         string apiKeyPrefix,
-        string apiKeyHash)
-        : base(Guid.NewGuid())
+        string apiKeyHash,
+        DateTimeOffset createdAtUtc)
+        : base(Guid.NewGuid(), createdAtUtc)
     {
         if (shopId == Guid.Empty)
         {
@@ -24,9 +28,9 @@ public sealed class ApiClient : AuditableEntity
         }
 
         ShopId = shopId;
-        Name = RequireText(name, nameof(name), 150);
-        ApiKeyPrefix = RequireText(apiKeyPrefix, nameof(apiKeyPrefix), 32);
-        ApiKeyHash = RequireText(apiKeyHash, nameof(apiKeyHash), 128);
+        Name = DomainGuard.RequireText(name, nameof(name), 150);
+        ApiKeyPrefix = DomainGuard.RequireText(apiKeyPrefix, nameof(apiKeyPrefix), 32);
+        ApiKeyHash = DomainGuard.RequireText(apiKeyHash, nameof(apiKeyHash), 128);
         IsActive = true;
     }
 
@@ -42,50 +46,35 @@ public sealed class ApiClient : AuditableEntity
 
     public DateTimeOffset? LastUsedAtUtc { get; private set; }
 
-    public void Rename(string name)
+    public void Rename(string name, DateTimeOffset updatedAtUtc)
     {
-        Name = RequireText(name, nameof(name), 150);
-        MarkUpdated();
+        Name = DomainGuard.RequireText(name, nameof(name), 150);
+        MarkUpdated(updatedAtUtc);
     }
 
-    public void RotateKey(string apiKeyPrefix, string apiKeyHash)
+    public void RotateKey(string apiKeyPrefix, string apiKeyHash, DateTimeOffset updatedAtUtc)
     {
-        ApiKeyPrefix = RequireText(apiKeyPrefix, nameof(apiKeyPrefix), 32);
-        ApiKeyHash = RequireText(apiKeyHash, nameof(apiKeyHash), 128);
-        MarkUpdated();
+        ApiKeyPrefix = DomainGuard.RequireText(apiKeyPrefix, nameof(apiKeyPrefix), 32);
+        ApiKeyHash = DomainGuard.RequireText(apiKeyHash, nameof(apiKeyHash), 128);
+        MarkUpdated(updatedAtUtc);
     }
 
-    public void MarkUsed()
+    public void MarkUsed(DateTimeOffset usedAtUtc)
     {
-        LastUsedAtUtc = DateTimeOffset.UtcNow;
-        MarkUpdated();
+        LastUsedAtUtc = usedAtUtc;
+        MarkUpdated(usedAtUtc);
     }
 
-    public void Activate()
+    public void Activate(DateTimeOffset updatedAtUtc)
     {
         IsActive = true;
-        MarkUpdated();
+        MarkUpdated(updatedAtUtc);
     }
 
-    public void Deactivate()
+    public void Deactivate(DateTimeOffset updatedAtUtc)
     {
         IsActive = false;
-        MarkUpdated();
+        MarkUpdated(updatedAtUtc);
     }
 
-    private static string RequireText(string value, string fieldName, int maxLength)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            throw new DomainException($"{fieldName} is required.");
-        }
-
-        var trimmed = value.Trim();
-        if (trimmed.Length > maxLength)
-        {
-            throw new DomainException($"{fieldName} cannot exceed {maxLength} characters.");
-        }
-
-        return trimmed;
-    }
 }

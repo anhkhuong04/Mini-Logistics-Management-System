@@ -18,11 +18,12 @@ public sealed class AdminHubManagementTests
     [Fact]
     public async Task CreateHub_DuplicateCode_ReturnsConflict()
     {
-        var existingHub = new Hub("HCM-01", "Existing", "Ho Chi Minh");
+        var existingHub = new Hub("HCM-01", "Existing", "Ho Chi Minh", TestClock.UtcNow);
         var service = new CreateHubService(
             new CreateHubCommandValidator(),
             CreateIdentityService(),
             new FakeHubRepository([existingHub]),
+            TestClock.Provider,
             new FakeAdminAuditService());
 
         var result = await service.CreateAsync(new CreateHubCommand(
@@ -47,6 +48,7 @@ public sealed class AdminHubManagementTests
             new CreateHubCommandValidator(),
             CreateIdentityService(),
             new FakeHubRepository([]),
+            TestClock.Provider,
             auditService);
 
         var result = await service.CreateAsync(new CreateHubCommand(
@@ -70,8 +72,8 @@ public sealed class AdminHubManagementTests
     [Fact]
     public async Task SetHubInactive_ReferencedHubKeepsWorkingAreasAndWritesAudit()
     {
-        var hub = new Hub("HCM-01", "Ho Chi Minh Hub", "Ho Chi Minh");
-        var workingArea = new ShipperWorkingArea(_shipperId, hub.Id, hub.Province);
+        var hub = new Hub("HCM-01", "Ho Chi Minh Hub", "Ho Chi Minh", TestClock.UtcNow);
+        var workingArea = new ShipperWorkingArea(_shipperId, hub.Id, hub.Province, TestClock.UtcNow);
         var workingAreaRepository = new FakeShipperWorkingAreaRepository([workingArea]);
         var hubRepository = new FakeHubRepository([hub]);
         var auditService = new FakeAdminAuditService();
@@ -80,6 +82,7 @@ public sealed class AdminHubManagementTests
             CreateIdentityService(),
             hubRepository,
             workingAreaRepository,
+            TestClock.Provider,
             auditService);
 
         var result = await service.SetAsync(new SetHubActiveStatusCommand(

@@ -1,0 +1,15 @@
+@if (Visible)
+{
+    <small class="@CssClass">@Text</small>
+}
+
+@code {
+    [Parameter]
+    public bool Visible { get; set; } = true;
+
+    [Parameter]
+    public string CssClass { get; set; } = "sla-badge";
+
+    [Parameter]
+    public string Text { get; set; } = "Can chu y SLA";
+}

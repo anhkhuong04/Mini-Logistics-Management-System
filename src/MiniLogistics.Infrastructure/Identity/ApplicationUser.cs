@@ -12,5 +12,5 @@ public sealed class ApplicationUser : IdentityUser<Guid>
 
     public int MaxActiveShipments { get; set; } = 30;
 
-    public DateTimeOffset CreatedAtUtc { get; set; } = DateTimeOffset.UtcNow;
+    public DateTimeOffset CreatedAtUtc { get; set; }
 }

@@ -3,6 +3,9 @@ using MiniLogistics.Domain.ValueObjects;
 
 namespace MiniLogistics.Domain.Fees;
 
+/// <summary>
+/// Represents the validated Shipping Fee Request value used by the domain model.
+/// </summary>
 public sealed record ShippingFeeRequest(
     RouteType RouteType,
     Weight ActualWeight,

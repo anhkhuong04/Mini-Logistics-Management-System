@@ -28,7 +28,7 @@ public sealed class OperationsP2Tests
             matched,
             unmatchedProvince,
             unmatchedAmount
-        ]));
+        ]), TestClock.Provider);
 
         var result = await service.SearchAsync(new GetPendingPickupShipmentsQuery(
             Province: "Ha Noi",
@@ -47,7 +47,7 @@ public sealed class OperationsP2Tests
     {
         var pending = CreateShipment("Ha Noi", "Receiver A");
         var assigned = CreateShipment("Ha Noi", "Receiver B");
-        var assignResult = assigned.AssignShipper(_shipperId, _operatorId, "Assigned before bulk retry.");
+        var assignResult = assigned.AssignShipper(_shipperId, _operatorId, TestClock.UtcNow, "Assigned before bulk retry.");
         Assert.True(assignResult.IsSuccess, assignResult.Error.Description);
 
         var service = new BulkRetryAutoAssignmentService(
@@ -98,7 +98,8 @@ public sealed class OperationsP2Tests
             new Money(codAmount),
             new ShippingFeeBreakdown(new Money(20_000m), Money.Zero, Money.Zero, Money.Zero),
             RouteType.InterRegion,
-            Guid.NewGuid());
+            Guid.NewGuid(),
+            TestClock.UtcNow);
     }
 
     private sealed class FakeAutoAssignShipmentService : IAutoAssignShipmentService
