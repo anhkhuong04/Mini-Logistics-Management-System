@@ -1,4 +1,5 @@
 using FluentValidation;
+using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.CashOnDelivery;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Fees;
@@ -23,6 +24,7 @@ public sealed class CreateShipmentService : ICreateShipmentService
     private readonly IShopAccessService _shopAccessService;
     private readonly ICodTransactionRepository _codTransactionRepository;
     private readonly IAutoAssignShipmentService _autoAssignShipmentService;
+    private readonly IAdminAuditService _adminAuditService;
     private readonly TimeProvider _timeProvider;
 
     public CreateShipmentService(
@@ -33,7 +35,8 @@ public sealed class CreateShipmentService : ICreateShipmentService
         IShopAccessService shopAccessService,
         ICodTransactionRepository codTransactionRepository,
         IAutoAssignShipmentService autoAssignShipmentService,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _shippingFeeService = shippingFeeService;
@@ -43,6 +46,7 @@ public sealed class CreateShipmentService : ICreateShipmentService
         _codTransactionRepository = codTransactionRepository;
         _autoAssignShipmentService = autoAssignShipmentService;
         _timeProvider = timeProvider;
+        _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
     public async Task<Result<CreateShipmentResponse>> CreateAsync(
@@ -122,6 +126,21 @@ public sealed class CreateShipmentService : ICreateShipmentService
 
         await _shipmentRepository.AddAsync(shipment, cancellationToken);
         await _codTransactionRepository.AddAsync(codTransaction, cancellationToken);
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.CreatedByUserId,
+                AdminAuditActions.ShipmentCreated,
+                AdminAuditTargetTypes.Shipment,
+                shipment.Id,
+                NewValue: new
+                {
+                    shipment.ShopId,
+                    TrackingCode = shipment.TrackingCode.Value,
+                    Status = shipment.Status.ToString(),
+                    CodAmount = shipment.CodAmount.Amount,
+                    ShippingFee = shipment.ShippingFee.Amount
+                }),
+            cancellationToken);
         await _shipmentRepository.SaveChangesAsync(cancellationToken);
         await _autoAssignShipmentService.AutoAssignAsync(shipment.Id, cancellationToken);
 

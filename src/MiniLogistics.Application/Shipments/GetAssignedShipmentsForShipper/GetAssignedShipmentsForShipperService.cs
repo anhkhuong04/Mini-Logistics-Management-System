@@ -29,9 +29,24 @@ public sealed class GetAssignedShipmentsForShipperService : IGetAssignedShipment
         Guid shipperUserId,
         CancellationToken cancellationToken = default)
     {
+        var result = await SearchAsync(
+            shipperUserId,
+            new GetAssignedShipmentsForShipperQuery(PageNumber: 1, PageSize: int.MaxValue),
+            cancellationToken);
+
+        return result.IsSuccess
+            ? Result<IReadOnlyList<GetAssignedShipmentForShipperResponse>>.Success(result.Value.Items)
+            : Result<IReadOnlyList<GetAssignedShipmentForShipperResponse>>.Failure(result.Error);
+    }
+
+    public async Task<Result<PagedResponse<GetAssignedShipmentForShipperResponse>>> SearchAsync(
+        Guid shipperUserId,
+        GetAssignedShipmentsForShipperQuery query,
+        CancellationToken cancellationToken = default)
+    {
         if (shipperUserId == Guid.Empty)
         {
-            return Result<IReadOnlyList<GetAssignedShipmentForShipperResponse>>.Failure(
+            return Result<PagedResponse<GetAssignedShipmentForShipperResponse>>.Failure(
                 ApplicationErrors.ValidationFailed("Shipper user id is required."));
         }
 
@@ -42,33 +57,43 @@ public sealed class GetAssignedShipmentsForShipperService : IGetAssignedShipment
 
         if (!shipperCheck.Exists)
         {
-            return Result<IReadOnlyList<GetAssignedShipmentForShipperResponse>>.Failure(
+            return Result<PagedResponse<GetAssignedShipmentForShipperResponse>>.Failure(
                 ApplicationErrors.NotFound("Shipper was not found."));
         }
 
         if (!shipperCheck.IsActive)
         {
-            return Result<IReadOnlyList<GetAssignedShipmentForShipperResponse>>.Failure(
+            return Result<PagedResponse<GetAssignedShipmentForShipperResponse>>.Failure(
                 ApplicationErrors.Forbidden("Shipper is not active."));
         }
 
         if (!shipperCheck.IsInRole)
         {
-            return Result<IReadOnlyList<GetAssignedShipmentForShipperResponse>>.Failure(
+            return Result<PagedResponse<GetAssignedShipmentForShipperResponse>>.Failure(
                 ApplicationErrors.Forbidden("Current user is not a shipper."));
         }
 
-        var shipments = await _shipmentRepository.GetAssignedToShipperAsync(
-            shipperUserId,
+        var page = await _shipmentRepository.SearchAssignedToShipperAsync(
+            new AssignedShipmentsForShipperSearchCriteria(
+                shipperUserId,
+                ShipperWorkspaceStageMapping.ToStatuses(query.Stage),
+                query.SearchText,
+                query.Stage == ShipperWorkspaceStage.CodPending
+                    ? CodStatus.PendingCollection
+                    : query.CodStatus,
+                query.PageNumber,
+                query.PageSize),
+            cancellationToken);
+        var shipments = page.Items;
+        var codTransactionsByShipmentId = await _codTransactionRepository.GetByShipmentIdsAsync(
+            shipments.Select(shipment => shipment.Id).ToList(),
             cancellationToken);
 
         var response = new List<GetAssignedShipmentForShipperResponse>(shipments.Count);
 
         foreach (var shipment in shipments)
         {
-            var codTransaction = await _codTransactionRepository.GetByShipmentIdAsync(
-                shipment.Id,
-                cancellationToken);
+            codTransactionsByShipmentId.TryGetValue(shipment.Id, out var codTransaction);
             var codStatus = codTransaction?.Status ?? CodStatus.NotRequired;
 
             if (shipment.Status == ShipmentStatus.Delivered && codStatus != CodStatus.PendingCollection)
@@ -84,7 +109,12 @@ public sealed class GetAssignedShipmentsForShipperService : IGetAssignedShipment
             response.Add(ToResponse(shipment, codStatus, trackingHistory));
         }
 
-        return Result<IReadOnlyList<GetAssignedShipmentForShipperResponse>>.Success(response);
+        return Result<PagedResponse<GetAssignedShipmentForShipperResponse>>.Success(
+            new PagedResponse<GetAssignedShipmentForShipperResponse>(
+                response,
+                page.PageNumber,
+                page.PageSize,
+                page.TotalCount));
     }
 
     private static GetAssignedShipmentForShipperResponse ToResponse(

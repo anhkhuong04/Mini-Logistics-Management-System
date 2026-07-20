@@ -35,7 +35,12 @@ internal static class ShipmentStatusHistoryMapper
                         history.ChangedByUserId,
                         "Auto assignment engine",
                         null,
-                        false);
+                        false,
+                        history.FailureReasonCode,
+                        history.Latitude,
+                        history.Longitude,
+                        history.GpsAccuracyMeters,
+                        history.GpsCapturedAtUtc);
                 }
 
                 userById.TryGetValue(history.ChangedByUserId, out var user);
@@ -47,7 +52,12 @@ internal static class ShipmentStatusHistoryMapper
                     history.ChangedByUserId,
                     user?.FullName ?? "Người dùng không xác định",
                     user?.Email,
-                    user is not null);
+                    user is not null,
+                    history.FailureReasonCode,
+                    history.Latitude,
+                    history.Longitude,
+                    history.GpsAccuracyMeters,
+                    history.GpsCapturedAtUtc);
             })
             .ToList();
     }

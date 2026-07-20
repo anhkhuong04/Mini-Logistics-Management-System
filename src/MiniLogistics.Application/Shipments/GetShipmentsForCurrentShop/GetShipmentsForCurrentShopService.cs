@@ -57,12 +57,21 @@ public sealed class GetShipmentsForCurrentShopService : IGetShipmentsForCurrentS
         }
 
         var shop = shopResult.Value;
-        var shipments = await _shipmentRepository.GetByShopIdPagedAsync(
-            shop.Id,
-            query.PageNumber,
-            query.PageSize,
-            query.StatusFilter,
-            query.TrackingCodeSearch,
+        var shipments = await _shipmentRepository.SearchByShopAsync(
+            new ShopShipmentSearchCriteria(
+                shop.Id,
+                query.StatusFilter,
+                query.TrackingCodeSearch,
+                query.ReceiverNameSearch,
+                query.ReceiverPhoneSearch,
+                query.FromUtc,
+                query.ToUtc,
+                query.MinCodAmount,
+                query.MaxCodAmount,
+                query.SortBy,
+                query.SortDirection,
+                query.PageNumber,
+                query.PageSize),
             cancellationToken);
         var response = shipments.Items
             .Select(ToResponse)

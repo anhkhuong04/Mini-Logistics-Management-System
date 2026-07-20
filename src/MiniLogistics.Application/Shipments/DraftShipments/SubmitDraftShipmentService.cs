@@ -1,4 +1,5 @@
 using FluentValidation;
+using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.CashOnDelivery;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Fees;
@@ -21,6 +22,7 @@ public sealed class SubmitDraftShipmentService : ISubmitDraftShipmentService
     private readonly IShopAccessService _shopAccessService;
     private readonly ICodTransactionRepository _codTransactionRepository;
     private readonly IAutoAssignShipmentService _autoAssignShipmentService;
+    private readonly IAdminAuditService _adminAuditService;
     private readonly TimeProvider _timeProvider;
 
     public SubmitDraftShipmentService(
@@ -31,7 +33,8 @@ public sealed class SubmitDraftShipmentService : ISubmitDraftShipmentService
         IShopAccessService shopAccessService,
         ICodTransactionRepository codTransactionRepository,
         IAutoAssignShipmentService autoAssignShipmentService,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _shippingFeeService = shippingFeeService;
@@ -41,6 +44,7 @@ public sealed class SubmitDraftShipmentService : ISubmitDraftShipmentService
         _codTransactionRepository = codTransactionRepository;
         _autoAssignShipmentService = autoAssignShipmentService;
         _timeProvider = timeProvider;
+        _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
     public async Task<Result<DraftShipmentResponse>> SubmitAsync(
@@ -75,6 +79,7 @@ public sealed class SubmitDraftShipmentService : ISubmitDraftShipmentService
         }
 
         var previousFeeAmount = shipment.ShippingFee.Amount;
+        var previousStatus = shipment.Status;
         var repricingCommand = new SubmitDraftRepricingCommand(command.UserId, shipment, command.ShopId);
         var calculatedResult = await DraftShipmentMapping.CalculateAsync(
             _routeClassificationService,
@@ -134,6 +139,24 @@ public sealed class SubmitDraftShipmentService : ISubmitDraftShipmentService
             }
         }
 
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.UserId,
+                AdminAuditActions.ShipmentDraftSubmitted,
+                AdminAuditTargetTypes.Shipment,
+                shipment.Id,
+                OldValue: new
+                {
+                    Status = previousStatus.ToString(),
+                    ShippingFee = previousFeeAmount
+                },
+                NewValue: new
+                {
+                    Status = shipment.Status.ToString(),
+                    CodAmount = shipment.CodAmount.Amount,
+                    ShippingFee = shipment.ShippingFee.Amount
+                }),
+            cancellationToken);
         await _shipmentRepository.SaveChangesAsync(cancellationToken);
         await _autoAssignShipmentService.AutoAssignAsync(shipment.Id, cancellationToken);
 

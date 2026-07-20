@@ -6,4 +6,6 @@ public sealed record UpdateShipmentStatusCommand(
     Guid ShipmentId,
     Guid ChangedByUserId,
     ShipmentStatus NewStatus,
-    string? Note);
+    string? Note,
+    FailureReasonCode? FailureReasonCode = null,
+    GpsCoordinateDto? GpsCoordinate = null);

@@ -9,4 +9,9 @@ public sealed record ShipmentStatusHistoryResponse(
     Guid ChangedByUserId,
     string ChangedByDisplayName,
     string? ChangedByEmail,
-    bool ChangedByUserFound);
+    bool ChangedByUserFound,
+    FailureReasonCode? FailureReasonCode = null,
+    decimal? Latitude = null,
+    decimal? Longitude = null,
+    decimal? GpsAccuracyMeters = null,
+    DateTimeOffset? GpsCapturedAtUtc = null);

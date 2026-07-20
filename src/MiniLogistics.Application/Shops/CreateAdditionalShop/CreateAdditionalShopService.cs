@@ -1,4 +1,5 @@
 using FluentValidation;
+using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.Common;
@@ -12,18 +13,21 @@ public sealed class CreateAdditionalShopService : ICreateAdditionalShopService
     private readonly IValidator<CreateAdditionalShopCommand> _validator;
     private readonly IShopAccessService _shopAccessService;
     private readonly IShopRepository _shopRepository;
+    private readonly IAdminAuditService _adminAuditService;
     private readonly TimeProvider _timeProvider;
 
     public CreateAdditionalShopService(
         IValidator<CreateAdditionalShopCommand> validator,
         IShopAccessService shopAccessService,
         IShopRepository shopRepository,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _shopAccessService = shopAccessService;
         _shopRepository = shopRepository;
         _timeProvider = timeProvider;
+        _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
     public async Task<Result<CreateAdditionalShopResponse>> CreateAsync(
@@ -59,6 +63,20 @@ public sealed class CreateAdditionalShopService : ICreateAdditionalShopService
                 _timeProvider.GetUtcNow());
 
             await _shopRepository.AddAsync(shop, cancellationToken);
+            await _adminAuditService.RecordAsync(
+                new AdminAuditEntry(
+                    command.CurrentUserId,
+                    AdminAuditActions.ShopAdditionalShopCreated,
+                    AdminAuditTargetTypes.Shop,
+                    shop.Id,
+                    NewValue: new
+                    {
+                        shop.Name,
+                        PhoneNumber = shop.PhoneNumber.Value,
+                        Address = shop.Address.FullAddress,
+                        shop.IsActive
+                    }),
+                cancellationToken);
             await _shopRepository.SaveChangesAsync(cancellationToken);
 
             return Result<CreateAdditionalShopResponse>.Success(new CreateAdditionalShopResponse(

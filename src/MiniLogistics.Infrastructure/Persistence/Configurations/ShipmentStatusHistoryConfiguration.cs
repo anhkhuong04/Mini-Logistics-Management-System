@@ -33,6 +33,21 @@ public sealed class ShipmentStatusHistoryConfiguration : IEntityTypeConfiguratio
         builder.Property(history => history.ChangedAtUtc)
             .IsRequired();
 
+        builder.Property(history => history.FailureReasonCode)
+            .HasConversion<string>()
+            .HasMaxLength(80);
+
+        builder.Property(history => history.Latitude)
+            .HasPrecision(9, 6);
+
+        builder.Property(history => history.Longitude)
+            .HasPrecision(9, 6);
+
+        builder.Property(history => history.GpsAccuracyMeters)
+            .HasPrecision(10, 2);
+
+        builder.Property(history => history.GpsCapturedAtUtc);
+
         builder.HasIndex(history => new { history.ShipmentId, history.ChangedAtUtc });
         builder.HasIndex(history => history.ChangedByUserId);
     }

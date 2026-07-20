@@ -26,4 +26,12 @@ public static class CodErrors
     public static readonly Error CannotChangeAmount = new(
         "COD.CannotChangeAmount",
         "COD amount can only be changed before collection starts.");
+
+    public static readonly Error CollectedAmountCurrencyMismatch = new(
+        "COD.CollectedAmountCurrencyMismatch",
+        "Collected COD amount must use the declared COD currency.");
+
+    public static readonly Error DiscrepancyNoteRequired = new(
+        "COD.DiscrepancyNoteRequired",
+        "COD collection note is required when actual collected amount differs from declared amount.");
 }

@@ -1,4 +1,5 @@
 using MiniLogistics.Domain.Common;
+using MiniLogistics.Domain.ValueObjects;
 
 namespace MiniLogistics.Domain.Shipments;
 
@@ -17,7 +18,9 @@ public sealed class ShipmentStatusHistory : Entity
         ShipmentStatus status,
         Guid changedByUserId,
         string? note,
-        DateTimeOffset changedAtUtc)
+        DateTimeOffset changedAtUtc,
+        FailureReasonCode? failureReasonCode = null,
+        GpsCoordinate? gpsCoordinate = null)
         : base(Guid.NewGuid())
     {
         if (shipmentId == Guid.Empty)
@@ -35,6 +38,11 @@ public sealed class ShipmentStatusHistory : Entity
         ChangedByUserId = changedByUserId;
         Note = note?.Trim() ?? string.Empty;
         ChangedAtUtc = changedAtUtc;
+        FailureReasonCode = failureReasonCode;
+        Latitude = gpsCoordinate?.Latitude;
+        Longitude = gpsCoordinate?.Longitude;
+        GpsAccuracyMeters = gpsCoordinate?.AccuracyMeters;
+        GpsCapturedAtUtc = gpsCoordinate?.CapturedAtUtc;
     }
 
     public Guid ShipmentId { get; private set; }
@@ -46,4 +54,14 @@ public sealed class ShipmentStatusHistory : Entity
     public string Note { get; private set; }
 
     public DateTimeOffset ChangedAtUtc { get; private set; }
+
+    public FailureReasonCode? FailureReasonCode { get; private set; }
+
+    public decimal? Latitude { get; private set; }
+
+    public decimal? Longitude { get; private set; }
+
+    public decimal? GpsAccuracyMeters { get; private set; }
+
+    public DateTimeOffset? GpsCapturedAtUtc { get; private set; }
 }

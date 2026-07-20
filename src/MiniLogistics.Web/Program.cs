@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using MiniLogistics.Application;
+using MiniLogistics.Application.Authorization;
 using MiniLogistics.Infrastructure;
 using MiniLogistics.Infrastructure.Persistence;
 using MiniLogistics.Web.Components;
@@ -29,7 +30,12 @@ builder.Services.AddCors(options =>
 });
 builder.Services.AddExceptionHandler<PartnerApiExceptionHandler>();
 builder.Services.AddProblemDetails();
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(
+        OperationPermissions.ShipmentView,
+        policy => policy.RequireRole("Admin", "Operator"));
+});
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSingleton<VietnamAdministrativeDivisionService>();
 builder.Services.AddHttpContextAccessor();
@@ -85,6 +91,7 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapAuthenticationEndpoints();
+app.MapShopShipmentFileEndpoints();
 app.MapPartnerApiEndpoints(PartnerApiCorsPolicy);
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

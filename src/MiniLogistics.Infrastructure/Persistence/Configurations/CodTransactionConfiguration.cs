@@ -27,6 +27,23 @@ public sealed class CodTransactionConfiguration : IEntityTypeConfiguration<CodTr
             .HasPrecision(18, 2)
             .IsRequired();
 
+        builder.Property(codTransaction => codTransaction.CollectedAmount)
+            .HasConversion(
+                money => money == null ? (decimal?)null : money.Amount,
+                value => value.HasValue ? new Money(value.Value) : null)
+            .HasPrecision(18, 2);
+
+        builder.Property(codTransaction => codTransaction.DiscrepancyAmount)
+            .HasConversion(
+                money => money == null ? (decimal?)null : money.Amount,
+                value => value.HasValue ? new Money(value.Value) : null)
+            .HasPrecision(18, 2);
+
+        builder.Property(codTransaction => codTransaction.CollectionNote)
+            .HasMaxLength(500)
+            .HasDefaultValue(string.Empty)
+            .IsRequired();
+
         builder.Property(codTransaction => codTransaction.Status)
             .HasConversion<string>()
             .HasMaxLength(50)

@@ -1,4 +1,5 @@
 using FluentValidation;
+using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.CashOnDelivery;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Fees;
@@ -19,6 +20,7 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
     private readonly IShipmentRepository _shipmentRepository;
     private readonly IShopAccessService _shopAccessService;
     private readonly ICodTransactionRepository _codTransactionRepository;
+    private readonly IAdminAuditService _adminAuditService;
     private readonly TimeProvider _timeProvider;
 
     public UpdateShipmentBeforePickupService(
@@ -28,7 +30,8 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
         IShipmentRepository shipmentRepository,
         IShopAccessService shopAccessService,
         ICodTransactionRepository codTransactionRepository,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _shippingFeeService = shippingFeeService;
@@ -37,6 +40,7 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
         _shopAccessService = shopAccessService;
         _codTransactionRepository = codTransactionRepository;
         _timeProvider = timeProvider;
+        _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
     public async Task<Result<DraftShipmentResponse>> UpdateAsync(
@@ -71,6 +75,12 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
         }
 
         var previousFeeAmount = shipment.ShippingFee.Amount;
+        var previousValue = new
+        {
+            Status = shipment.Status.ToString(),
+            CodAmount = shipment.CodAmount.Amount,
+            ShippingFee = shipment.ShippingFee.Amount
+        };
         var calculatedResult = await DraftShipmentMapping.CalculateAsync(
             _routeClassificationService,
             _shippingFeeService,
@@ -126,6 +136,21 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
             }
         }
 
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.UserId,
+                AdminAuditActions.ShipmentUpdatedBeforePickup,
+                AdminAuditTargetTypes.Shipment,
+                shipment.Id,
+                OldValue: previousValue,
+                NewValue: new
+                {
+                    Status = shipment.Status.ToString(),
+                    CodAmount = shipment.CodAmount.Amount,
+                    ShippingFee = shipment.ShippingFee.Amount
+                },
+                Reason: command.Note),
+            cancellationToken);
         await _shipmentRepository.SaveChangesAsync(cancellationToken);
 
         return Result<DraftShipmentResponse>.Success(

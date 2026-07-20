@@ -1,4 +1,5 @@
 using FluentValidation;
+using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Fees;
 using MiniLogistics.Application.Routing;
@@ -18,6 +19,7 @@ public sealed class CreateDraftShipmentService : ICreateDraftShipmentService
     private readonly IRouteClassificationService _routeClassificationService;
     private readonly IShipmentRepository _shipmentRepository;
     private readonly IShopAccessService _shopAccessService;
+    private readonly IAdminAuditService _adminAuditService;
     private readonly TimeProvider _timeProvider;
 
     public CreateDraftShipmentService(
@@ -26,7 +28,8 @@ public sealed class CreateDraftShipmentService : ICreateDraftShipmentService
         IRouteClassificationService routeClassificationService,
         IShipmentRepository shipmentRepository,
         IShopAccessService shopAccessService,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _shippingFeeService = shippingFeeService;
@@ -34,6 +37,7 @@ public sealed class CreateDraftShipmentService : ICreateDraftShipmentService
         _shipmentRepository = shipmentRepository;
         _shopAccessService = shopAccessService;
         _timeProvider = timeProvider;
+        _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
     public async Task<Result<DraftShipmentResponse>> CreateAsync(
@@ -91,6 +95,20 @@ public sealed class CreateDraftShipmentService : ICreateDraftShipmentService
             trackingCode);
 
         await _shipmentRepository.AddAsync(shipment, cancellationToken);
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.UserId,
+                AdminAuditActions.ShipmentDraftCreated,
+                AdminAuditTargetTypes.Shipment,
+                shipment.Id,
+                NewValue: new
+                {
+                    shipment.ShopId,
+                    TrackingCode = shipment.TrackingCode.Value,
+                    Status = shipment.Status.ToString(),
+                    CodAmount = shipment.CodAmount.Amount
+                }),
+            cancellationToken);
         await _shipmentRepository.SaveChangesAsync(cancellationToken);
 
         return Result<DraftShipmentResponse>.Success(DraftShipmentMapping.ToResponse(shipment));

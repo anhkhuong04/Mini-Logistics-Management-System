@@ -30,6 +30,12 @@ public sealed class ShipmentAssignmentConfiguration : IEntityTypeConfiguration<S
 
         builder.HasIndex(assignment => assignment.ShipmentId);
         builder.HasIndex(assignment => assignment.ShipperId);
+        builder.HasIndex(assignment => new
+        {
+            assignment.ShipperId,
+            assignment.UnassignedAtUtc,
+            assignment.AssignedAtUtc
+        });
 
         builder.HasIndex(assignment => assignment.ShipmentId)
             .IsUnique()

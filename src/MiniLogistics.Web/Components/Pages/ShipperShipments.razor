@@ -2,6 +2,7 @@
 @rendermode InteractiveServer
 @attribute [Authorize(Roles = "Shipper")]
 @using System.Security.Claims
+@using MiniLogistics.Application.CashOnDelivery.GetShipperCodDailySummary
 @using MiniLogistics.Application.CashOnDelivery.MarkCodCollected
 @using MiniLogistics.Application.Shipments
 @using MiniLogistics.Application.Shipments.GetAssignedShipmentsForShipper
@@ -9,12 +10,15 @@
 @using MiniLogistics.Application.Shippers
 @using MiniLogistics.Application.Shippers.GetActiveShippers
 @using MiniLogistics.Application.Shippers.GetShipperWorkingAreas
+@using MiniLogistics.Application.Shippers.SetShipperAvailability
 @using MiniLogistics.Domain.CashOnDelivery
 @using MiniLogistics.Domain.Shipments
 @inject IGetAssignedShipmentsForShipperService GetAssignedShipmentsForShipperService
 @inject IGetActiveShippersService GetActiveShippersService
 @inject IGetShipperWorkingAreasService GetShipperWorkingAreasService
+@inject IGetShipperCodDailySummaryService GetShipperCodDailySummaryService
 @inject IMarkCodCollectedService MarkCodCollectedService
+@inject ISetShipperAvailabilityService SetShipperAvailabilityService
 @inject IUpdateShipmentStatusService UpdateShipmentStatusService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
@@ -67,7 +71,12 @@
                     <h2>@(CurrentShipper?.FullName ?? "Shipper")</h2>
                     <p>@FormatAvailability(CurrentShipper)</p>
                 </div>
-                <span class="capacity-badge @GetCapacityBadgeClass()">@FormatLoadCapacity()</span>
+                <div class="profile-actions">
+                    <span class="capacity-badge @GetCapacityBadgeClass()">@FormatLoadCapacity()</span>
+                    <button type="button" class="toggle-availability-button" disabled="@IsTogglingAvailability" @onclick="ToggleAvailabilityAsync">
+                        @(CurrentShipper?.IsAvailableForAssignment == true ? "Tạm dừng nhận đơn" : "Nhận auto assign")
+                    </button>
+                </div>
             </div>
 
             <div class="area-strip">
@@ -87,8 +96,8 @@
 
         <section class="stats-grid" aria-label="Tóm tắt vận đơn shipper">
             <article>
-                <span>Tổng đơn active</span>
-                <strong>@ActiveLoadCount.ToString("N0")</strong>
+                <span>Tổng đơn khớp lọc</span>
+                <strong>@TotalShipmentsCount.ToString("N0")</strong>
             </article>
             <article>
                 <span>Đang giao</span>
@@ -96,12 +105,45 @@
             </article>
             <article>
                 <span>COD cần thu</span>
-                <strong>@FormatMoney(AssignedShipments.Where(shipment => shipment.CodStatus == CodStatus.PendingCollection).Sum(shipment => shipment.CodAmount), DisplayCurrency)</strong>
+                <strong>@FormatMoney(CodSummary?.PendingCollectionAmount ?? 0m, DisplayCurrency)</strong>
+                <small>@((CodSummary?.PendingCollectionCount ?? 0).ToString("N0")) đơn</small>
             </article>
             <article>
-                <span>Hub/khu vực</span>
-                <strong>@WorkingAreas.Count.ToString("N0")</strong>
+                <span>COD đã thu hôm nay</span>
+                <strong>@FormatMoney(CodSummary?.CollectedTodayAmount ?? 0m, DisplayCurrency)</strong>
+                <small>@((CodSummary?.CollectedTodayCount ?? 0).ToString("N0")) đơn</small>
             </article>
+        </section>
+
+        <section class="content-card workspace-filters" aria-label="Bộ lọc workspace shipper">
+            <div class="stage-tabs" role="tablist" aria-label="Nhóm trạng thái">
+                <button type="button" class="@GetStageButtonClass(null)" @onclick="() => SetStageAsync(null)">Tất cả</button>
+                <button type="button" class="@GetStageButtonClass(ShipperWorkspaceStage.Pickup)" @onclick="() => SetStageAsync(ShipperWorkspaceStage.Pickup)">Lấy hàng</button>
+                <button type="button" class="@GetStageButtonClass(ShipperWorkspaceStage.Transit)" @onclick="() => SetStageAsync(ShipperWorkspaceStage.Transit)">Trung chuyển</button>
+                <button type="button" class="@GetStageButtonClass(ShipperWorkspaceStage.Delivery)" @onclick="() => SetStageAsync(ShipperWorkspaceStage.Delivery)">Giao hàng</button>
+                <button type="button" class="@GetStageButtonClass(ShipperWorkspaceStage.CodPending)" @onclick="() => SetStageAsync(ShipperWorkspaceStage.CodPending)">COD chờ thu</button>
+            </div>
+
+            <form class="filter-row" @onsubmit="ApplyFiltersAsync" @onsubmit:preventDefault="true">
+                <label>
+                    <span>Tìm kiếm</span>
+                    <input type="search" placeholder="Mã đơn, người nhận, SĐT" @bind="SearchText" @bind:event="oninput" />
+                </label>
+                <label>
+                    <span>COD</span>
+                    <select @bind="SelectedCodStatus">
+                        <option value="">Tất cả COD</option>
+                        <option value="@CodStatus.PendingCollection">Chờ thu</option>
+                        <option value="@CodStatus.Collected">Đã thu</option>
+                        <option value="@CodStatus.Settled">Đã đối soát</option>
+                        <option value="@CodStatus.NotRequired">Không yêu cầu</option>
+                    </select>
+                </label>
+                <div class="filter-actions">
+                    <button type="submit" disabled="@IsLoading">Lọc</button>
+                    <button type="button" class="secondary" disabled="@IsLoading" @onclick="ResetFiltersAsync">Xóa lọc</button>
+                </div>
+            </form>
         </section>
 
         @if (AssignedShipments.Count == 0)
@@ -174,6 +216,18 @@
                                 <strong>@FormatMoney(shipment.CodAmount, shipment.Currency)</strong>
                                 <p>Chỉ xác nhận sau khi đã thu đủ COD từ người nhận.</p>
                             </div>
+                            <label>
+                                Số thực thu
+                                <input type="number" min="0" step="1000" @bind="CodCollectedAmounts[shipment.ShipmentId]" />
+                            </label>
+                            <label>
+                                Ghi chú
+                                <input type="text"
+                                       maxlength="500"
+                                       placeholder="Bắt buộc nếu lệch COD"
+                                       @bind="CodCollectionNotes[shipment.ShipmentId]"
+                                       @bind:event="oninput" />
+                            </label>
                             <button type="button"
                                     disabled="@IsCollectingCod(shipment.ShipmentId)"
                                     @onclick="() => MarkCodCollectedAsync(shipment)">
@@ -210,6 +264,14 @@
                             @if (IsSelectedStatusNoteRequired(shipment))
                             {
                                 <p class="field-hint danger">Bắt buộc ghi rõ lý do khi giao thất bại.</p>
+                                <select value="@GetSelectedFailureReasonCode(shipment.ShipmentId)"
+                                        @onchange="eventArgs => SelectFailureReason(shipment.ShipmentId, eventArgs.Value?.ToString())">
+                                    <option value="">Chọn mã lý do</option>
+                                    @foreach (var reasonCode in FailureReasonCodes)
+                                    {
+                                        <option value="@reasonCode">@FormatFailureReason(reasonCode)</option>
+                                    }
+                                </select>
                             }
 
                             <textarea rows="2"
@@ -248,6 +310,12 @@
                     </article>
                 }
             </div>
+
+            <nav class="pager" aria-label="Phân trang vận đơn shipper">
+                <button type="button" disabled="@(PageNumber <= 1 || IsLoading)" @onclick="PreviousPageAsync">Trước</button>
+                <span>Trang @PageNumber / @TotalPages</span>
+                <button type="button" disabled="@(PageNumber >= TotalPages || IsLoading)" @onclick="NextPageAsync">Sau</button>
+            </nav>
         }
     }
 </div>
@@ -259,19 +327,41 @@
 
     private Guid? CollectingCodShipmentId { get; set; }
 
+    private bool IsTogglingAvailability { get; set; }
+
     private string? ErrorMessage { get; set; }
 
     private string? SuccessMessage { get; set; }
 
     private IReadOnlyList<GetAssignedShipmentForShipperResponse> AssignedShipments { get; set; } = [];
 
+    private string? SearchText { get; set; }
+
+    private string SelectedCodStatus { get; set; } = string.Empty;
+
+    private ShipperWorkspaceStage? SelectedStage { get; set; }
+
+    private int PageNumber { get; set; } = 1;
+
+    private int PageSize { get; } = 10;
+
+    private int TotalShipmentsCount { get; set; }
+
     private GetActiveShipperResponse? CurrentShipper { get; set; }
 
     private IReadOnlyList<ShipperWorkingAreaResponse> WorkingAreas { get; set; } = [];
 
+    private ShipperCodDailySummaryResponse? CodSummary { get; set; }
+
     private Dictionary<Guid, ShipmentStatus> SelectedStatuses { get; } = [];
 
     private Dictionary<Guid, string> StatusNotes { get; } = [];
+
+    private Dictionary<Guid, decimal?> CodCollectedAmounts { get; } = [];
+
+    private Dictionary<Guid, string> CodCollectionNotes { get; } = [];
+
+    private Dictionary<Guid, string> SelectedFailureReasonCodes { get; } = [];
 
     private Dictionary<Guid, RowMessage> RowMessages { get; } = [];
 
@@ -310,15 +400,26 @@
             return;
         }
 
-        var result = await GetAssignedShipmentsForShipperService.GetAsync(shipperUserId.Value);
+        await LoadCodSummaryAsync(shipperUserId.Value);
+
+        var result = await GetAssignedShipmentsForShipperService.SearchAsync(
+            shipperUserId.Value,
+            new GetAssignedShipmentsForShipperQuery(
+                string.IsNullOrWhiteSpace(SearchText) ? null : SearchText.Trim(),
+                SelectedStage,
+                ParseCodStatusFilter(),
+                PageNumber,
+                PageSize));
         if (result.IsFailure)
         {
             ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
             AssignedShipments = [];
+            TotalShipmentsCount = 0;
         }
         else
         {
-            AssignedShipments = result.Value;
+            AssignedShipments = result.Value.Items;
+            TotalShipmentsCount = result.Value.TotalCount;
             SyncPerShipmentState();
         }
 
@@ -349,6 +450,37 @@
         return true;
     }
 
+    private async Task LoadCodSummaryAsync(Guid shipperUserId)
+    {
+        var result = await GetShipperCodDailySummaryService.GetAsync(shipperUserId);
+        CodSummary = result.IsSuccess ? result.Value : null;
+    }
+
+    private async Task ToggleAvailabilityAsync()
+    {
+        if (CurrentShipper is null)
+        {
+            return;
+        }
+
+        IsTogglingAvailability = true;
+        var result = await SetShipperAvailabilityService.SetAsync(new SetShipperAvailabilityCommand(
+            CurrentShipper.UserId,
+            !CurrentShipper.IsAvailableForAssignment));
+        IsTogglingAvailability = false;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        SuccessMessage = CurrentShipper.IsAvailableForAssignment
+            ? "Đã tạm dừng nhận auto assign."
+            : "Đã bật nhận auto assign.";
+        await LoadAsync(clearMessages: false);
+    }
+
     private async Task UpdateStatusAsync(GetAssignedShipmentForShipperResponse shipment)
     {
         SuccessMessage = null;
@@ -374,6 +506,13 @@
             return;
         }
 
+        var failureReasonCode = ParseFailureReasonCode(shipment.ShipmentId);
+        if (nextStatus == ShipmentStatus.DeliveryFailed && failureReasonCode is null)
+        {
+            RowMessages[shipment.ShipmentId] = new RowMessage("danger", "Vui lòng chọn mã lý do giao thất bại.");
+            return;
+        }
+
         var shipperUserId = await GetCurrentUserIdAsync();
         if (shipperUserId is null)
         {
@@ -387,7 +526,8 @@
             shipment.ShipmentId,
             shipperUserId.Value,
             nextStatus,
-            GetNote(shipment.ShipmentId)));
+            GetNote(shipment.ShipmentId),
+            failureReasonCode));
 
         UpdatingShipmentId = null;
 
@@ -400,6 +540,50 @@
         StatusNotes[shipment.ShipmentId] = string.Empty;
         SuccessMessage = $"Đã cập nhật {shipment.TrackingCode} sang {FormatStatus(nextStatus)}.";
         await LoadAsync(clearMessages: false);
+    }
+
+    private async Task ApplyFiltersAsync()
+    {
+        PageNumber = 1;
+        await LoadAsync(clearMessages: true);
+    }
+
+    private async Task ResetFiltersAsync()
+    {
+        SearchText = null;
+        SelectedCodStatus = string.Empty;
+        SelectedStage = null;
+        PageNumber = 1;
+        await LoadAsync(clearMessages: true);
+    }
+
+    private async Task SetStageAsync(ShipperWorkspaceStage? stage)
+    {
+        SelectedStage = stage;
+        PageNumber = 1;
+        await LoadAsync(clearMessages: true);
+    }
+
+    private async Task PreviousPageAsync()
+    {
+        if (PageNumber <= 1)
+        {
+            return;
+        }
+
+        PageNumber--;
+        await LoadAsync(clearMessages: true);
+    }
+
+    private async Task NextPageAsync()
+    {
+        if (PageNumber >= TotalPages)
+        {
+            return;
+        }
+
+        PageNumber++;
+        await LoadAsync(clearMessages: true);
     }
 
     private async Task MarkCodCollectedAsync(GetAssignedShipmentForShipperResponse shipment)
@@ -424,7 +608,11 @@
 
         var result = await MarkCodCollectedService.MarkCollectedAsync(new MarkCodCollectedCommand(
             shipment.ShipmentId,
-            shipperUserId.Value));
+            shipperUserId.Value,
+            CodCollectedAmounts.TryGetValue(shipment.ShipmentId, out var collectedAmount)
+                ? collectedAmount
+                : shipment.CodAmount,
+            GetCodCollectionNote(shipment.ShipmentId)));
 
         CollectingCodShipmentId = null;
 
@@ -470,6 +658,16 @@
             }
         }
 
+        foreach (var shipmentId in CodCollectedAmounts.Keys.ToList())
+        {
+            if (!assignedIds.Contains(shipmentId))
+            {
+                CodCollectedAmounts.Remove(shipmentId);
+                CodCollectionNotes.Remove(shipmentId);
+                SelectedFailureReasonCodes.Remove(shipmentId);
+            }
+        }
+
         foreach (var shipment in AssignedShipments)
         {
             var nextStatuses = GetNextStatuses(shipment.Status);
@@ -484,6 +682,9 @@
             }
 
             StatusNotes.TryAdd(shipment.ShipmentId, string.Empty);
+            CodCollectedAmounts.TryAdd(shipment.ShipmentId, shipment.CodAmount);
+            CodCollectionNotes.TryAdd(shipment.ShipmentId, string.Empty);
+            SelectedFailureReasonCodes.TryAdd(shipment.ShipmentId, string.Empty);
         }
     }
 
@@ -517,6 +718,33 @@
             : null;
     }
 
+    private string? GetCodCollectionNote(Guid shipmentId)
+    {
+        return CodCollectionNotes.TryGetValue(shipmentId, out var note) && !string.IsNullOrWhiteSpace(note)
+            ? note.Trim()
+            : null;
+    }
+
+    private FailureReasonCode? ParseFailureReasonCode(Guid shipmentId)
+    {
+        return SelectedFailureReasonCodes.TryGetValue(shipmentId, out var value)
+            && Enum.TryParse<FailureReasonCode>(value, out var reasonCode)
+            ? reasonCode
+            : null;
+    }
+
+    private void SelectFailureReason(Guid shipmentId, string? value)
+    {
+        SelectedFailureReasonCodes[shipmentId] = value ?? string.Empty;
+    }
+
+    private string GetSelectedFailureReasonCode(Guid shipmentId)
+    {
+        return SelectedFailureReasonCodes.TryGetValue(shipmentId, out var value)
+            ? value
+            : string.Empty;
+    }
+
     private bool IsSelectedStatusNoteRequired(GetAssignedShipmentForShipperResponse shipment)
     {
         return SelectedStatuses.TryGetValue(shipment.ShipmentId, out var status)
@@ -536,7 +764,33 @@
     private int ActiveLoadCount => AssignedShipments.Count(shipment =>
         ShipmentLoadStatuses.ActiveAssignmentStatuses.Contains(shipment.Status));
 
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)TotalShipmentsCount / PageSize));
+
     private string DisplayCurrency => AssignedShipments.FirstOrDefault()?.Currency ?? "VND";
+
+    private static FailureReasonCode[] FailureReasonCodes { get; } =
+    [
+        FailureReasonCode.ReceiverUnavailable,
+        FailureReasonCode.WrongAddress,
+        FailureReasonCode.ReceiverRejected,
+        FailureReasonCode.CannotContactReceiver,
+        FailureReasonCode.DamagedParcel,
+        FailureReasonCode.PaymentIssue,
+        FailureReasonCode.WeatherOrAccessIssue,
+        FailureReasonCode.Other
+    ];
+
+    private CodStatus? ParseCodStatusFilter()
+    {
+        return Enum.TryParse<CodStatus>(SelectedCodStatus, out var status)
+            ? status
+            : null;
+    }
+
+    private string GetStageButtonClass(ShipperWorkspaceStage? stage)
+    {
+        return SelectedStage == stage ? "active" : string.Empty;
+    }
 
     private static bool CanMarkCodCollected(GetAssignedShipmentForShipperResponse shipment)
     {
@@ -663,6 +917,22 @@
             CodStatus.Collected => "Đã thu",
             CodStatus.Settled => "Đã đối soát",
             _ => status.ToString()
+        };
+    }
+
+    private static string FormatFailureReason(FailureReasonCode reasonCode)
+    {
+        return reasonCode switch
+        {
+            FailureReasonCode.ReceiverUnavailable => "Người nhận vắng mặt",
+            FailureReasonCode.WrongAddress => "Sai địa chỉ",
+            FailureReasonCode.ReceiverRejected => "Người nhận từ chối",
+            FailureReasonCode.CannotContactReceiver => "Không liên hệ được",
+            FailureReasonCode.DamagedParcel => "Hàng hư hỏng",
+            FailureReasonCode.PaymentIssue => "Vấn đề thanh toán",
+            FailureReasonCode.WeatherOrAccessIssue => "Thời tiết/không vào được",
+            FailureReasonCode.Other => "Khác",
+            _ => reasonCode.ToString()
         };
     }
 

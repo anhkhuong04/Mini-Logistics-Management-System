@@ -1,3 +1,4 @@
+using MiniLogistics.Application.Common;
 using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Application.Shipments.GetAssignedShipmentsForShipper;
@@ -9,5 +10,10 @@ public interface IGetAssignedShipmentsForShipperService
 {
     Task<Result<IReadOnlyList<GetAssignedShipmentForShipperResponse>>> GetAsync(
         Guid shipperUserId,
+        CancellationToken cancellationToken = default);
+
+    Task<Result<PagedResponse<GetAssignedShipmentForShipperResponse>>> SearchAsync(
+        Guid shipperUserId,
+        GetAssignedShipmentsForShipperQuery query,
         CancellationToken cancellationToken = default);
 }

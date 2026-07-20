@@ -28,6 +28,8 @@ public sealed class MiniLogisticsDbContext : IdentityDbContext<ApplicationUser, 
 
     public DbSet<ShipmentStatusHistory> ShipmentStatusHistories => Set<ShipmentStatusHistory>();
 
+    public DbSet<DeliveryProof> DeliveryProofs => Set<DeliveryProof>();
+
     public DbSet<CodTransaction> CodTransactions => Set<CodTransaction>();
 
     public DbSet<FeeRule> FeeRules => Set<FeeRule>();

@@ -12,6 +12,7 @@ public sealed class CodTransaction : AuditableEntity
     private CodTransaction()
     {
         Amount = Money.Zero;
+        CollectionNote = string.Empty;
     }
 
     private CodTransaction(Guid shipmentId, Money amount, DateTimeOffset createdAtUtc)
@@ -30,6 +31,12 @@ public sealed class CodTransaction : AuditableEntity
     public Guid ShipmentId { get; private set; }
 
     public Money Amount { get; private set; }
+
+    public Money? CollectedAmount { get; private set; }
+
+    public Money? DiscrepancyAmount { get; private set; }
+
+    public string CollectionNote { get; private set; } = string.Empty;
 
     public CodStatus Status { get; private set; }
 
@@ -63,7 +70,9 @@ public sealed class CodTransaction : AuditableEntity
     public Result MarkCollected(
         ShipmentStatus shipmentStatus,
         Guid collectedByUserId,
-        DateTimeOffset collectedAtUtc)
+        DateTimeOffset collectedAtUtc,
+        Money? collectedAmount = null,
+        string? collectionNote = null)
     {
         if (Status == CodStatus.NotRequired)
         {
@@ -80,7 +89,22 @@ public sealed class CodTransaction : AuditableEntity
             return Result.Failure(CodErrors.ShipmentMustBeDelivered);
         }
 
+        var actualCollectedAmount = collectedAmount ?? Amount;
+        if (actualCollectedAmount.Currency != Amount.Currency)
+        {
+            return Result.Failure(CodErrors.CollectedAmountCurrencyMismatch);
+        }
+
+        var discrepancyAmount = Math.Abs(actualCollectedAmount.Amount - Amount.Amount);
+        if (discrepancyAmount > 0 && string.IsNullOrWhiteSpace(collectionNote))
+        {
+            return Result.Failure(CodErrors.DiscrepancyNoteRequired);
+        }
+
         Status = CodStatus.Collected;
+        CollectedAmount = actualCollectedAmount;
+        DiscrepancyAmount = new Money(discrepancyAmount, Amount.Currency);
+        CollectionNote = collectionNote?.Trim() ?? string.Empty;
         CollectedAtUtc = collectedAtUtc;
         CollectedByUserId = collectedByUserId;
         MarkUpdated(collectedAtUtc);

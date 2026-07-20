@@ -70,6 +70,8 @@ public sealed class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
                 .HasColumnName("PickupCountry")
                 .HasMaxLength(100)
                 .IsRequired();
+
+            addressBuilder.HasIndex(address => address.Province);
         });
 
         builder.OwnsOne(shipment => shipment.DeliveryAddress, addressBuilder =>
@@ -248,5 +250,7 @@ public sealed class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
         builder.HasIndex(shipment => shipment.Status);
         builder.HasIndex(shipment => shipment.CreatedAtUtc);
         builder.HasIndex(shipment => shipment.ReceiverPhone);
+        builder.HasIndex(shipment => new { shipment.ShopId, shipment.Status, shipment.CreatedAtUtc });
+        builder.HasIndex(shipment => new { shipment.Status, shipment.CreatedAtUtc });
     }
 }

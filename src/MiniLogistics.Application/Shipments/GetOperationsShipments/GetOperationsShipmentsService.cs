@@ -59,9 +59,24 @@ public sealed class GetOperationsShipmentsService : IGetOperationsShipmentsServi
         IReadOnlyCollection<ShipmentStatus> statuses = query.Status.HasValue
             ? [query.Status.Value]
             : VisibleStatuses;
-        var shipments = await _shipmentRepository.GetByStatusesAsync(
-            statuses,
+        var now = _timeProvider.GetUtcNow();
+        var page = await _shipmentRepository.SearchOperationsAsync(
+            new OperationsShipmentSearchCriteria(
+                statuses,
+                query.SearchText,
+                query.CodStatus,
+                query.ShipperId,
+                query.Province,
+                query.FromUtc,
+                query.ToUtc,
+                query.MinCodAmount,
+                query.MaxCodAmount,
+                query.SlaOnly,
+                now,
+                query.PageNumber,
+                query.PageSize),
             cancellationToken);
+        var shipments = page.Items;
 
         var activeShipperIds = shipments
             .Select(shipment => shipment.Assignments.FirstOrDefault(assignment => assignment.IsActive)?.ShipperId)
@@ -71,15 +86,15 @@ public sealed class GetOperationsShipmentsService : IGetOperationsShipmentsServi
 
         var users = await _identityService.GetUsersByIdsAsync(activeShipperIds, cancellationToken);
         var userById = users.ToDictionary(user => user.UserId);
+        var codTransactionsByShipmentId = await _codTransactionRepository.GetByShipmentIdsAsync(
+            shipments.Select(shipment => shipment.Id).ToList(),
+            cancellationToken);
 
-        var now = _timeProvider.GetUtcNow();
         var response = new List<GetOperationsShipmentResponse>();
 
         foreach (var shipment in shipments)
         {
-            var codTransaction = await _codTransactionRepository.GetByShipmentIdAsync(
-                shipment.Id,
-                cancellationToken);
+            codTransactionsByShipmentId.TryGetValue(shipment.Id, out var codTransaction);
             var codStatus = codTransaction?.Status ?? CodStatus.NotRequired;
 
             if (shipment.Status == ShipmentStatus.Delivered && codStatus != CodStatus.PendingCollection)
@@ -87,7 +102,12 @@ public sealed class GetOperationsShipmentsService : IGetOperationsShipmentsServi
                 continue;
             }
 
-            if (!Matches(query, shipment, codStatus, now))
+            if (query.CodStatus.HasValue && codStatus != query.CodStatus.Value)
+            {
+                continue;
+            }
+
+            if (query.SlaOnly && !IsSlaOverdue(shipment, codStatus, now))
             {
                 continue;
             }
@@ -111,21 +131,12 @@ public sealed class GetOperationsShipmentsService : IGetOperationsShipmentsServi
                 IsSlaOverdue(shipment, codStatus, now)));
         }
 
-        var pageNumber = Math.Max(1, query.PageNumber);
-        var pageSize = query.PageSize == int.MaxValue
-            ? int.MaxValue
-            : Math.Clamp(query.PageSize, 1, 100);
-        var items = response
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToList();
-
         return Result<PagedResponse<GetOperationsShipmentResponse>>.Success(
             new PagedResponse<GetOperationsShipmentResponse>(
-                items,
-                pageNumber,
-                pageSize,
-                response.Count));
+                response,
+                page.PageNumber,
+                page.PageSize,
+                page.TotalCount));
     }
 
     private static GetOperationsShipmentResponse ToResponse(
@@ -154,74 +165,6 @@ public sealed class GetOperationsShipmentsService : IGetOperationsShipmentsServi
             activeShipper?.PhoneNumber,
             trackingHistory,
             isSlaOverdue);
-    }
-
-    private static bool Matches(
-        GetOperationsShipmentsQuery query,
-        Shipment shipment,
-        CodStatus codStatus,
-        DateTimeOffset now)
-    {
-        if (query.CodStatus.HasValue && codStatus != query.CodStatus.Value)
-        {
-            return false;
-        }
-
-        if (query.ShipperId.HasValue
-            && shipment.Assignments.FirstOrDefault(assignment => assignment.IsActive)?.ShipperId != query.ShipperId.Value)
-        {
-            return false;
-        }
-
-        if (!string.IsNullOrWhiteSpace(query.SearchText))
-        {
-            var keyword = query.SearchText.Trim();
-            var matchesKeyword = shipment.TrackingCode.Value.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                || shipment.ReceiverName.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                || shipment.ReceiverPhone.Value.Contains(keyword, StringComparison.OrdinalIgnoreCase);
-            if (!matchesKeyword)
-            {
-                return false;
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(query.Province))
-        {
-            var province = query.Province.Trim();
-            var matchesProvince = string.Equals(shipment.PickupAddress.Province, province, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(shipment.DeliveryAddress.Province, province, StringComparison.OrdinalIgnoreCase);
-            if (!matchesProvince)
-            {
-                return false;
-            }
-        }
-
-        if (query.FromUtc.HasValue && shipment.CreatedAtUtc < query.FromUtc.Value)
-        {
-            return false;
-        }
-
-        if (query.ToUtc.HasValue && shipment.CreatedAtUtc > query.ToUtc.Value)
-        {
-            return false;
-        }
-
-        if (query.MinCodAmount.HasValue && shipment.CodAmount.Amount < query.MinCodAmount.Value)
-        {
-            return false;
-        }
-
-        if (query.MaxCodAmount.HasValue && shipment.CodAmount.Amount > query.MaxCodAmount.Value)
-        {
-            return false;
-        }
-
-        if (query.SlaOnly && !IsSlaOverdue(shipment, codStatus, now))
-        {
-            return false;
-        }
-
-        return true;
     }
 
     private static bool IsSlaOverdue(

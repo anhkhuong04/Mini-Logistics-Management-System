@@ -227,14 +227,29 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<decimal?>("CollectedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTimeOffset?>("CollectedAtUtc")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<Guid?>("CollectedByUserId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("CollectionNote")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasDefaultValue("");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal?>("DiscrepancyAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTimeOffset?>("SettledAtUtc")
                         .HasColumnType("datetimeoffset");
@@ -978,6 +993,77 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                     b.ToTable("WebhookEndpoints", (string)null);
                 });
 
+            modelBuilder.Entity("MiniLogistics.Domain.Shipments.DeliveryProof", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CapturedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal?>("GpsAccuracyMeters")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<DateTimeOffset?>("GpsCapturedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal?>("Latitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal?>("Longitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<string>("ProofMethod")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("ProofType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("RecipientName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<string>("ResourceUri")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid>("ShipmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("SubmittedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("SubmittedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("VerificationText")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SubmittedByUserId");
+
+                    b.HasIndex("ShipmentId", "ProofType", "SubmittedAtUtc");
+
+                    b.ToTable("DeliveryProofs", (string)null);
+                });
+
             modelBuilder.Entity("MiniLogistics.Domain.Shipments.Shipment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1069,6 +1155,10 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                     b.HasIndex("TrackingCode")
                         .IsUnique();
 
+                    b.HasIndex("Status", "CreatedAtUtc");
+
+                    b.HasIndex("ShopId", "Status", "CreatedAtUtc");
+
                     b.ToTable("Shipments", (string)null);
                 });
 
@@ -1097,6 +1187,8 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ShipperId");
 
+                    b.HasIndex("ShipperId", "UnassignedAtUtc", "AssignedAtUtc");
+
                     b.ToTable("ShipmentAssignments", (string)null);
                 });
 
@@ -1110,6 +1202,25 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
 
                     b.Property<Guid>("ChangedByUserId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("FailureReasonCode")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<decimal?>("GpsAccuracyMeters")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<DateTimeOffset?>("GpsCapturedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal?>("Latitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
+
+                    b.Property<decimal?>("Longitude")
+                        .HasPrecision(9, 6)
+                        .HasColumnType("decimal(9,6)");
 
                     b.Property<string>("Note")
                         .IsRequired()
@@ -1422,6 +1533,15 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MiniLogistics.Domain.Shipments.DeliveryProof", b =>
+                {
+                    b.HasOne("MiniLogistics.Domain.Shipments.Shipment", null)
+                        .WithMany()
+                        .HasForeignKey("ShipmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("MiniLogistics.Domain.Shipments.Shipment", b =>
                 {
                     b.HasOne("MiniLogistics.Domain.Shops.Shop", null)
@@ -1542,6 +1662,8 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                                 .HasColumnName("PickupWard");
 
                             b1.HasKey("ShipmentId");
+
+                            b1.HasIndex("Province");
 
                             b1.ToTable("Shipments");
 

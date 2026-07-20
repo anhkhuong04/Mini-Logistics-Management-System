@@ -11,5 +11,12 @@ public sealed class MarkCodCollectedCommandValidator : AbstractValidator<MarkCod
 
         RuleFor(command => command.CollectedByUserId)
             .NotEmpty();
+
+        RuleFor(command => command.CollectedAmount)
+            .GreaterThanOrEqualTo(0m)
+            .When(command => command.CollectedAmount.HasValue);
+
+        RuleFor(command => command.Note)
+            .MaximumLength(500);
     }
 }

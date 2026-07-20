@@ -54,4 +54,17 @@ public sealed class ValueObjectTests
         Assert.Throws<DomainException>(() => new ParcelDimensions(0m, 10m, 10m));
         Assert.Throws<DomainException>(() => dimensions.CalculateVolumetricWeightKg(0m));
     }
+
+    [Fact]
+    public void GpsCoordinate_ValidatesRangesAndRoundsValues()
+    {
+        var coordinate = new GpsCoordinate(10.1234567m, 106.9876543m, 12.345m);
+
+        Assert.Equal(10.123457m, coordinate.Latitude);
+        Assert.Equal(106.987654m, coordinate.Longitude);
+        Assert.Equal(12.34m, coordinate.AccuracyMeters);
+        Assert.Throws<DomainException>(() => new GpsCoordinate(-91m, 0m));
+        Assert.Throws<DomainException>(() => new GpsCoordinate(0m, 181m));
+        Assert.Throws<DomainException>(() => new GpsCoordinate(0m, 0m, -1m));
+    }
 }

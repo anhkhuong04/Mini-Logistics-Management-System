@@ -295,7 +295,9 @@ public sealed class Shipment : AuditableEntity
         ShipmentStatus newStatus,
         Guid changedByUserId,
         DateTimeOffset changedAtUtc,
-        string? note = null)
+        string? note = null,
+        FailureReasonCode? failureReasonCode = null,
+        GpsCoordinate? gpsCoordinate = null)
     {
         if (IsTerminalStatus(Status))
         {
@@ -317,7 +319,7 @@ public sealed class Shipment : AuditableEntity
             ApplyReturnFee();
         }
 
-        ChangeStatus(newStatus, changedByUserId, changedAtUtc, note);
+        ChangeStatus(newStatus, changedByUserId, changedAtUtc, note, failureReasonCode, gpsCoordinate);
 
         if (newStatus == ShipmentStatus.Returned
             || (newStatus == ShipmentStatus.Delivered && CodAmount.IsZero))
@@ -438,10 +440,12 @@ public sealed class Shipment : AuditableEntity
         ShipmentStatus newStatus,
         Guid changedByUserId,
         DateTimeOffset changedAtUtc,
-        string? note)
+        string? note,
+        FailureReasonCode? failureReasonCode = null,
+        GpsCoordinate? gpsCoordinate = null)
     {
         Status = newStatus;
-        AddStatusHistory(newStatus, changedByUserId, note, changedAtUtc);
+        AddStatusHistory(newStatus, changedByUserId, note, changedAtUtc, failureReasonCode, gpsCoordinate);
         MarkUpdated(changedAtUtc);
     }
 
@@ -455,9 +459,18 @@ public sealed class Shipment : AuditableEntity
         ShipmentStatus status,
         Guid changedByUserId,
         string? note,
-        DateTimeOffset changedAtUtc)
+        DateTimeOffset changedAtUtc,
+        FailureReasonCode? failureReasonCode = null,
+        GpsCoordinate? gpsCoordinate = null)
     {
-        _statusHistory.Add(new ShipmentStatusHistory(Id, status, changedByUserId, note, changedAtUtc));
+        _statusHistory.Add(new ShipmentStatusHistory(
+            Id,
+            status,
+            changedByUserId,
+            note,
+            changedAtUtc,
+            failureReasonCode,
+            gpsCoordinate));
     }
 
     private static bool CanTransitionTo(ShipmentStatus currentStatus, ShipmentStatus newStatus)

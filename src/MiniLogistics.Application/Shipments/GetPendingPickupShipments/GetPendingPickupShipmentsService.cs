@@ -35,31 +35,30 @@ public sealed class GetPendingPickupShipmentsService : IGetPendingPickupShipment
         GetPendingPickupShipmentsQuery query,
         CancellationToken cancellationToken = default)
     {
-        var shipments = await _shipmentRepository.GetByStatusAsync(
-            ShipmentStatus.PendingPickup,
+        var now = _timeProvider.GetUtcNow();
+        var page = await _shipmentRepository.SearchPendingPickupAsync(
+            new PendingPickupShipmentSearchCriteria(
+                query.SearchText,
+                query.Province,
+                query.FromUtc,
+                query.ToUtc,
+                query.MinCodAmount,
+                query.MaxCodAmount,
+                query.SlaOnly ? now.Subtract(PendingPickupSla) : null,
+                query.PageNumber,
+                query.PageSize),
             cancellationToken);
 
-        var now = _timeProvider.GetUtcNow();
-        var response = shipments
-            .Where(shipment => Matches(query, shipment, now))
+        var response = page.Items
             .Select(shipment => ToResponse(shipment, now))
-            .ToList();
-
-        var pageNumber = Math.Max(1, query.PageNumber);
-        var pageSize = query.PageSize == int.MaxValue
-            ? int.MaxValue
-            : Math.Clamp(query.PageSize, 1, 100);
-        var items = response
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
             .ToList();
 
         return Result<PagedResponse<GetPendingPickupShipmentResponse>>.Success(
             new PagedResponse<GetPendingPickupShipmentResponse>(
-                items,
-                pageNumber,
-                pageSize,
-                response.Count));
+                response,
+                page.PageNumber,
+                page.PageSize,
+                page.TotalCount));
     }
 
     private static GetPendingPickupShipmentResponse ToResponse(Shipment shipment, DateTimeOffset now)
@@ -77,56 +76,4 @@ public sealed class GetPendingPickupShipmentsService : IGetPendingPickupShipment
                 now - shipment.CreatedAtUtc >= PendingPickupSla);
     }
 
-    private static bool Matches(
-        GetPendingPickupShipmentsQuery query,
-        Shipment shipment,
-        DateTimeOffset now)
-    {
-        if (!string.IsNullOrWhiteSpace(query.SearchText))
-        {
-            var keyword = query.SearchText.Trim();
-            var matchesKeyword = shipment.TrackingCode.Value.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                || shipment.ReceiverName.Contains(keyword, StringComparison.OrdinalIgnoreCase);
-            if (!matchesKeyword)
-            {
-                return false;
-            }
-        }
-
-        if (!string.IsNullOrWhiteSpace(query.Province))
-        {
-            var province = query.Province.Trim();
-            if (!string.Equals(shipment.PickupAddress.Province, province, StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-        }
-
-        if (query.FromUtc.HasValue && shipment.CreatedAtUtc < query.FromUtc.Value)
-        {
-            return false;
-        }
-
-        if (query.ToUtc.HasValue && shipment.CreatedAtUtc > query.ToUtc.Value)
-        {
-            return false;
-        }
-
-        if (query.MinCodAmount.HasValue && shipment.CodAmount.Amount < query.MinCodAmount.Value)
-        {
-            return false;
-        }
-
-        if (query.MaxCodAmount.HasValue && shipment.CodAmount.Amount > query.MaxCodAmount.Value)
-        {
-            return false;
-        }
-
-        if (query.SlaOnly && now - shipment.CreatedAtUtc < PendingPickupSla)
-        {
-            return false;
-        }
-
-        return true;
-    }
 }

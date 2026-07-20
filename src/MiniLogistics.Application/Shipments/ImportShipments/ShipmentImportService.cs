@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using FluentValidation;
+using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Fees;
 using MiniLogistics.Application.Routing;
@@ -45,6 +46,7 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
     private readonly IRouteClassificationService _routeClassificationService;
     private readonly IShippingFeeService _shippingFeeService;
     private readonly ICreateShipmentService _createShipmentService;
+    private readonly IAdminAuditService _adminAuditService;
 
     public ShipmentImportService(
         IValidator<PreviewShipmentImportCommand> previewValidator,
@@ -53,7 +55,8 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
         IShopAccessService shopAccessService,
         IRouteClassificationService routeClassificationService,
         IShippingFeeService shippingFeeService,
-        ICreateShipmentService createShipmentService)
+        ICreateShipmentService createShipmentService,
+        IAdminAuditService? adminAuditService = null)
     {
         _previewValidator = previewValidator;
         _confirmValidator = confirmValidator;
@@ -62,6 +65,7 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
         _routeClassificationService = routeClassificationService;
         _shippingFeeService = shippingFeeService;
         _createShipmentService = createShipmentService;
+        _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
     public async Task<Result<ShipmentImportPreviewResponse>> PreviewAsync(
@@ -130,12 +134,27 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
             previewRows.Add(rowResult);
         }
 
-        return Result<ShipmentImportPreviewResponse>.Success(new ShipmentImportPreviewResponse(
+        var response = new ShipmentImportPreviewResponse(
             shopResult.Value.Id,
             previewRows.Count,
             previewRows.Count(row => row.IsValid),
             previewRows.Count(row => !row.IsValid),
-            previewRows));
+            previewRows);
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.CurrentUserId,
+                AdminAuditActions.ShipmentImportPreviewed,
+                AdminAuditTargetTypes.Shop,
+                shopResult.Value.Id,
+                NewValue: new
+                {
+                    response.TotalRows,
+                    response.ValidRows,
+                    response.InvalidRows
+                }),
+            cancellationToken);
+
+        return Result<ShipmentImportPreviewResponse>.Success(response);
     }
 
     public async Task<Result<ShipmentImportConfirmResponse>> ConfirmAsync(
@@ -211,11 +230,26 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
                 []));
         }
 
-        return Result<ShipmentImportConfirmResponse>.Success(new ShipmentImportConfirmResponse(
+        var response = new ShipmentImportConfirmResponse(
             results.Count,
             results.Count(row => row.IsCreated),
             results.Count(row => !row.IsCreated),
-            results));
+            results);
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.CurrentUserId,
+                AdminAuditActions.ShipmentImportConfirmed,
+                AdminAuditTargetTypes.Shop,
+                shopResult.Value.Id,
+                NewValue: new
+                {
+                    response.TotalRows,
+                    response.CreatedRows,
+                    response.FailedRows
+                }),
+            cancellationToken);
+
+        return Result<ShipmentImportConfirmResponse>.Success(response);
     }
 
     private async Task<ShipmentImportPreviewRowResponse> PreviewRowAsync(

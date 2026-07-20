@@ -1,11 +1,12 @@
 using FluentValidation;
 using Microsoft.Extensions.Logging;
+using MiniLogistics.Application.AdminAuditing;
+using MiniLogistics.Application.Authorization;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.Shipments.AutoAssignShipment;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Shipments;
-using MiniLogistics.Domain.Users;
 
 namespace MiniLogistics.Application.Shipments.BulkRetryAutoAssignment;
 
@@ -15,6 +16,8 @@ public sealed class BulkRetryAutoAssignmentService : IBulkRetryAutoAssignmentSer
     private readonly IIdentityService _identityService;
     private readonly IShipmentReadRepository _shipmentRepository;
     private readonly IAutoAssignShipmentService _autoAssignShipmentService;
+    private readonly IOperationAuthorizationService _operationAuthorizationService;
+    private readonly IAdminAuditService _adminAuditService;
     private readonly ILogger<BulkRetryAutoAssignmentService>? _logger;
 
     public BulkRetryAutoAssignmentService(
@@ -22,12 +25,16 @@ public sealed class BulkRetryAutoAssignmentService : IBulkRetryAutoAssignmentSer
         IIdentityService identityService,
         IShipmentReadRepository shipmentRepository,
         IAutoAssignShipmentService autoAssignShipmentService,
-        ILogger<BulkRetryAutoAssignmentService>? logger = null)
+        ILogger<BulkRetryAutoAssignmentService>? logger = null,
+        IOperationAuthorizationService? operationAuthorizationService = null,
+        IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _shipmentRepository = shipmentRepository;
         _autoAssignShipmentService = autoAssignShipmentService;
+        _operationAuthorizationService = operationAuthorizationService ?? new OperationAuthorizationService(identityService);
+        _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
         _logger = logger;
     }
 
@@ -140,6 +147,21 @@ public sealed class BulkRetryAutoAssignmentService : IBulkRetryAutoAssignmentSer
             retriedCount,
             assignedCount,
             skippedCount);
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.RequestedByUserId,
+                AdminAuditActions.ShipmentBulkAutoAssignmentRetried,
+                AdminAuditTargetTypes.Shipment,
+                command.ShipmentIds.First(),
+                NewValue: new
+                {
+                    RequestedCount = command.ShipmentIds.Count,
+                    retriedCount,
+                    assignedCount,
+                    skippedCount
+                }),
+            cancellationToken);
+        await _adminAuditService.SaveChangesAsync(cancellationToken);
 
         return Result<BulkRetryAutoAssignmentResult>.Success(new BulkRetryAutoAssignmentResult(
             command.ShipmentIds.Count,
@@ -151,33 +173,12 @@ public sealed class BulkRetryAutoAssignmentService : IBulkRetryAutoAssignmentSer
 
     private async Task<Result> ValidateActorAsync(Guid actorUserId, CancellationToken cancellationToken)
     {
-        var adminCheck = await _identityService.CheckUserRoleAsync(
+        return await _operationAuthorizationService.EnsurePermissionAsync(
             actorUserId,
-            nameof(UserRole.Admin),
+            OperationPermissions.AssignmentBulkRetryAuto,
+            "Bulk retry user was not found.",
+            "Bulk retry user is not active.",
+            "Only Admin or Operator can bulk retry assignment.",
             cancellationToken);
-
-        if (!adminCheck.Exists)
-        {
-            return Result.Failure(ApplicationErrors.NotFound("Bulk retry user was not found."));
-        }
-
-        if (!adminCheck.IsActive)
-        {
-            return Result.Failure(ApplicationErrors.Forbidden("Bulk retry user is not active."));
-        }
-
-        if (adminCheck.IsInRole)
-        {
-            return Result.Success();
-        }
-
-        var operatorCheck = await _identityService.CheckUserRoleAsync(
-            actorUserId,
-            nameof(UserRole.Operator),
-            cancellationToken);
-
-        return operatorCheck.IsInRole
-            ? Result.Success()
-            : Result.Failure(ApplicationErrors.Forbidden("Only Admin or Operator can bulk retry assignment."));
     }
 }

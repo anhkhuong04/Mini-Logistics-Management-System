@@ -36,6 +36,23 @@ public sealed class CodTransactionRepository : ICodTransactionRepository
                 cancellationToken);
     }
 
+    public async Task<IReadOnlyDictionary<Guid, CodTransaction>> GetByShipmentIdsAsync(
+        IReadOnlyCollection<Guid> shipmentIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (shipmentIds.Count == 0)
+        {
+            return new Dictionary<Guid, CodTransaction>();
+        }
+
+        return await _dbContext.CodTransactions
+            .AsNoTracking()
+            .Where(codTransaction => shipmentIds.Contains(codTransaction.ShipmentId))
+            .ToDictionaryAsync(
+                codTransaction => codTransaction.ShipmentId,
+                cancellationToken);
+    }
+
     public Task<CodTransaction?> GetTrackedByShipmentIdAsync(
         Guid shipmentId,
         CancellationToken cancellationToken = default)

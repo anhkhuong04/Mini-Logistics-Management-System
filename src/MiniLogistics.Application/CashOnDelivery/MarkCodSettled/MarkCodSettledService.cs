@@ -1,5 +1,6 @@
 using FluentValidation;
 using MiniLogistics.Application.AdminAuditing;
+using MiniLogistics.Application.Authorization;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Domain.Common;
@@ -13,6 +14,7 @@ public sealed class MarkCodSettledService : IMarkCodSettledService
     private readonly IIdentityService _identityService;
     private readonly ICodTransactionRepository _codTransactionRepository;
     private readonly IAdminAuditService _adminAuditService;
+    private readonly IOperationAuthorizationService _operationAuthorizationService;
     private readonly TimeProvider _timeProvider;
 
     public MarkCodSettledService(
@@ -20,13 +22,15 @@ public sealed class MarkCodSettledService : IMarkCodSettledService
         IIdentityService identityService,
         ICodTransactionRepository codTransactionRepository,
         TimeProvider timeProvider,
-        IAdminAuditService? adminAuditService = null)
+        IAdminAuditService? adminAuditService = null,
+        IOperationAuthorizationService? operationAuthorizationService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _codTransactionRepository = codTransactionRepository;
         _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
+        _operationAuthorizationService = operationAuthorizationService ?? new OperationAuthorizationService(identityService);
     }
 
     public async Task<Result> MarkSettledAsync(
@@ -93,23 +97,12 @@ public sealed class MarkCodSettledService : IMarkCodSettledService
         Guid settledByUserId,
         CancellationToken cancellationToken)
     {
-        var adminCheck = await _identityService.CheckUserRoleAsync(
+        return await _operationAuthorizationService.EnsurePermissionAsync(
             settledByUserId,
-            nameof(UserRole.Admin),
+            OperationPermissions.CodSettle,
+            "COD settlement user was not found.",
+            "COD settlement user is not active.",
+            "Only Admin can settle COD.",
             cancellationToken);
-
-        if (!adminCheck.Exists)
-        {
-            return Result.Failure(ApplicationErrors.NotFound("COD settlement user was not found."));
-        }
-
-        if (!adminCheck.IsActive)
-        {
-            return Result.Failure(ApplicationErrors.Forbidden("COD settlement user is not active."));
-        }
-
-        return adminCheck.IsInRole
-            ? Result.Success()
-            : Result.Failure(ApplicationErrors.Forbidden("Only Admin can settle COD."));
     }
 }

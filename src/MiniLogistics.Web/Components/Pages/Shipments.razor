@@ -113,6 +113,9 @@
                     <button type="button" class="btn btn-outline-secondary" @onclick="ClearShipmentFiltersAsync" disabled="@(!HasActiveShipmentFilters || IsLoadingShipments)">
                         Reset
                     </button>
+                    <a class="btn btn-outline-secondary" href="@BuildExportLink()">
+                        Export CSV
+                    </a>
                 </div>
             </div>
 
@@ -156,6 +159,14 @@
                                         <a class="icon-link" href="@(BuildShopLink($"/shipments/create?shipmentId={shipment.ShipmentId:D}"))" aria-label="Sua don">
                                             <svg viewBox="0 0 24 24" aria-hidden="true">
                                                 <path d="M5 17.2V20h2.8L18.6 9.2l-2.8-2.8L5 17.2ZM20.7 7.1a1 1 0 0 0 0-1.4l-2.4-2.4a1 1 0 0 0-1.4 0l-1.4 1.4 3.8 3.8 1.4-1.4Z" />
+                                            </svg>
+                                        </a>
+                                    }
+                                    @if (shipment.Status != ShipmentStatus.Draft)
+                                    {
+                                        <a class="icon-link" href="@BuildLabelLink(shipment.ShipmentId)" aria-label="Tai label">
+                                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                                <path d="M6 2h9l5 5v15H6V2Zm8 2H8v16h10V8h-4V4ZM9 12h8v2H9v-2Zm0 4h8v2H9v-2Z" />
                                             </svg>
                                         </a>
                                     }
@@ -529,12 +540,12 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
         {
             var result = await GetShipmentsForCurrentShopService.SearchAsync(
                 new GetShipmentsForCurrentShopQuery(
-                    userId,
-                    SelectedShopId,
-                    ParseStatusFilter(),
-                    ShipmentSearchText,
-                    ShipmentPageNumber,
-                    ShipmentPageSize));
+                    OwnerUserId: userId,
+                    ShopId: SelectedShopId,
+                    StatusFilter: ParseStatusFilter(),
+                    TrackingCodeSearch: ShipmentSearchText,
+                    PageNumber: ShipmentPageNumber,
+                    PageSize: ShipmentPageSize));
 
             if (result.IsFailure)
             {
@@ -760,6 +771,36 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
         return shopId == Guid.Empty
             ? path
             : $"{path}?shopId={shopId:D}";
+    }
+
+    private string BuildExportLink()
+    {
+        var query = new List<string>();
+        if (SelectedShopId != Guid.Empty)
+        {
+            query.Add($"shopId={SelectedShopId:D}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(SelectedStatusFilter))
+        {
+            query.Add($"status={Uri.EscapeDataString(SelectedStatusFilter)}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(ShipmentSearchText))
+        {
+            query.Add($"trackingCode={Uri.EscapeDataString(ShipmentSearchText.Trim())}");
+        }
+
+        return query.Count == 0
+            ? "/shop/files/shipments/export.csv"
+            : "/shop/files/shipments/export.csv?" + string.Join("&", query);
+    }
+
+    private string BuildLabelLink(Guid shipmentId)
+    {
+        return SelectedShopId == Guid.Empty
+            ? $"/shop/files/shipments/{shipmentId:D}/label.pdf"
+            : $"/shop/files/shipments/{shipmentId:D}/label.pdf?shopId={SelectedShopId:D}";
     }
 
     private static string ToCsvField(string value)
