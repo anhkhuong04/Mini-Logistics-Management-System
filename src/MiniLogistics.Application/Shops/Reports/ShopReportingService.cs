@@ -3,6 +3,7 @@ using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Shipments;
+using MiniLogistics.Domain.Shops;
 
 namespace MiniLogistics.Application.Shops.Reports;
 
@@ -31,10 +32,11 @@ public sealed class ShopReportingService : IGetShopCodReportService, IGetShopDas
             return Result<ShopCodReportResponse>.Failure(dateRangeValidation.Error);
         }
 
-        var shopResult = await _shopAccessService.GetShopForUserAsync(
+        var shopResult = await _shopAccessService.GetShopAccessAsync(
             query.OwnerUserId,
             query.ShopId,
             requireActiveShop: false,
+            ShopPermission.ViewCod,
             cancellationToken);
         if (shopResult.IsFailure)
         {
@@ -42,14 +44,14 @@ public sealed class ShopReportingService : IGetShopCodReportService, IGetShopDas
         }
 
         var rows = await _reportingRepository.GetCodReportRowsAsync(
-            shopResult.Value.Id,
+            shopResult.Value.Shop.Id,
             query.FromUtc,
             query.ToUtc,
             MaxRows,
             cancellationToken);
 
         return Result<ShopCodReportResponse>.Success(new ShopCodReportResponse(
-            shopResult.Value.Id,
+            shopResult.Value.Shop.Id,
             rows.Where(row => row.CodStatus == CodStatus.PendingCollection).Sum(row => row.DeclaredAmount),
             rows.Where(row => row.CodStatus is CodStatus.Collected or CodStatus.Settled).Sum(row => row.CollectedAmount ?? row.DeclaredAmount),
             rows.Where(row => row.CodStatus == CodStatus.Settled).Sum(row => row.CollectedAmount ?? row.DeclaredAmount),
@@ -68,10 +70,11 @@ public sealed class ShopReportingService : IGetShopCodReportService, IGetShopDas
             return Result<ShopDashboardKpiResponse>.Failure(dateRangeValidation.Error);
         }
 
-        var shopResult = await _shopAccessService.GetShopForUserAsync(
+        var shopResult = await _shopAccessService.GetShopAccessAsync(
             query.OwnerUserId,
             query.ShopId,
             requireActiveShop: false,
+            ShopPermission.ViewShipments,
             cancellationToken);
         if (shopResult.IsFailure)
         {
@@ -79,15 +82,16 @@ public sealed class ShopReportingService : IGetShopCodReportService, IGetShopDas
         }
 
         var metrics = await _reportingRepository.GetDashboardKpiAsync(
-            shopResult.Value.Id,
+            shopResult.Value.Shop.Id,
             query.FromUtc,
             query.ToUtc,
             cancellationToken);
         var nonDraftCount = metrics.TotalShipments
             - metrics.CountByStatus.GetValueOrDefault(ShipmentStatus.Draft);
+        var canViewCod = shopResult.Value.HasPermission(ShopPermission.ViewCod);
 
         return Result<ShopDashboardKpiResponse>.Success(new ShopDashboardKpiResponse(
-            shopResult.Value.Id,
+            shopResult.Value.Shop.Id,
             metrics.TotalShipments,
             metrics.DeliveredShipments,
             metrics.ReturnedShipments,
@@ -96,9 +100,9 @@ public sealed class ShopReportingService : IGetShopCodReportService, IGetShopDas
             Rate(metrics.ReturnedShipments, nonDraftCount),
             Rate(metrics.DeliveryFailedShipments, nonDraftCount),
             metrics.TotalShippingFee,
-            metrics.PendingCodAmount,
-            metrics.CollectedCodAmount,
-            metrics.SettledCodAmount,
+            canViewCod ? metrics.PendingCodAmount : 0m,
+            canViewCod ? metrics.CollectedCodAmount : 0m,
+            canViewCod ? metrics.SettledCodAmount : 0m,
             metrics.Currency,
             metrics.CountByStatus));
     }

@@ -15,6 +15,9 @@ public sealed class ShopUiActionRateLimiterTests
             new MemoryDistributedCache(Options.Create(new MemoryDistributedCacheOptions())),
             Options.Create(new ShopUiActionRateLimitOptions
             {
+                CreateShipmentLimitPerMinute = 1,
+                ImportPreviewLimitPerMinute = 1,
+                ImportConfirmLimitPerMinute = 1,
                 ExportShipmentsLimitPerMinute = 1,
                 ExportCodReportLimitPerMinute = 1,
                 GenerateLabelLimitPerMinute = 1
@@ -39,6 +42,30 @@ public sealed class ShopUiActionRateLimiterTests
             secondUserId,
             ShopUiActionKind.ExportShipments,
             out var otherUserRetryAfter);
+        var firstCreateAllowed = limiter.TryAcquire(
+            firstUserId,
+            ShopUiActionKind.CreateShipment,
+            out _);
+        var secondCreateAllowed = limiter.TryAcquire(
+            firstUserId,
+            ShopUiActionKind.CreateShipment,
+            out var createRetryAfter);
+        var firstPreviewAllowed = limiter.TryAcquire(
+            firstUserId,
+            ShopUiActionKind.ImportPreview,
+            out _);
+        var secondPreviewAllowed = limiter.TryAcquire(
+            firstUserId,
+            ShopUiActionKind.ImportPreview,
+            out var previewRetryAfter);
+        var firstConfirmAllowed = limiter.TryAcquire(
+            firstUserId,
+            ShopUiActionKind.ImportConfirm,
+            out _);
+        var secondConfirmAllowed = limiter.TryAcquire(
+            firstUserId,
+            ShopUiActionKind.ImportConfirm,
+            out var confirmRetryAfter);
 
         Assert.True(firstExportAllowed);
         Assert.Equal(TimeSpan.Zero, firstRetryAfter);
@@ -48,6 +75,14 @@ public sealed class ShopUiActionRateLimiterTests
         Assert.Equal(TimeSpan.Zero, codRetryAfter);
         Assert.True(exportAllowedForOtherUser);
         Assert.Equal(TimeSpan.Zero, otherUserRetryAfter);
+        Assert.True(firstCreateAllowed);
+        Assert.False(secondCreateAllowed);
+        Assert.True(createRetryAfter >= TimeSpan.FromSeconds(1));
+        Assert.True(firstPreviewAllowed);
+        Assert.False(secondPreviewAllowed);
+        Assert.True(previewRetryAfter >= TimeSpan.FromSeconds(1));
+        Assert.True(firstConfirmAllowed);
+        Assert.False(secondConfirmAllowed);
+        Assert.True(confirmRetryAfter >= TimeSpan.FromSeconds(1));
     }
 }
-

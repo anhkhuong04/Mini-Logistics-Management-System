@@ -8,6 +8,7 @@ using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Shipments;
+using MiniLogistics.Domain.Shops;
 using MiniLogistics.Domain.ValueObjects;
 
 namespace MiniLogistics.Application.Shipments.DraftShipments;
@@ -79,10 +80,11 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
             return Result<DraftShipmentResponse>.Failure(ApplicationErrors.ValidationFailed(description));
         }
 
-        var shopResult = await _shopAccessService.GetShopForUserAsync(
+        var shopResult = await _shopAccessService.GetShopAccessAsync(
             command.UserId,
             command.ShopId,
             requireActiveShop: true,
+            ShopPermission.ManageShipments,
             cancellationToken);
         if (shopResult.IsFailure)
         {
@@ -91,7 +93,7 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
 
         var shipment = await _shipmentRepository.GetTrackedByIdAndShopIdAsync(
             command.ShipmentId,
-            shopResult.Value.Id,
+            shopResult.Value.Shop.Id,
             cancellationToken);
         if (shipment is null)
         {

@@ -8,10 +8,14 @@ namespace MiniLogistics.Application.Shops.GetShopProfile;
 public sealed class GetShopProfileService : IGetShopProfileService
 {
     private readonly IShopAccessService _shopAccessService;
+    private readonly IPiiMaskingService _piiMaskingService;
 
-    public GetShopProfileService(IShopAccessService shopAccessService)
+    public GetShopProfileService(
+        IShopAccessService shopAccessService,
+        IPiiMaskingService? piiMaskingService = null)
     {
         _shopAccessService = shopAccessService;
+        _piiMaskingService = piiMaskingService ?? new PiiMaskingService();
     }
 
     public async Task<Result<GetShopProfileResponse>> GetAsync(
@@ -19,10 +23,11 @@ public sealed class GetShopProfileService : IGetShopProfileService
         Guid? shopId = null,
         CancellationToken cancellationToken = default)
     {
-        var shopResult = await _shopAccessService.GetShopForUserAsync(
+        var shopResult = await _shopAccessService.GetShopAccessAsync(
             currentUserId,
             shopId,
             requireActiveShop: false,
+            ShopPermission.ViewShipments,
             cancellationToken);
 
         if (shopResult.IsFailure)
@@ -33,13 +38,15 @@ public sealed class GetShopProfileService : IGetShopProfileService
         return Result<GetShopProfileResponse>.Success(ToResponse(shopResult.Value));
     }
 
-    private static GetShopProfileResponse ToResponse(Shop shop)
+    private GetShopProfileResponse ToResponse(ShopAccessContext access)
     {
+        var shop = access.Shop;
+        var canViewFullPii = access.HasPermission(ShopPermission.ViewFullPii);
         return new GetShopProfileResponse(
             shop.Id,
             shop.Name,
-            shop.PhoneNumber.Value,
-            shop.Address.Street,
+            canViewFullPii ? shop.PhoneNumber.Value : _piiMaskingService.MaskPhone(shop.PhoneNumber.Value),
+            canViewFullPii ? shop.Address.Street : _piiMaskingService.MaskAddress(shop.Address.Street),
             shop.Address.Ward,
             shop.Address.Province,
             shop.Address.Country,

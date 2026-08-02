@@ -8,10 +8,14 @@ namespace MiniLogistics.Application.Shops.GetShopContext;
 public sealed class GetShopContextService : IGetShopContextService
 {
     private readonly IShopAccessService _shopAccessService;
+    private readonly IPiiMaskingService _piiMaskingService;
 
-    public GetShopContextService(IShopAccessService shopAccessService)
+    public GetShopContextService(
+        IShopAccessService shopAccessService,
+        IPiiMaskingService? piiMaskingService = null)
     {
         _shopAccessService = shopAccessService;
+        _piiMaskingService = piiMaskingService ?? new PiiMaskingService();
     }
 
     public async Task<Result<GetShopContextResponse>> GetAsync(
@@ -19,52 +23,58 @@ public sealed class GetShopContextService : IGetShopContextService
         Guid? selectedShopId = null,
         CancellationToken cancellationToken = default)
     {
-        var shopsResult = await _shopAccessService.GetAccessibleShopsAsync(
+        var shopsResult = await _shopAccessService.GetAccessibleShopAccessesAsync(
             currentUserId,
+            ShopPermission.ViewShipments,
             cancellationToken);
         if (shopsResult.IsFailure)
         {
             return Result<GetShopContextResponse>.Failure(shopsResult.Error);
         }
 
-        var shops = shopsResult.Value;
-        var selectedShop = ResolveSelectedShop(shops, selectedShopId);
-        if (selectedShop is null)
+        var accesses = shopsResult.Value;
+        var selectedAccess = ResolveSelectedShop(accesses, selectedShopId);
+        if (selectedAccess is null)
         {
             return Result<GetShopContextResponse>.Failure(
                 ApplicationErrors.Forbidden("Current user cannot access this shop."));
         }
 
         return Result<GetShopContextResponse>.Success(new GetShopContextResponse(
-            selectedShop.Id,
-            shops.Select(ToResponse).ToList()));
+            selectedAccess.Shop.Id,
+            accesses.Select(ToResponse).ToList()));
     }
 
-    private static Shop? ResolveSelectedShop(
-        IReadOnlyList<Shop> shops,
+    private static ShopAccessContext? ResolveSelectedShop(
+        IReadOnlyList<ShopAccessContext> accesses,
         Guid? selectedShopId)
     {
         if (selectedShopId.HasValue)
         {
-            return shops.FirstOrDefault(shop => shop.Id == selectedShopId.Value);
+            return accesses.FirstOrDefault(access => access.Shop.Id == selectedShopId.Value);
         }
 
-        return shops
-            .OrderByDescending(shop => shop.IsActive)
-            .ThenBy(shop => shop.Name)
+        return accesses
+            .OrderByDescending(access => access.Shop.IsActive)
+            .ThenBy(access => access.Shop.Name)
             .FirstOrDefault();
     }
 
-    private static ShopContextItemResponse ToResponse(Shop shop)
+    private ShopContextItemResponse ToResponse(ShopAccessContext access)
     {
+        var shop = access.Shop;
+        var canViewFullPii = access.HasPermission(ShopPermission.ViewFullPii);
         return new ShopContextItemResponse(
             shop.Id,
             shop.Name,
-            shop.PhoneNumber.Value,
-            shop.Address.Street,
+            canViewFullPii ? shop.PhoneNumber.Value : _piiMaskingService.MaskPhone(shop.PhoneNumber.Value),
+            canViewFullPii ? shop.Address.Street : _piiMaskingService.MaskAddress(shop.Address.Street),
             shop.Address.Ward,
             shop.Address.Province,
             shop.Address.Country,
-            shop.IsActive);
+            shop.IsActive,
+            access.IsOwner,
+            access.StaffRole,
+            access.Permissions);
     }
 }

@@ -1,3 +1,5 @@
+using MiniLogistics.Domain.Shops;
+
 namespace MiniLogistics.Application.Shops.GetShopContext;
 
 public sealed record GetShopContextResponse(
@@ -12,4 +14,7 @@ public sealed record ShopContextItemResponse(
     string Ward,
     string Province,
     string Country,
-    bool IsActive);
+    bool IsActive,
+    bool IsOwner,
+    ShopStaffRole? StaffRole,
+    ShopPermission Permissions);

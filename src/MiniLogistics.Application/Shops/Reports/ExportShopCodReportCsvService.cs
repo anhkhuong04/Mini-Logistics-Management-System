@@ -2,6 +2,8 @@ using System.Globalization;
 using System.Text;
 using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Domain.Common;
+using MiniLogistics.Application.Shops.ShopAccess;
+using MiniLogistics.Domain.Shops;
 
 namespace MiniLogistics.Application.Shops.Reports;
 
@@ -9,19 +11,33 @@ public sealed class ExportShopCodReportCsvService : IExportShopCodReportCsvServi
 {
     private readonly IGetShopCodReportService _codReportService;
     private readonly IAdminAuditService _auditService;
+    private readonly IShopAccessService _shopAccessService;
 
     public ExportShopCodReportCsvService(
         IGetShopCodReportService codReportService,
-        IAdminAuditService auditService)
+        IAdminAuditService auditService,
+        IShopAccessService shopAccessService)
     {
         _codReportService = codReportService;
         _auditService = auditService;
+        _shopAccessService = shopAccessService;
     }
 
     public async Task<Result<ExportShopCodReportCsvResponse>> ExportAsync(
         ExportShopCodReportCsvCommand command,
         CancellationToken cancellationToken = default)
     {
+        var accessResult = await _shopAccessService.GetShopAccessAsync(
+            command.OwnerUserId,
+            command.ShopId,
+            requireActiveShop: false,
+            ShopPermission.ViewCod | ShopPermission.ExportData,
+            cancellationToken);
+        if (accessResult.IsFailure)
+        {
+            return Result<ExportShopCodReportCsvResponse>.Failure(accessResult.Error);
+        }
+
         var reportResult = await _codReportService.GetAsync(
             new GetShopCodReportQuery(
                 command.OwnerUserId,
@@ -84,4 +100,3 @@ public sealed class ExportShopCodReportCsvService : IExportShopCodReportCsvServi
         return "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
     }
 }
-

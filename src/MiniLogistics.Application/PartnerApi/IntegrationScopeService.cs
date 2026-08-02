@@ -1,8 +1,10 @@
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.Shops;
+using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.PartnerApi;
+using MiniLogistics.Domain.Shops;
 using MiniLogistics.Domain.Users;
 
 namespace MiniLogistics.Application.PartnerApi;
@@ -13,17 +15,20 @@ public sealed class IntegrationScopeService : IIntegrationScopeService
     private readonly IShopRepository _shopRepository;
     private readonly IApiClientRepository _apiClientRepository;
     private readonly IIntegrationManagementScopeRepository? _integrationScopeRepository;
+    private readonly IShopAccessService? _shopAccessService;
 
     public IntegrationScopeService(
         IIdentityService identityService,
         IShopRepository shopRepository,
         IApiClientRepository apiClientRepository,
-        IIntegrationManagementScopeRepository? integrationScopeRepository = null)
+        IIntegrationManagementScopeRepository? integrationScopeRepository = null,
+        IShopAccessService? shopAccessService = null)
     {
         _identityService = identityService;
         _shopRepository = shopRepository;
         _apiClientRepository = apiClientRepository;
         _integrationScopeRepository = integrationScopeRepository;
+        _shopAccessService = shopAccessService;
     }
 
     public async Task<Result<IntegrationShopAccessResult>> GetAccessibleShopsAsync(
@@ -65,6 +70,19 @@ public sealed class IntegrationScopeService : IIntegrationScopeService
         if (!shopCheck.IsInRole)
         {
             return Result<IntegrationShopAccessResult>.Failure(ApplicationErrors.Forbidden("Only Shop, Admin, or IntegrationAdmin can manage partner integrations."));
+        }
+
+        if (_shopAccessService is not null)
+        {
+            var staffAccessResult = await _shopAccessService.GetAccessibleShopAccessesAsync(
+                currentUserId,
+                ShopPermission.ManageIntegrations,
+                cancellationToken);
+            return staffAccessResult.IsFailure
+                ? Result<IntegrationShopAccessResult>.Failure(staffAccessResult.Error)
+                : Result<IntegrationShopAccessResult>.Success(new IntegrationShopAccessResult(
+                    staffAccessResult.Value.Select(access => access.Shop).ToList(),
+                    false));
         }
 
         var shops = await _shopRepository.GetAllByOwnerUserIdAsync(currentUserId, cancellationToken);

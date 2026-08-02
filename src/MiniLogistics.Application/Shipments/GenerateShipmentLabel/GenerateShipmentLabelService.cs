@@ -4,6 +4,7 @@ using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Shipments;
+using MiniLogistics.Domain.Shops;
 
 namespace MiniLogistics.Application.Shipments.GenerateShipmentLabel;
 
@@ -24,10 +25,11 @@ public sealed class GenerateShipmentLabelService : IGenerateShipmentLabelService
         GenerateShipmentLabelCommand command,
         CancellationToken cancellationToken = default)
     {
-        var shopResult = await _shopAccessService.GetShopForUserAsync(
+        var shopResult = await _shopAccessService.GetShopAccessAsync(
             command.OwnerUserId,
             command.ShopId,
             requireActiveShop: false,
+            ShopPermission.ViewShipments | ShopPermission.ViewFullPii,
             cancellationToken);
         if (shopResult.IsFailure)
         {
@@ -36,7 +38,7 @@ public sealed class GenerateShipmentLabelService : IGenerateShipmentLabelService
 
         var shipment = await _shipmentRepository.GetByIdAndShopIdAsync(
             command.ShipmentId,
-            shopResult.Value.Id,
+            shopResult.Value.Shop.Id,
             cancellationToken);
         if (shipment is null)
         {

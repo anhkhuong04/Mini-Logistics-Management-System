@@ -2,6 +2,7 @@ using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Shipments;
+using MiniLogistics.Domain.Shops;
 
 namespace MiniLogistics.Application.Shipments.GetShipmentsForCurrentShop;
 
@@ -9,13 +10,16 @@ public sealed class GetShipmentsForCurrentShopService : IGetShipmentsForCurrentS
 {
     private readonly IShopAccessService _shopAccessService;
     private readonly IShipmentReadRepository _shipmentRepository;
+    private readonly IPiiMaskingService _piiMaskingService;
 
     public GetShipmentsForCurrentShopService(
         IShopAccessService shopAccessService,
-        IShipmentReadRepository shipmentRepository)
+        IShipmentReadRepository shipmentRepository,
+        IPiiMaskingService? piiMaskingService = null)
     {
         _shopAccessService = shopAccessService;
         _shipmentRepository = shipmentRepository;
+        _piiMaskingService = piiMaskingService ?? new PiiMaskingService();
     }
 
     public async Task<Result<IReadOnlyList<ShipmentListItemResponse>>> GetAsync(
@@ -23,20 +27,23 @@ public sealed class GetShipmentsForCurrentShopService : IGetShipmentsForCurrentS
         Guid? shopId = null,
         CancellationToken cancellationToken = default)
     {
-        var shopResult = await _shopAccessService.GetShopForUserAsync(
+        var accessResult = await _shopAccessService.GetShopAccessAsync(
             ownerUserId,
             shopId,
             requireActiveShop: false,
+            ShopPermission.ViewShipments,
             cancellationToken);
-        if (shopResult.IsFailure)
+        if (accessResult.IsFailure)
         {
-            return Result<IReadOnlyList<ShipmentListItemResponse>>.Failure(shopResult.Error);
+            return Result<IReadOnlyList<ShipmentListItemResponse>>.Failure(accessResult.Error);
         }
 
-        var shop = shopResult.Value;
+        var shop = accessResult.Value.Shop;
+        var canViewFullPii = accessResult.Value.HasPermission(ShopPermission.ViewFullPii);
+        var canViewCod = accessResult.Value.HasPermission(ShopPermission.ViewCod);
         var shipments = await _shipmentRepository.GetByShopIdAsync(shop.Id, cancellationToken);
         var response = shipments
-            .Select(ToResponse)
+            .Select(shipment => ToResponse(shipment, canViewFullPii, canViewCod))
             .ToList();
 
         return Result<IReadOnlyList<ShipmentListItemResponse>>.Success(response);
@@ -46,17 +53,38 @@ public sealed class GetShipmentsForCurrentShopService : IGetShipmentsForCurrentS
         GetShipmentsForCurrentShopQuery query,
         CancellationToken cancellationToken = default)
     {
-        var shopResult = await _shopAccessService.GetShopForUserAsync(
+        var accessResult = await _shopAccessService.GetShopAccessAsync(
             query.OwnerUserId,
             query.ShopId,
             requireActiveShop: false,
+            ShopPermission.ViewShipments,
             cancellationToken);
-        if (shopResult.IsFailure)
+        if (accessResult.IsFailure)
         {
-            return Result<PagedResponse<ShipmentListItemResponse>>.Failure(shopResult.Error);
+            return Result<PagedResponse<ShipmentListItemResponse>>.Failure(accessResult.Error);
         }
 
-        var shop = shopResult.Value;
+        var canViewFullPii = accessResult.Value.HasPermission(ShopPermission.ViewFullPii);
+        var canViewCod = accessResult.Value.HasPermission(ShopPermission.ViewCod);
+        if (!canViewFullPii
+            && (!string.IsNullOrWhiteSpace(query.ReceiverNameSearch)
+                || !string.IsNullOrWhiteSpace(query.ReceiverPhoneSearch)
+                || query.SortBy == ShopShipmentSortBy.ReceiverName))
+        {
+            return Result<PagedResponse<ShipmentListItemResponse>>.Failure(
+                ApplicationErrors.Forbidden("ViewFullPii permission is required to filter or sort receiver data."));
+        }
+
+        if (!canViewCod
+            && (query.MinCodAmount.HasValue
+                || query.MaxCodAmount.HasValue
+                || query.SortBy == ShopShipmentSortBy.CodAmount))
+        {
+            return Result<PagedResponse<ShipmentListItemResponse>>.Failure(
+                ApplicationErrors.Forbidden("ViewCod permission is required to filter or sort COD data."));
+        }
+
+        var shop = accessResult.Value.Shop;
         var shipments = await _shipmentRepository.SearchByShopAsync(
             new ShopShipmentSearchCriteria(
                 shop.Id,
@@ -74,7 +102,7 @@ public sealed class GetShipmentsForCurrentShopService : IGetShipmentsForCurrentS
                 query.PageSize),
             cancellationToken);
         var response = shipments.Items
-            .Select(ToResponse)
+            .Select(shipment => ToResponse(shipment, canViewFullPii, canViewCod))
             .ToList();
 
         return Result<PagedResponse<ShipmentListItemResponse>>.Success(
@@ -85,16 +113,19 @@ public sealed class GetShipmentsForCurrentShopService : IGetShipmentsForCurrentS
                 shipments.TotalCount));
     }
 
-    private static ShipmentListItemResponse ToResponse(Shipment shipment)
+    private ShipmentListItemResponse ToResponse(
+        Shipment shipment,
+        bool canViewFullPii,
+        bool canViewCod)
     {
         return new ShipmentListItemResponse(
             shipment.Id,
             shipment.TrackingCode.Value,
-            shipment.ReceiverName,
+            canViewFullPii ? shipment.ReceiverName : _piiMaskingService.MaskName(shipment.ReceiverName),
             shipment.RouteType,
             shipment.Weight.Kilograms,
             shipment.ChargeableWeight.Kilograms,
-            shipment.CodAmount.Amount,
+            canViewCod ? shipment.CodAmount.Amount : 0m,
             shipment.ShippingFee.Amount,
             shipment.ShippingFee.Currency,
             shipment.Status,

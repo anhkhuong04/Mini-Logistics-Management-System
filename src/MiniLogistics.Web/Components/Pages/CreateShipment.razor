@@ -10,6 +10,7 @@
 @using MiniLogistics.Application.Shipments.DraftShipments
 @using MiniLogistics.Application.Shipments.GetShipmentDetailForCurrentShop
 @using MiniLogistics.Domain.Shipments
+@using MiniLogistics.Domain.Shops
 @using MiniLogistics.Domain.ValueObjects
 @using MiniLogistics.Web.Services
 @inject IGetShopContextService GetShopContextService
@@ -21,6 +22,7 @@
 @inject IShippingFeeService ShippingFeeService
 @inject IRouteClassificationService RouteClassificationService
 @inject VietnamAdministrativeDivisionService AdministrativeDivisionService
+@inject IShopUiActionRateLimiter ShopUiActionRateLimiter
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 
@@ -479,6 +481,8 @@
     private ShopContextItemResponse? SelectedShop => ShopContext?.Shops
         .FirstOrDefault(shop => shop.ShopId == SelectedShopId);
 
+    private bool CanManageShipments => SelectedShop?.Permissions.HasFlag(ShopPermission.ManageShipments) == true;
+
     private bool IsSubmitting { get; set; }
 
     private bool IsSavingDraft { get; set; }
@@ -552,10 +556,12 @@
     private bool IsBusy => IsSubmitting || IsSavingDraft || IsSubmittingDraft;
 
     private bool CanSubmit => !IsBusy
+        && CanManageShipments
         && SelectedShop?.IsActive == true
         && (!IsEditMode || EditingStatus is ShipmentStatus.Draft or ShipmentStatus.PendingPickup);
 
     private bool CanSaveDraft => !IsBusy
+        && CanManageShipments
         && SelectedShop?.IsActive == true
         && (!IsEditMode || EditingStatus == ShipmentStatus.Draft);
 
@@ -712,6 +718,11 @@
                 return;
             }
 
+            if (!IsEditMode && !TryAcquireCreateRateLimit(userId.Value))
+            {
+                return;
+            }
+
             if (IsEditMode && EditingStatus == ShipmentStatus.Draft)
             {
                 await SubmitDraftFromFormAsync(userId.Value);
@@ -744,6 +755,11 @@
         if (userId is null)
         {
             NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        if (!IsEditMode && !TryAcquireCreateRateLimit(userId.Value))
+        {
             return;
         }
 
@@ -793,6 +809,20 @@
 
         CreatedShipment = result.Value;
         SetEstimate(result.Value);
+    }
+
+    private bool TryAcquireCreateRateLimit(Guid userId)
+    {
+        if (ShopUiActionRateLimiter.TryAcquire(
+                userId,
+                ShopUiActionKind.CreateShipment,
+                out var retryAfter))
+        {
+            return true;
+        }
+
+        ErrorMessage = $"Da vuot gioi han tao don. Thu lai sau {Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds))} giay.";
+        return false;
     }
 
     private async Task UpdateBeforePickupAsync(Guid userId, string successMessage)

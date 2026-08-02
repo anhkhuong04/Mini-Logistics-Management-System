@@ -4,6 +4,7 @@ using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.ValueObjects;
+using MiniLogistics.Domain.Shops;
 
 namespace MiniLogistics.Application.Shops.UpdateShopProfile;
 
@@ -59,10 +60,11 @@ public sealed class UpdateShopProfileService : IUpdateShopProfileService
             return Result<UpdateShopProfileResponse>.Failure(ApplicationErrors.ValidationFailed(description));
         }
 
-        var shopResult = await _shopAccessService.GetShopForUserAsync(
+        var shopResult = await _shopAccessService.GetShopAccessAsync(
             command.CurrentUserId,
             command.ShopId,
             requireActiveShop: true,
+            ShopPermission.ManageShopProfile,
             cancellationToken);
 
         if (shopResult.IsFailure)
@@ -70,7 +72,7 @@ public sealed class UpdateShopProfileService : IUpdateShopProfileService
             return Result<UpdateShopProfileResponse>.Failure(shopResult.Error);
         }
 
-        var shop = shopResult.Value;
+        var shop = shopResult.Value.Shop;
         var normalizedDivision = await _administrativeDivisionService.NormalizeProvinceWardAsync(
             command.Province,
             command.Ward,

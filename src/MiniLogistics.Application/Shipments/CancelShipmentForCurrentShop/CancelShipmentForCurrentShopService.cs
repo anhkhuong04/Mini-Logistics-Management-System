@@ -4,6 +4,7 @@ using MiniLogistics.Application.Common;
 using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.Common;
+using MiniLogistics.Domain.Shops;
 
 namespace MiniLogistics.Application.Shipments.CancelShipmentForCurrentShop;
 
@@ -43,17 +44,18 @@ public sealed class CancelShipmentForCurrentShopService : ICancelShipmentForCurr
             return Result.Failure(ApplicationErrors.ValidationFailed(description));
         }
 
-        var shopResult = await _shopAccessService.GetShopForUserAsync(
+        var shopResult = await _shopAccessService.GetShopAccessAsync(
             command.OwnerUserId,
             command.ShopId,
             requireActiveShop: true,
+            ShopPermission.ManageShipments,
             cancellationToken);
         if (shopResult.IsFailure)
         {
             return Result.Failure(shopResult.Error);
         }
 
-        var shop = shopResult.Value;
+        var shop = shopResult.Value.Shop;
         var shipment = await _shipmentRepository.GetTrackedByIdAndShopIdAsync(
             command.ShipmentId,
             shop.Id,

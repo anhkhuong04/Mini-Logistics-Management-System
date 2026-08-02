@@ -48,6 +48,21 @@ public sealed partial class PiiMaskingService : IPiiMaskingService
         return string.Concat(trimmed.AsSpan(0, 3), new string('*', trimmed.Length - 6), trimmed.AsSpan(trimmed.Length - 3));
     }
 
+    public string MaskName(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return string.Empty;
+        }
+
+        return string.Join(' ', name
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(part => part.Length == 1 ? "*" : $"{part[0]}***"));
+    }
+
+    public string MaskAddress(string address) =>
+        string.IsNullOrWhiteSpace(address) ? string.Empty : "***";
+
     private static void MaskNode(JsonNode? node)
     {
         if (node is JsonObject jsonObject)

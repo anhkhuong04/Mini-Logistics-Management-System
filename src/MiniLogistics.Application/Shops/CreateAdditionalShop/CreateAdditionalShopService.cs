@@ -41,12 +41,19 @@ public sealed class CreateAdditionalShopService : ICreateAdditionalShopService
             return Result<CreateAdditionalShopResponse>.Failure(ApplicationErrors.ValidationFailed(description));
         }
 
-        var accessResult = await _shopAccessService.GetAccessibleShopsAsync(
+        var accessResult = await _shopAccessService.GetAccessibleShopAccessesAsync(
             command.CurrentUserId,
+            ShopPermission.ViewShipments,
             cancellationToken);
         if (accessResult.IsFailure)
         {
             return Result<CreateAdditionalShopResponse>.Failure(accessResult.Error);
+        }
+
+        if (!accessResult.Value.Any(access => access.IsOwner))
+        {
+            return Result<CreateAdditionalShopResponse>.Failure(
+                ApplicationErrors.Forbidden("Only a shop owner can create an additional shop."));
         }
 
         try

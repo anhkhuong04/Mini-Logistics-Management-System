@@ -77,14 +77,18 @@ public sealed class ShopNotificationService : IShopNotificationService
         int limit = 100,
         CancellationToken cancellationToken = default)
     {
-        var shopResult = await GetShopAsync(currentUserId, shopId, cancellationToken);
+        var shopResult = await GetShopAsync(
+            currentUserId,
+            shopId,
+            ShopPermission.ViewShipments,
+            cancellationToken);
         if (shopResult.IsFailure)
         {
             return Result<IReadOnlyList<ShopNotificationResponse>>.Failure(shopResult.Error);
         }
 
         var notifications = await _notificationRepository.GetRecentAsync(
-            shopResult.Value.Id,
+            shopResult.Value.Shop.Id,
             currentUserId,
             Math.Clamp(limit, 1, 200),
             cancellationToken);
@@ -99,7 +103,11 @@ public sealed class ShopNotificationService : IShopNotificationService
         Guid notificationId,
         CancellationToken cancellationToken = default)
     {
-        var shopResult = await GetShopAsync(currentUserId, shopId, cancellationToken);
+        var shopResult = await GetShopAsync(
+            currentUserId,
+            shopId,
+            ShopPermission.ViewShipments,
+            cancellationToken);
         if (shopResult.IsFailure)
         {
             return Result.Failure(shopResult.Error);
@@ -107,7 +115,7 @@ public sealed class ShopNotificationService : IShopNotificationService
 
         var notification = await _notificationRepository.GetByIdAsync(
             notificationId,
-            shopResult.Value.Id,
+            shopResult.Value.Shop.Id,
             currentUserId,
             cancellationToken);
         if (notification is null)
@@ -125,18 +133,22 @@ public sealed class ShopNotificationService : IShopNotificationService
         Guid? shopId,
         CancellationToken cancellationToken = default)
     {
-        var shopResult = await GetShopAsync(currentUserId, shopId, cancellationToken);
+        var shopResult = await GetShopAsync(
+            currentUserId,
+            shopId,
+            ShopPermission.ManageNotifications,
+            cancellationToken);
         if (shopResult.IsFailure)
         {
             return Result<ShopNotificationPreferenceResponse>.Failure(shopResult.Error);
         }
 
         var preference = await _notificationRepository.GetPreferenceAsync(
-            shopResult.Value.Id,
+            shopResult.Value.Shop.Id,
             currentUserId,
             cancellationToken);
         return Result<ShopNotificationPreferenceResponse>.Success(new ShopNotificationPreferenceResponse(
-            shopResult.Value.Id,
+            shopResult.Value.Shop.Id,
             preference is null
                 ? ShopNotificationEventTypes.All
                 : ParseEvents(preference.EnabledEventTypes)));
@@ -157,7 +169,11 @@ public sealed class ShopNotificationService : IShopNotificationService
                 ApplicationErrors.ValidationFailed($"Unsupported notification events: {string.Join(", ", invalidEvents)}."));
         }
 
-        var shopResult = await GetShopAsync(currentUserId, shopId, cancellationToken);
+        var shopResult = await GetShopAsync(
+            currentUserId,
+            shopId,
+            ShopPermission.ManageNotifications,
+            cancellationToken);
         if (shopResult.IsFailure)
         {
             return Result<ShopNotificationPreferenceResponse>.Failure(shopResult.Error);
@@ -165,13 +181,13 @@ public sealed class ShopNotificationService : IShopNotificationService
 
         var now = _timeProvider.GetUtcNow();
         var preference = await _notificationRepository.GetPreferenceAsync(
-            shopResult.Value.Id,
+            shopResult.Value.Shop.Id,
             currentUserId,
             cancellationToken);
         if (preference is null)
         {
             preference = new ShopNotificationPreference(
-                shopResult.Value.Id,
+                shopResult.Value.Shop.Id,
                 currentUserId,
                 enabledEventTypes,
                 now);
@@ -184,19 +200,21 @@ public sealed class ShopNotificationService : IShopNotificationService
 
         await _notificationRepository.SaveChangesAsync(cancellationToken);
         return Result<ShopNotificationPreferenceResponse>.Success(new ShopNotificationPreferenceResponse(
-            shopResult.Value.Id,
+            shopResult.Value.Shop.Id,
             ParseEvents(preference.EnabledEventTypes)));
     }
 
-    private Task<Result<Shop>> GetShopAsync(
+    private Task<Result<ShopAccessContext>> GetShopAsync(
         Guid currentUserId,
         Guid? shopId,
+        ShopPermission requiredPermission,
         CancellationToken cancellationToken)
     {
-        return _shopAccessService.GetShopForUserAsync(
+        return _shopAccessService.GetShopAccessAsync(
             currentUserId,
             shopId,
             requireActiveShop: false,
+            requiredPermission,
             cancellationToken);
     }
 

@@ -7,4 +7,8 @@ public interface IPiiMaskingService
     string? MaskSensitiveText(string? text);
 
     string MaskPhone(string phoneNumber);
+
+    string MaskName(string name);
+
+    string MaskAddress(string address);
 }

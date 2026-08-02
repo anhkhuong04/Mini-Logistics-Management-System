@@ -8,6 +8,7 @@
 @using MiniLogistics.Application.Shipments.DraftShipments
 @using MiniLogistics.Application.Shipments.GetShipmentDetailForCurrentShop
 @using MiniLogistics.Domain.Shipments
+@using MiniLogistics.Domain.Shops
 @inject ICancelShipmentForCurrentShopService CancelShipmentForCurrentShopService
 @inject IGetShopContextService GetShopContextService
 @inject IGetShipmentDetailForCurrentShopService GetShipmentDetailForCurrentShopService
@@ -175,13 +176,16 @@
             </section>
 
             <aside class="side-stack">
-                <section class="content-card total-card">
-                    <span>COD cần thu</span>
-                    <strong>@FormatMoney(Shipment.CodAmount, Shipment.Currency)</strong>
-                    <small>Vị trí sẵn sàng cho quản lý COD.</small>
-                </section>
+                @if (CanViewCod)
+                {
+                    <section class="content-card total-card">
+                        <span>COD cần thu</span>
+                        <strong>@FormatMoney(Shipment.CodAmount, Shipment.Currency)</strong>
+                        <small>Vị trí sẵn sàng cho quản lý COD.</small>
+                    </section>
+                }
 
-                @if (Shipment.Status != ShipmentStatus.Draft)
+                @if (CanViewFullPii && Shipment.Status != ShipmentStatus.Draft)
                 {
                     <section class="content-card draft-action-card">
                         <div class="section-heading compact">
@@ -199,7 +203,7 @@
                     </section>
                 }
 
-                @if (CanEditShipment(Shipment.Status))
+                @if (CanManageShipments && CanEditShipment(Shipment.Status))
                 {
                     <section class="content-card draft-action-card">
                         <div class="section-heading compact">
@@ -224,7 +228,7 @@
                     </section>
                 }
 
-                @if (CanCancelShipment(Shipment.Status))
+                @if (CanManageShipments && CanCancelShipment(Shipment.Status))
                 {
                     <section class="content-card cancel-card">
                         <div class="section-heading compact">
@@ -297,6 +301,12 @@
 
     private ShopContextItemResponse? SelectedShop => ShopContext?.Shops
         .FirstOrDefault(shop => shop.ShopId == SelectedShopId);
+
+    private bool CanManageShipments => SelectedShop?.Permissions.HasFlag(ShopPermission.ManageShipments) == true;
+
+    private bool CanViewFullPii => SelectedShop?.Permissions.HasFlag(ShopPermission.ViewFullPii) == true;
+
+    private bool CanViewCod => SelectedShop?.Permissions.HasFlag(ShopPermission.ViewCod) == true;
 
     private bool IsLoading { get; set; } = true;
 

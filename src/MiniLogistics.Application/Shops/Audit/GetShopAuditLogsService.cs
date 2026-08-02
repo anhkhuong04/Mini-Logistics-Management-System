@@ -1,6 +1,7 @@
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.Common;
+using MiniLogistics.Domain.Shops;
 
 namespace MiniLogistics.Application.Shops.Audit;
 
@@ -24,8 +25,9 @@ public sealed class GetShopAuditLogsService : IGetShopAuditLogsService
         ShopAuditLogQuery query,
         CancellationToken cancellationToken = default)
     {
-        var shopsResult = await _shopAccessService.GetAccessibleShopsAsync(
+        var shopsResult = await _shopAccessService.GetAccessibleShopAccessesAsync(
             query.CurrentUserId,
+            ShopPermission.ViewAudit,
             cancellationToken);
         if (shopsResult.IsFailure)
         {
@@ -33,8 +35,8 @@ public sealed class GetShopAuditLogsService : IGetShopAuditLogsService
         }
 
         var shopIds = query.ShopId.HasValue
-            ? shopsResult.Value.Where(shop => shop.Id == query.ShopId.Value).Select(shop => shop.Id).ToArray()
-            : shopsResult.Value.Select(shop => shop.Id).ToArray();
+            ? shopsResult.Value.Where(access => access.Shop.Id == query.ShopId.Value).Select(access => access.Shop.Id).ToArray()
+            : shopsResult.Value.Select(access => access.Shop.Id).ToArray();
         if (query.ShopId.HasValue && shopIds.Length == 0)
         {
             return Result<IReadOnlyList<ShopAuditLogResponse>>.Failure(

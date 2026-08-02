@@ -6,6 +6,7 @@
 @using MiniLogistics.Application.Shops.Reports
 @using MiniLogistics.Application.Shipments.GetShipmentsForCurrentShop
 @using MiniLogistics.Domain.Shipments
+@using MiniLogistics.Domain.Shops
 @inject IGetShopContextService GetShopContextService
 @inject IGetShopDashboardKpiService GetShopDashboardKpiService
 @inject IGetShipmentsForCurrentShopService GetShipmentsForCurrentShopService
@@ -22,10 +23,13 @@
         </div>
 
         <div class="heading-actions">
-            <a class="primary-action" href="@(BuildShopLink("/shipments/create"))">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" /></svg>
-                <span>Tao don moi</span>
-            </a>
+            @if (CanManageShipments)
+            {
+                <a class="primary-action" href="@(BuildShopLink("/shipments/create"))">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" /></svg>
+                    <span>Tao don moi</span>
+                </a>
+            }
             <a class="secondary-action" href="/tracking">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 4a6.5 6.5 0 0 1 5.1 10.5l4 4-1.4 1.4-4-4A6.5 6.5 0 1 1 10.5 4Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" /></svg>
                 <span>Tra cuu</span>
@@ -71,9 +75,12 @@
             <button type="button" class="secondary-action compact" @onclick="ClearDateRangeAsync" disabled="@(!HasDateRange || IsLoading)">
                 Reset
             </button>
-            <a class="secondary-action compact" href="@(BuildShopLink("/shop/cod-report"))">
-                COD report
-            </a>
+            @if (CanViewCod)
+            {
+                <a class="secondary-action compact" href="@(BuildShopLink("/shop/cod-report"))">
+                    COD report
+                </a>
+            }
         </section>
     }
 
@@ -124,7 +131,10 @@
                             <th>Tuyen</th>
                             <th>Can tinh phi</th>
                             <th>Trang thai</th>
-                            <th>COD</th>
+                            @if (CanViewCod)
+                            {
+                                <th>COD</th>
+                            }
                             <th>Phi van chuyen</th>
                             <th>Ngay tao</th>
                             <th>Thao tac</th>
@@ -134,7 +144,7 @@
                         @if (LatestShipments.Count == 0)
                         {
                             <tr>
-                                <td colspan="9">
+                                <td colspan="@(CanViewCod ? 9 : 8)">
                                     <div class="empty-state">
                                         <span>
                                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" /></svg>
@@ -163,7 +173,10 @@
                                             @FormatStatus(shipment.Status)
                                         </span>
                                     </td>
-                                    <td>@FormatMoney(shipment.CodAmount, shipment.Currency)</td>
+                                    @if (CanViewCod)
+                                    {
+                                        <td>@FormatMoney(shipment.CodAmount, shipment.Currency)</td>
+                                    }
                                     <td>@FormatMoney(shipment.ShippingFeeAmount, shipment.Currency)</td>
                                     <td>@FormatDate(shipment.CreatedAtUtc)</td>
                                     <td>
@@ -180,8 +193,8 @@
                 </table>
             </div>
 
-            <a class="view-all" href="@(BuildShopLink(LatestShipments.Count == 0 ? "/shipments/create" : "/shipments"))">
-                @(LatestShipments.Count == 0 ? "Tao don hang dau tien" : "Mo danh sach don hang")
+            <a class="view-all" href="@(BuildShopLink(LatestShipments.Count == 0 && CanManageShipments ? "/shipments/create" : "/shipments"))">
+                @(LatestShipments.Count == 0 && CanManageShipments ? "Tao don hang dau tien" : "Mo danh sach don hang")
             </a>
         </section>
 
@@ -242,6 +255,10 @@
 
     private ShopContextItemResponse? SelectedShop => ShopContext?.Shops
         .FirstOrDefault(shop => shop.ShopId == SelectedShopId);
+
+    private bool CanManageShipments => SelectedShop?.Permissions.HasFlag(ShopPermission.ManageShipments) == true;
+
+    private bool CanViewCod => SelectedShop?.Permissions.HasFlag(ShopPermission.ViewCod) == true;
 
     private bool IsLoading { get; set; } = true;
 
@@ -386,15 +403,19 @@
         var shippingFeeAmount = kpi?.TotalShippingFee ?? 0m;
         var currency = kpi?.Currency ?? "VND";
 
-        StatisticCards =
-        [
+        var statisticCards = new List<DashboardCard>
+        {
             new("Tong don hang", totalShipments.ToString("N0"), "Theo filter hien tai", "blue", BoxIcon),
             new("Dang van chuyen", activeShipments.ToString("N0"), "Don chua ket thuc", "amber", TruckIcon),
             new("Giao thanh cong", deliveredShipments.ToString("N0"), $"Ty le {FormatPercentage(kpi?.DeliveredRate ?? 0m)}", "green", CheckIcon),
-            new("Giao that bai", failedShipments.ToString("N0"), $"Ty le {FormatPercentage(kpi?.DeliveryFailedRate ?? 0m)}", "red", CloseIcon),
-            new("COD can thu", FormatMoney(pendingCodAmount, currency), "Theo don COD pending", "purple", CoinIcon),
-            new("Tong phi van chuyen", FormatMoney(shippingFeeAmount, currency), "Tu aggregate KPI", "blue", WalletIcon)
-        ];
+            new("Giao that bai", failedShipments.ToString("N0"), $"Ty le {FormatPercentage(kpi?.DeliveryFailedRate ?? 0m)}", "red", CloseIcon)
+        };
+        if (CanViewCod)
+        {
+            statisticCards.Add(new("COD can thu", FormatMoney(pendingCodAmount, currency), "Theo don COD pending", "purple", CoinIcon));
+        }
+        statisticCards.Add(new("Tong phi van chuyen", FormatMoney(shippingFeeAmount, currency), "Tu aggregate KPI", "blue", WalletIcon));
+        StatisticCards = statisticCards;
 
         StatusRows =
         [

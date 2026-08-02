@@ -91,7 +91,11 @@ public sealed class ShipmentRepository : IShipmentRepository
             query = query.Where(shipment => shipment.Status == criteria.StatusFilter.Value);
         }
 
-        query = ApplyShipmentTextFilters(query, criteria.TrackingCodeSearch, includeReceiverPhone: false);
+        if (!string.IsNullOrWhiteSpace(criteria.TrackingCodeSearch))
+        {
+            var trackingCode = new TrackingCode(criteria.TrackingCodeSearch.Trim());
+            query = query.Where(shipment => shipment.TrackingCode == trackingCode);
+        }
 
         if (!string.IsNullOrWhiteSpace(criteria.ReceiverNameSearch))
         {

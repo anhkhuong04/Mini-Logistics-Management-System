@@ -1,0 +1,414 @@
+@page "/shop/staff"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Shop")]
+@using System.ComponentModel.DataAnnotations
+@using System.Security.Claims
+@using MiniLogistics.Application.Shops.GetShopContext
+@using MiniLogistics.Application.Shops.Staff
+@using MiniLogistics.Domain.Shops
+@inject IGetShopContextService GetShopContextService
+@inject IShopStaffManagementService ShopStaffManagementService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Shop staff</PageTitle>
+
+<div class="staff-page">
+    <header class="page-heading">
+        <div>
+            <h1>Shop staff</h1>
+            <p>Quan ly sub-account va quyen truy cap theo tung shop.</p>
+        </div>
+    </header>
+
+    @if (ShopContext is not null)
+    {
+        <section class="shop-context-bar" aria-label="Shop context">
+            <label for="staff-shop-context">
+                Shop dang chon
+                <select id="staff-shop-context" value="@SelectedShopId" @onchange="OnShopChanged">
+                    @foreach (var shop in ShopContext.Shops)
+                    {
+                        <option value="@shop.ShopId">@shop.Name</option>
+                    }
+                </select>
+            </label>
+            <span class="shop-context-status @(SelectedShop?.IsOwner == true ? "active" : "inactive")">
+                @(SelectedShop?.IsOwner == true ? "Owner" : "Staff")
+            </span>
+        </section>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@ErrorMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
+    {
+        <div class="alert alert-success" role="status">@SuccessMessage</div>
+    }
+
+    @if (IsLoading)
+    {
+        <div class="staff-state">Loading staff...</div>
+    }
+    else if (SelectedShop?.IsOwner == true)
+    {
+        <section class="staff-create-section">
+            <div class="section-heading">
+                <h2>Create sub-account</h2>
+                <span>Mat khau tam thoi phai co chu hoa, chu thuong, so va ky tu dac biet.</span>
+            </div>
+
+            <EditForm Model="CreateForm" OnValidSubmit="CreateStaffAsync">
+                <DataAnnotationsValidator />
+                <div class="staff-form-grid">
+                    <label>
+                        Full name
+                        <InputText class="form-control" @bind-Value="CreateForm.FullName" />
+                        <ValidationMessage For="() => CreateForm.FullName" />
+                    </label>
+                    <label>
+                        Email
+                        <InputText class="form-control" type="email" @bind-Value="CreateForm.Email" />
+                        <ValidationMessage For="() => CreateForm.Email" />
+                    </label>
+                    <label>
+                        Phone
+                        <InputText class="form-control" @bind-Value="CreateForm.PhoneNumber" />
+                        <ValidationMessage For="() => CreateForm.PhoneNumber" />
+                    </label>
+                    <label>
+                        Temporary password
+                        <InputText class="form-control" type="password" @bind-Value="CreateForm.Password" />
+                        <ValidationMessage For="() => CreateForm.Password" />
+                    </label>
+                    <label>
+                        Role
+                        <select class="form-select" value="@CreateForm.Role" @onchange="OnCreateRoleChanged">
+                            @foreach (var role in StaffRoles)
+                            {
+                                <option value="@role">@role</option>
+                            }
+                        </select>
+                    </label>
+                </div>
+
+                <div class="permission-grid" aria-label="New staff permissions">
+                    @foreach (var permission in PermissionOptions)
+                    {
+                        <label>
+                            <input type="checkbox"
+                                   checked="@CreateForm.Permissions.HasFlag(permission.Permission)"
+                                   disabled="@(permission.Permission == ShopPermission.ViewShipments)"
+                                   @onchange="args => ToggleCreatePermission(permission.Permission, args)" />
+                            <span>@permission.Label</span>
+                        </label>
+                    }
+                </div>
+
+                <button type="submit" class="btn btn-primary" disabled="@IsSaving">
+                    @(IsSaving ? "Creating..." : "Create staff")
+                </button>
+            </EditForm>
+        </section>
+
+        <section class="staff-list-section">
+            <div class="section-heading">
+                <h2>Staff accounts</h2>
+                <span>@StaffRows.Count account(s)</span>
+            </div>
+
+            @if (StaffRows.Count == 0)
+            {
+                <div class="staff-state">No staff account for this shop.</div>
+            }
+            else
+            {
+                <div class="staff-list">
+                    @foreach (var row in StaffRows)
+                    {
+                        <article class="staff-row">
+                            <div class="staff-identity">
+                                <strong>@row.FullName</strong>
+                                <span>@row.Email</span>
+                                <small>@(row.PhoneNumber ?? "-")</small>
+                            </div>
+                            <label>
+                                Role
+                                <select value="@row.Role" @onchange="args => OnRowRoleChanged(row, args)">
+                                    @foreach (var role in StaffRoles)
+                                    {
+                                        <option value="@role">@role</option>
+                                    }
+                                </select>
+                            </label>
+                            <div class="permission-grid compact" aria-label="Staff permissions">
+                                @foreach (var permission in PermissionOptions)
+                                {
+                                    <label>
+                                        <input type="checkbox"
+                                               checked="@row.Permissions.HasFlag(permission.Permission)"
+                                               disabled="@(permission.Permission == ShopPermission.ViewShipments)"
+                                               @onchange="args => ToggleRowPermission(row, permission.Permission, args)" />
+                                        <span>@permission.Label</span>
+                                    </label>
+                                }
+                            </div>
+                            <label class="active-toggle">
+                                <input type="checkbox" @bind="row.IsActive" />
+                                <span>Active</span>
+                            </label>
+                            <button type="button" class="btn btn-outline-secondary" @onclick="() => SaveStaffAsync(row)" disabled="@row.IsSaving">
+                                @(row.IsSaving ? "Saving..." : "Save")
+                            </button>
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "shopId")]
+    public Guid? ShopId { get; set; }
+
+    private static readonly ShopStaffRole[] StaffRoles = Enum.GetValues<ShopStaffRole>();
+    private static readonly PermissionOption[] PermissionOptions =
+    [
+        new(ShopPermission.ViewShipments, "View shipments"),
+        new(ShopPermission.ManageShipments, "Manage shipments"),
+        new(ShopPermission.ViewFullPii, "View full PII"),
+        new(ShopPermission.ExportData, "Export data"),
+        new(ShopPermission.ViewCod, "View COD"),
+        new(ShopPermission.ViewAudit, "View audit"),
+        new(ShopPermission.ManageIntegrations, "Manage integrations"),
+        new(ShopPermission.ManageNotifications, "Manage notifications"),
+        new(ShopPermission.ManageShopProfile, "Manage profile")
+    ];
+
+    private GetShopContextResponse? ShopContext { get; set; }
+    private Guid SelectedShopId { get; set; }
+    private ShopContextItemResponse? SelectedShop => ShopContext?.Shops.FirstOrDefault(shop => shop.ShopId == SelectedShopId);
+    private CreateStaffForm CreateForm { get; set; } = CreateStaffForm.CreateDefault();
+    private List<StaffRowModel> StaffRows { get; set; } = [];
+    private bool IsLoading { get; set; } = true;
+    private bool IsSaving { get; set; }
+    private string? ErrorMessage { get; set; }
+    private string? SuccessMessage { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+        SuccessMessage = null;
+        var userId = await GetCurrentUserIdAsync();
+        if (userId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var contextResult = await GetShopContextService.GetAsync(userId.Value, ShopId);
+        if (contextResult.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(contextResult.Error);
+            IsLoading = false;
+            return;
+        }
+
+        ShopContext = contextResult.Value;
+        SelectedShopId = contextResult.Value.SelectedShopId;
+        if (SelectedShop?.IsOwner != true)
+        {
+            ErrorMessage = "Only the shop owner can manage staff accounts.";
+            IsLoading = false;
+            return;
+        }
+
+        await LoadStaffAsync(userId.Value);
+        IsLoading = false;
+    }
+
+    private async Task LoadStaffAsync(Guid userId)
+    {
+        var result = await ShopStaffManagementService.GetAsync(userId, SelectedShopId);
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        StaffRows = result.Value.Select(StaffRowModel.FromResponse).ToList();
+    }
+
+    private async Task CreateStaffAsync()
+    {
+        var userId = await GetCurrentUserIdAsync();
+        if (userId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        ErrorMessage = null;
+        SuccessMessage = null;
+        IsSaving = true;
+        try
+        {
+            var result = await ShopStaffManagementService.CreateAsync(new CreateShopStaffCommand(
+                userId.Value,
+                SelectedShopId,
+                CreateForm.FullName,
+                CreateForm.Email,
+                CreateForm.PhoneNumber,
+                CreateForm.Password,
+                CreateForm.Role,
+                CreateForm.Permissions));
+            if (result.IsFailure)
+            {
+                ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+                return;
+            }
+
+            SuccessMessage = $"Created staff account {result.Value.Email}.";
+            CreateForm = CreateStaffForm.CreateDefault();
+            await LoadStaffAsync(userId.Value);
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private async Task SaveStaffAsync(StaffRowModel row)
+    {
+        var userId = await GetCurrentUserIdAsync();
+        if (userId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        row.IsSaving = true;
+        ErrorMessage = null;
+        SuccessMessage = null;
+        try
+        {
+            var result = await ShopStaffManagementService.UpdateAsync(new UpdateShopStaffAccessCommand(
+                userId.Value,
+                SelectedShopId,
+                row.UserId,
+                row.Role,
+                row.Permissions,
+                row.IsActive));
+            if (result.IsFailure)
+            {
+                ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+                return;
+            }
+
+            SuccessMessage = $"Updated access for {row.Email}.";
+        }
+        finally
+        {
+            row.IsSaving = false;
+        }
+    }
+
+    private void OnCreateRoleChanged(ChangeEventArgs args)
+    {
+        if (Enum.TryParse<ShopStaffRole>(args.Value?.ToString(), out var role))
+        {
+            CreateForm.Role = role;
+            CreateForm.Permissions = ShopStaffPermissionPresets.ForRole(role);
+        }
+    }
+
+    private static void OnRowRoleChanged(StaffRowModel row, ChangeEventArgs args)
+    {
+        if (Enum.TryParse<ShopStaffRole>(args.Value?.ToString(), out var role))
+        {
+            row.Role = role;
+            row.Permissions = ShopStaffPermissionPresets.ForRole(role);
+        }
+    }
+
+    private void ToggleCreatePermission(ShopPermission permission, ChangeEventArgs args)
+    {
+        CreateForm.Role = ShopStaffRole.Custom;
+        CreateForm.Permissions = TogglePermission(CreateForm.Permissions, permission, args.Value is true);
+    }
+
+    private static void ToggleRowPermission(StaffRowModel row, ShopPermission permission, ChangeEventArgs args)
+    {
+        row.Role = ShopStaffRole.Custom;
+        row.Permissions = TogglePermission(row.Permissions, permission, args.Value is true);
+    }
+
+    private static ShopPermission TogglePermission(ShopPermission current, ShopPermission permission, bool enabled) =>
+        enabled ? current | permission : current & ~permission;
+
+    private void OnShopChanged(ChangeEventArgs args)
+    {
+        if (Guid.TryParse(args.Value?.ToString(), out var shopId))
+        {
+            NavigationManager.NavigateTo($"/shop/staff?shopId={shopId:D}");
+        }
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return Guid.TryParse(state.User.FindFirstValue(ClaimTypes.NameIdentifier), out var userId)
+            ? userId
+            : null;
+    }
+
+    private sealed record PermissionOption(ShopPermission Permission, string Label);
+
+    private sealed class CreateStaffForm
+    {
+        [Required, StringLength(150)]
+        public string FullName { get; set; } = string.Empty;
+
+        [Required, EmailAddress, StringLength(256)]
+        public string Email { get; set; } = string.Empty;
+
+        [Required, StringLength(20)]
+        public string PhoneNumber { get; set; } = string.Empty;
+
+        [Required, MinLength(8), MaxLength(100)]
+        public string Password { get; set; } = string.Empty;
+
+        public ShopStaffRole Role { get; set; } = ShopStaffRole.Operator;
+
+        public ShopPermission Permissions { get; set; } = ShopStaffPermissionPresets.ForRole(ShopStaffRole.Operator);
+
+        public static CreateStaffForm CreateDefault() => new();
+    }
+
+    private sealed class StaffRowModel
+    {
+        public Guid UserId { get; init; }
+        public string FullName { get; init; } = string.Empty;
+        public string Email { get; init; } = string.Empty;
+        public string? PhoneNumber { get; init; }
+        public ShopStaffRole Role { get; set; }
+        public ShopPermission Permissions { get; set; }
+        public bool IsActive { get; set; }
+        public bool IsSaving { get; set; }
+
+        public static StaffRowModel FromResponse(ShopStaffResponse response) => new()
+        {
+            UserId = response.UserId,
+            FullName = response.FullName,
+            Email = response.Email,
+            PhoneNumber = response.PhoneNumber,
+            Role = response.Role,
+            Permissions = response.Permissions,
+            IsActive = response.IsActive
+        };
+    }
+}

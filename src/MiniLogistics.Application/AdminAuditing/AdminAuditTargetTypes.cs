@@ -11,6 +11,7 @@ public static class AdminAuditTargetTypes
     public const string PartnerApiClient = "PartnerApiClient";
     public const string PartnerWebhookEndpoint = "PartnerWebhookEndpoint";
     public const string WebhookDelivery = "WebhookDelivery";
+    public const string ShopStaffMembership = "ShopStaffMembership";
     public const string IntegrationManagementScope = "IntegrationManagementScope";
     public const string RouteRegionConfig = "RouteRegionConfig";
     public const string FeeRule = "FeeRule";

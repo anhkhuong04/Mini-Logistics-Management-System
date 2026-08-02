@@ -9,6 +9,7 @@ using MiniLogistics.Application.Shipments.AutoAssignShipment;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Shipments;
+using MiniLogistics.Domain.Shops;
 using MiniLogistics.Domain.ValueObjects;
 
 namespace MiniLogistics.Application.Shipments.CreateShipment;
@@ -87,17 +88,18 @@ public sealed class CreateShipmentService : ICreateShipmentService
             return Result<CreateShipmentResponse>.Failure(ApplicationErrors.ValidationFailed(description));
         }
 
-        var shopResult = await _shopAccessService.GetShopForUserAsync(
+        var shopResult = await _shopAccessService.GetShopAccessAsync(
             command.CreatedByUserId,
             command.ShopId,
             requireActiveShop: true,
+            ShopPermission.ManageShipments,
             cancellationToken);
         if (shopResult.IsFailure)
         {
             return Result<CreateShipmentResponse>.Failure(shopResult.Error);
         }
 
-        var shop = shopResult.Value;
+        var shop = shopResult.Value.Shop;
         var pickupDivision = await _administrativeDivisionService.NormalizeProvinceWardAsync(
             command.PickupAddress.Province,
             command.PickupAddress.Ward,

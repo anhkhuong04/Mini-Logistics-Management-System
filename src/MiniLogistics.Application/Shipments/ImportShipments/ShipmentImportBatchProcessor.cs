@@ -4,6 +4,7 @@ using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Application.Shipments.CreateShipment;
 using MiniLogistics.Domain.Shipments;
+using MiniLogistics.Domain.Shops;
 
 namespace MiniLogistics.Application.Shipments.ImportShipments;
 
@@ -49,10 +50,11 @@ public sealed class ShipmentImportBatchProcessor
         row.MarkProcessing(now);
 
         await using var transaction = await _transactionManager.BeginTransactionAsync(cancellationToken);
-        var shopResult = await _shopAccessService.GetShopForUserAsync(
+        var shopResult = await _shopAccessService.GetShopAccessAsync(
             batch.RequestedByUserId,
             batch.ShopId,
             requireActiveShop: true,
+            ShopPermission.ManageShipments,
             cancellationToken);
         if (shopResult.IsFailure)
         {
@@ -91,7 +93,7 @@ public sealed class ShipmentImportBatchProcessor
             var createResult = await _createShipmentService.CreateAsync(
                 ShipmentImportService.BuildCreateShipmentCommand(
                     batch.RequestedByUserId,
-                    shopResult.Value,
+                    shopResult.Value.Shop,
                     draft),
                 cancellationToken);
             if (createResult.IsSuccess)

@@ -6,6 +6,7 @@ using MiniLogistics.Application.Routing;
 using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Shipments;
+using MiniLogistics.Domain.Shops;
 using MiniLogistics.Domain.ValueObjects;
 
 namespace MiniLogistics.Application.Shipments.DraftShipments;
@@ -74,10 +75,11 @@ public sealed class CreateDraftShipmentService : ICreateDraftShipmentService
             return Result<DraftShipmentResponse>.Failure(ApplicationErrors.ValidationFailed(description));
         }
 
-        var shopResult = await _shopAccessService.GetShopForUserAsync(
+        var shopResult = await _shopAccessService.GetShopAccessAsync(
             command.UserId,
             command.ShopId,
             requireActiveShop: true,
+            ShopPermission.ManageShipments,
             cancellationToken);
         if (shopResult.IsFailure)
         {
@@ -108,7 +110,7 @@ public sealed class CreateDraftShipmentService : ICreateDraftShipmentService
         var now = _timeProvider.GetUtcNow();
         var trackingCode = await GenerateUniqueTrackingCodeAsync(now, cancellationToken);
         var shipment = Shipment.CreateDraft(
-            shopResult.Value.Id,
+            shopResult.Value.Shop.Id,
             normalizedCommand.SenderName,
             new PhoneNumber(normalizedCommand.SenderPhone),
             normalizedCommand.ReceiverName,

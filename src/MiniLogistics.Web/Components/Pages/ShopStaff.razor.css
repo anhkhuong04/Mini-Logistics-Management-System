@@ -1,0 +1,98 @@
+.staff-page {
+    display: grid;
+    gap: 1rem;
+}
+
+.staff-create-section,
+.staff-list-section {
+    padding: 1rem;
+    border: 1px solid #dbe2ea;
+    background: #fff;
+}
+
+.section-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.section-heading h2 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.staff-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.staff-form-grid label,
+.staff-row > label {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.permission-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.permission-grid label,
+.active-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+}
+
+.staff-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.staff-row {
+    display: grid;
+    grid-template-columns: minmax(12rem, 1.2fr) minmax(8rem, 0.6fr) minmax(22rem, 2fr) auto auto;
+    gap: 0.75rem;
+    align-items: center;
+    padding: 0.85rem;
+    border: 1px solid #dbe2ea;
+}
+
+.staff-identity {
+    display: grid;
+    min-width: 0;
+}
+
+.staff-identity span,
+.staff-identity small {
+    overflow-wrap: anywhere;
+}
+
+.permission-grid.compact {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin: 0;
+    font-size: 0.82rem;
+}
+
+.staff-state {
+    padding: 1rem;
+    color: #52606d;
+}
+
+@media (max-width: 960px) {
+    .staff-row,
+    .staff-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .permission-grid,
+    .permission-grid.compact {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}

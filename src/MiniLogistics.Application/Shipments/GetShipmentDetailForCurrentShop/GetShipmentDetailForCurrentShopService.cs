@@ -3,6 +3,7 @@ using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Shipments;
+using MiniLogistics.Domain.Shops;
 using MiniLogistics.Domain.ValueObjects;
 
 namespace MiniLogistics.Application.Shipments.GetShipmentDetailForCurrentShop;
@@ -12,15 +13,18 @@ public sealed class GetShipmentDetailForCurrentShopService : IGetShipmentDetailF
     private readonly IIdentityService _identityService;
     private readonly IShopAccessService _shopAccessService;
     private readonly IShipmentReadRepository _shipmentRepository;
+    private readonly IPiiMaskingService _piiMaskingService;
 
     public GetShipmentDetailForCurrentShopService(
         IIdentityService identityService,
         IShopAccessService shopAccessService,
-        IShipmentReadRepository shipmentRepository)
+        IShipmentReadRepository shipmentRepository,
+        IPiiMaskingService? piiMaskingService = null)
     {
         _identityService = identityService;
         _shopAccessService = shopAccessService;
         _shipmentRepository = shipmentRepository;
+        _piiMaskingService = piiMaskingService ?? new PiiMaskingService();
     }
 
     public async Task<Result<ShipmentDetailResponse>> GetAsync(
@@ -35,19 +39,20 @@ public sealed class GetShipmentDetailForCurrentShopService : IGetShipmentDetailF
                 ApplicationErrors.ValidationFailed("Shipment id is required."));
         }
 
-        var shopResult = await _shopAccessService.GetShopForUserAsync(
+        var accessResult = await _shopAccessService.GetShopAccessAsync(
             ownerUserId,
             shopId,
             requireActiveShop: false,
+            ShopPermission.ViewShipments,
             cancellationToken);
-        if (shopResult.IsFailure)
+        if (accessResult.IsFailure)
         {
-            return Result<ShipmentDetailResponse>.Failure(shopResult.Error);
+            return Result<ShipmentDetailResponse>.Failure(accessResult.Error);
         }
 
         var shipment = await _shipmentRepository.GetByIdAndShopIdAsync(
             shipmentId,
-            shopResult.Value.Id,
+            accessResult.Value.Shop.Id,
             cancellationToken);
 
         if (shipment is null)
@@ -61,22 +66,28 @@ public sealed class GetShipmentDetailForCurrentShopService : IGetShipmentDetailF
             _identityService,
             cancellationToken);
 
-        return Result<ShipmentDetailResponse>.Success(ToResponse(shipment, history));
+        return Result<ShipmentDetailResponse>.Success(ToResponse(
+            shipment,
+            history,
+            accessResult.Value.HasPermission(ShopPermission.ViewFullPii),
+            accessResult.Value.HasPermission(ShopPermission.ViewCod)));
     }
 
-    private static ShipmentDetailResponse ToResponse(
+    private ShipmentDetailResponse ToResponse(
         Shipment shipment,
-        IReadOnlyList<ShipmentStatusHistoryResponse> trackingHistory)
+        IReadOnlyList<ShipmentStatusHistoryResponse> trackingHistory,
+        bool canViewFullPii,
+        bool canViewCod)
     {
         return new ShipmentDetailResponse(
             shipment.Id,
             shipment.TrackingCode.Value,
-            shipment.SenderName,
-            shipment.SenderPhone.Value,
-            shipment.ReceiverName,
-            shipment.ReceiverPhone.Value,
-            ToAddressResponse(shipment.PickupAddress),
-            ToAddressResponse(shipment.DeliveryAddress),
+            canViewFullPii ? shipment.SenderName : _piiMaskingService.MaskName(shipment.SenderName),
+            canViewFullPii ? shipment.SenderPhone.Value : _piiMaskingService.MaskPhone(shipment.SenderPhone.Value),
+            canViewFullPii ? shipment.ReceiverName : _piiMaskingService.MaskName(shipment.ReceiverName),
+            canViewFullPii ? shipment.ReceiverPhone.Value : _piiMaskingService.MaskPhone(shipment.ReceiverPhone.Value),
+            ToAddressResponse(shipment.PickupAddress, canViewFullPii),
+            ToAddressResponse(shipment.DeliveryAddress, canViewFullPii),
             shipment.Weight.Kilograms,
             shipment.ParcelDimensions.LengthCm,
             shipment.ParcelDimensions.WidthCm,
@@ -84,7 +95,7 @@ public sealed class GetShipmentDetailForCurrentShopService : IGetShipmentDetailF
             shipment.ParcelDimensions.CalculateVolumetricWeightKg(),
             shipment.ChargeableWeight.Kilograms,
             shipment.GoodsValue.Amount,
-            shipment.CodAmount.Amount,
+            canViewCod ? shipment.CodAmount.Amount : 0m,
             shipment.ShippingFeeBreakdown.BaseFee.Amount,
             shipment.ShippingFeeBreakdown.ExtraWeightFee.Amount,
             shipment.ShippingFeeBreakdown.InsuranceFee.Amount,
@@ -92,20 +103,20 @@ public sealed class GetShipmentDetailForCurrentShopService : IGetShipmentDetailF
             shipment.ShippingFee.Amount,
             shipment.ShippingFee.Currency,
             shipment.RouteType,
-            shipment.Note,
+            canViewFullPii ? shipment.Note : _piiMaskingService.MaskSensitiveText(shipment.Note),
             shipment.Status,
             shipment.CreatedAtUtc,
             trackingHistory);
     }
 
-    private static ShipmentAddressResponse ToAddressResponse(Address address)
+    private ShipmentAddressResponse ToAddressResponse(Address address, bool canViewFullPii)
     {
         return new ShipmentAddressResponse(
-            address.Street,
+            canViewFullPii ? address.Street : _piiMaskingService.MaskAddress(address.Street),
             address.Ward,
             address.Province,
             address.Country,
-            address.FullAddress);
+            canViewFullPii ? address.FullAddress : $"***, {address.Ward}, {address.Province}, {address.Country}");
     }
 
 }

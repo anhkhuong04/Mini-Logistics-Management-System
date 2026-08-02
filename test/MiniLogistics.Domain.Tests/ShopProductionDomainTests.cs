@@ -1,5 +1,7 @@
+using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.PartnerApi;
 using MiniLogistics.Domain.Shipments;
+using MiniLogistics.Domain.Shops;
 using Xunit;
 
 namespace MiniLogistics.Domain.Tests;
@@ -66,5 +68,33 @@ public sealed class ShopProductionDomainTests
         Assert.Equal(WebhookDeliveryStatus.Pending, delivery.Status);
         Assert.Equal(Now.AddMinutes(1), delivery.NextAttemptAtUtc);
         Assert.Null(delivery.LastError);
+    }
+
+    [Fact]
+    public void ShopStaffMembership_EnforcesSupportedPermissionsAndActiveState()
+    {
+        var membership = new ShopStaffMembership(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            ShopStaffRole.Viewer,
+            ShopPermission.ViewShipments,
+            Now);
+
+        Assert.True(membership.HasPermission(ShopPermission.ViewShipments));
+        Assert.False(membership.HasPermission(ShopPermission.ManageShipments));
+
+        membership.SetAccess(
+            ShopStaffRole.Custom,
+            ShopPermission.ViewShipments | ShopPermission.ManageShipments | ShopPermission.ViewFullPii,
+            Now.AddMinutes(1));
+        membership.SetActive(false, Now.AddMinutes(2));
+
+        Assert.True(membership.HasPermission(ShopPermission.ManageShipments | ShopPermission.ViewFullPii));
+        Assert.False(membership.IsActive);
+        Assert.Throws<DomainException>(() => membership.SetAccess(
+            ShopStaffRole.Custom,
+            ShopPermission.ManageShipments,
+            Now.AddMinutes(3)));
     }
 }

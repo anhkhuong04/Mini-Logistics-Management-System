@@ -40,6 +40,17 @@ public sealed class ShopRepository : IShopRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Shop>> GetByIdsAsync(
+        IReadOnlyCollection<Guid> shopIds,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Shops
+            .Where(shop => shopIds.Contains(shop.Id))
+            .OrderByDescending(shop => shop.IsActive)
+            .ThenBy(shop => shop.Name)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<Shop>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await _dbContext.Shops

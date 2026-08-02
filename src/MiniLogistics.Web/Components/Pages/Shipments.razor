@@ -9,11 +9,13 @@
 @using MiniLogistics.Application.Shipments.GetShipmentsForCurrentShop
 @using MiniLogistics.Application.Shipments.ImportShipments
 @using MiniLogistics.Domain.Shipments
+@using MiniLogistics.Domain.Shops
 @inject IGetShopContextService GetShopContextService
 @inject IGetShipmentsForCurrentShopService GetShipmentsForCurrentShopService
 @inject IPreviewShipmentImportService PreviewShipmentImportService
 @inject IConfirmShipmentImportService ConfirmShipmentImportService
 @inject IGetShipmentImportBatchService GetShipmentImportBatchService
+@inject IShopUiActionRateLimiter ShopUiActionRateLimiter
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 
@@ -27,18 +29,24 @@
         </div>
 
         <div class="heading-actions">
-            <button type="button" class="btn btn-outline-secondary action-button" @onclick="ToggleImportPanel">
-                Import CSV
-            </button>
+            @if (CanManageShipments)
+            {
+                <button type="button" class="btn btn-outline-secondary action-button" @onclick="ToggleImportPanel">
+                    Import CSV
+                </button>
+            }
             <a class="btn btn-outline-secondary action-button" href="@CsvTemplateDataUri" download="shipment-import-template.csv">
                 Template CSV
             </a>
-            <a class="btn btn-primary action-button" href="@(BuildShopLink("/shipments/create"))">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" />
-                </svg>
-                <span>Tạo đơn hàng</span>
-            </a>
+            @if (CanManageShipments)
+            {
+                <a class="btn btn-primary action-button" href="@(BuildShopLink("/shipments/create"))">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" />
+                    </svg>
+                    <span>Tạo đơn hàng</span>
+                </a>
+            }
         </div>
     </div>
 
@@ -87,7 +95,10 @@
             </span>
             <strong>Chưa có đơn hàng</strong>
             <p>Tạo vận đơn đầu tiên để bắt đầu theo dõi giao hàng.</p>
-            <a class="btn btn-primary" href="@(BuildShopLink("/shipments/create"))">Tạo đơn hàng</a>
+            @if (CanManageShipments)
+            {
+                <a class="btn btn-primary" href="@(BuildShopLink("/shipments/create"))">Tạo đơn hàng</a>
+            }
         </section>
     }
     else
@@ -96,7 +107,7 @@
             <div class="shipment-list-toolbar">
                 <label>
                     Search
-                    <input type="search" @bind="ShipmentSearchText" placeholder="Tracking code or receiver" />
+                    <input type="search" @bind="ShipmentSearchText" placeholder="Tracking code" />
                 </label>
                 <label>
                     Status
@@ -108,14 +119,17 @@
                         }
                     </select>
                 </label>
-                <label>
-                    Receiver name
-                    <input type="search" @bind="ReceiverNameSearchText" placeholder="Receiver name" />
-                </label>
-                <label>
-                    Receiver phone
-                    <input type="search" @bind="ReceiverPhoneSearchText" placeholder="Receiver phone" />
-                </label>
+                @if (CanViewFullPii)
+                {
+                    <label>
+                        Receiver name
+                        <input type="search" @bind="ReceiverNameSearchText" placeholder="Receiver name" />
+                    </label>
+                    <label>
+                        Receiver phone
+                        <input type="search" @bind="ReceiverPhoneSearchText" placeholder="Receiver phone" />
+                    </label>
+                }
                 <label>
                     From date
                     <input type="date" value="@FromDateInput" @onchange="args => FromDateInput = args.Value?.ToString() ?? string.Empty" />
@@ -124,18 +138,21 @@
                     To date
                     <input type="date" value="@ToDateInput" @onchange="args => ToDateInput = args.Value?.ToString() ?? string.Empty" />
                 </label>
-                <label>
-                    Min COD
-                    <input type="number" min="0" step="1000" @bind="MinCodAmountText" placeholder="0" />
-                </label>
-                <label>
-                    Max COD
-                    <input type="number" min="0" step="1000" @bind="MaxCodAmountText" placeholder="0" />
-                </label>
+                @if (CanViewCod)
+                {
+                    <label>
+                        Min COD
+                        <input type="number" min="0" step="1000" @bind="MinCodAmountText" placeholder="0" />
+                    </label>
+                    <label>
+                        Max COD
+                        <input type="number" min="0" step="1000" @bind="MaxCodAmountText" placeholder="0" />
+                    </label>
+                }
                 <label>
                     Sort by
                     <select @bind="SelectedSortBy">
-                        @foreach (var sortBy in SortByFilters)
+                        @foreach (var sortBy in AvailableSortByFilters)
                         {
                             <option value="@sortBy.ToString()">@FormatSortBy(sortBy)</option>
                         }
@@ -157,9 +174,12 @@
                     <button type="button" class="btn btn-outline-secondary" @onclick="ClearShipmentFiltersAsync" disabled="@(!HasActiveShipmentFilters || IsLoadingShipments)">
                         Reset
                     </button>
-                    <a class="btn btn-outline-secondary" href="@BuildExportLink()">
-                        Export CSV
-                    </a>
+                    @if (CanExportData)
+                    {
+                        <a class="btn btn-outline-secondary" href="@BuildExportLink()">
+                            Export CSV
+                        </a>
+                    }
                 </div>
             </div>
 
@@ -198,7 +218,7 @@
                                     <a class="tracking-link" href="@(BuildShopLink($"/shipments/{shipment.ShipmentId}"))">
                                         @shipment.TrackingCode
                                     </a>
-                                    @if (CanEditShipment(shipment.Status))
+                                    @if (CanManageShipments && CanEditShipment(shipment.Status))
                                     {
                                         <a class="icon-link" href="@(BuildShopLink($"/shipments/create?shipmentId={shipment.ShipmentId:D}"))" aria-label="Sua don">
                                             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -206,7 +226,7 @@
                                             </svg>
                                         </a>
                                     }
-                                    @if (shipment.Status != ShipmentStatus.Draft)
+                                    @if (CanViewFullPii && shipment.Status != ShipmentStatus.Draft)
                                     {
                                         <a class="icon-link" href="@BuildLabelLink(shipment.ShipmentId)" aria-label="Tai label">
                                             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -252,7 +272,7 @@
             </div>
         </section>
     }
-    @if (ShowImportPanel)
+    @if (ShowImportPanel && CanManageShipments)
     {
         <section class="content-card import-panel">
             <div class="import-header">
@@ -462,6 +482,18 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
     private ShopContextItemResponse? SelectedShop => ShopContext?.Shops
         .FirstOrDefault(shop => shop.ShopId == SelectedShopId);
 
+    private bool CanManageShipments => SelectedShop?.Permissions.HasFlag(ShopPermission.ManageShipments) == true;
+
+    private bool CanViewFullPii => SelectedShop?.Permissions.HasFlag(ShopPermission.ViewFullPii) == true;
+
+    private bool CanViewCod => SelectedShop?.Permissions.HasFlag(ShopPermission.ViewCod) == true;
+
+    private bool CanExportData => SelectedShop?.Permissions.HasFlag(ShopPermission.ExportData) == true;
+
+    private IEnumerable<ShopShipmentSortBy> AvailableSortByFilters => SortByFilters.Where(sortBy =>
+        (sortBy != ShopShipmentSortBy.ReceiverName || CanViewFullPii)
+        && (sortBy != ShopShipmentSortBy.CodAmount || CanViewCod));
+
     private bool IsLoading { get; set; } = true;
 
     private string? ErrorMessage { get; set; }
@@ -556,7 +588,10 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
         SortDirection.Ascending
     ];
 
-    private bool CanPreviewImport => SelectedShop?.IsActive == true && !IsPreviewingImport && !IsConfirmingImport;
+    private bool CanPreviewImport => CanManageShipments
+        && SelectedShop?.IsActive == true
+        && !IsPreviewingImport
+        && !IsConfirmingImport;
 
     private bool CanConfirmImport => CanPreviewImport && ImportPreview?.ValidRows > 0;
 
@@ -815,6 +850,15 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
             return;
         }
 
+        if (!ShopUiActionRateLimiter.TryAcquire(
+                userId.Value,
+                ShopUiActionKind.ImportPreview,
+                out var retryAfter))
+        {
+            ImportErrorMessage = FormatRateLimitMessage(retryAfter);
+            return;
+        }
+
         var file = args.File;
         if (!file.Name.EndsWith(".csv", StringComparison.OrdinalIgnoreCase))
         {
@@ -867,6 +911,15 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
         if (userId is null)
         {
             NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        if (!ShopUiActionRateLimiter.TryAcquire(
+                userId.Value,
+                ShopUiActionKind.ImportConfirm,
+                out var retryAfter))
+        {
+            ImportErrorMessage = FormatRateLimitMessage(retryAfter);
             return;
         }
 
@@ -1003,6 +1056,9 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
     {
         return UiDisplay.FormatLocalDateTime(value);
     }
+
+    private static string FormatRateLimitMessage(TimeSpan retryAfter) =>
+        $"Da vuot gioi han thao tac. Thu lai sau {Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds))} giay.";
 
     private static string FormatMoney(decimal amount, string currency)
     {

@@ -138,16 +138,18 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
                 ApplicationErrors.ValidationFailed(ToValidationMessage(validationResult.Errors.Select(error => error.ErrorMessage))));
         }
 
-        var shopResult = await _shopAccessService.GetShopForUserAsync(
+        var shopResult = await _shopAccessService.GetShopAccessAsync(
             command.CurrentUserId,
             command.ShopId,
             requireActiveShop: true,
+            ShopPermission.ManageShipments,
             cancellationToken);
         if (shopResult.IsFailure)
         {
             return Result<ShipmentImportPreviewResponse>.Failure(shopResult.Error);
         }
 
+        var shop = shopResult.Value.Shop;
         var csvResult = ParseCsv(command.CsvContent);
         if (csvResult.IsFailure)
         {
@@ -186,7 +188,7 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
 
             var rowResult = await PreviewRowAsync(
                 command.CurrentUserId,
-                shopResult.Value,
+                shop,
                 row.Draft,
                 errors,
                 cancellationToken);
@@ -194,7 +196,7 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
         }
 
         var response = new ShipmentImportPreviewResponse(
-            shopResult.Value.Id,
+            shop.Id,
             previewRows.Count,
             previewRows.Count(row => row.IsValid),
             previewRows.Count(row => !row.IsValid),
@@ -204,7 +206,7 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
                 command.CurrentUserId,
                 AdminAuditActions.ShipmentImportPreviewed,
                 AdminAuditTargetTypes.Shop,
-                shopResult.Value.Id,
+                shop.Id,
                 NewValue: new
                 {
                     response.TotalRows,
@@ -227,28 +229,30 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
                 ApplicationErrors.ValidationFailed(ToValidationMessage(validationResult.Errors.Select(error => error.ErrorMessage))));
         }
 
-        var shopResult = await _shopAccessService.GetShopForUserAsync(
+        var shopResult = await _shopAccessService.GetShopAccessAsync(
             command.CurrentUserId,
             command.ShopId,
             requireActiveShop: true,
+            ShopPermission.ManageShipments,
             cancellationToken);
         if (shopResult.IsFailure)
         {
             return Result<ShipmentImportConfirmResponse>.Failure(shopResult.Error);
         }
 
+        var shop = shopResult.Value.Shop;
         var duplicateRowNumbers = GetDuplicateClientOrderRowNumbers(command.Rows);
         if (_batchRepository is null)
         {
             return await ConfirmSynchronouslyAsync(
                 command,
-                shopResult.Value,
+                shop,
                 duplicateRowNumbers,
                 cancellationToken);
         }
 
         var now = _timeProvider.GetUtcNow();
-        var batch = new ShipmentImportBatch(shopResult.Value.Id, command.CurrentUserId, now);
+        var batch = new ShipmentImportBatch(shop.Id, command.CurrentUserId, now);
         foreach (var row in command.Rows)
         {
             var rowErrors = duplicateRowNumbers.Contains(row.RowNumber)
@@ -256,7 +260,7 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
                 : [];
             var preview = await PreviewRowAsync(
                 command.CurrentUserId,
-                shopResult.Value,
+                shop,
                 row,
                 rowErrors,
                 cancellationToken);
@@ -279,7 +283,7 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
                 command.CurrentUserId,
                 AdminAuditActions.ShipmentImportConfirmed,
                 AdminAuditTargetTypes.Shop,
-                shopResult.Value.Id,
+                shop.Id,
                 NewValue: new
                 {
                     BatchId = batch.Id,

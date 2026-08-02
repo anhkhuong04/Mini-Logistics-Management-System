@@ -22,6 +22,13 @@ public interface IShopRepository
         throw new NotSupportedException();
     }
 
+    Task<IReadOnlyList<Shop>> GetByIdsAsync(
+        IReadOnlyCollection<Guid> shopIds,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException();
+    }
+
     Task<IReadOnlyList<Shop>> GetAllAsync(CancellationToken cancellationToken = default);
 
     Task<bool> ExistsByOwnerUserIdAsync(

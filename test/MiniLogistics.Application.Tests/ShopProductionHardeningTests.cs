@@ -33,6 +33,8 @@ public sealed class ShopProductionHardeningTests
         Assert.DoesNotContain("raw", masked);
         Assert.Contains("Delivered", masked);
         Assert.Equal("091****678", service.MaskPhone("0912345678"));
+        Assert.Equal("N*** V*** *", service.MaskName("Nguyen Van A"));
+        Assert.Equal("***", service.MaskAddress("1 Le Loi"));
     }
 
     [Fact]

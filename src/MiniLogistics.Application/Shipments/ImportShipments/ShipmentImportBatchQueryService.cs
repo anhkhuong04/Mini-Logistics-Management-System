@@ -3,6 +3,7 @@ using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Shipments;
+using MiniLogistics.Domain.Shops;
 
 namespace MiniLogistics.Application.Shipments.ImportShipments;
 
@@ -72,10 +73,11 @@ public sealed class ShipmentImportBatchQueryService :
                 ApplicationErrors.ValidationFailed("Import batch id is required."));
         }
 
-        var shopResult = await _shopAccessService.GetShopForUserAsync(
+        var shopResult = await _shopAccessService.GetShopAccessAsync(
             currentUserId,
             shopId,
             requireActiveShop: false,
+            ShopPermission.ManageShipments,
             cancellationToken);
         if (shopResult.IsFailure)
         {
@@ -84,7 +86,7 @@ public sealed class ShipmentImportBatchQueryService :
 
         var batch = await _batchRepository.GetByIdForShopAsync(
             batchId,
-            shopResult.Value.Id,
+            shopResult.Value.Shop.Id,
             cancellationToken);
         return batch is null
             ? Result<ShipmentImportBatch>.Failure(ApplicationErrors.NotFound("Import batch was not found for current shop."))

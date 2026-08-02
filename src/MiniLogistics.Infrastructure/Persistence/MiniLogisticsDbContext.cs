@@ -26,6 +26,8 @@ public sealed class MiniLogisticsDbContext : IdentityDbContext<ApplicationUser, 
 
     public DbSet<ShopNotificationPreference> ShopNotificationPreferences => Set<ShopNotificationPreference>();
 
+    public DbSet<ShopStaffMembership> ShopStaffMemberships => Set<ShopStaffMembership>();
+
     public DbSet<Shipment> Shipments => Set<Shipment>();
 
     public DbSet<ShipmentImportBatch> ShipmentImportBatches => Set<ShipmentImportBatch>();

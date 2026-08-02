@@ -36,7 +36,10 @@ public sealed class ShopAuditLogRepository : IShopAuditLogRepository
                         && _dbContext.ApiClients.Any(client => client.Id == endpoint.ApiClientId && shopIds.Contains(client.ShopId))))
                 || (log.TargetType == AdminAuditTargetTypes.WebhookDelivery
                     && _dbContext.WebhookDeliveries.Any(delivery => delivery.Id == log.TargetId
-                        && _dbContext.ApiClients.Any(client => client.Id == delivery.ApiClientId && shopIds.Contains(client.ShopId)))));
+                        && _dbContext.ApiClients.Any(client => client.Id == delivery.ApiClientId && shopIds.Contains(client.ShopId))))
+                || (log.TargetType == AdminAuditTargetTypes.ShopStaffMembership
+                    && _dbContext.ShopStaffMemberships.Any(membership =>
+                        membership.Id == log.TargetId && shopIds.Contains(membership.ShopId))));
 
         if (!string.IsNullOrWhiteSpace(query.Action))
         {

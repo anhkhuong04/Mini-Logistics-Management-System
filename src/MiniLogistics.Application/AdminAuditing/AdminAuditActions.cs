@@ -13,6 +13,8 @@ public static class AdminAuditActions
     public const string ShopActiveStatusChanged = "shop.active_status_changed";
     public const string ShopProfileUpdated = "shop.profile.updated";
     public const string ShopAdditionalShopCreated = "shop.additional_shop.created";
+    public const string ShopStaffCreated = "shop.staff.created";
+    public const string ShopStaffAccessUpdated = "shop.staff.access.updated";
     public const string ShipmentCreated = "shipment.created";
     public const string ShipmentDraftCreated = "shipment.draft_created";
     public const string ShipmentDraftSubmitted = "shipment.draft_submitted";
