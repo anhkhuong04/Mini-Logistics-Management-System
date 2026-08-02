@@ -4,6 +4,7 @@ using MiniLogistics.Application.Authorization;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.PartnerApi;
+using MiniLogistics.Application.Shops.Notifications;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Users;
 
@@ -18,6 +19,7 @@ public sealed class ReassignShipmentService : IReassignShipmentService
     private readonly IAdminAuditService _adminAuditService;
     private readonly IOperationAuthorizationService _operationAuthorizationService;
     private readonly TimeProvider _timeProvider;
+    private readonly IShopNotificationService _shopNotificationService;
 
     public ReassignShipmentService(
         IValidator<ReassignShipmentCommand> validator,
@@ -26,7 +28,8 @@ public sealed class ReassignShipmentService : IReassignShipmentService
         TimeProvider timeProvider,
         IWebhookEventPublisher? webhookEventPublisher = null,
         IAdminAuditService? adminAuditService = null,
-        IOperationAuthorizationService? operationAuthorizationService = null)
+        IOperationAuthorizationService? operationAuthorizationService = null,
+        IShopNotificationService? shopNotificationService = null)
     {
         _validator = validator;
         _identityService = identityService;
@@ -35,6 +38,7 @@ public sealed class ReassignShipmentService : IReassignShipmentService
         _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
         _operationAuthorizationService = operationAuthorizationService ?? new OperationAuthorizationService(identityService);
+        _shopNotificationService = shopNotificationService ?? NullShopNotificationService.Instance;
     }
 
     public async Task<Result> ReassignAsync(
@@ -84,6 +88,10 @@ public sealed class ReassignShipmentService : IReassignShipmentService
         await _webhookEventPublisher.PublishShipmentAsync(
             shipment,
             WebhookEventTypes.ShipmentStatusChanged,
+            cancellationToken);
+        await _shopNotificationService.QueueShipmentEventAsync(
+            shipment,
+            ShopNotificationEventTypes.Assigned,
             cancellationToken);
         await _adminAuditService.RecordAsync(
             new AdminAuditEntry(

@@ -4,6 +4,7 @@ using MiniLogistics.Application.Authorization;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.Shipments;
+using MiniLogistics.Application.Shops.Notifications;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Shipments;
 using MiniLogistics.Domain.Users;
@@ -20,6 +21,7 @@ public sealed class MarkCodCollectedService : IMarkCodCollectedService
     private readonly IAdminAuditService _adminAuditService;
     private readonly IOperationAuthorizationService _operationAuthorizationService;
     private readonly TimeProvider _timeProvider;
+    private readonly IShopNotificationService _shopNotificationService;
 
     public MarkCodCollectedService(
         IValidator<MarkCodCollectedCommand> validator,
@@ -28,7 +30,8 @@ public sealed class MarkCodCollectedService : IMarkCodCollectedService
         ICodTransactionRepository codTransactionRepository,
         TimeProvider timeProvider,
         IAdminAuditService? adminAuditService = null,
-        IOperationAuthorizationService? operationAuthorizationService = null)
+        IOperationAuthorizationService? operationAuthorizationService = null,
+        IShopNotificationService? shopNotificationService = null)
     {
         _validator = validator;
         _identityService = identityService;
@@ -37,6 +40,7 @@ public sealed class MarkCodCollectedService : IMarkCodCollectedService
         _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
         _operationAuthorizationService = operationAuthorizationService ?? new OperationAuthorizationService(identityService);
+        _shopNotificationService = shopNotificationService ?? NullShopNotificationService.Instance;
     }
 
     public async Task<Result> MarkCollectedAsync(
@@ -102,6 +106,10 @@ public sealed class MarkCodCollectedService : IMarkCodCollectedService
         }
 
         var auditAction = await ResolveCollectionAuditActionAsync(command.CollectedByUserId, cancellationToken);
+        await _shopNotificationService.QueueShipmentEventAsync(
+            shipment,
+            ShopNotificationEventTypes.CodCollected,
+            cancellationToken);
         await _adminAuditService.RecordAsync(
             new AdminAuditEntry(
                 command.CollectedByUserId,

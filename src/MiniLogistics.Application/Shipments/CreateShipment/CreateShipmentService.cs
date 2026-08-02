@@ -21,6 +21,7 @@ public sealed class CreateShipmentService : ICreateShipmentService
     private readonly IShippingFeeService _shippingFeeService;
     private readonly IRouteClassificationService _routeClassificationService;
     private readonly IShipmentRepository _shipmentRepository;
+    private readonly IAdministrativeDivisionService _administrativeDivisionService;
     private readonly IShopAccessService _shopAccessService;
     private readonly ICodTransactionRepository _codTransactionRepository;
     private readonly IAutoAssignShipmentService _autoAssignShipmentService;
@@ -37,6 +38,31 @@ public sealed class CreateShipmentService : ICreateShipmentService
         IAutoAssignShipmentService autoAssignShipmentService,
         TimeProvider timeProvider,
         IAdminAuditService? adminAuditService = null)
+        : this(
+            validator,
+            shippingFeeService,
+            routeClassificationService,
+            shipmentRepository,
+            shopAccessService,
+            codTransactionRepository,
+            autoAssignShipmentService,
+            PassThroughAdministrativeDivisionService.Instance,
+            timeProvider,
+            adminAuditService)
+    {
+    }
+
+    public CreateShipmentService(
+        IValidator<CreateShipmentCommand> validator,
+        IShippingFeeService shippingFeeService,
+        IRouteClassificationService routeClassificationService,
+        IShipmentRepository shipmentRepository,
+        IShopAccessService shopAccessService,
+        ICodTransactionRepository codTransactionRepository,
+        IAutoAssignShipmentService autoAssignShipmentService,
+        IAdministrativeDivisionService administrativeDivisionService,
+        TimeProvider timeProvider,
+        IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _shippingFeeService = shippingFeeService;
@@ -45,6 +71,7 @@ public sealed class CreateShipmentService : ICreateShipmentService
         _shopAccessService = shopAccessService;
         _codTransactionRepository = codTransactionRepository;
         _autoAssignShipmentService = autoAssignShipmentService;
+        _administrativeDivisionService = administrativeDivisionService;
         _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
@@ -71,6 +98,34 @@ public sealed class CreateShipmentService : ICreateShipmentService
         }
 
         var shop = shopResult.Value;
+        var pickupDivision = await _administrativeDivisionService.NormalizeProvinceWardAsync(
+            command.PickupAddress.Province,
+            command.PickupAddress.Ward,
+            cancellationToken);
+        if (pickupDivision.IsFailure)
+        {
+            return Result<CreateShipmentResponse>.Failure(pickupDivision.Error);
+        }
+
+        var deliveryDivision = await _administrativeDivisionService.NormalizeProvinceWardAsync(
+            command.DeliveryAddress.Province,
+            command.DeliveryAddress.Ward,
+            cancellationToken);
+        if (deliveryDivision.IsFailure)
+        {
+            return Result<CreateShipmentResponse>.Failure(deliveryDivision.Error);
+        }
+
+        var pickupAddress = command.PickupAddress with
+        {
+            Province = pickupDivision.Value.Province,
+            Ward = pickupDivision.Value.Ward
+        };
+        var deliveryAddress = command.DeliveryAddress with
+        {
+            Province = deliveryDivision.Value.Province,
+            Ward = deliveryDivision.Value.Ward
+        };
         var weight = new Weight(command.WeightKg);
         var parcelDimensions = new ParcelDimensions(
             command.LengthCm,
@@ -79,8 +134,8 @@ public sealed class CreateShipmentService : ICreateShipmentService
         var goodsValue = new Money(command.GoodsValueAmount, command.Currency);
         var codAmount = new Money(command.CodAmount, command.Currency);
         var routeClassificationResult = _routeClassificationService.Classify(
-            command.PickupAddress.Province,
-            command.DeliveryAddress.Province);
+            pickupAddress.Province,
+            deliveryAddress.Province);
 
         if (routeClassificationResult.IsFailure)
         {
@@ -109,8 +164,8 @@ public sealed class CreateShipmentService : ICreateShipmentService
             new PhoneNumber(command.SenderPhone),
             command.ReceiverName,
             new PhoneNumber(command.ReceiverPhone),
-            ToAddress(command.PickupAddress),
-            ToAddress(command.DeliveryAddress),
+            ToAddress(pickupAddress),
+            ToAddress(deliveryAddress),
             weight,
             parcelDimensions,
             new Weight(shippingFeeResult.Value.ChargeableWeightKg),

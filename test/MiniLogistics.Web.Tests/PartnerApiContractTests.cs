@@ -178,6 +178,52 @@ public sealed class PartnerApiContractTests
     }
 
     [Fact]
+    public async Task Quote_WhenClientLacksQuoteScope_ReturnsForbidden()
+    {
+        await using var factory = new PartnerApiWebApplicationFactory(scopes: PartnerApiScope.TrackShipment);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestApiKey);
+
+        var response = await client.PostAsJsonAsync("/api/v1/partner/shipping/quote", new { });
+        var json = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("PartnerApi.MissingScope", json);
+    }
+
+    [Fact]
+    public async Task CreateShipment_WhenClientLacksScope_WritesUsageAudit()
+    {
+        await using var factory = new PartnerApiWebApplicationFactory(scopes: PartnerApiScope.Quote);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestApiKey);
+
+        var response = await client.PostAsJsonAsync("/api/v1/partner/shipments", new { });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        await using var scope = factory.Services.CreateAsyncScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+        var audit = await dbContext.PartnerApiRequestAudits.SingleAsync();
+        Assert.Equal("/api/v1/partner/shipments", audit.Path);
+        Assert.Equal(StatusCodes.Status403Forbidden, audit.StatusCode);
+        Assert.False(audit.IsSuccess);
+    }
+
+    [Fact]
+    public async Task Quote_WhenRequestIpIsNotWhitelisted_ReturnsForbidden()
+    {
+        await using var factory = new PartnerApiWebApplicationFactory(allowedIpAddresses: ["203.0.113.10"]);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestApiKey);
+
+        var response = await client.PostAsJsonAsync("/api/v1/partner/shipping/quote", new { });
+        var json = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+        Assert.Contains("PartnerApi.IpNotAllowed", json);
+    }
+
+    [Fact]
     public async Task Quote_WhenUnhandledException_ReturnsSanitizedServerError()
     {
         await using var factory = new PartnerApiWebApplicationFactory(throwQuote: true);
@@ -220,11 +266,19 @@ public sealed class PartnerApiContractTests
         private readonly string _databaseName = "MiniLogisticsContractTests-" + Guid.NewGuid();
         private readonly bool _isShopActive;
         private readonly bool _throwQuote;
+        private readonly PartnerApiScope _scopes;
+        private readonly IReadOnlyList<string> _allowedIpAddresses;
 
-        public PartnerApiWebApplicationFactory(bool isShopActive = true, bool throwQuote = false)
+        public PartnerApiWebApplicationFactory(
+            bool isShopActive = true,
+            bool throwQuote = false,
+            PartnerApiScope scopes = PartnerApiScope.All,
+            IReadOnlyList<string>? allowedIpAddresses = null)
         {
             _isShopActive = isShopActive;
             _throwQuote = throwQuote;
+            _scopes = scopes;
+            _allowedIpAddresses = allowedIpAddresses ?? [];
         }
 
         protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -264,7 +318,9 @@ public sealed class PartnerApiContractTests
                     "Contract Test Client",
                     ApiKeyHasher.GetPrefix(TestApiKey),
                     ApiKeyHasher.Hash(TestApiKey),
-                    TestClock.UtcNow);
+                    TestClock.UtcNow,
+                    _scopes,
+                    _allowedIpAddresses);
                 if (!_isShopActive)
                 {
                     shop.Deactivate(TestClock.UtcNow);

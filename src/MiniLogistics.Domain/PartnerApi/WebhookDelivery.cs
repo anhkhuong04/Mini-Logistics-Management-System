@@ -108,6 +108,22 @@ public sealed class WebhookDelivery : AuditableEntity
         MarkUpdated(attemptedAtUtc);
     }
 
+    public Result Retry(DateTimeOffset queuedAtUtc)
+    {
+        if (Status != WebhookDeliveryStatus.Failed)
+        {
+            return Result.Failure(new Error(
+                "WebhookDelivery.NotFailed",
+                "Only failed webhook deliveries can be retried."));
+        }
+
+        Status = WebhookDeliveryStatus.Pending;
+        NextAttemptAtUtc = queuedAtUtc;
+        LastError = null;
+        MarkUpdated(queuedAtUtc);
+        return Result.Success();
+    }
+
     private static long? NormalizeDuration(long? durationMs)
     {
         return durationMs.HasValue && durationMs.Value >= 0

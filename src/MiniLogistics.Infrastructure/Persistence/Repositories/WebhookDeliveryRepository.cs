@@ -58,6 +58,14 @@ public sealed class WebhookDeliveryRepository : IWebhookDeliveryRepository
             .ToListAsync(cancellationToken);
     }
 
+    public Task<WebhookDelivery?> GetByIdAsync(
+        Guid deliveryId,
+        CancellationToken cancellationToken = default)
+    {
+        return _dbContext.WebhookDeliveries
+            .FirstOrDefaultAsync(delivery => delivery.Id == deliveryId, cancellationToken);
+    }
+
     public async Task AddAsync(WebhookDelivery delivery, CancellationToken cancellationToken = default)
     {
         await _dbContext.WebhookDeliveries.AddAsync(delivery, cancellationToken);

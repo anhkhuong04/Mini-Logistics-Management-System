@@ -3,6 +3,8 @@ using MiniLogistics.Application.Shops.Reports;
 using MiniLogistics.Application.Shipments;
 using MiniLogistics.Application.Shipments.ExportShopShipments;
 using MiniLogistics.Application.Shipments.GenerateShipmentLabel;
+using MiniLogistics.Application.Shipments.ImportShipments;
+using System.Text;
 using MiniLogistics.Domain.Shipments;
 using MiniLogistics.Web.Services;
 
@@ -19,6 +21,7 @@ public static class ShopShipmentFileEndpoints
         group.MapGet("/shipments/export.csv", ExportShipmentsAsync);
         group.MapGet("/cod-report.csv", ExportCodReportAsync);
         group.MapGet("/shipments/{shipmentId:guid}/label.pdf", GenerateLabelAsync);
+        group.MapGet("/import-batches/{batchId:guid}/errors.csv", ExportImportErrorsAsync);
 
         return endpoints;
     }
@@ -114,6 +117,29 @@ public static class ShopShipmentFileEndpoints
 
         return result.IsSuccess
             ? Results.File(result.Value.Content, result.Value.ContentType, result.Value.FileName)
+            : Results.BadRequest(result.Error.Description);
+    }
+
+    private static async Task<IResult> ExportImportErrorsAsync(
+        HttpContext httpContext,
+        Guid batchId,
+        IExportShipmentImportErrorsService exportService)
+    {
+        if (!TryGetCurrentUserId(httpContext, out var userId))
+        {
+            return Results.Unauthorized();
+        }
+
+        var result = await exportService.ExportCsvAsync(
+            userId,
+            ParseGuid(httpContext.Request.Query["shopId"].ToString()),
+            batchId,
+            httpContext.RequestAborted);
+        return result.IsSuccess
+            ? Results.File(
+                Encoding.UTF8.GetBytes(result.Value),
+                "text/csv; charset=utf-8",
+                $"shipment-import-{batchId:N}-errors.csv")
             : Results.BadRequest(result.Error.Description);
     }
 

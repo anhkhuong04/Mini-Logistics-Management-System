@@ -59,6 +59,11 @@ public sealed class WebhookManagementService : IWebhookManagementService
             return Result<PartnerWebhookEndpointResponse>.Failure(apiClientResult.Error);
         }
 
+        if (!apiClientResult.Value.HasScope(PartnerApiScope.WebhookManage))
+        {
+            return Result<PartnerWebhookEndpointResponse>.Failure(PartnerApiErrors.MissingScope);
+        }
+
         if (string.IsNullOrWhiteSpace(command.SigningSecret))
         {
             var validationError = ApplicationErrors.ValidationFailed("Webhook signing secret is required.");
@@ -153,6 +158,11 @@ public sealed class WebhookManagementService : IWebhookManagementService
             return Result<PartnerWebhookTestResponse>.Failure(apiClientResult.Error);
         }
 
+        if (!apiClientResult.Value.HasScope(PartnerApiScope.WebhookManage))
+        {
+            return Result<PartnerWebhookTestResponse>.Failure(PartnerApiErrors.MissingScope);
+        }
+
         var endpoint = await _webhookEndpointRepository.GetLatestByApiClientIdAsync(
             apiClientResult.Value.Id,
             cancellationToken);
@@ -214,6 +224,63 @@ public sealed class WebhookManagementService : IWebhookManagementService
         return Result<PartnerWebhookTestResponse>.Success(new PartnerWebhookTestResponse(
             delivery.Id,
             delivery.EventType));
+    }
+
+    public async Task<Result> RetryWebhookDeliveryAsync(
+        RetryPartnerWebhookDeliveryCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var delivery = await _webhookDeliveryRepository.GetByIdAsync(
+            command.WebhookDeliveryId,
+            cancellationToken);
+        if (delivery is null)
+        {
+            return Result.Failure(ApplicationErrors.NotFound("Webhook delivery was not found."));
+        }
+
+        var apiClientResult = await _scopeService.GetManageableApiClientAsync(
+            command.CurrentUserId,
+            delivery.ApiClientId,
+            cancellationToken);
+        if (apiClientResult.IsFailure)
+        {
+            return Result.Failure(apiClientResult.Error);
+        }
+
+        if (!apiClientResult.Value.HasScope(PartnerApiScope.WebhookManage))
+        {
+            return Result.Failure(PartnerApiErrors.MissingScope);
+        }
+
+        var retryResult = delivery.Retry(_timeProvider.GetUtcNow());
+        if (retryResult.IsFailure)
+        {
+            return retryResult;
+        }
+
+        await _credentialAuditWriter.AddAsync(
+            command.CurrentUserId,
+            apiClientResult.Value.ShopId,
+            apiClientResult.Value.Id,
+            PartnerApiCredentialAuditActions.WebhookDeliveryRetried,
+            isSuccess: true,
+            error: null,
+            cancellationToken);
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.CurrentUserId,
+                AdminAuditActions.PartnerWebhookDeliveryRetried,
+                AdminAuditTargetTypes.WebhookDelivery,
+                delivery.Id,
+                NewValue: new
+                {
+                    delivery.ApiClientId,
+                    delivery.Status,
+                    delivery.NextAttemptAtUtc
+                }),
+            cancellationToken);
+        await _webhookDeliveryRepository.SaveChangesAsync(cancellationToken);
+        return Result.Success();
     }
 
 }

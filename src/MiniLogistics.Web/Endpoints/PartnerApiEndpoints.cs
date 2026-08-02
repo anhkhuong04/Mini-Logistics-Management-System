@@ -12,6 +12,8 @@ namespace MiniLogistics.Web.Endpoints;
 
 public static class PartnerApiEndpoints
 {
+    private const string AuthenticatedClientContextKey = "PartnerApi.AuthenticatedClient";
+    private const string DetailedRequestAuditWrittenKey = "PartnerApi.DetailedRequestAuditWritten";
     private static readonly JsonSerializerOptions RequestHashJsonOptions = new(JsonSerializerDefaults.Web);
 
     public static IEndpointRouteBuilder MapPartnerApiEndpoints(
@@ -20,7 +22,8 @@ public static class PartnerApiEndpoints
     {
         var group = endpoints
             .MapGroup("/api/v1/partner")
-            .RequireCors(corsPolicyName);
+            .RequireCors(corsPolicyName)
+            .AddEndpointFilter(AuditPartnerRequestAsync);
 
         group.MapPost("/shipping/quote", QuoteAsync);
         group.MapPost("/shipments", CreateShipmentAsync);
@@ -41,6 +44,11 @@ public static class PartnerApiEndpoints
         if (authenticationResult.IsFailure)
         {
             return ToErrorResult(authenticationResult.Error, httpContext);
+        }
+
+        if (!HasScope(authenticationResult.Value, PartnerApiScope.Quote))
+        {
+            return ToErrorResult(PartnerApiErrors.MissingScope, httpContext);
         }
 
         if (!TryAcquireRateLimit(httpContext, rateLimiter, authenticationResult.Value.ApiClientId, PartnerApiRateLimitKind.Quote))
@@ -90,6 +98,11 @@ public static class PartnerApiEndpoints
         if (authenticationResult.IsFailure)
         {
             return ToErrorResult(authenticationResult.Error, httpContext);
+        }
+
+        if (!HasScope(authenticationResult.Value, PartnerApiScope.CreateShipment))
+        {
+            return ToErrorResult(PartnerApiErrors.MissingScope, httpContext);
         }
 
         if (!TryAcquireRateLimit(httpContext, rateLimiter, authenticationResult.Value.ApiClientId, PartnerApiRateLimitKind.CreateShipment))
@@ -199,6 +212,11 @@ public static class PartnerApiEndpoints
             return ToErrorResult(authenticationResult.Error, httpContext);
         }
 
+        if (!HasScope(authenticationResult.Value, PartnerApiScope.TrackShipment))
+        {
+            return ToErrorResult(PartnerApiErrors.MissingScope, httpContext);
+        }
+
         if (!TryAcquireRateLimit(httpContext, rateLimiter, authenticationResult.Value.ApiClientId, PartnerApiRateLimitKind.Tracking))
         {
             return ToErrorResult(PartnerApiErrors.RateLimitExceeded, httpContext);
@@ -229,6 +247,11 @@ public static class PartnerApiEndpoints
             return ToErrorResult(authenticationResult.Error, httpContext);
         }
 
+        if (!HasScope(authenticationResult.Value, PartnerApiScope.CancelShipment))
+        {
+            return ToErrorResult(PartnerApiErrors.MissingScope, httpContext);
+        }
+
         if (!TryAcquireRateLimit(httpContext, rateLimiter, authenticationResult.Value.ApiClientId, PartnerApiRateLimitKind.CancelShipment))
         {
             return ToErrorResult(PartnerApiErrors.RateLimitExceeded, httpContext);
@@ -250,9 +273,81 @@ public static class PartnerApiEndpoints
         HttpContext httpContext,
         IPartnerApiAuthenticationService authenticationService)
     {
-        return authenticationService.AuthenticateAsync(
+        return AuthenticateAndStoreContextAsync(httpContext, authenticationService);
+    }
+
+    private static async Task<Result<PartnerApiClientContext>> AuthenticateAndStoreContextAsync(
+        HttpContext httpContext,
+        IPartnerApiAuthenticationService authenticationService)
+    {
+        var result = await authenticationService.AuthenticateAsync(
             httpContext.Request.Headers.Authorization.ToString(),
+            httpContext.Connection.RemoteIpAddress?.ToString(),
             httpContext.RequestAborted);
+        if (result.IsSuccess)
+        {
+            httpContext.Items[AuthenticatedClientContextKey] = result.Value;
+        }
+
+        return result;
+    }
+
+    private static async ValueTask<object?> AuditPartnerRequestAsync(
+        EndpointFilterInvocationContext invocationContext,
+        EndpointFilterDelegate next)
+    {
+        var httpContext = invocationContext.HttpContext;
+        var startedAtUtc = DateTimeOffset.UtcNow;
+        var result = await next(invocationContext);
+        if (httpContext.Items.ContainsKey(DetailedRequestAuditWrittenKey)
+            || !httpContext.Items.TryGetValue(AuthenticatedClientContextKey, out var contextValue)
+            || contextValue is not PartnerApiClientContext clientContext)
+        {
+            return result;
+        }
+
+        try
+        {
+            var statusCode = result is IStatusCodeHttpResult statusResult
+                ? statusResult.StatusCode ?? StatusCodes.Status200OK
+                : StatusCodes.Status200OK;
+            var completedAtUtc = DateTimeOffset.UtcNow;
+            var repository = httpContext.RequestServices.GetRequiredService<IPartnerApiRequestAuditRepository>();
+            await repository.AddAsync(
+                new PartnerApiRequestAudit(
+                    clientContext.ApiClientId,
+                    clientContext.ShopId,
+                    httpContext.Request.Method,
+                    httpContext.Request.Path.Value ?? "/api/v1/partner",
+                    httpContext.TraceIdentifier,
+                    externalOrderId: null,
+                    idempotencyKey: null,
+                    ComputeRequestHash(new { httpContext.Request.Method, Path = httpContext.Request.Path.Value }),
+                    statusCode,
+                    CalculateDurationMs(startedAtUtc, completedAtUtc),
+                    statusCode is >= 200 and < 400,
+                    isIdempotentReplay: false,
+                    shipmentId: null,
+                    trackingCode: null,
+                    errorCode: statusCode >= 400 ? $"HTTP.{statusCode}" : null,
+                    errorMessage: null,
+                    completedAtUtc),
+                httpContext.RequestAborted);
+            await repository.SaveChangesAsync(httpContext.RequestAborted);
+        }
+        catch (Exception exception)
+        {
+            var logger = httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                .CreateLogger(typeof(PartnerApiEndpoints));
+            logger.LogError(exception, "Failed to persist partner API request audit for {Path}.", httpContext.Request.Path);
+        }
+
+        return result;
+    }
+
+    private static bool HasScope(PartnerApiClientContext context, PartnerApiScope requiredScope)
+    {
+        return (context.Scopes & requiredScope) == requiredScope;
     }
 
     private static bool TryAcquireRateLimit(
@@ -306,6 +401,7 @@ public static class PartnerApiEndpoints
 
         await auditRepository.AddAsync(audit, httpContext.RequestAborted);
         await auditRepository.SaveChangesAsync(httpContext.RequestAborted);
+        httpContext.Items[DetailedRequestAuditWrittenKey] = true;
     }
 
     private static int CalculateDurationMs(DateTimeOffset startedAtUtc, DateTimeOffset completedAtUtc)
@@ -314,7 +410,7 @@ public static class PartnerApiEndpoints
         return (int)Math.Clamp(elapsed.TotalMilliseconds, 0, int.MaxValue);
     }
 
-    private static string ComputeRequestHash(PartnerCreateShipmentRequest? request)
+    private static string ComputeRequestHash(object? request)
     {
         var json = request is null
             ? "{}"
@@ -347,7 +443,8 @@ public static class PartnerApiEndpoints
         return error.Code switch
         {
             "PartnerApi.MissingApiKey" or "PartnerApi.InvalidApiKey" => StatusCodes.Status401Unauthorized,
-            "PartnerApi.ApiClientInactive" or "PartnerApi.ShopInactive" or "Application.Forbidden" => StatusCodes.Status403Forbidden,
+            "PartnerApi.ApiClientInactive" or "PartnerApi.ApiClientExpired" or "PartnerApi.IpNotAllowed"
+                or "PartnerApi.MissingScope" or "PartnerApi.ShopInactive" or "Application.Forbidden" => StatusCodes.Status403Forbidden,
             "PartnerApi.RateLimitExceeded" => StatusCodes.Status429TooManyRequests,
             "Application.NotFound" => StatusCodes.Status404NotFound,
             "Application.Conflict" or "PartnerApi.IdempotencyConflict" => StatusCodes.Status409Conflict,

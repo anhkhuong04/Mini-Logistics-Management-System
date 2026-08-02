@@ -67,12 +67,32 @@ public sealed class ApiClientManagementService : IApiClientManagementService
 
         var apiKey = GenerateApiKey();
         var now = _timeProvider.GetUtcNow();
-        var apiClient = new ApiClient(
-            command.ShopId,
-            command.Name,
-            ApiKeyHasher.GetPrefix(apiKey),
-            ApiKeyHasher.Hash(apiKey),
-            now);
+        ApiClient apiClient;
+        try
+        {
+            apiClient = new ApiClient(
+                command.ShopId,
+                command.Name,
+                ApiKeyHasher.GetPrefix(apiKey),
+                ApiKeyHasher.Hash(apiKey),
+                now,
+                command.Scopes,
+                command.AllowedIpAddresses ?? [],
+                command.ExpiresAtUtc);
+        }
+        catch (DomainException exception)
+        {
+            var error = ApplicationErrors.ValidationFailed(exception.Message);
+            await _credentialAuditWriter.SaveAsync(
+                command.CurrentUserId,
+                command.ShopId,
+                apiClientId: null,
+                PartnerApiCredentialAuditActions.ApiClientCreated,
+                isSuccess: false,
+                error,
+                cancellationToken);
+            return Result<PartnerApiClientSecretResponse>.Failure(error);
+        }
 
         await _apiClientRepository.AddAsync(apiClient, cancellationToken);
         await _credentialAuditWriter.AddAsync(
@@ -94,7 +114,10 @@ public sealed class ApiClientManagementService : IApiClientManagementService
                     apiClient.ShopId,
                     apiClient.Name,
                     apiClient.ApiKeyPrefix,
-                    apiClient.IsActive
+                    apiClient.IsActive,
+                    apiClient.Scopes,
+                    apiClient.AllowedIpAddresses,
+                    apiClient.ExpiresAtUtc
                 }),
             cancellationToken);
         await _apiClientRepository.SaveChangesAsync(cancellationToken);
@@ -206,6 +229,65 @@ public sealed class ApiClientManagementService : IApiClientManagementService
                 NewValue: new
                 {
                     apiClientResult.Value.IsActive
+                }),
+            cancellationToken);
+        await _apiClientRepository.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
+    public async Task<Result> UpdateApiClientSecurityAsync(
+        UpdatePartnerApiClientSecurityCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var apiClientResult = await _scopeService.GetManageableApiClientAsync(
+            command.CurrentUserId,
+            command.ApiClientId,
+            cancellationToken);
+        if (apiClientResult.IsFailure)
+        {
+            return Result.Failure(apiClientResult.Error);
+        }
+
+        var apiClient = apiClientResult.Value;
+        var oldValue = new
+        {
+            apiClient.Scopes,
+            apiClient.AllowedIpAddresses,
+            apiClient.ExpiresAtUtc
+        };
+        try
+        {
+            apiClient.ConfigureSecurity(
+                command.Scopes,
+                command.AllowedIpAddresses,
+                command.ExpiresAtUtc,
+                _timeProvider.GetUtcNow());
+        }
+        catch (DomainException exception)
+        {
+            return Result.Failure(ApplicationErrors.ValidationFailed(exception.Message));
+        }
+
+        await _credentialAuditWriter.AddAsync(
+            command.CurrentUserId,
+            apiClient.ShopId,
+            apiClient.Id,
+            PartnerApiCredentialAuditActions.ApiClientSecurityUpdated,
+            isSuccess: true,
+            error: null,
+            cancellationToken);
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.CurrentUserId,
+                AdminAuditActions.PartnerApiClientSecurityUpdated,
+                AdminAuditTargetTypes.PartnerApiClient,
+                apiClient.Id,
+                OldValue: oldValue,
+                NewValue: new
+                {
+                    apiClient.Scopes,
+                    HasIpWhitelist = !string.IsNullOrWhiteSpace(apiClient.AllowedIpAddresses),
+                    apiClient.ExpiresAtUtc
                 }),
             cancellationToken);
         await _apiClientRepository.SaveChangesAsync(cancellationToken);

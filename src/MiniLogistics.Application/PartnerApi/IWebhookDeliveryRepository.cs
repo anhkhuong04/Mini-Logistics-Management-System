@@ -21,6 +21,13 @@ public interface IWebhookDeliveryRepository
         int takePerClient,
         CancellationToken cancellationToken = default);
 
+    Task<WebhookDelivery?> GetByIdAsync(
+        Guid deliveryId,
+        CancellationToken cancellationToken = default)
+    {
+        throw new NotSupportedException();
+    }
+
     Task AddAsync(
         WebhookDelivery delivery,
         CancellationToken cancellationToken = default);

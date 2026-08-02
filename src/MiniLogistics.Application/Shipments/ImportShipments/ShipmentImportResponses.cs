@@ -22,7 +22,9 @@ public sealed record ShipmentImportConfirmResponse(
     int TotalRows,
     int CreatedRows,
     int FailedRows,
-    IReadOnlyList<ShipmentImportConfirmRowResponse> Rows);
+    IReadOnlyList<ShipmentImportConfirmRowResponse> Rows,
+    Guid? BatchId = null,
+    ShipmentImportBatchStatus? Status = null);
 
 public sealed record ShipmentImportConfirmRowResponse(
     int RowNumber,
@@ -30,4 +32,5 @@ public sealed record ShipmentImportConfirmRowResponse(
     bool IsCreated,
     Guid? ShipmentId,
     string? TrackingCode,
-    IReadOnlyList<string> Errors);
+    IReadOnlyList<string> Errors,
+    ShipmentImportRowStatus Status = ShipmentImportRowStatus.Pending);

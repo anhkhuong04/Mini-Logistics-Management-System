@@ -24,7 +24,33 @@ public sealed record PartnerApiClientResponse(
     PartnerWebhookEndpointResponse? WebhookEndpoint,
     IReadOnlyList<PartnerWebhookDeliveryResponse> RecentDeliveries,
     PartnerWebhookMetricsResponse WebhookMetrics,
-    IReadOnlyList<PartnerApiCredentialAuditResponse> RecentCredentialAudits);
+    IReadOnlyList<PartnerApiCredentialAuditResponse> RecentCredentialAudits,
+    PartnerApiScope Scopes = PartnerApiScope.All,
+    IReadOnlyList<string>? AllowedIpAddresses = null,
+    DateTimeOffset? ExpiresAtUtc = null,
+    PartnerApiUsageMetricsResponse? Usage = null);
+
+public sealed record PartnerApiUsageMetricsResponse(
+    int TotalRequests,
+    int SuccessfulRequests,
+    int FailedRequests,
+    IReadOnlyList<PartnerApiUsageBucketResponse> Daily,
+    IReadOnlyList<PartnerApiUsageBucketResponse> Hourly,
+    IReadOnlyList<PartnerApiFailedRequestResponse> LatestFailedRequests);
+
+public sealed record PartnerApiUsageBucketResponse(
+    DateTimeOffset BucketUtc,
+    int RequestCount,
+    int SuccessCount,
+    int ErrorCount);
+
+public sealed record PartnerApiFailedRequestResponse(
+    string Method,
+    string Path,
+    int StatusCode,
+    string? ErrorCode,
+    string? ErrorMessage,
+    DateTimeOffset CreatedAtUtc);
 
 public sealed record PartnerWebhookMetricsResponse(
     int TotalDeliveries,

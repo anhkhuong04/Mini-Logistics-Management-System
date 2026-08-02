@@ -36,6 +36,17 @@ public sealed class ApiClientConfiguration : IEntityTypeConfiguration<ApiClient>
 
         builder.Property(apiClient => apiClient.LastUsedAtUtc);
 
+        builder.Property(apiClient => apiClient.Scopes)
+            .HasConversion<int>()
+            .HasDefaultValue(PartnerApiScope.All)
+            .HasSentinel((PartnerApiScope)(-1))
+            .IsRequired();
+
+        builder.Property(apiClient => apiClient.AllowedIpAddresses)
+            .HasMaxLength(2000);
+
+        builder.Property(apiClient => apiClient.ExpiresAtUtc);
+
         builder.Property(apiClient => apiClient.CreatedAtUtc)
             .IsRequired();
 

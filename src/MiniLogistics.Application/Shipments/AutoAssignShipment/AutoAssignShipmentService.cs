@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.PartnerApi;
+using MiniLogistics.Application.Shops.Notifications;
 using MiniLogistics.Application.Shipments.AssignmentSelection;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Shipments;
@@ -16,6 +17,7 @@ public sealed class AutoAssignShipmentService : IAutoAssignShipmentService
     private readonly IAdminAuditService _adminAuditService;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<AutoAssignShipmentService>? _logger;
+    private readonly IShopNotificationService _shopNotificationService;
 
     public AutoAssignShipmentService(
         IShipmentRepository shipmentRepository,
@@ -23,7 +25,8 @@ public sealed class AutoAssignShipmentService : IAutoAssignShipmentService
         TimeProvider timeProvider,
         IWebhookEventPublisher? webhookEventPublisher = null,
         IAdminAuditService? adminAuditService = null,
-        ILogger<AutoAssignShipmentService>? logger = null)
+        ILogger<AutoAssignShipmentService>? logger = null,
+        IShopNotificationService? shopNotificationService = null)
     {
         _shipmentRepository = shipmentRepository;
         _assignmentSelector = assignmentSelector;
@@ -31,6 +34,7 @@ public sealed class AutoAssignShipmentService : IAutoAssignShipmentService
         _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
         _logger = logger;
+        _shopNotificationService = shopNotificationService ?? NullShopNotificationService.Instance;
     }
 
     public async Task<Result<AutoAssignShipmentResult>> AutoAssignAsync(
@@ -102,6 +106,10 @@ public sealed class AutoAssignShipmentService : IAutoAssignShipmentService
         await _webhookEventPublisher.PublishShipmentAsync(
             shipment,
             WebhookEventTypes.ShipmentStatusChanged,
+            cancellationToken);
+        await _shopNotificationService.QueueShipmentEventAsync(
+            shipment,
+            ShopNotificationEventTypes.Assigned,
             cancellationToken);
         if (requestedByUserId.HasValue)
         {

@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<ShipmentImportService>();
         services.AddScoped<IPreviewShipmentImportService>(provider => provider.GetRequiredService<ShipmentImportService>());
         services.AddScoped<IConfirmShipmentImportService>(provider => provider.GetRequiredService<ShipmentImportService>());
+        services.AddScoped<ShipmentImportBatchProcessor>();
 
         return services;
     }

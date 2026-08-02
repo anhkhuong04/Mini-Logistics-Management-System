@@ -29,6 +29,14 @@ public sealed class PartnerApiAuthenticationService : IPartnerApiAuthenticationS
         string? authorizationHeader,
         CancellationToken cancellationToken = default)
     {
+        return await AuthenticateAsync(authorizationHeader, remoteIpAddress: null, cancellationToken);
+    }
+
+    public async Task<Result<PartnerApiClientContext>> AuthenticateAsync(
+        string? authorizationHeader,
+        string? remoteIpAddress,
+        CancellationToken cancellationToken = default)
+    {
         if (string.IsNullOrWhiteSpace(authorizationHeader))
         {
             _logger?.LogWarning("Partner API authentication failed because Authorization header is missing");
@@ -64,6 +72,22 @@ public sealed class PartnerApiAuthenticationService : IPartnerApiAuthenticationS
             return Result<PartnerApiClientContext>.Failure(PartnerApiErrors.ApiClientInactive);
         }
 
+        var now = _timeProvider.GetUtcNow();
+        if (apiClient.IsExpired(now))
+        {
+            _logger?.LogWarning("Partner API client {ApiClientId} is expired", apiClient.Id);
+            return Result<PartnerApiClientContext>.Failure(PartnerApiErrors.ApiClientExpired);
+        }
+
+        if (!apiClient.IsIpAllowed(remoteIpAddress))
+        {
+            _logger?.LogWarning(
+                "Partner API client {ApiClientId} rejected request IP {RemoteIpAddress}",
+                apiClient.Id,
+                remoteIpAddress);
+            return Result<PartnerApiClientContext>.Failure(PartnerApiErrors.IpNotAllowed);
+        }
+
         var shop = await _shopRepository.GetByIdAsync(apiClient.ShopId, cancellationToken);
         if (shop is null)
         {
@@ -83,7 +107,7 @@ public sealed class PartnerApiAuthenticationService : IPartnerApiAuthenticationS
             return Result<PartnerApiClientContext>.Failure(PartnerApiErrors.ShopInactive);
         }
 
-        apiClient.MarkUsed(_timeProvider.GetUtcNow());
+        apiClient.MarkUsed(now);
         await _apiClientRepository.SaveChangesAsync(cancellationToken);
 
         _logger?.LogInformation(
@@ -94,6 +118,7 @@ public sealed class PartnerApiAuthenticationService : IPartnerApiAuthenticationS
         return Result<PartnerApiClientContext>.Success(new PartnerApiClientContext(
             apiClient.Id,
             apiClient.ShopId,
-            apiClient.Name));
+            apiClient.Name,
+            apiClient.Scopes));
     }
 }

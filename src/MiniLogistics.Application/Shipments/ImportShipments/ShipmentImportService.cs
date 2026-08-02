@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using System.Text.Json;
 using FluentValidation;
 using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.Common;
@@ -46,6 +47,9 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
     private readonly IRouteClassificationService _routeClassificationService;
     private readonly IShippingFeeService _shippingFeeService;
     private readonly ICreateShipmentService _createShipmentService;
+    private readonly IAdministrativeDivisionService _administrativeDivisionService;
+    private readonly IShipmentImportBatchRepository? _batchRepository;
+    private readonly TimeProvider _timeProvider;
     private readonly IAdminAuditService _adminAuditService;
 
     public ShipmentImportService(
@@ -57,6 +61,58 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
         IShippingFeeService shippingFeeService,
         ICreateShipmentService createShipmentService,
         IAdminAuditService? adminAuditService = null)
+        : this(
+            previewValidator,
+            confirmValidator,
+            createShipmentValidator,
+            shopAccessService,
+            routeClassificationService,
+            shippingFeeService,
+            createShipmentService,
+            PassThroughAdministrativeDivisionService.Instance,
+            batchRepository: null,
+            TimeProvider.System,
+            adminAuditService)
+    {
+    }
+
+    public ShipmentImportService(
+        IValidator<PreviewShipmentImportCommand> previewValidator,
+        IValidator<ConfirmShipmentImportCommand> confirmValidator,
+        IValidator<CreateShipmentCommand> createShipmentValidator,
+        IShopAccessService shopAccessService,
+        IRouteClassificationService routeClassificationService,
+        IShippingFeeService shippingFeeService,
+        ICreateShipmentService createShipmentService,
+        IAdministrativeDivisionService administrativeDivisionService,
+        IAdminAuditService? adminAuditService = null)
+        : this(
+            previewValidator,
+            confirmValidator,
+            createShipmentValidator,
+            shopAccessService,
+            routeClassificationService,
+            shippingFeeService,
+            createShipmentService,
+            administrativeDivisionService,
+            batchRepository: null,
+            TimeProvider.System,
+            adminAuditService)
+    {
+    }
+
+    public ShipmentImportService(
+        IValidator<PreviewShipmentImportCommand> previewValidator,
+        IValidator<ConfirmShipmentImportCommand> confirmValidator,
+        IValidator<CreateShipmentCommand> createShipmentValidator,
+        IShopAccessService shopAccessService,
+        IRouteClassificationService routeClassificationService,
+        IShippingFeeService shippingFeeService,
+        ICreateShipmentService createShipmentService,
+        IAdministrativeDivisionService administrativeDivisionService,
+        IShipmentImportBatchRepository? batchRepository,
+        TimeProvider timeProvider,
+        IAdminAuditService? adminAuditService = null)
     {
         _previewValidator = previewValidator;
         _confirmValidator = confirmValidator;
@@ -65,6 +121,9 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
         _routeClassificationService = routeClassificationService;
         _shippingFeeService = shippingFeeService;
         _createShipmentService = createShipmentService;
+        _administrativeDivisionService = administrativeDivisionService;
+        _batchRepository = batchRepository;
+        _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
@@ -179,6 +238,68 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
         }
 
         var duplicateRowNumbers = GetDuplicateClientOrderRowNumbers(command.Rows);
+        if (_batchRepository is null)
+        {
+            return await ConfirmSynchronouslyAsync(
+                command,
+                shopResult.Value,
+                duplicateRowNumbers,
+                cancellationToken);
+        }
+
+        var now = _timeProvider.GetUtcNow();
+        var batch = new ShipmentImportBatch(shopResult.Value.Id, command.CurrentUserId, now);
+        foreach (var row in command.Rows)
+        {
+            var rowErrors = duplicateRowNumbers.Contains(row.RowNumber)
+                ? new List<string> { "Duplicate clientOrderCode in CSV." }
+                : [];
+            var preview = await PreviewRowAsync(
+                command.CurrentUserId,
+                shopResult.Value,
+                row,
+                rowErrors,
+                cancellationToken);
+            var persistedRow = new ShipmentImportBatchRow(
+                batch.Id,
+                batch.ShopId,
+                preview.Draft.RowNumber,
+                preview.Draft.ClientOrderCode,
+                JsonSerializer.Serialize(preview.Draft),
+                preview.IsValid,
+                now,
+                preview.IsValid ? null : string.Join("; ", preview.Errors));
+            batch.AddRow(persistedRow);
+        }
+
+        batch.RefreshProgress(now);
+        await _batchRepository.AddAsync(batch, cancellationToken);
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.CurrentUserId,
+                AdminAuditActions.ShipmentImportConfirmed,
+                AdminAuditTargetTypes.Shop,
+                shopResult.Value.Id,
+                NewValue: new
+                {
+                    BatchId = batch.Id,
+                    batch.TotalRows,
+                    batch.ValidRows,
+                    batch.FailedRows,
+                    Status = batch.Status.ToString()
+                }),
+            cancellationToken);
+        await _batchRepository.SaveChangesAsync(cancellationToken);
+
+        return Result<ShipmentImportConfirmResponse>.Success(ShipmentImportBatchMapping.ToResponse(batch));
+    }
+
+    private async Task<Result<ShipmentImportConfirmResponse>> ConfirmSynchronouslyAsync(
+        ConfirmShipmentImportCommand command,
+        Shop shop,
+        IReadOnlySet<int> duplicateRowNumbers,
+        CancellationToken cancellationToken)
+    {
         var results = new List<ShipmentImportConfirmRowResponse>(command.Rows.Count);
 
         foreach (var row in command.Rows)
@@ -189,7 +310,7 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
 
             var preview = await PreviewRowAsync(
                 command.CurrentUserId,
-                shopResult.Value,
+                shop,
                 row,
                 rowErrors,
                 cancellationToken);
@@ -207,7 +328,7 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
             }
 
             var createResult = await _createShipmentService.CreateAsync(
-                BuildCreateShipmentCommand(command.CurrentUserId, shopResult.Value, row),
+                BuildCreateShipmentCommand(command.CurrentUserId, shop, preview.Draft),
                 cancellationToken);
             if (createResult.IsFailure)
             {
@@ -225,9 +346,10 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
                 row.RowNumber,
                 row.ClientOrderCode,
                 IsCreated: true,
-                createResult.Value.ShipmentId,
-                createResult.Value.TrackingCode,
-                []));
+                    createResult.Value.ShipmentId,
+                    createResult.Value.TrackingCode,
+                    [],
+                    ShipmentImportRowStatus.Created));
         }
 
         var response = new ShipmentImportConfirmResponse(
@@ -240,7 +362,7 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
                 command.CurrentUserId,
                 AdminAuditActions.ShipmentImportConfirmed,
                 AdminAuditTargetTypes.Shop,
-                shopResult.Value.Id,
+                shop.Id,
                 NewValue: new
                 {
                     response.TotalRows,
@@ -260,25 +382,66 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
         CancellationToken cancellationToken)
     {
         var errors = initialErrors.ToList();
-        var createCommand = BuildCreateShipmentCommand(currentUserId, shop, row);
+        var normalizedRow = row;
+        var pickupDivision = await _administrativeDivisionService.NormalizeProvinceWardAsync(
+            shop.Address.Province,
+            shop.Address.Ward,
+            cancellationToken);
+        if (pickupDivision.IsFailure)
+        {
+            errors.Add(pickupDivision.Error.Description);
+        }
+
+        if (!string.IsNullOrWhiteSpace(row.DeliveryProvince)
+            && !string.IsNullOrWhiteSpace(row.DeliveryWard))
+        {
+            var deliveryDivision = await _administrativeDivisionService.NormalizeProvinceWardAsync(
+                row.DeliveryProvince,
+                row.DeliveryWard,
+                cancellationToken);
+            if (deliveryDivision.IsFailure)
+            {
+                errors.Add(deliveryDivision.Error.Description);
+            }
+            else
+            {
+                normalizedRow = row with
+                {
+                    DeliveryProvince = deliveryDivision.Value.Province,
+                    DeliveryWard = deliveryDivision.Value.Ward
+                };
+            }
+        }
+
+        var createCommand = BuildCreateShipmentCommand(currentUserId, shop, normalizedRow);
         var validationResult = await _createShipmentValidator.ValidateAsync(createCommand, cancellationToken);
         if (!validationResult.IsValid)
         {
             errors.AddRange(validationResult.Errors.Select(error => error.ErrorMessage));
         }
 
+        if (_batchRepository is not null
+            && !string.IsNullOrWhiteSpace(normalizedRow.ClientOrderCode)
+            && await _batchRepository.HasCreatedClientOrderAsync(
+                shop.Id,
+                normalizedRow.ClientOrderCode,
+                cancellationToken))
+        {
+            errors.Add($"clientOrderCode '{normalizedRow.ClientOrderCode}' was already imported.");
+        }
+
         if (errors.Count > 0)
         {
-            return new ShipmentImportPreviewRowResponse(row, false, errors, null, null, null, DefaultCurrency);
+            return new ShipmentImportPreviewRowResponse(normalizedRow, false, errors, null, null, null, DefaultCurrency);
         }
 
         var routeResult = _routeClassificationService.Classify(
-            shop.Address.Province,
-            row.DeliveryProvince);
+            pickupDivision.Value.Province,
+            normalizedRow.DeliveryProvince);
         if (routeResult.IsFailure)
         {
             return new ShipmentImportPreviewRowResponse(
-                row,
+                normalizedRow,
                 false,
                 [routeResult.Error.Description],
                 null,
@@ -291,14 +454,14 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
         {
             var feeResult = await _shippingFeeService.CalculateAsync(
                 routeResult.Value.RouteType,
-                new Weight(row.WeightKg),
-                new ParcelDimensions(row.LengthCm, row.WidthCm, row.HeightCm),
-                new Money(row.GoodsValueAmount, DefaultCurrency),
+                new Weight(normalizedRow.WeightKg),
+                new ParcelDimensions(normalizedRow.LengthCm, normalizedRow.WidthCm, normalizedRow.HeightCm),
+                new Money(normalizedRow.GoodsValueAmount, DefaultCurrency),
                 cancellationToken);
             if (feeResult.IsFailure)
             {
                 return new ShipmentImportPreviewRowResponse(
-                    row,
+                    normalizedRow,
                     false,
                     [feeResult.Error.Description],
                     routeResult.Value.RouteType,
@@ -308,7 +471,7 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
             }
 
             return new ShipmentImportPreviewRowResponse(
-                row,
+                normalizedRow,
                 true,
                 [],
                 routeResult.Value.RouteType,
@@ -319,7 +482,7 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
         catch (DomainException exception)
         {
             return new ShipmentImportPreviewRowResponse(
-                row,
+                normalizedRow,
                 false,
                 [exception.Message],
                 routeResult.Value.RouteType,
@@ -329,7 +492,7 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
         }
     }
 
-    private static CreateShipmentCommand BuildCreateShipmentCommand(
+    internal static CreateShipmentCommand BuildCreateShipmentCommand(
         Guid currentUserId,
         Shop shop,
         ShipmentImportRowDraft row)

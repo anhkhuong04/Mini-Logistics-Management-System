@@ -21,3 +21,21 @@ public interface IConfirmShipmentImportService
         ConfirmShipmentImportCommand command,
         CancellationToken cancellationToken = default);
 }
+
+public interface IGetShipmentImportBatchService
+{
+    Task<Result<ShipmentImportConfirmResponse>> GetAsync(
+        Guid currentUserId,
+        Guid? shopId,
+        Guid batchId,
+        CancellationToken cancellationToken = default);
+}
+
+public interface IExportShipmentImportErrorsService
+{
+    Task<Result<string>> ExportCsvAsync(
+        Guid currentUserId,
+        Guid? shopId,
+        Guid batchId,
+        CancellationToken cancellationToken = default);
+}

@@ -3,6 +3,8 @@ using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.Authorization;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
+using MiniLogistics.Application.Shipments;
+using MiniLogistics.Application.Shops.Notifications;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Users;
 
@@ -16,6 +18,8 @@ public sealed class MarkCodSettledService : IMarkCodSettledService
     private readonly IAdminAuditService _adminAuditService;
     private readonly IOperationAuthorizationService _operationAuthorizationService;
     private readonly TimeProvider _timeProvider;
+    private readonly IShipmentRepository? _shipmentRepository;
+    private readonly IShopNotificationService _shopNotificationService;
 
     public MarkCodSettledService(
         IValidator<MarkCodSettledCommand> validator,
@@ -23,7 +27,9 @@ public sealed class MarkCodSettledService : IMarkCodSettledService
         ICodTransactionRepository codTransactionRepository,
         TimeProvider timeProvider,
         IAdminAuditService? adminAuditService = null,
-        IOperationAuthorizationService? operationAuthorizationService = null)
+        IOperationAuthorizationService? operationAuthorizationService = null,
+        IShipmentRepository? shipmentRepository = null,
+        IShopNotificationService? shopNotificationService = null)
     {
         _validator = validator;
         _identityService = identityService;
@@ -31,6 +37,8 @@ public sealed class MarkCodSettledService : IMarkCodSettledService
         _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
         _operationAuthorizationService = operationAuthorizationService ?? new OperationAuthorizationService(identityService);
+        _shipmentRepository = shipmentRepository;
+        _shopNotificationService = shopNotificationService ?? NullShopNotificationService.Instance;
     }
 
     public async Task<Result> MarkSettledAsync(
@@ -67,6 +75,18 @@ public sealed class MarkCodSettledService : IMarkCodSettledService
         if (settleResult.IsFailure)
         {
             return settleResult;
+        }
+
+        if (_shipmentRepository is not null)
+        {
+            var shipment = await _shipmentRepository.GetTrackedByIdAsync(command.ShipmentId, cancellationToken);
+            if (shipment is not null)
+            {
+                await _shopNotificationService.QueueShipmentEventAsync(
+                    shipment,
+                    ShopNotificationEventTypes.CodSettled,
+                    cancellationToken);
+            }
         }
 
         await _adminAuditService.RecordAsync(

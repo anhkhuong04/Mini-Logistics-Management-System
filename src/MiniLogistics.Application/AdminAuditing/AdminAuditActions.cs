@@ -39,8 +39,10 @@ public static class AdminAuditActions
     public const string PartnerApiClientCreated = "partner_api_client.created";
     public const string PartnerApiClientKeyRotated = "partner_api_client.key_rotated";
     public const string PartnerApiClientActiveStatusChanged = "partner_api_client.active_status_changed";
+    public const string PartnerApiClientSecurityUpdated = "partner_api_client.security_updated";
     public const string PartnerWebhookEndpointUpserted = "partner_webhook_endpoint.upserted";
     public const string PartnerWebhookTestQueued = "partner_webhook.test_queued";
+    public const string PartnerWebhookDeliveryRetried = "partner_webhook.delivery_retried";
     public const string RouteRegionConfigChanged = "route_region_config.changed";
     public const string FeeRuleVersionCreated = "fee_rule.version_created";
 }

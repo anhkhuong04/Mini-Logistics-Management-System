@@ -20,6 +20,18 @@ public static class PartnerApiErrors
         "PartnerApi.ShopInactive",
         "Shop account is inactive.");
 
+    public static readonly Error ApiClientExpired = new(
+        "PartnerApi.ApiClientExpired",
+        "API client key has expired.");
+
+    public static readonly Error IpNotAllowed = new(
+        "PartnerApi.IpNotAllowed",
+        "Request IP address is not allowed for this API client.");
+
+    public static readonly Error MissingScope = new(
+        "PartnerApi.MissingScope",
+        "API client does not have the required scope.");
+
     public static readonly Error IdempotencyConflict = new(
         "PartnerApi.IdempotencyConflict",
         "Idempotency key was already used with a different request.");

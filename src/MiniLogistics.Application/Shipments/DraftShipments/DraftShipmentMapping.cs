@@ -1,4 +1,5 @@
 using MiniLogistics.Application.Fees;
+using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Routing;
 using MiniLogistics.Application.Shipments.CreateShipment;
 using MiniLogistics.Domain.Common;
@@ -10,6 +11,57 @@ namespace MiniLogistics.Application.Shipments.DraftShipments;
 
 internal static class DraftShipmentMapping
 {
+    public static async Task<Result<TCommand>> NormalizeAddressesAsync<TCommand>(
+        IAdministrativeDivisionService administrativeDivisionService,
+        TCommand command,
+        CancellationToken cancellationToken)
+        where TCommand : IShipmentDetailsCommand
+    {
+        var pickup = await administrativeDivisionService.NormalizeProvinceWardAsync(
+            command.PickupAddress.Province,
+            command.PickupAddress.Ward,
+            cancellationToken);
+        if (pickup.IsFailure)
+        {
+            return Result<TCommand>.Failure(pickup.Error);
+        }
+
+        var delivery = await administrativeDivisionService.NormalizeProvinceWardAsync(
+            command.DeliveryAddress.Province,
+            command.DeliveryAddress.Ward,
+            cancellationToken);
+        if (delivery.IsFailure)
+        {
+            return Result<TCommand>.Failure(delivery.Error);
+        }
+
+        var pickupAddress = command.PickupAddress with
+        {
+            Province = pickup.Value.Province,
+            Ward = pickup.Value.Ward
+        };
+        var deliveryAddress = command.DeliveryAddress with
+        {
+            Province = delivery.Value.Province,
+            Ward = delivery.Value.Ward
+        };
+
+        return command switch
+        {
+            CreateDraftShipmentCommand create => Result<TCommand>.Success((TCommand)(IShipmentDetailsCommand)(create with
+            {
+                PickupAddress = pickupAddress,
+                DeliveryAddress = deliveryAddress
+            })),
+            UpdateShipmentBeforePickupCommand update => Result<TCommand>.Success((TCommand)(IShipmentDetailsCommand)(update with
+            {
+                PickupAddress = pickupAddress,
+                DeliveryAddress = deliveryAddress
+            })),
+            _ => throw new InvalidOperationException($"Unsupported shipment details command '{typeof(TCommand).Name}'.")
+        };
+    }
+
     public static async Task<Result<DraftShipmentCalculatedValues>> CalculateAsync(
         IRouteClassificationService routeClassificationService,
         IShippingFeeService shippingFeeService,

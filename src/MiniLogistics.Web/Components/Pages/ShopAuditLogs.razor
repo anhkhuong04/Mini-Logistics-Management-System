@@ -1,0 +1,153 @@
+@page "/shop/audit"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Shop")]
+@using System.Security.Claims
+@using MiniLogistics.Application.AdminAuditing
+@using MiniLogistics.Application.Shops.Audit
+@using MiniLogistics.Application.Shops.GetShopContext
+@inject IGetShopAuditLogsService AuditService
+@inject IGetShopContextService ShopContextService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Shop audit - MiniLogistics</PageTitle>
+
+<div class="shop-audit-page">
+    <header class="page-heading">
+        <div><p class="eyebrow">Audit</p><h1>Lich su hoat dong</h1></div>
+        <button type="button" class="btn btn-outline-secondary" disabled="@IsLoading" @onclick="LoadAsync">Lam moi</button>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@ErrorMessage</div>
+    }
+
+    <section class="audit-filters">
+        <label>Shop
+            <select value="@SelectedShopId" @onchange="OnShopChanged">
+                @foreach (var shop in Shops)
+                {
+                    <option value="@shop.ShopId">@shop.Name</option>
+                }
+            </select>
+        </label>
+        <label>Action
+            <select @bind="ActionFilter">
+                <option value="">Tat ca</option>
+                @foreach (var action in ShopActions)
+                {
+                    <option value="@action">@action</option>
+                }
+            </select>
+        </label>
+        <label>Tu ngay <input type="date" value="@FromDate" @onchange="args => FromDate = args.Value?.ToString() ?? string.Empty" /></label>
+        <label>Den ngay <input type="date" value="@ToDate" @onchange="args => ToDate = args.Value?.ToString() ?? string.Empty" /></label>
+        <button type="button" class="btn btn-primary" disabled="@IsLoading" @onclick="LoadAsync">Ap dung</button>
+    </section>
+
+    @if (IsLoading)
+    {
+        <p class="state-text">Dang tai audit log...</p>
+    }
+    else if (Logs.Count == 0)
+    {
+        <p class="state-text">Khong co hoat dong phu hop.</p>
+    }
+    else
+    {
+        <div class="table-shell">
+            <table class="audit-table">
+                <thead><tr><th>Thoi gian</th><th>Action</th><th>Target</th><th>Thay doi</th><th>Ly do</th></tr></thead>
+                <tbody>
+                @foreach (var log in Logs)
+                {
+                    <tr>
+                        <td>@UiDisplay.FormatLocalDateTime(log.CreatedAtUtc)</td>
+                        <td><strong>@log.Action</strong><small>@log.ActorRole</small></td>
+                        <td><strong>@log.TargetType</strong><small>@log.TargetId</small></td>
+                        <td><pre>@FormatChanges(log)</pre></td>
+                        <td>@(log.Reason ?? "-")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly string[] ShopActions =
+    [
+        AdminAuditActions.ShopProfileUpdated,
+        AdminAuditActions.ShipmentCreated,
+        AdminAuditActions.ShipmentDraftCreated,
+        AdminAuditActions.ShipmentDraftSubmitted,
+        AdminAuditActions.ShipmentUpdatedBeforePickup,
+        AdminAuditActions.ShipmentCancelledByShop,
+        AdminAuditActions.ShipmentImportPreviewed,
+        AdminAuditActions.ShipmentImportConfirmed,
+        AdminAuditActions.ShipmentExportCreated,
+        AdminAuditActions.ShopCodReportExported,
+        AdminAuditActions.PartnerApiClientCreated,
+        AdminAuditActions.PartnerApiClientKeyRotated,
+        AdminAuditActions.PartnerApiClientSecurityUpdated,
+        AdminAuditActions.PartnerWebhookDeliveryRetried
+    ];
+
+    private IReadOnlyList<ShopContextItemResponse> Shops { get; set; } = [];
+    private IReadOnlyList<ShopAuditLogResponse> Logs { get; set; } = [];
+    private Guid SelectedShopId { get; set; }
+    private string ActionFilter { get; set; } = string.Empty;
+    private string FromDate { get; set; } = string.Empty;
+    private string ToDate { get; set; } = string.Empty;
+    private bool IsLoading { get; set; } = true;
+    private string? ErrorMessage { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userId = await GetUserIdAsync();
+        if (userId is null) return;
+        var context = await ShopContextService.GetAsync(userId.Value);
+        if (context.IsFailure) { ErrorMessage = UiDisplay.ToErrorMessage(context.Error); IsLoading = false; return; }
+        Shops = context.Value.Shops;
+        SelectedShopId = context.Value.SelectedShopId;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var userId = await GetUserIdAsync();
+        if (userId is null) return;
+        IsLoading = true;
+        ErrorMessage = null;
+        var result = await AuditService.GetAsync(new ShopAuditLogQuery(
+            userId.Value,
+            SelectedShopId,
+            string.IsNullOrWhiteSpace(ActionFilter) ? null : ActionFilter,
+            ParseDate(FromDate, false),
+            ParseDate(ToDate, true)));
+        Logs = result.IsSuccess ? result.Value : [];
+        ErrorMessage = result.IsFailure ? UiDisplay.ToErrorMessage(result.Error) : null;
+        IsLoading = false;
+    }
+
+    private async Task OnShopChanged(ChangeEventArgs args)
+    {
+        if (Guid.TryParse(args.Value?.ToString(), out var shopId)) { SelectedShopId = shopId; await LoadAsync(); }
+    }
+
+    private async Task<Guid?> GetUserIdAsync()
+    {
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return Guid.TryParse(state.User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
+    }
+
+    private static DateTimeOffset? ParseDate(string value, bool endOfDay) =>
+        DateOnly.TryParse(value, out var date)
+            ? new DateTimeOffset(date.ToDateTime(endOfDay ? TimeOnly.MaxValue : TimeOnly.MinValue), TimeSpan.Zero)
+            : null;
+
+    private static string FormatChanges(ShopAuditLogResponse log) =>
+        $"Old: {log.OldValueJson ?? "-"}\nNew: {log.NewValueJson ?? "-"}";
+}

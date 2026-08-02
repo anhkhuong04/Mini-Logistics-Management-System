@@ -1,0 +1,139 @@
+@page "/shop/notifications"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Shop")]
+@using System.Security.Claims
+@using MiniLogistics.Application.Shops.GetShopContext
+@using MiniLogistics.Application.Shops.Notifications
+@inject IShopNotificationService NotificationService
+@inject IGetShopContextService ShopContextService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Notifications - MiniLogistics</PageTitle>
+
+<div class="notifications-page">
+    <header class="page-heading">
+        <div><p class="eyebrow">Shop inbox</p><h1>Thong bao</h1></div>
+        <select value="@SelectedShopId" @onchange="OnShopChanged">
+            @foreach (var shop in Shops) { <option value="@shop.ShopId">@shop.Name</option> }
+        </select>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(Message)) { <div class="alert @MessageClass" role="status">@Message</div> }
+
+    <section class="preference-band">
+        <div><h2>Tuy chon su kien</h2><p>Chon cac thay doi can hien trong hop thu cua shop.</p></div>
+        <div class="preference-grid">
+            @foreach (var eventType in ShopNotificationEventTypes.All)
+            {
+                <label><input type="checkbox" checked="@EnabledEvents.Contains(eventType)" @onchange="args => ToggleEvent(eventType, args)" /> @EventLabel(eventType)</label>
+            }
+        </div>
+        <button type="button" class="btn btn-primary" disabled="@IsBusy" @onclick="SavePreferencesAsync">Luu tuy chon</button>
+    </section>
+
+    <section class="notification-list" aria-live="polite">
+        @if (IsLoading) { <p>Dang tai thong bao...</p> }
+        else if (Notifications.Count == 0) { <p>Chua co thong bao cho shop nay.</p> }
+        else
+        {
+            @foreach (var notification in Notifications)
+            {
+                <article class="notification-item @(notification.IsRead ? "read" : "unread")">
+                    <div>
+                        <span class="event-label">@EventLabel(notification.EventType)</span>
+                        <h2>@notification.Title</h2>
+                        <p>@notification.Message</p>
+                        <time>@UiDisplay.FormatLocalDateTime(notification.CreatedAtUtc)</time>
+                    </div>
+                    <div class="notification-actions">
+                        @if (notification.ShipmentId.HasValue) { <a class="btn btn-outline-secondary" href="/shipments/@notification.ShipmentId?shopId=@SelectedShopId">Mo don</a> }
+                        @if (!notification.IsRead) { <button type="button" class="btn btn-outline-secondary" @onclick="() => MarkReadAsync(notification.NotificationId)">Da doc</button> }
+                    </div>
+                </article>
+            }
+        }
+    </section>
+</div>
+
+@code {
+    private IReadOnlyList<ShopContextItemResponse> Shops { get; set; } = [];
+    private IReadOnlyList<ShopNotificationResponse> Notifications { get; set; } = [];
+    private HashSet<string> EnabledEvents { get; set; } = new(StringComparer.Ordinal);
+    private Guid SelectedShopId { get; set; }
+    private bool IsLoading { get; set; } = true;
+    private bool IsBusy { get; set; }
+    private string? Message { get; set; }
+    private string MessageClass { get; set; } = "alert-success";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userId = await GetUserIdAsync();
+        if (userId is null) return;
+        var context = await ShopContextService.GetAsync(userId.Value);
+        if (context.IsFailure) { ShowError(UiDisplay.ToErrorMessage(context.Error)); IsLoading = false; return; }
+        Shops = context.Value.Shops;
+        SelectedShopId = context.Value.SelectedShopId;
+        await LoadAsync(userId.Value);
+    }
+
+    private async Task LoadAsync(Guid userId)
+    {
+        IsLoading = true;
+        var notifications = await NotificationService.GetAsync(userId, SelectedShopId);
+        var preferences = await NotificationService.GetPreferencesAsync(userId, SelectedShopId);
+        if (notifications.IsFailure) ShowError(UiDisplay.ToErrorMessage(notifications.Error));
+        else Notifications = notifications.Value;
+        if (preferences.IsSuccess) EnabledEvents = preferences.Value.EnabledEventTypes.ToHashSet(StringComparer.Ordinal);
+        IsLoading = false;
+    }
+
+    private async Task OnShopChanged(ChangeEventArgs args)
+    {
+        if (!Guid.TryParse(args.Value?.ToString(), out var shopId)) return;
+        SelectedShopId = shopId;
+        var userId = await GetUserIdAsync();
+        if (userId.HasValue) await LoadAsync(userId.Value);
+    }
+
+    private void ToggleEvent(string eventType, ChangeEventArgs args)
+    {
+        if (args.Value is true) EnabledEvents.Add(eventType); else EnabledEvents.Remove(eventType);
+    }
+
+    private async Task SavePreferencesAsync()
+    {
+        var userId = await GetUserIdAsync(); if (userId is null) return;
+        IsBusy = true;
+        var result = await NotificationService.UpdatePreferencesAsync(userId.Value, SelectedShopId, EnabledEvents);
+        if (result.IsFailure) ShowError(UiDisplay.ToErrorMessage(result.Error));
+        else { Message = "Da luu tuy chon thong bao."; MessageClass = "alert-success"; }
+        IsBusy = false;
+    }
+
+    private async Task MarkReadAsync(Guid notificationId)
+    {
+        var userId = await GetUserIdAsync(); if (userId is null) return;
+        var result = await NotificationService.MarkReadAsync(userId.Value, SelectedShopId, notificationId);
+        if (result.IsSuccess) await LoadAsync(userId.Value); else ShowError(UiDisplay.ToErrorMessage(result.Error));
+    }
+
+    private async Task<Guid?> GetUserIdAsync()
+    {
+        var state = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        return Guid.TryParse(state.User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : null;
+    }
+
+    private void ShowError(string message) { Message = message; MessageClass = "alert-danger"; }
+
+    private static string EventLabel(string eventType) => eventType switch
+    {
+        ShopNotificationEventTypes.Assigned => "Assigned",
+        ShopNotificationEventTypes.PickedUp => "Picked up",
+        ShopNotificationEventTypes.Delivered => "Delivered",
+        ShopNotificationEventTypes.DeliveryFailed => "Delivery failed",
+        ShopNotificationEventTypes.Returned => "Returned",
+        ShopNotificationEventTypes.CodCollected => "COD collected",
+        ShopNotificationEventTypes.CodSettled => "COD settled",
+        _ => eventType
+    };
+}

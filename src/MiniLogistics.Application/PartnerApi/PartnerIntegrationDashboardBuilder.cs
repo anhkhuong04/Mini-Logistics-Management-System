@@ -13,19 +13,25 @@ public sealed class PartnerIntegrationDashboardBuilder
     private readonly IWebhookEndpointRepository _webhookEndpointRepository;
     private readonly IWebhookDeliveryRepository _webhookDeliveryRepository;
     private readonly IPartnerApiCredentialAuditRepository _credentialAuditRepository;
+    private readonly IPartnerApiRequestAuditRepository? _requestAuditRepository;
+    private readonly TimeProvider _timeProvider;
 
     public PartnerIntegrationDashboardBuilder(
         IIntegrationScopeService scopeService,
         IApiClientRepository apiClientRepository,
         IWebhookEndpointRepository webhookEndpointRepository,
         IWebhookDeliveryRepository webhookDeliveryRepository,
-        IPartnerApiCredentialAuditRepository credentialAuditRepository)
+        IPartnerApiCredentialAuditRepository credentialAuditRepository,
+        IPartnerApiRequestAuditRepository? requestAuditRepository = null,
+        TimeProvider? timeProvider = null)
     {
         _scopeService = scopeService;
         _apiClientRepository = apiClientRepository;
         _webhookEndpointRepository = webhookEndpointRepository;
         _webhookDeliveryRepository = webhookDeliveryRepository;
         _credentialAuditRepository = credentialAuditRepository;
+        _requestAuditRepository = requestAuditRepository;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public async Task<Result<PartnerIntegrationDashboardResponse>> GetAsync(
@@ -51,6 +57,13 @@ public sealed class PartnerIntegrationDashboardBuilder
             apiClientIds,
             RecentCredentialAuditCountPerClient,
             cancellationToken);
+        IReadOnlyDictionary<Guid, PartnerApiUsageMetricsResponse> usageByClient =
+            _requestAuditRepository is null
+                ? new Dictionary<Guid, PartnerApiUsageMetricsResponse>()
+                : await _requestAuditRepository.GetUsageByApiClientIdsAsync(
+                    apiClientIds,
+                    _timeProvider.GetUtcNow(),
+                    cancellationToken);
 
         var shopNames = shops.ToDictionary(shop => shop.Id, shop => shop.Name);
         var latestEndpoints = endpoints
@@ -82,6 +95,7 @@ public sealed class PartnerIntegrationDashboardBuilder
                 latestEndpoints.TryGetValue(apiClient.Id, out var endpoint);
                 deliveriesByClient.TryGetValue(apiClient.Id, out var clientDeliveries);
                 credentialAuditsByClient.TryGetValue(apiClient.Id, out var clientAudits);
+                usageByClient.TryGetValue(apiClient.Id, out var usage);
 
                 var mappedDeliveries = clientDeliveries ?? [];
                 return new PartnerApiClientResponse(
@@ -96,7 +110,13 @@ public sealed class PartnerIntegrationDashboardBuilder
                     endpoint is null ? null : MapEndpoint(endpoint),
                     mappedDeliveries,
                     BuildWebhookMetrics(mappedDeliveries),
-                    clientAudits ?? []);
+                    clientAudits ?? [],
+                    apiClient.Scopes,
+                    string.IsNullOrWhiteSpace(apiClient.AllowedIpAddresses)
+                        ? []
+                        : apiClient.AllowedIpAddresses.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries),
+                    apiClient.ExpiresAtUtc,
+                    usage);
             }).ToList());
 
         return Result<PartnerIntegrationDashboardResponse>.Success(

@@ -4,6 +4,7 @@ using MiniLogistics.Application.Authorization;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.PartnerApi;
+using MiniLogistics.Application.Shops.Notifications;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Shipments;
 using MiniLogistics.Domain.Users;
@@ -19,6 +20,7 @@ public sealed class UpdateShipmentStatusService : IUpdateShipmentStatusService
     private readonly IWebhookEventPublisher _webhookEventPublisher;
     private readonly IAdminAuditService _adminAuditService;
     private readonly IOperationAuthorizationService _operationAuthorizationService;
+    private readonly IShopNotificationService _shopNotificationService;
     private readonly TimeProvider _timeProvider;
 
     public UpdateShipmentStatusService(
@@ -28,7 +30,8 @@ public sealed class UpdateShipmentStatusService : IUpdateShipmentStatusService
         TimeProvider timeProvider,
         IWebhookEventPublisher? webhookEventPublisher = null,
         IAdminAuditService? adminAuditService = null,
-        IOperationAuthorizationService? operationAuthorizationService = null)
+        IOperationAuthorizationService? operationAuthorizationService = null,
+        IShopNotificationService? shopNotificationService = null)
     {
         _validator = validator;
         _identityService = identityService;
@@ -37,6 +40,7 @@ public sealed class UpdateShipmentStatusService : IUpdateShipmentStatusService
         _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
         _operationAuthorizationService = operationAuthorizationService ?? new OperationAuthorizationService(identityService);
+        _shopNotificationService = shopNotificationService ?? NullShopNotificationService.Instance;
     }
 
     public async Task<Result> UpdateAsync(
@@ -81,6 +85,11 @@ public sealed class UpdateShipmentStatusService : IUpdateShipmentStatusService
             shipment,
             WebhookEventTypes.ShipmentStatusChanged,
             cancellationToken);
+        var notificationEvent = ToNotificationEvent(shipment.Status);
+        if (notificationEvent is not null)
+        {
+            await _shopNotificationService.QueueShipmentEventAsync(shipment, notificationEvent, cancellationToken);
+        }
         var auditAction = await ResolveStatusAuditActionAsync(command.ChangedByUserId, cancellationToken);
         await _adminAuditService.RecordAsync(
             new AdminAuditEntry(
@@ -103,6 +112,19 @@ public sealed class UpdateShipmentStatusService : IUpdateShipmentStatusService
         await _shipmentRepository.SaveChangesAsync(cancellationToken);
 
         return Result.Success();
+    }
+
+    private static string? ToNotificationEvent(ShipmentStatus status)
+    {
+        return status switch
+        {
+            ShipmentStatus.Assigned => ShopNotificationEventTypes.Assigned,
+            ShipmentStatus.PickedUp => ShopNotificationEventTypes.PickedUp,
+            ShipmentStatus.Delivered => ShopNotificationEventTypes.Delivered,
+            ShipmentStatus.DeliveryFailed => ShopNotificationEventTypes.DeliveryFailed,
+            ShipmentStatus.Returned => ShopNotificationEventTypes.Returned,
+            _ => null
+        };
     }
 
     private Result UpdateShipmentStatus(

@@ -12,6 +12,7 @@ public sealed class UpdateShopProfileService : IUpdateShopProfileService
     private readonly IValidator<UpdateShopProfileCommand> _validator;
     private readonly IShopAccessService _shopAccessService;
     private readonly IShopRepository _shopRepository;
+    private readonly IAdministrativeDivisionService _administrativeDivisionService;
     private readonly IAdminAuditService _adminAuditService;
     private readonly TimeProvider _timeProvider;
 
@@ -21,10 +22,28 @@ public sealed class UpdateShopProfileService : IUpdateShopProfileService
         IShopRepository shopRepository,
         TimeProvider timeProvider,
         IAdminAuditService? adminAuditService = null)
+        : this(
+            validator,
+            shopAccessService,
+            shopRepository,
+            PassThroughAdministrativeDivisionService.Instance,
+            timeProvider,
+            adminAuditService)
+    {
+    }
+
+    public UpdateShopProfileService(
+        IValidator<UpdateShopProfileCommand> validator,
+        IShopAccessService shopAccessService,
+        IShopRepository shopRepository,
+        IAdministrativeDivisionService administrativeDivisionService,
+        TimeProvider timeProvider,
+        IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _shopAccessService = shopAccessService;
         _shopRepository = shopRepository;
+        _administrativeDivisionService = administrativeDivisionService;
         _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
@@ -52,6 +71,15 @@ public sealed class UpdateShopProfileService : IUpdateShopProfileService
         }
 
         var shop = shopResult.Value;
+        var normalizedDivision = await _administrativeDivisionService.NormalizeProvinceWardAsync(
+            command.Province,
+            command.Ward,
+            cancellationToken);
+        if (normalizedDivision.IsFailure)
+        {
+            return Result<UpdateShopProfileResponse>.Failure(normalizedDivision.Error);
+        }
+
         var oldValue = new
         {
             shop.Name,
@@ -66,8 +94,8 @@ public sealed class UpdateShopProfileService : IUpdateShopProfileService
                 new PhoneNumber(command.PhoneNumber),
                 new Address(
                     command.AddressLine,
-                    command.Ward,
-                    command.Province,
+                    normalizedDivision.Value.Ward,
+                    normalizedDivision.Value.Province,
                     command.Country),
                 now);
         }

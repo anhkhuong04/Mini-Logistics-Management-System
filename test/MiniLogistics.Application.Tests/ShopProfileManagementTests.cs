@@ -113,6 +113,31 @@ public sealed class ShopProfileManagementTests
     }
 
     [Fact]
+    public async Task UpdateShopProfile_InvalidAdministrativeDivision_IsRejectedByApplication()
+    {
+        var shop = CreateShop();
+        var repository = new FakeShopRepository([shop]);
+        var service = new UpdateShopProfileService(
+            new UpdateShopProfileCommandValidator(),
+            new ShopAccessService(CreateIdentityService(), repository),
+            repository,
+            new RejectingAdministrativeDivisionService(),
+            TestClock.Provider);
+
+        var result = await service.UpdateAsync(new UpdateShopProfileCommand(
+            _shopOwnerId,
+            "Updated Shop",
+            "0987654321",
+            "99 Nguyen Hue",
+            "Unknown ward",
+            "Unknown province"));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Application.ValidationFailed", result.Error.Code);
+        Assert.Equal(0, repository.SaveChangesCount);
+    }
+
+    [Fact]
     public async Task SetShopActiveStatus_ActiveAdmin_DeactivatesAndReactivatesShop()
     {
         var shop = CreateShop();
@@ -349,5 +374,18 @@ public sealed class ShopProfileManagementTests
             SaveChangesCount++;
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class RejectingAdministrativeDivisionService : IAdministrativeDivisionService
+    {
+        public Task<Result<NormalizedAdministrativeDivision>> NormalizeProvinceWardAsync(
+            string province,
+            string ward,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(Result<NormalizedAdministrativeDivision>.Failure(
+                ApplicationErrors.ValidationFailed("Unsupported province or ward.")));
+
+        public Task<bool> IsSupportedProvinceAsync(string province, CancellationToken cancellationToken = default) =>
+            Task.FromResult(false);
     }
 }

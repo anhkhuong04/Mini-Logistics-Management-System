@@ -13,6 +13,7 @@
 @inject IGetShipmentsForCurrentShopService GetShipmentsForCurrentShopService
 @inject IPreviewShipmentImportService PreviewShipmentImportService
 @inject IConfirmShipmentImportService ConfirmShipmentImportService
+@inject IGetShipmentImportBatchService GetShipmentImportBatchService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 
@@ -374,6 +375,17 @@
 
             @if (ImportConfirmResult is not null)
             {
+                <div class="import-summary-grid" aria-label="Import batch progress">
+                    <article><span>Batch status</span><strong>@ImportConfirmResult.Status</strong></article>
+                    <article><span>Created</span><strong>@ImportConfirmResult.CreatedRows.ToString("N0")</strong></article>
+                    <article><span>Failed</span><strong>@ImportConfirmResult.FailedRows.ToString("N0")</strong></article>
+                </div>
+                @if (ImportConfirmResult.BatchId.HasValue && ImportConfirmResult.FailedRows > 0)
+                {
+                    <a class="btn btn-outline-secondary" href="@BuildImportErrorLink(ImportConfirmResult.BatchId.Value)">
+                        Download batch errors
+                    </a>
+                }
                 <div class="table-shell import-table-shell">
                     <table class="shipments-table import-table">
                         <thead>
@@ -388,12 +400,12 @@
                         <tbody>
                             @foreach (var row in ImportConfirmResult.Rows)
                             {
-                                <tr class="@(row.IsCreated ? "valid-row" : "invalid-row")">
+                                <tr class="@(row.Status == ShipmentImportRowStatus.Failed ? "invalid-row" : "valid-row")">
                                     <td>@row.RowNumber</td>
                                     <td>@(row.ClientOrderCode ?? "-")</td>
                                     <td>
-                                        <span class="status-pill @(row.IsCreated ? "success" : "danger")">
-                                            @(row.IsCreated ? "Created" : "Failed")
+                                        <span class="status-pill @(row.Status == ShipmentImportRowStatus.Failed ? "danger" : "success")">
+                                            @row.Status
                                         </span>
                                     </td>
                                     <td>
@@ -548,8 +560,7 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
 
     private bool CanConfirmImport => CanPreviewImport && ImportPreview?.ValidRows > 0;
 
-    private IReadOnlyList<ShipmentImportRowDraft> ValidImportRows => ImportPreview?.Rows
-        .Where(row => row.IsValid)
+    private IReadOnlyList<ShipmentImportRowDraft> ImportRows => ImportPreview?.Rows
         .Select(row => row.Draft)
         .ToList() ?? [];
 
@@ -845,7 +856,7 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
         ImportErrorMessage = null;
         ImportSuccessMessage = null;
 
-        var rows = ValidImportRows;
+        var rows = ImportRows;
         if (rows.Count == 0)
         {
             ImportErrorMessage = "Khong co dong hop le de tao don.";
@@ -875,7 +886,14 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
 
             ImportConfirmResult = result.Value;
             ImportPreview = null;
-            ImportSuccessMessage = $"Da tao {result.Value.CreatedRows:N0}/{result.Value.TotalRows:N0} don hang.";
+            ImportSuccessMessage = result.Value.BatchId.HasValue
+                ? $"Import batch {result.Value.BatchId.Value:N} da duoc xep hang."
+                : $"Da tao {result.Value.CreatedRows:N0}/{result.Value.TotalRows:N0} don hang.";
+            if (result.Value.BatchId.HasValue)
+            {
+                await PollImportBatchAsync(userId.Value, result.Value.BatchId.Value);
+            }
+
             ShipmentPageNumber = 1;
             await LoadShipmentItemsAsync(userId.Value);
         }
@@ -883,6 +901,43 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
         {
             IsConfirmingImport = false;
         }
+    }
+
+    private async Task PollImportBatchAsync(Guid userId, Guid batchId)
+    {
+        for (var attempt = 0; attempt < 150; attempt++)
+        {
+            await Task.Delay(TimeSpan.FromSeconds(2));
+            var result = await GetShipmentImportBatchService.GetAsync(
+                userId,
+                SelectedShopId,
+                batchId);
+            if (result.IsFailure)
+            {
+                ImportErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+                return;
+            }
+
+            ImportConfirmResult = result.Value;
+            await InvokeAsync(StateHasChanged);
+            if (result.Value.Status is ShipmentImportBatchStatus.Completed
+                or ShipmentImportBatchStatus.CompletedWithErrors
+                or ShipmentImportBatchStatus.Failed)
+            {
+                ImportSuccessMessage = $"Import hoan tat: {result.Value.CreatedRows:N0} created, {result.Value.FailedRows:N0} failed.";
+                return;
+            }
+        }
+
+        ImportSuccessMessage = "Import van dang chay. Ban co the quay lai sau de xem ket qua.";
+    }
+
+    private string BuildImportErrorLink(Guid batchId)
+    {
+        return AppendQueryParameter(
+            $"/shop/files/import-batches/{batchId}/errors.csv",
+            "shopId",
+            SelectedShopId == Guid.Empty ? null : SelectedShopId.ToString("D"));
     }
 
     private async Task<Guid?> GetCurrentUserIdAsync()

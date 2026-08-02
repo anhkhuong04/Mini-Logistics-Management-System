@@ -101,6 +101,24 @@
                     <input id="api-client-name" maxlength="150" required @bind="CreateClientName" @bind:event="oninput" />
                 </label>
 
+                <fieldset class="scope-checkboxes">
+                    <legend>API scopes</legend>
+                    @foreach (var scope in AvailableScopes)
+                    {
+                        <label><input type="checkbox" checked="@CreateScopes.HasFlag(scope)" @onchange="args => ToggleCreateScope(scope, args)" /> @scope</label>
+                    }
+                </fieldset>
+
+                <label class="field-group" for="api-client-ips">
+                    <span>IP whitelist (optional)</span>
+                    <textarea id="api-client-ips" rows="2" placeholder="203.0.113.10, 2001:db8::1" @bind="CreateAllowedIps"></textarea>
+                </label>
+
+                <label class="field-group" for="api-client-expiry">
+                    <span>Expires on (optional)</span>
+                    <input id="api-client-expiry" type="date" value="@CreateExpiresDate" @onchange="args => CreateExpiresDate = args.Value?.ToString() ?? string.Empty" />
+                </label>
+
                 <div class="form-actions">
                     <button type="submit" class="primary-button" disabled="@(IsCreatingClient || !CanManageSelectedShop)">
                         @(IsCreatingClient ? "Dang tao..." : "Tao API key")
@@ -214,9 +232,64 @@
                         <strong>@SelectedClient.WebhookMetrics.PendingRetryDeliveries.ToString("N0")</strong>
                     </article>
                 </div>
+
+                @if (SelectedClient.Usage is not null)
+                {
+                    <div class="metrics-grid usage-grid">
+                        <article><span>Requests / 7 days</span><strong>@SelectedClient.Usage.TotalRequests.ToString("N0")</strong></article>
+                        <article><span>Successful</span><strong>@SelectedClient.Usage.SuccessfulRequests.ToString("N0")</strong></article>
+                        <article><span>Errors</span><strong>@SelectedClient.Usage.FailedRequests.ToString("N0")</strong></article>
+                        <article><span>Last hour</span><strong>@(SelectedClient.Usage.Hourly.LastOrDefault()?.RequestCount ?? 0)</strong></article>
+                    </div>
+                    <div class="usage-buckets">
+                        <div>
+                            <h3>Requests by day</h3>
+                            @foreach (var bucket in SelectedClient.Usage.Daily)
+                            {
+                                <p><time>@bucket.BucketUtc.ToString("yyyy-MM-dd")</time><strong>@bucket.RequestCount</strong><span>@bucket.ErrorCount error</span></p>
+                            }
+                        </div>
+                        <div>
+                            <h3>Requests by hour (24h)</h3>
+                            @foreach (var bucket in SelectedClient.Usage.Hourly.TakeLast(8))
+                            {
+                                <p><time>@bucket.BucketUtc.ToString("MM-dd HH:00")</time><strong>@bucket.RequestCount</strong><span>@bucket.ErrorCount error</span></p>
+                            }
+                        </div>
+                    </div>
+                    @if (SelectedClient.Usage.LatestFailedRequests.Count > 0)
+                    {
+                        <div class="latest-errors">
+                            @foreach (var request in SelectedClient.Usage.LatestFailedRequests.Take(5))
+                            {
+                                <p><code>@request.StatusCode</code> <strong>@request.Method @request.Path</strong> <span>@(request.ErrorCode ?? "Request failed")</span></p>
+                            }
+                        </div>
+                    }
+                }
             </section>
 
             <section class="integration-grid">
+                <article class="content-card security-card">
+                    <div class="section-heading"><div><p class="eyebrow">Access policy</p><h2>Scopes, IP va expiry</h2></div></div>
+                    <form class="webhook-form" @onsubmit="SaveSecurityAsync" @onsubmit:preventDefault="true">
+                        <fieldset class="scope-checkboxes">
+                            <legend>Allowed scopes</legend>
+                            @foreach (var scope in AvailableScopes)
+                            {
+                                <label><input type="checkbox" checked="@SecurityScopes.HasFlag(scope)" @onchange="args => ToggleSecurityScope(scope, args)" /> @scope</label>
+                            }
+                        </fieldset>
+                        <label class="field-group"><span>IP whitelist</span><textarea rows="3" @bind="SecurityAllowedIps"></textarea></label>
+                        <label class="field-group"><span>Expires on</span><input type="date" value="@SecurityExpiresDate" @onchange="args => SecurityExpiresDate = args.Value?.ToString() ?? string.Empty" /></label>
+                        @if (SelectedClient.ExpiresAtUtc.HasValue && SelectedClient.ExpiresAtUtc.Value <= DateTimeOffset.UtcNow.AddDays(14))
+                        {
+                            <div class="alert-box danger">API key sap het han vao @FormatDate(SelectedClient.ExpiresAtUtc.Value).</div>
+                        }
+                        <button type="submit" class="primary-button" disabled="@(IsSavingSecurity || !CanManageSelectedShop)">Luu access policy</button>
+                    </form>
+                </article>
+
                 <article class="content-card webhook-card">
                     <div class="section-heading">
                         <div>
@@ -279,6 +352,7 @@
                                         <th>Retry</th>
                                         <th>Last attempt</th>
                                         <th>Error</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -299,6 +373,12 @@
                                             <td data-label="Retry">@delivery.RetryCount</td>
                                             <td data-label="Last attempt">@FormatNullableDate(delivery.LastAttemptAtUtc)</td>
                                             <td data-label="Error" class="error-cell">@(delivery.LastError ?? "-")</td>
+                                            <td data-label="Action">
+                                                @if (delivery.Status == WebhookDeliveryStatus.Failed && !delivery.NextAttemptAtUtc.HasValue)
+                                                {
+                                                    <button type="button" class="secondary-button" disabled="@IsBusy" @onclick="() => RetryDeliveryAsync(delivery.WebhookDeliveryId)">Retry</button>
+                                                }
+                                            </td>
                                         </tr>
                                     }
                                 </tbody>
@@ -379,7 +459,11 @@
 
     private bool IsTestingWebhook { get; set; }
 
-    private bool IsBusy => IsCreatingClient || IsSavingWebhook || IsTestingWebhook;
+    private bool IsSavingSecurity { get; set; }
+
+    private bool IsRetryingDelivery { get; set; }
+
+    private bool IsBusy => IsCreatingClient || IsSavingWebhook || IsTestingWebhook || IsSavingSecurity || IsRetryingDelivery;
 
     private Guid SelectedShopId { get; set; }
 
@@ -391,6 +475,18 @@
     private Guid? SelectedClientId { get; set; }
 
     private string CreateClientName { get; set; } = "Default partner app";
+
+    private PartnerApiScope CreateScopes { get; set; } = PartnerApiScope.All;
+
+    private string CreateAllowedIps { get; set; } = string.Empty;
+
+    private string CreateExpiresDate { get; set; } = string.Empty;
+
+    private PartnerApiScope SecurityScopes { get; set; } = PartnerApiScope.All;
+
+    private string SecurityAllowedIps { get; set; } = string.Empty;
+
+    private string SecurityExpiresDate { get; set; } = string.Empty;
 
     private string WebhookUrl { get; set; } = string.Empty;
 
@@ -409,6 +505,15 @@
 
     private PartnerApiClientResponse? SelectedClient => Dashboard.ApiClients
         .FirstOrDefault(client => client.ApiClientId == SelectedClientId);
+
+    private static readonly PartnerApiScope[] AvailableScopes =
+    [
+        PartnerApiScope.Quote,
+        PartnerApiScope.CreateShipment,
+        PartnerApiScope.TrackShipment,
+        PartnerApiScope.CancelShipment,
+        PartnerApiScope.WebhookManage
+    ];
 
     protected override async Task OnParametersSetAsync()
     {
@@ -476,7 +581,10 @@
         var result = await ApiClientManagementService.CreateApiClientAsync(new CreatePartnerApiClientCommand(
             currentUserId.Value,
             SelectedShopId,
-            CreateClientName));
+            CreateClientName,
+            CreateScopes,
+            ParseIpAddresses(CreateAllowedIps),
+            ParseExpiry(CreateExpiresDate)));
         IsCreatingClient = false;
 
         if (result.IsFailure)
@@ -489,6 +597,9 @@
         SelectedClientId = result.Value.ApiClientId;
         SuccessMessage = "Da tao API client.";
         CreateClientName = "Default partner app";
+        CreateScopes = PartnerApiScope.All;
+        CreateAllowedIps = string.Empty;
+        CreateExpiresDate = string.Empty;
         await LoadAsync(clearMessages: false);
     }
 
@@ -619,6 +730,38 @@
         await LoadAsync(clearMessages: false);
     }
 
+    private async Task SaveSecurityAsync()
+    {
+        if (SelectedClientId is null) return;
+        var currentUserId = await GetCurrentUserIdAsync();
+        if (currentUserId is null) return;
+        IsSavingSecurity = true;
+        var result = await ApiClientManagementService.UpdateApiClientSecurityAsync(
+            new UpdatePartnerApiClientSecurityCommand(
+                currentUserId.Value,
+                SelectedClientId.Value,
+                SecurityScopes,
+                ParseIpAddresses(SecurityAllowedIps),
+                ParseExpiry(SecurityExpiresDate)));
+        IsSavingSecurity = false;
+        if (result.IsFailure) { ErrorMessage = UiDisplay.ToErrorMessage(result.Error); return; }
+        SuccessMessage = "Da cap nhat access policy.";
+        await LoadAsync(clearMessages: false);
+    }
+
+    private async Task RetryDeliveryAsync(Guid deliveryId)
+    {
+        var currentUserId = await GetCurrentUserIdAsync();
+        if (currentUserId is null) return;
+        IsRetryingDelivery = true;
+        var result = await WebhookManagementService.RetryWebhookDeliveryAsync(
+            new RetryPartnerWebhookDeliveryCommand(currentUserId.Value, deliveryId));
+        IsRetryingDelivery = false;
+        if (result.IsFailure) { ErrorMessage = UiDisplay.ToErrorMessage(result.Error); return; }
+        SuccessMessage = "Da dua webhook delivery vao retry queue.";
+        await LoadAsync(clearMessages: false);
+    }
+
     private async Task OnShopChangedAsync(ChangeEventArgs args)
     {
         if (Guid.TryParse(args.Value?.ToString(), out var shopId))
@@ -648,7 +791,27 @@
     {
         WebhookUrl = SelectedClient?.WebhookEndpoint?.Url ?? string.Empty;
         WebhookSigningSecret = string.Empty;
+        SecurityScopes = SelectedClient?.Scopes ?? PartnerApiScope.All;
+        SecurityAllowedIps = string.Join(", ", SelectedClient?.AllowedIpAddresses ?? []);
+        SecurityExpiresDate = SelectedClient?.ExpiresAtUtc?.ToString("yyyy-MM-dd") ?? string.Empty;
     }
+
+    private void ToggleCreateScope(PartnerApiScope scope, ChangeEventArgs args) =>
+        CreateScopes = ToggleScope(CreateScopes, scope, args.Value is true);
+
+    private void ToggleSecurityScope(PartnerApiScope scope, ChangeEventArgs args) =>
+        SecurityScopes = ToggleScope(SecurityScopes, scope, args.Value is true);
+
+    private static PartnerApiScope ToggleScope(PartnerApiScope current, PartnerApiScope scope, bool enabled) =>
+        enabled ? current | scope : current & ~scope;
+
+    private static IReadOnlyList<string> ParseIpAddresses(string value) =>
+        value.Split([',', ';', '\r', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    private static DateTimeOffset? ParseExpiry(string value) =>
+        DateOnly.TryParse(value, out var date)
+            ? new DateTimeOffset(date.ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero)
+            : null;
 
     private async Task<Guid?> GetCurrentUserIdAsync()
     {
@@ -710,8 +873,10 @@
             PartnerApiCredentialAuditActions.ApiClientKeyRotated => "Rotate API key",
             PartnerApiCredentialAuditActions.ApiClientActivated => "Activate API client",
             PartnerApiCredentialAuditActions.ApiClientDeactivated => "Revoke API client",
+            PartnerApiCredentialAuditActions.ApiClientSecurityUpdated => "Update access policy",
             PartnerApiCredentialAuditActions.WebhookEndpointUpserted => "Save webhook",
             PartnerApiCredentialAuditActions.WebhookTestQueued => "Test webhook",
+            PartnerApiCredentialAuditActions.WebhookDeliveryRetried => "Retry webhook",
             _ => action
         };
     }

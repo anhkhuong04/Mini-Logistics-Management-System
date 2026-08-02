@@ -1,0 +1,15 @@
+.shop-audit-page { display: grid; gap: 1rem; }
+.page-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.page-heading h1 { margin: 0; font-size: 1.75rem; }
+.eyebrow { margin: 0 0 .25rem; color: #52606d; font-size: .75rem; text-transform: uppercase; }
+.audit-filters { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; gap: .75rem; align-items: end; }
+.audit-filters label { display: grid; gap: .35rem; font-size: .85rem; }
+.audit-filters input, .audit-filters select { min-height: 2.5rem; border: 1px solid #cbd2d9; border-radius: 6px; padding: .45rem .6rem; }
+.table-shell { overflow-x: auto; border: 1px solid #d9e2ec; border-radius: 6px; }
+.audit-table { width: 100%; border-collapse: collapse; }
+.audit-table th, .audit-table td { padding: .75rem; border-bottom: 1px solid #e4e7eb; text-align: left; vertical-align: top; }
+.audit-table small { display: block; color: #68737d; margin-top: .25rem; }
+.audit-table pre { max-width: 34rem; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .75rem; }
+.state-text { padding: 2rem 0; color: #68737d; }
+@media (max-width: 900px) { .audit-filters { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 600px) { .page-heading { align-items: flex-start; } .audit-filters { grid-template-columns: 1fr; } }

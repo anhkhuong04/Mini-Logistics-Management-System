@@ -22,7 +22,15 @@ public sealed class MiniLogisticsDbContext : IdentityDbContext<ApplicationUser, 
 
     public DbSet<Shop> Shops => Set<Shop>();
 
+    public DbSet<ShopNotification> ShopNotifications => Set<ShopNotification>();
+
+    public DbSet<ShopNotificationPreference> ShopNotificationPreferences => Set<ShopNotificationPreference>();
+
     public DbSet<Shipment> Shipments => Set<Shipment>();
+
+    public DbSet<ShipmentImportBatch> ShipmentImportBatches => Set<ShipmentImportBatch>();
+
+    public DbSet<ShipmentImportBatchRow> ShipmentImportBatchRows => Set<ShipmentImportBatchRow>();
 
     public DbSet<ShipmentAssignment> ShipmentAssignments => Set<ShipmentAssignment>();
 

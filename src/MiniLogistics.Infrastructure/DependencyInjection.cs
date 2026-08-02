@@ -15,8 +15,11 @@ using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Routing;
 using MiniLogistics.Application.Shops;
 using MiniLogistics.Application.Shops.Reports;
+using MiniLogistics.Application.Shops.Audit;
+using MiniLogistics.Application.Shops.Notifications;
 using MiniLogistics.Application.Shippers;
 using MiniLogistics.Application.Shipments;
+using MiniLogistics.Application.Shipments.ImportShipments;
 using MiniLogistics.Application.Shipments.ProofOfDelivery;
 using MiniLogistics.Infrastructure.Identity;
 using MiniLogistics.Infrastructure.Outbox;
@@ -100,6 +103,9 @@ public static class DependencyInjection
         services.AddScoped<IAdminDashboardMetricsRepository, AdminDashboardMetricsRepository>();
         services.AddScoped<IAdminCodReportRepository, AdminCodReportRepository>();
         services.AddScoped<IShopReportingRepository, ShopReportingRepository>();
+        services.AddScoped<IShipmentImportBatchRepository, ShipmentImportBatchRepository>();
+        services.AddScoped<IShopAuditLogRepository, ShopAuditLogRepository>();
+        services.AddScoped<IShopNotificationRepository, ShopNotificationRepository>();
         services.AddScoped<IApplicationDbTransactionManager, ApplicationDbTransactionManager>();
         services.AddScoped<OutboxMessageRepository>();
         services.AddScoped<IOutboxMessageRepository>(provider => provider.GetRequiredService<OutboxMessageRepository>());
@@ -114,6 +120,7 @@ public static class DependencyInjection
         });
         services.AddHostedService<OutboxWorker>();
         services.AddHostedService<WebhookDeliveryWorker>();
+        services.AddHostedService<ShipmentImportWorker>();
 
         return services;
     }

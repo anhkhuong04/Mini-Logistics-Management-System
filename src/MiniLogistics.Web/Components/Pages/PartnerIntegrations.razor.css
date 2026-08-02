@@ -343,3 +343,14 @@ td small {
         justify-content: flex-start;
     }
 }
+.scope-checkboxes { display: flex; flex-wrap: wrap; gap: .5rem 1rem; border: 0; padding: 0; min-width: 0; }
+.scope-checkboxes legend { width: 100%; margin-bottom: .35rem; font-size: .85rem; font-weight: 600; }
+.scope-checkboxes label { display: flex; gap: .4rem; align-items: center; font-size: .85rem; }
+.field-group textarea { width: 100%; border: 1px solid #cbd2d9; border-radius: 6px; padding: .55rem .7rem; resize: vertical; }
+.usage-grid { margin-top: .75rem; border-top: 1px solid #d9e2ec; padding-top: .75rem; }
+.latest-errors { margin-top: .75rem; }
+.latest-errors p { display: grid; grid-template-columns: auto minmax(12rem, 1fr) minmax(8rem, 1fr); gap: .6rem; margin: 0; padding: .45rem 0; border-top: 1px solid #e4e7eb; font-size: .8rem; }
+.usage-buckets { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: .75rem; }
+.usage-buckets h3 { margin: 0 0 .35rem; font-size: .9rem; }
+.usage-buckets p { display: grid; grid-template-columns: 1fr auto auto; gap: .65rem; margin: 0; padding: .35rem 0; border-top: 1px solid #e4e7eb; font-size: .78rem; }
+@media (max-width: 700px) { .usage-buckets { grid-template-columns: 1fr; } }

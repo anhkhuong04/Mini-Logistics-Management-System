@@ -19,6 +19,7 @@ public sealed class CreateDraftShipmentService : ICreateDraftShipmentService
     private readonly IRouteClassificationService _routeClassificationService;
     private readonly IShipmentRepository _shipmentRepository;
     private readonly IShopAccessService _shopAccessService;
+    private readonly IAdministrativeDivisionService _administrativeDivisionService;
     private readonly IAdminAuditService _adminAuditService;
     private readonly TimeProvider _timeProvider;
 
@@ -30,12 +31,34 @@ public sealed class CreateDraftShipmentService : ICreateDraftShipmentService
         IShopAccessService shopAccessService,
         TimeProvider timeProvider,
         IAdminAuditService? adminAuditService = null)
+        : this(
+            validator,
+            shippingFeeService,
+            routeClassificationService,
+            shipmentRepository,
+            shopAccessService,
+            PassThroughAdministrativeDivisionService.Instance,
+            timeProvider,
+            adminAuditService)
+    {
+    }
+
+    public CreateDraftShipmentService(
+        IValidator<CreateDraftShipmentCommand> validator,
+        IShippingFeeService shippingFeeService,
+        IRouteClassificationService routeClassificationService,
+        IShipmentRepository shipmentRepository,
+        IShopAccessService shopAccessService,
+        IAdministrativeDivisionService administrativeDivisionService,
+        TimeProvider timeProvider,
+        IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _shippingFeeService = shippingFeeService;
         _routeClassificationService = routeClassificationService;
         _shipmentRepository = shipmentRepository;
         _shopAccessService = shopAccessService;
+        _administrativeDivisionService = administrativeDivisionService;
         _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
@@ -61,10 +84,20 @@ public sealed class CreateDraftShipmentService : ICreateDraftShipmentService
             return Result<DraftShipmentResponse>.Failure(shopResult.Error);
         }
 
+        var normalizedCommandResult = await DraftShipmentMapping.NormalizeAddressesAsync(
+            _administrativeDivisionService,
+            command,
+            cancellationToken);
+        if (normalizedCommandResult.IsFailure)
+        {
+            return Result<DraftShipmentResponse>.Failure(normalizedCommandResult.Error);
+        }
+
+        var normalizedCommand = normalizedCommandResult.Value;
         var calculatedResult = await DraftShipmentMapping.CalculateAsync(
             _routeClassificationService,
             _shippingFeeService,
-            command,
+            normalizedCommand,
             cancellationToken);
         if (calculatedResult.IsFailure)
         {
@@ -76,12 +109,12 @@ public sealed class CreateDraftShipmentService : ICreateDraftShipmentService
         var trackingCode = await GenerateUniqueTrackingCodeAsync(now, cancellationToken);
         var shipment = Shipment.CreateDraft(
             shopResult.Value.Id,
-            command.SenderName,
-            new PhoneNumber(command.SenderPhone),
-            command.ReceiverName,
-            new PhoneNumber(command.ReceiverPhone),
-            DraftShipmentMapping.ToAddress(command.PickupAddress),
-            DraftShipmentMapping.ToAddress(command.DeliveryAddress),
+            normalizedCommand.SenderName,
+            new PhoneNumber(normalizedCommand.SenderPhone),
+            normalizedCommand.ReceiverName,
+            new PhoneNumber(normalizedCommand.ReceiverPhone),
+            DraftShipmentMapping.ToAddress(normalizedCommand.PickupAddress),
+            DraftShipmentMapping.ToAddress(normalizedCommand.DeliveryAddress),
             calculated.Weight,
             calculated.ParcelDimensions,
             calculated.ChargeableWeight,
@@ -89,9 +122,9 @@ public sealed class CreateDraftShipmentService : ICreateDraftShipmentService
             calculated.CodAmount,
             calculated.ShippingFeeBreakdown,
             calculated.RouteType,
-            command.UserId,
+            normalizedCommand.UserId,
             now,
-            command.Note,
+            normalizedCommand.Note,
             trackingCode);
 
         await _shipmentRepository.AddAsync(shipment, cancellationToken);

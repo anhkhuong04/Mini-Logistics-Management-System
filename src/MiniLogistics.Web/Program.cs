@@ -38,6 +38,8 @@ builder.Services.AddAuthorization(options =>
 });
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSingleton<VietnamAdministrativeDivisionService>();
+builder.Services.AddSingleton<MiniLogistics.Application.Common.IAdministrativeDivisionService>(provider =>
+    provider.GetRequiredService<VietnamAdministrativeDivisionService>());
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.Configure<PublicTrackingRateLimitOptions>(

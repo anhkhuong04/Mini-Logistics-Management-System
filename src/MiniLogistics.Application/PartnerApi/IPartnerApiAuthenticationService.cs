@@ -15,4 +15,12 @@ public interface IPartnerApiAuthenticationService
     Task<Result<PartnerApiClientContext>> AuthenticateAsync(
         string? authorizationHeader,
         CancellationToken cancellationToken = default);
+
+    Task<Result<PartnerApiClientContext>> AuthenticateAsync(
+        string? authorizationHeader,
+        string? remoteIpAddress,
+        CancellationToken cancellationToken = default)
+    {
+        return AuthenticateAsync(authorizationHeader, cancellationToken);
+    }
 }

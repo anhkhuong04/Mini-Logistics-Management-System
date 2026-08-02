@@ -33,4 +33,8 @@ public interface IWebhookManagementService
     Task<Result<PartnerWebhookTestResponse>> TestWebhookAsync(
         TestPartnerWebhookCommand command,
         CancellationToken cancellationToken = default);
+
+    Task<Result> RetryWebhookDeliveryAsync(
+        RetryPartnerWebhookDeliveryCommand command,
+        CancellationToken cancellationToken = default);
 }

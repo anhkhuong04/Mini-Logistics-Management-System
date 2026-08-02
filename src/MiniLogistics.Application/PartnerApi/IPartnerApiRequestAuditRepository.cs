@@ -12,4 +12,14 @@ public interface IPartnerApiRequestAuditRepository
         CancellationToken cancellationToken = default);
 
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyDictionary<Guid, PartnerApiUsageMetricsResponse>> GetUsageByApiClientIdsAsync(
+        IReadOnlyCollection<Guid> apiClientIds,
+        DateTimeOffset nowUtc,
+        CancellationToken cancellationToken = default)
+    {
+        IReadOnlyDictionary<Guid, PartnerApiUsageMetricsResponse> empty =
+            new Dictionary<Guid, PartnerApiUsageMetricsResponse>();
+        return Task.FromResult(empty);
+    }
 }

@@ -20,6 +20,7 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
     private readonly IShipmentRepository _shipmentRepository;
     private readonly IShopAccessService _shopAccessService;
     private readonly ICodTransactionRepository _codTransactionRepository;
+    private readonly IAdministrativeDivisionService _administrativeDivisionService;
     private readonly IAdminAuditService _adminAuditService;
     private readonly TimeProvider _timeProvider;
 
@@ -32,6 +33,29 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
         ICodTransactionRepository codTransactionRepository,
         TimeProvider timeProvider,
         IAdminAuditService? adminAuditService = null)
+        : this(
+            validator,
+            shippingFeeService,
+            routeClassificationService,
+            shipmentRepository,
+            shopAccessService,
+            codTransactionRepository,
+            PassThroughAdministrativeDivisionService.Instance,
+            timeProvider,
+            adminAuditService)
+    {
+    }
+
+    public UpdateShipmentBeforePickupService(
+        IValidator<UpdateShipmentBeforePickupCommand> validator,
+        IShippingFeeService shippingFeeService,
+        IRouteClassificationService routeClassificationService,
+        IShipmentRepository shipmentRepository,
+        IShopAccessService shopAccessService,
+        ICodTransactionRepository codTransactionRepository,
+        IAdministrativeDivisionService administrativeDivisionService,
+        TimeProvider timeProvider,
+        IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _shippingFeeService = shippingFeeService;
@@ -39,6 +63,7 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
         _shipmentRepository = shipmentRepository;
         _shopAccessService = shopAccessService;
         _codTransactionRepository = codTransactionRepository;
+        _administrativeDivisionService = administrativeDivisionService;
         _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
@@ -74,6 +99,16 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
                 ApplicationErrors.NotFound("Shipment was not found for current shop."));
         }
 
+        var normalizedCommandResult = await DraftShipmentMapping.NormalizeAddressesAsync(
+            _administrativeDivisionService,
+            command,
+            cancellationToken);
+        if (normalizedCommandResult.IsFailure)
+        {
+            return Result<DraftShipmentResponse>.Failure(normalizedCommandResult.Error);
+        }
+
+        var normalizedCommand = normalizedCommandResult.Value;
         var previousFeeAmount = shipment.ShippingFee.Amount;
         var previousValue = new
         {
@@ -84,7 +119,7 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
         var calculatedResult = await DraftShipmentMapping.CalculateAsync(
             _routeClassificationService,
             _shippingFeeService,
-            command,
+            normalizedCommand,
             cancellationToken);
         if (calculatedResult.IsFailure)
         {
@@ -94,12 +129,12 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
         var calculated = calculatedResult.Value;
         var now = _timeProvider.GetUtcNow();
         var updateResult = shipment.UpdateBeforePickup(
-            command.SenderName,
-            new PhoneNumber(command.SenderPhone),
-            command.ReceiverName,
-            new PhoneNumber(command.ReceiverPhone),
-            DraftShipmentMapping.ToAddress(command.PickupAddress),
-            DraftShipmentMapping.ToAddress(command.DeliveryAddress),
+            normalizedCommand.SenderName,
+            new PhoneNumber(normalizedCommand.SenderPhone),
+            normalizedCommand.ReceiverName,
+            new PhoneNumber(normalizedCommand.ReceiverPhone),
+            DraftShipmentMapping.ToAddress(normalizedCommand.PickupAddress),
+            DraftShipmentMapping.ToAddress(normalizedCommand.DeliveryAddress),
             calculated.Weight,
             calculated.ParcelDimensions,
             calculated.ChargeableWeight,
@@ -107,9 +142,9 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
             calculated.CodAmount,
             calculated.ShippingFeeBreakdown,
             calculated.RouteType,
-            command.UserId,
+            normalizedCommand.UserId,
             now,
-            command.Note);
+            normalizedCommand.Note);
         if (updateResult.IsFailure)
         {
             return Result<DraftShipmentResponse>.Failure(updateResult.Error);

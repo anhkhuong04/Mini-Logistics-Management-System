@@ -33,4 +33,8 @@ public interface IApiClientManagementService
     Task<Result> SetApiClientActiveStatusAsync(
         SetPartnerApiClientActiveStatusCommand command,
         CancellationToken cancellationToken = default);
+
+    Task<Result> UpdateApiClientSecurityAsync(
+        UpdatePartnerApiClientSecurityCommand command,
+        CancellationToken cancellationToken = default);
 }
