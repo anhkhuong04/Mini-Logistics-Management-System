@@ -181,6 +181,24 @@
                     <small>Vị trí sẵn sàng cho quản lý COD.</small>
                 </section>
 
+                @if (Shipment.Status != ShipmentStatus.Draft)
+                {
+                    <section class="content-card draft-action-card">
+                        <div class="section-heading compact">
+                            <span class="section-icon blue">
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M6 2h9l5 5v15H6V2Zm8 2H8v16h10V8h-4V4ZM9 12h8v2H9v-2Zm0 4h8v2H9v-2Z" />
+                                </svg>
+                            </span>
+                            <h2>Shipping label</h2>
+                        </div>
+
+                        <a class="detail-action-link" href="@BuildLabelLink(Shipment.ShipmentId)" target="_blank" rel="noopener">
+                            Tai label PDF
+                        </a>
+                    </section>
+                }
+
                 @if (CanEditShipment(Shipment.Status))
                 {
                     <section class="content-card draft-action-card">
@@ -444,9 +462,23 @@
 
     private static string BuildShopLink(string path, Guid shopId)
     {
-        return shopId == Guid.Empty
-            ? path
-            : $"{path}?shopId={shopId:D}";
+        return AppendQueryParameter(path, "shopId", shopId == Guid.Empty ? null : shopId.ToString("D"));
+    }
+
+    private string BuildLabelLink(Guid shipmentId)
+    {
+        return BuildShopLink($"/shop/files/shipments/{shipmentId:D}/label.pdf");
+    }
+
+    private static string AppendQueryParameter(string url, string name, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return url;
+        }
+
+        var separator = url.Contains('?', StringComparison.Ordinal) ? "&" : "?";
+        return $"{url}{separator}{Uri.EscapeDataString(name)}={Uri.EscapeDataString(value.Trim())}";
     }
 
     private static string FormatDate(DateTimeOffset value)

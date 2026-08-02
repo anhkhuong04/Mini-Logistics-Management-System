@@ -20,6 +20,8 @@ public static class AdminAuditActions
     public const string ShipmentCancelledByShop = "shipment.cancelled_by_shop";
     public const string ShipmentImportPreviewed = "shipment.import.previewed";
     public const string ShipmentImportConfirmed = "shipment.import.confirmed";
+    public const string ShipmentExportCreated = "shipment.export.created";
+    public const string ShopCodReportExported = "shop.cod_report.exported";
     public const string ShipmentManualAssigned = "shipment.manual_assigned";
     public const string ShipmentReassigned = "shipment.reassigned";
     public const string ShipmentAssignmentCancelled = "shipment.assignment_cancelled";

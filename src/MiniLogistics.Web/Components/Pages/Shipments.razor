@@ -5,6 +5,7 @@
 @using System.Security.Claims
 @using System.Text
 @using MiniLogistics.Application.Shops.GetShopContext
+@using MiniLogistics.Application.Shipments
 @using MiniLogistics.Application.Shipments.GetShipmentsForCurrentShop
 @using MiniLogistics.Application.Shipments.ImportShipments
 @using MiniLogistics.Domain.Shipments
@@ -103,6 +104,48 @@
                         @foreach (var status in ShipmentStatusFilters)
                         {
                             <option value="@status.ToString()">@FormatStatus(status)</option>
+                        }
+                    </select>
+                </label>
+                <label>
+                    Receiver name
+                    <input type="search" @bind="ReceiverNameSearchText" placeholder="Receiver name" />
+                </label>
+                <label>
+                    Receiver phone
+                    <input type="search" @bind="ReceiverPhoneSearchText" placeholder="Receiver phone" />
+                </label>
+                <label>
+                    From date
+                    <input type="date" value="@FromDateInput" @onchange="args => FromDateInput = args.Value?.ToString() ?? string.Empty" />
+                </label>
+                <label>
+                    To date
+                    <input type="date" value="@ToDateInput" @onchange="args => ToDateInput = args.Value?.ToString() ?? string.Empty" />
+                </label>
+                <label>
+                    Min COD
+                    <input type="number" min="0" step="1000" @bind="MinCodAmountText" placeholder="0" />
+                </label>
+                <label>
+                    Max COD
+                    <input type="number" min="0" step="1000" @bind="MaxCodAmountText" placeholder="0" />
+                </label>
+                <label>
+                    Sort by
+                    <select @bind="SelectedSortBy">
+                        @foreach (var sortBy in SortByFilters)
+                        {
+                            <option value="@sortBy.ToString()">@FormatSortBy(sortBy)</option>
+                        }
+                    </select>
+                </label>
+                <label>
+                    Direction
+                    <select @bind="SelectedSortDirection">
+                        @foreach (var sortDirection in SortDirectionFilters)
+                        {
+                            <option value="@sortDirection.ToString()">@FormatSortDirection(sortDirection)</option>
                         }
                     </select>
                 </label>
@@ -439,9 +482,33 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
 
     private string SelectedStatusFilter { get; set; } = string.Empty;
 
+    private string ReceiverNameSearchText { get; set; } = string.Empty;
+
+    private string ReceiverPhoneSearchText { get; set; } = string.Empty;
+
+    private string FromDateInput { get; set; } = string.Empty;
+
+    private string ToDateInput { get; set; } = string.Empty;
+
+    private string MinCodAmountText { get; set; } = string.Empty;
+
+    private string MaxCodAmountText { get; set; } = string.Empty;
+
+    private string SelectedSortBy { get; set; } = ShopShipmentSortBy.CreatedAt.ToString();
+
+    private string SelectedSortDirection { get; set; } = SortDirection.Descending.ToString();
+
     private bool HasActiveShipmentFilters =>
         !string.IsNullOrWhiteSpace(ShipmentSearchText)
-        || !string.IsNullOrWhiteSpace(SelectedStatusFilter);
+        || !string.IsNullOrWhiteSpace(SelectedStatusFilter)
+        || !string.IsNullOrWhiteSpace(ReceiverNameSearchText)
+        || !string.IsNullOrWhiteSpace(ReceiverPhoneSearchText)
+        || !string.IsNullOrWhiteSpace(FromDateInput)
+        || !string.IsNullOrWhiteSpace(ToDateInput)
+        || !string.IsNullOrWhiteSpace(MinCodAmountText)
+        || !string.IsNullOrWhiteSpace(MaxCodAmountText)
+        || SelectedSortBy != ShopShipmentSortBy.CreatedAt.ToString()
+        || SelectedSortDirection != SortDirection.Descending.ToString();
 
     private string ShipmentPageSummary => ShipmentTotalCount == 0
         ? "0 shipments"
@@ -460,6 +527,21 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
         ShipmentStatus.DeliveryFailed,
         ShipmentStatus.Returned,
         ShipmentStatus.Cancelled
+    ];
+
+    private static readonly ShopShipmentSortBy[] SortByFilters =
+    [
+        ShopShipmentSortBy.CreatedAt,
+        ShopShipmentSortBy.TrackingCode,
+        ShopShipmentSortBy.ReceiverName,
+        ShopShipmentSortBy.CodAmount,
+        ShopShipmentSortBy.ShippingFee
+    ];
+
+    private static readonly SortDirection[] SortDirectionFilters =
+    [
+        SortDirection.Descending,
+        SortDirection.Ascending
     ];
 
     private bool CanPreviewImport => SelectedShop?.IsActive == true && !IsPreviewingImport && !IsConfirmingImport;
@@ -544,6 +626,14 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
                     ShopId: SelectedShopId,
                     StatusFilter: ParseStatusFilter(),
                     TrackingCodeSearch: ShipmentSearchText,
+                    ReceiverNameSearch: ReceiverNameSearchText,
+                    ReceiverPhoneSearch: ReceiverPhoneSearchText,
+                    FromUtc: ParseDateInput(FromDateInput, endOfDay: false),
+                    ToUtc: ParseDateInput(ToDateInput, endOfDay: true),
+                    MinCodAmount: ParseDecimalInput(MinCodAmountText),
+                    MaxCodAmount: ParseDecimalInput(MaxCodAmountText),
+                    SortBy: ParseSortBy(),
+                    SortDirection: ParseSortDirection(),
                     PageNumber: ShipmentPageNumber,
                     PageSize: ShipmentPageSize));
 
@@ -575,6 +665,14 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
     {
         ShipmentSearchText = string.Empty;
         SelectedStatusFilter = string.Empty;
+        ReceiverNameSearchText = string.Empty;
+        ReceiverPhoneSearchText = string.Empty;
+        FromDateInput = string.Empty;
+        ToDateInput = string.Empty;
+        MinCodAmountText = string.Empty;
+        MaxCodAmountText = string.Empty;
+        SelectedSortBy = ShopShipmentSortBy.CreatedAt.ToString();
+        SelectedSortDirection = SortDirection.Descending.ToString();
         ShipmentPageNumber = 1;
         await ReloadShipmentItemsForCurrentUserAsync();
     }
@@ -619,6 +717,42 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
     {
         return Enum.TryParse<ShipmentStatus>(SelectedStatusFilter, out var status)
             ? status
+            : null;
+    }
+
+    private ShopShipmentSortBy ParseSortBy()
+    {
+        return Enum.TryParse<ShopShipmentSortBy>(SelectedSortBy, out var sortBy)
+            ? sortBy
+            : ShopShipmentSortBy.CreatedAt;
+    }
+
+    private SortDirection ParseSortDirection()
+    {
+        return Enum.TryParse<SortDirection>(SelectedSortDirection, out var sortDirection)
+            ? sortDirection
+            : SortDirection.Descending;
+    }
+
+    private static DateTimeOffset? ParseDateInput(string value, bool endOfDay)
+    {
+        if (!DateOnly.TryParse(value, out var date))
+        {
+            return null;
+        }
+
+        var time = endOfDay ? TimeOnly.MaxValue : TimeOnly.MinValue;
+        return new DateTimeOffset(date.ToDateTime(time), TimeSpan.Zero);
+    }
+
+    private static decimal? ParseDecimalInput(string value)
+    {
+        return decimal.TryParse(
+            value,
+            System.Globalization.NumberStyles.Number,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var amount)
+            ? amount
             : null;
     }
 
@@ -768,32 +902,23 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
 
     private static string BuildShopLink(string path, Guid shopId)
     {
-        return shopId == Guid.Empty
-            ? path
-            : $"{path}?shopId={shopId:D}";
+        return AppendQueryParameter(path, "shopId", shopId == Guid.Empty ? null : shopId.ToString("D"));
     }
 
     private string BuildExportLink()
     {
-        var query = new List<string>();
-        if (SelectedShopId != Guid.Empty)
-        {
-            query.Add($"shopId={SelectedShopId:D}");
-        }
-
-        if (!string.IsNullOrWhiteSpace(SelectedStatusFilter))
-        {
-            query.Add($"status={Uri.EscapeDataString(SelectedStatusFilter)}");
-        }
-
-        if (!string.IsNullOrWhiteSpace(ShipmentSearchText))
-        {
-            query.Add($"trackingCode={Uri.EscapeDataString(ShipmentSearchText.Trim())}");
-        }
-
-        return query.Count == 0
-            ? "/shop/files/shipments/export.csv"
-            : "/shop/files/shipments/export.csv?" + string.Join("&", query);
+        var url = "/shop/files/shipments/export.csv";
+        url = AppendQueryParameter(url, "shopId", SelectedShopId == Guid.Empty ? null : SelectedShopId.ToString("D"));
+        url = AppendQueryParameter(url, "status", SelectedStatusFilter);
+        url = AppendQueryParameter(url, "trackingCode", ShipmentSearchText);
+        url = AppendQueryParameter(url, "receiverName", ReceiverNameSearchText);
+        url = AppendQueryParameter(url, "receiverPhone", ReceiverPhoneSearchText);
+        url = AppendQueryParameter(url, "fromUtc", ParseDateInput(FromDateInput, endOfDay: false)?.ToString("O"));
+        url = AppendQueryParameter(url, "toUtc", ParseDateInput(ToDateInput, endOfDay: true)?.ToString("O"));
+        url = AppendQueryParameter(url, "minCodAmount", ParseDecimalInput(MinCodAmountText)?.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        url = AppendQueryParameter(url, "maxCodAmount", ParseDecimalInput(MaxCodAmountText)?.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        url = AppendQueryParameter(url, "sortBy", ParseSortBy().ToString());
+        return AppendQueryParameter(url, "sortDirection", ParseSortDirection().ToString());
     }
 
     private string BuildLabelLink(Guid shipmentId)
@@ -806,6 +931,17 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
     private static string ToCsvField(string value)
     {
         return "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
+    }
+
+    private static string AppendQueryParameter(string url, string name, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return url;
+        }
+
+        var separator = url.Contains('?', StringComparison.Ordinal) ? "&" : "?";
+        return $"{url}{separator}{Uri.EscapeDataString(name)}={Uri.EscapeDataString(value.Trim())}";
     }
 
     private static string FormatDate(DateTimeOffset value)
@@ -845,6 +981,29 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
             ShipmentStatus.Cancelled => "Đã hủy",
             ShipmentStatus.Draft => "Draft",
             _ => status.ToString()
+        };
+    }
+
+    private static string FormatSortBy(ShopShipmentSortBy sortBy)
+    {
+        return sortBy switch
+        {
+            ShopShipmentSortBy.CreatedAt => "Created date",
+            ShopShipmentSortBy.TrackingCode => "Tracking code",
+            ShopShipmentSortBy.ReceiverName => "Receiver name",
+            ShopShipmentSortBy.CodAmount => "COD amount",
+            ShopShipmentSortBy.ShippingFee => "Shipping fee",
+            _ => sortBy.ToString()
+        };
+    }
+
+    private static string FormatSortDirection(SortDirection sortDirection)
+    {
+        return sortDirection switch
+        {
+            SortDirection.Ascending => "Ascending",
+            SortDirection.Descending => "Descending",
+            _ => sortDirection.ToString()
         };
     }
 

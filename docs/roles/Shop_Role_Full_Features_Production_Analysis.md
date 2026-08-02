@@ -258,3 +258,45 @@ Canonical checklist: `docs/roles/Implementation_Checklist_Current_Code.md`.
 - Implemented: Shop profile, multi-shop selection/create, create shipment, draft shipment, edit before pickup, submit draft, CSV import preview/confirm, CSV export endpoint, label PDF endpoint, COD report service, KPI service, advanced query filters.
 - Implemented but needs hardening: Shop profile audit, shipment create/draft/update/submit/cancel audit, import summary audit, label/export/report/KPI service contracts; dashboard UI should be switched fully to KPI aggregate service, and report UI should be added.
 - Remaining: address normalization, import background processing, PII masking policy, richer Excel export, production PDF barcode/QR rendering, and stronger UI rate limits.
+
+## Production-Ready Shop Progress Update - 2026-07-20
+
+Source plan: `task1.md`.
+
+### Completed in current scope
+
+| Task | Status | Completed scope |
+|---|---|---|
+| TASK-SHOP-1 Dashboard KPI | Completed | `/dashboard` now calls `IGetShopDashboardKpiService` for KPI cards/status distribution and only loads latest shipments via `SearchAsync(PageSize: 5)`. Date range query `fromUtc/toUtc` is supported. |
+| TASK-SHOP-2 COD report UI/export | Completed | Added `/shop/cod-report`, summary cards, detailed COD rows, shop/date filters, nav entry, and `GET /shop/files/cod-report.csv`. |
+| TASK-SHOP-3 Production label/AWB | Completed | Label PDF now renders a structured AWB-style layout with readable tracking code and vector Code39 barcode. Shipment detail has a label download action. Draft labels remain rejected. |
+| TASK-SHOP-4 Advanced filters/export parity | Completed | `/shipments` now exposes receiver name, receiver phone, date range, COD min/max, sort by, and sort direction. Shipment CSV export receives the same filter/sort contract. |
+| TASK-SHOP-7 PII/audit hardening | Partially completed | Shipment export and COD report export write audit events. Export audit metadata does not persist raw receiver name/phone filters. Full PII policy is still open. |
+| TASK-SHOP-8 UI action rate limiting | Partially completed | Added distributed-cache Shop UI action limiter and applied it to shipment export CSV, COD report CSV, and label PDF endpoints. Create/import component actions remain open. |
+
+### Backend/reporting changes
+
+- Added `IShopReportingRepository` and EF `ShopReportingRepository`.
+- Shop KPI now uses database-side `Count`, `Sum`, `GroupBy`, and COD join queries instead of application-level page iteration.
+- COD detail report uses a bounded DB query and keeps Shop ownership validation in Application through `IShopAccessService`.
+- Added export audit taxonomy:
+  - `shipment.export.created`
+  - `shop.cod_report.exported`
+
+### Remaining production debt
+
+| Area | Current debt | Recommended next step |
+|---|---|---|
+| Address normalization | Application layer still lacks shared province/ward taxonomy service. UI has Vietnam divisions for create shipment, but profile/import/create do not share one canonical validator. | Implement `IAdministrativeDivisionService`, normalize profile/create/draft/import addresses, and plan backfill for old text values. |
+| Background import | CSV preview/confirm is still request-bound. | Add import batch + row entities, hosted worker, progress UI, and error CSV endpoint. |
+| PII policy | Shop owner still sees/exports full phone/address. Only export audit metadata was hardened. | Add context-based masking service before adding Shop staff/sub-account/public share features. |
+| Rate limiting | File endpoints are throttled; create/import component actions are not yet throttled. | Inject limiter into create/import component flows and show user-friendly rate-limit errors. |
+| Shop audit visibility | Audit events exist but Shop has no self-service audit page. | Add `IGetShopAuditLogsService` and `/shop/audit` with masked JSON payloads. |
+| Partner API hardening | API usage dashboard, granular scopes, IP whitelist, DLQ retry UI, and key expiry warnings are still open. | Split into dedicated Partner API production PR. |
+| Notifications | No in-app notification model for shipment/COD events. | Add notification table/service after shipment/COD event taxonomy stabilizes. |
+| Excel/batch labels | CSV export and single PDF label exist; `.xlsx` and batch label PDF remain open. | Add after report/export UX stabilizes and PDF visual QA is available. |
+
+### Quality gate
+
+- `dotnet build Mini-logistics-manegemant-system.slnx -v:minimal`: passed.
+- `dotnet test Mini-logistics-manegemant-system.slnx -v:minimal`: passed, 175 tests.

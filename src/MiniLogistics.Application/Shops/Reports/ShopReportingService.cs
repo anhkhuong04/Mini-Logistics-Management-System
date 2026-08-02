@@ -1,6 +1,4 @@
-using MiniLogistics.Application.CashOnDelivery;
 using MiniLogistics.Application.Common;
-using MiniLogistics.Application.Shipments;
 using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Common;
@@ -10,27 +8,29 @@ namespace MiniLogistics.Application.Shops.Reports;
 
 public sealed class ShopReportingService : IGetShopCodReportService, IGetShopDashboardKpiService
 {
-    private const int PageSize = 100;
     private const int MaxRows = 10_000;
 
     private readonly IShopAccessService _shopAccessService;
-    private readonly IShipmentReadRepository _shipmentRepository;
-    private readonly ICodTransactionRepository _codTransactionRepository;
+    private readonly IShopReportingRepository _reportingRepository;
 
     public ShopReportingService(
         IShopAccessService shopAccessService,
-        IShipmentReadRepository shipmentRepository,
-        ICodTransactionRepository codTransactionRepository)
+        IShopReportingRepository reportingRepository)
     {
         _shopAccessService = shopAccessService;
-        _shipmentRepository = shipmentRepository;
-        _codTransactionRepository = codTransactionRepository;
+        _reportingRepository = reportingRepository;
     }
 
     public async Task<Result<ShopCodReportResponse>> GetAsync(
         GetShopCodReportQuery query,
         CancellationToken cancellationToken = default)
     {
+        var dateRangeValidation = ValidateDateRange(query.FromUtc, query.ToUtc);
+        if (dateRangeValidation.IsFailure)
+        {
+            return Result<ShopCodReportResponse>.Failure(dateRangeValidation.Error);
+        }
+
         var shopResult = await _shopAccessService.GetShopForUserAsync(
             query.OwnerUserId,
             query.ShopId,
@@ -41,27 +41,12 @@ public sealed class ShopReportingService : IGetShopCodReportService, IGetShopDas
             return Result<ShopCodReportResponse>.Failure(shopResult.Error);
         }
 
-        var shipments = await LoadShipmentsAsync(shopResult.Value.Id, query.FromUtc, query.ToUtc, cancellationToken);
-        var codByShipmentId = await _codTransactionRepository.GetByShipmentIdsAsync(
-            shipments.Select(shipment => shipment.Id).ToList(),
+        var rows = await _reportingRepository.GetCodReportRowsAsync(
+            shopResult.Value.Id,
+            query.FromUtc,
+            query.ToUtc,
+            MaxRows,
             cancellationToken);
-        var rows = shipments
-            .Where(shipment => codByShipmentId.ContainsKey(shipment.Id))
-            .Select(shipment =>
-            {
-                var cod = codByShipmentId[shipment.Id];
-                return new ShopCodReportRowResponse(
-                    shipment.Id,
-                    shipment.TrackingCode.Value,
-                    shipment.Status,
-                    cod.Status,
-                    cod.Amount.Amount,
-                    cod.CollectedAmount?.Amount,
-                    cod.DiscrepancyAmount?.Amount ?? 0m,
-                    cod.CollectedAtUtc,
-                    shipment.CreatedAtUtc);
-            })
-            .ToList();
 
         return Result<ShopCodReportResponse>.Success(new ShopCodReportResponse(
             shopResult.Value.Id,
@@ -77,6 +62,12 @@ public sealed class ShopReportingService : IGetShopCodReportService, IGetShopDas
         ShopDashboardKpiQuery query,
         CancellationToken cancellationToken = default)
     {
+        var dateRangeValidation = ValidateDateRange(query.FromUtc, query.ToUtc);
+        if (dateRangeValidation.IsFailure)
+        {
+            return Result<ShopDashboardKpiResponse>.Failure(dateRangeValidation.Error);
+        }
+
         var shopResult = await _shopAccessService.GetShopForUserAsync(
             query.OwnerUserId,
             query.ShopId,
@@ -87,76 +78,40 @@ public sealed class ShopReportingService : IGetShopCodReportService, IGetShopDas
             return Result<ShopDashboardKpiResponse>.Failure(shopResult.Error);
         }
 
-        var shipments = await LoadShipmentsAsync(shopResult.Value.Id, query.FromUtc, query.ToUtc, cancellationToken);
-        var codByShipmentId = await _codTransactionRepository.GetByShipmentIdsAsync(
-            shipments.Select(shipment => shipment.Id).ToList(),
+        var metrics = await _reportingRepository.GetDashboardKpiAsync(
+            shopResult.Value.Id,
+            query.FromUtc,
+            query.ToUtc,
             cancellationToken);
-        var nonDraftCount = shipments.Count(shipment => shipment.Status != ShipmentStatus.Draft);
-        var deliveredCount = shipments.Count(shipment => shipment.Status == ShipmentStatus.Delivered);
-        var returnedCount = shipments.Count(shipment => shipment.Status == ShipmentStatus.Returned);
-        var failedCount = shipments.Count(shipment => shipment.Status == ShipmentStatus.DeliveryFailed);
-        var countByStatus = shipments
-            .GroupBy(shipment => shipment.Status)
-            .ToDictionary(group => group.Key, group => group.Count());
+        var nonDraftCount = metrics.TotalShipments
+            - metrics.CountByStatus.GetValueOrDefault(ShipmentStatus.Draft);
 
         return Result<ShopDashboardKpiResponse>.Success(new ShopDashboardKpiResponse(
             shopResult.Value.Id,
-            shipments.Count,
-            deliveredCount,
-            returnedCount,
-            failedCount,
-            Rate(deliveredCount, nonDraftCount),
-            Rate(returnedCount, nonDraftCount),
-            Rate(failedCount, nonDraftCount),
-            shipments.Sum(shipment => shipment.ShippingFee.Amount),
-            codByShipmentId.Values.Where(cod => cod.Status == CodStatus.PendingCollection).Sum(cod => cod.Amount.Amount),
-            codByShipmentId.Values.Where(cod => cod.Status is CodStatus.Collected or CodStatus.Settled).Sum(cod => cod.CollectedAmount?.Amount ?? cod.Amount.Amount),
-            codByShipmentId.Values.Where(cod => cod.Status == CodStatus.Settled).Sum(cod => cod.CollectedAmount?.Amount ?? cod.Amount.Amount),
-            "VND",
-            countByStatus));
-    }
-
-    private async Task<IReadOnlyList<Shipment>> LoadShipmentsAsync(
-        Guid shopId,
-        DateTimeOffset? fromUtc,
-        DateTimeOffset? toUtc,
-        CancellationToken cancellationToken)
-    {
-        var shipments = new List<Shipment>();
-        var pageNumber = 1;
-        while (shipments.Count < MaxRows)
-        {
-            var page = await _shipmentRepository.SearchByShopAsync(
-                new ShopShipmentSearchCriteria(
-                    shopId,
-                    StatusFilter: null,
-                    TrackingCodeSearch: null,
-                    ReceiverNameSearch: null,
-                    ReceiverPhoneSearch: null,
-                    fromUtc,
-                    toUtc,
-                    MinCodAmount: null,
-                    MaxCodAmount: null,
-                    ShopShipmentSortBy.CreatedAt,
-                    SortDirection.Descending,
-                    pageNumber,
-                    PageSize),
-                cancellationToken);
-            shipments.AddRange(page.Items);
-
-            if (pageNumber >= page.TotalPages || page.Items.Count == 0)
-            {
-                break;
-            }
-
-            pageNumber++;
-        }
-
-        return shipments;
+            metrics.TotalShipments,
+            metrics.DeliveredShipments,
+            metrics.ReturnedShipments,
+            metrics.DeliveryFailedShipments,
+            Rate(metrics.DeliveredShipments, nonDraftCount),
+            Rate(metrics.ReturnedShipments, nonDraftCount),
+            Rate(metrics.DeliveryFailedShipments, nonDraftCount),
+            metrics.TotalShippingFee,
+            metrics.PendingCodAmount,
+            metrics.CollectedCodAmount,
+            metrics.SettledCodAmount,
+            metrics.Currency,
+            metrics.CountByStatus));
     }
 
     private static decimal Rate(int count, int total)
     {
         return total == 0 ? 0m : decimal.Round((decimal)count / total * 100m, 2);
+    }
+
+    private static Result ValidateDateRange(DateTimeOffset? fromUtc, DateTimeOffset? toUtc)
+    {
+        return fromUtc.HasValue && toUtc.HasValue && toUtc.Value < fromUtc.Value
+            ? Result.Failure(ApplicationErrors.ValidationFailed("To date must be greater than or equal to from date."))
+            : Result.Success();
     }
 }

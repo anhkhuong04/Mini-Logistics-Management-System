@@ -45,6 +45,9 @@ builder.Services.Configure<PublicTrackingRateLimitOptions>(
 builder.Services.AddSingleton<IPublicTrackingRateLimiter, DistributedCachePublicTrackingRateLimiter>();
 builder.Services.Configure<PartnerApiRateLimitOptions>(
     builder.Configuration.GetSection(PartnerApiRateLimitOptions.SectionName));
+builder.Services.Configure<ShopUiActionRateLimitOptions>(
+    builder.Configuration.GetSection(ShopUiActionRateLimitOptions.SectionName));
+builder.Services.AddSingleton<IShopUiActionRateLimiter, DistributedCacheShopUiActionRateLimiter>();
 if (string.Equals(
     builder.Configuration.GetValue<string>($"{PartnerApiRateLimitOptions.SectionName}:Mode"),
     "Distributed",

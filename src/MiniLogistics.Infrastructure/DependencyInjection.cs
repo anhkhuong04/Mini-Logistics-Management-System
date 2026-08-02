@@ -14,6 +14,7 @@ using MiniLogistics.Application.Outbox;
 using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Routing;
 using MiniLogistics.Application.Shops;
+using MiniLogistics.Application.Shops.Reports;
 using MiniLogistics.Application.Shippers;
 using MiniLogistics.Application.Shipments;
 using MiniLogistics.Application.Shipments.ProofOfDelivery;
@@ -98,6 +99,7 @@ public static class DependencyInjection
         services.AddScoped<IAdminAuditService, AdminAuditService>();
         services.AddScoped<IAdminDashboardMetricsRepository, AdminDashboardMetricsRepository>();
         services.AddScoped<IAdminCodReportRepository, AdminCodReportRepository>();
+        services.AddScoped<IShopReportingRepository, ShopReportingRepository>();
         services.AddScoped<IApplicationDbTransactionManager, ApplicationDbTransactionManager>();
         services.AddScoped<OutboxMessageRepository>();
         services.AddScoped<IOutboxMessageRepository>(provider => provider.GetRequiredService<OutboxMessageRepository>());

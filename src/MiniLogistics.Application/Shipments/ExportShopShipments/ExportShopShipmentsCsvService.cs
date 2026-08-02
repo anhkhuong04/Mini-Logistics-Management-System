@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Shops.ShopAccess;
 using MiniLogistics.Domain.Common;
@@ -14,13 +15,16 @@ public sealed class ExportShopShipmentsCsvService : IExportShopShipmentsCsvServi
 
     private readonly IShopAccessService _shopAccessService;
     private readonly IShipmentReadRepository _shipmentRepository;
+    private readonly IAdminAuditService _auditService;
 
     public ExportShopShipmentsCsvService(
         IShopAccessService shopAccessService,
-        IShipmentReadRepository shipmentRepository)
+        IShipmentReadRepository shipmentRepository,
+        IAdminAuditService auditService)
     {
         _shopAccessService = shopAccessService;
         _shipmentRepository = shipmentRepository;
+        _auditService = auditService;
     }
 
     public async Task<Result<ExportShopShipmentsCsvResponse>> ExportAsync(
@@ -56,8 +60,8 @@ public sealed class ExportShopShipmentsCsvService : IExportShopShipmentsCsvServi
                     command.ToUtc,
                     command.MinCodAmount,
                     command.MaxCodAmount,
-                    ShopShipmentSortBy.CreatedAt,
-                    SortDirection.Descending,
+                    command.SortBy,
+                    command.SortDirection,
                     pageNumber,
                     PageSize),
                 cancellationToken);
@@ -86,6 +90,31 @@ public sealed class ExportShopShipmentsCsvService : IExportShopShipmentsCsvServi
 
             pageNumber++;
         }
+
+        await _auditService.RecordAsync(
+            new AdminAuditEntry(
+                command.OwnerUserId,
+                AdminAuditActions.ShipmentExportCreated,
+                AdminAuditTargetTypes.Shop,
+                shop.Id,
+                NewValue: new
+                {
+                    command.StatusFilter,
+                    command.TrackingCodeSearch,
+                    HasReceiverNameSearch = !string.IsNullOrWhiteSpace(command.ReceiverNameSearch),
+                    HasReceiverPhoneSearch = !string.IsNullOrWhiteSpace(command.ReceiverPhoneSearch),
+                    command.FromUtc,
+                    command.ToUtc,
+                    command.MinCodAmount,
+                    command.MaxCodAmount,
+                    command.SortBy,
+                    command.SortDirection,
+                    ExportedRows = exportedRows,
+                    MaxRows
+                },
+                ActorRole: "Shop"),
+            cancellationToken);
+        await _auditService.SaveChangesAsync(cancellationToken);
 
         var fileName = $"shipments-{shop.Id:N}-{DateTime.UtcNow:yyyyMMddHHmmss}.csv";
         return Result<ExportShopShipmentsCsvResponse>.Success(new ExportShopShipmentsCsvResponse(

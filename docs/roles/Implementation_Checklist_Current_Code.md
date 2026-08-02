@@ -21,7 +21,7 @@ This checklist is the implementation-ready source for role docs. Codebase remain
 | Create shipment | Implemented but needs hardening | `CreateShipmentService`, `CreateShipment.razor` | Audit added; query/report/label remain separate work. |
 | Draft/edit/submit before pickup | Implemented but needs hardening | `DraftShipments/*`, `ShipmentDetail.razor` | Audit added for draft create/update/submit. |
 | CSV import | Partially implemented | `ImportShipments/*` | Preview/confirm exists; audit summary added; background import remains missing. |
-| Advanced filters/export/report/KPI/label | Implemented but needs hardening | `GetShipmentsForCurrentShop`, `ExportShopShipments`, `GenerateShipmentLabel`, `Shops/Reports`, `ShopShipmentFileEndpoints` | CSV export and label PDF endpoints exist; COD report/KPI services exist; dashboard UI still uses existing list model and should be switched fully to KPI service. |
+| Advanced filters/export/report/KPI/label | Implemented but needs hardening | `GetShipmentsForCurrentShop`, `ExportShopShipments`, `GenerateShipmentLabel`, `Shops/Reports`, `ShopShipmentFileEndpoints`, `Dashboard.razor`, `ShopCodReport.razor` | Dashboard uses KPI service and latest-shipment page query; COD report UI/export exists; shipment filters/export parity exists; label PDF includes Code39 barcode. Remaining hardening: address normalization, background import, full PII policy, create/import rate limits, audit visibility, Partner API hardening, notifications, `.xlsx`/batch labels. |
 
 ## Shipper
 
@@ -51,4 +51,4 @@ This checklist is the implementation-ready source for role docs. Codebase remain
 2. Operator permissions must remain behavior-compatible with current Admin/Operator roles.
 3. Audit keeps `AdminAuditLogs` storage for now; neutral taxonomy is implemented through constants and service usage.
 4. Shipper production core is now partially implemented: failure reason, optional GPS persistence, POD metadata, COD actual amount, daily summary and self availability.
-5. Shop label/export/report/KPI backend is implemented; next hardening is switching dashboard fully to aggregate service and adding richer report UI.
+5. Shop label/export/report/KPI UI is now implemented for core production flows; remaining Shop debt is address normalization, background import, full PII policy, create/import rate limits, audit visibility, Partner API hardening, notifications, and richer `.xlsx`/batch-label export.

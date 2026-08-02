@@ -1,7 +1,10 @@
 using System.Security.Claims;
+using MiniLogistics.Application.Shops.Reports;
+using MiniLogistics.Application.Shipments;
 using MiniLogistics.Application.Shipments.ExportShopShipments;
 using MiniLogistics.Application.Shipments.GenerateShipmentLabel;
 using MiniLogistics.Domain.Shipments;
+using MiniLogistics.Web.Services;
 
 namespace MiniLogistics.Web.Endpoints;
 
@@ -14,6 +17,7 @@ public static class ShopShipmentFileEndpoints
             .RequireAuthorization(policy => policy.RequireRole("Shop"));
 
         group.MapGet("/shipments/export.csv", ExportShipmentsAsync);
+        group.MapGet("/cod-report.csv", ExportCodReportAsync);
         group.MapGet("/shipments/{shipmentId:guid}/label.pdf", GenerateLabelAsync);
 
         return endpoints;
@@ -21,11 +25,17 @@ public static class ShopShipmentFileEndpoints
 
     private static async Task<IResult> ExportShipmentsAsync(
         HttpContext httpContext,
-        IExportShopShipmentsCsvService exportService)
+        IExportShopShipmentsCsvService exportService,
+        IShopUiActionRateLimiter rateLimiter)
     {
         if (!TryGetCurrentUserId(httpContext, out var userId))
         {
             return Results.Unauthorized();
+        }
+
+        if (!rateLimiter.TryAcquire(userId, ShopUiActionKind.ExportShipments, out var retryAfter))
+        {
+            return RateLimitExceeded(httpContext, retryAfter);
         }
 
         var query = httpContext.Request.Query;
@@ -40,7 +50,38 @@ public static class ShopShipmentFileEndpoints
                 ParseDateTimeOffset(query["fromUtc"].ToString()),
                 ParseDateTimeOffset(query["toUtc"].ToString()),
                 ParseDecimal(query["minCodAmount"].ToString()),
-                ParseDecimal(query["maxCodAmount"].ToString())),
+                ParseDecimal(query["maxCodAmount"].ToString()),
+                ParseEnum<ShopShipmentSortBy>(query["sortBy"].ToString()) ?? ShopShipmentSortBy.CreatedAt,
+                ParseEnum<SortDirection>(query["sortDirection"].ToString()) ?? SortDirection.Descending),
+            httpContext.RequestAborted);
+
+        return result.IsSuccess
+            ? Results.File(result.Value.Content, result.Value.ContentType, result.Value.FileName)
+            : Results.BadRequest(result.Error.Description);
+    }
+
+    private static async Task<IResult> ExportCodReportAsync(
+        HttpContext httpContext,
+        IExportShopCodReportCsvService exportService,
+        IShopUiActionRateLimiter rateLimiter)
+    {
+        if (!TryGetCurrentUserId(httpContext, out var userId))
+        {
+            return Results.Unauthorized();
+        }
+
+        if (!rateLimiter.TryAcquire(userId, ShopUiActionKind.ExportCodReport, out var retryAfter))
+        {
+            return RateLimitExceeded(httpContext, retryAfter);
+        }
+
+        var query = httpContext.Request.Query;
+        var result = await exportService.ExportAsync(
+            new ExportShopCodReportCsvCommand(
+                userId,
+                ParseGuid(query["shopId"].ToString()),
+                ParseDateTimeOffset(query["fromUtc"].ToString()),
+                ParseDateTimeOffset(query["toUtc"].ToString())),
             httpContext.RequestAborted);
 
         return result.IsSuccess
@@ -51,11 +92,17 @@ public static class ShopShipmentFileEndpoints
     private static async Task<IResult> GenerateLabelAsync(
         HttpContext httpContext,
         Guid shipmentId,
-        IGenerateShipmentLabelService labelService)
+        IGenerateShipmentLabelService labelService,
+        IShopUiActionRateLimiter rateLimiter)
     {
         if (!TryGetCurrentUserId(httpContext, out var userId))
         {
             return Results.Unauthorized();
+        }
+
+        if (!rateLimiter.TryAcquire(userId, ShopUiActionKind.GenerateLabel, out var retryAfter))
+        {
+            return RateLimitExceeded(httpContext, retryAfter);
         }
 
         var result = await labelService.GenerateAsync(
@@ -75,6 +122,15 @@ public static class ShopShipmentFileEndpoints
         return Guid.TryParse(
             httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier),
             out userId);
+    }
+
+    private static IResult RateLimitExceeded(HttpContext httpContext, TimeSpan retryAfter)
+    {
+        httpContext.Response.Headers.RetryAfter = Math.Ceiling(retryAfter.TotalSeconds).ToString();
+        return Results.Problem(
+            title: "Rate limit exceeded.",
+            detail: "Too many Shop file actions. Please retry later.",
+            statusCode: StatusCodes.Status429TooManyRequests);
     }
 
     private static Guid? ParseGuid(string value)

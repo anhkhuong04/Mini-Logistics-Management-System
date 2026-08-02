@@ -3,9 +3,11 @@
 @attribute [Authorize(Roles = "Shop")]
 @using System.Security.Claims
 @using MiniLogistics.Application.Shops.GetShopContext
+@using MiniLogistics.Application.Shops.Reports
 @using MiniLogistics.Application.Shipments.GetShipmentsForCurrentShop
 @using MiniLogistics.Domain.Shipments
 @inject IGetShopContextService GetShopContextService
+@inject IGetShopDashboardKpiService GetShopDashboardKpiService
 @inject IGetShipmentsForCurrentShopService GetShipmentsForCurrentShopService
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
@@ -15,22 +17,22 @@
 <div class="dashboard-page">
     <section class="dashboard-heading">
         <div>
-            <h1>Chào mừng trở lại, @ShopDisplayName!</h1>
-            <p>Dưới đây là tổng quan hoạt động vận chuyển từ dữ liệu đơn hàng hiện có.</p>
+            <h1>Shop Dashboard</h1>
+            <p>Tong quan van hanh cua @ShopDisplayName theo shop va khoang ngay dang chon.</p>
         </div>
 
         <div class="heading-actions">
             <a class="primary-action" href="@(BuildShopLink("/shipments/create"))">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" /></svg>
-                <span>Tạo đơn mới</span>
+                <span>Tao don moi</span>
             </a>
             <a class="secondary-action" href="/tracking">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 4a6.5 6.5 0 0 1 5.1 10.5l4 4-1.4 1.4-4-4A6.5 6.5 0 1 1 10.5 4Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" /></svg>
-                <span>Tra cứu đơn hàng</span>
+                <span>Tra cuu</span>
             </a>
             <a class="secondary-action" href="@(BuildShopLink("/shipments"))">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4h2v9.2l3.6-3.6L18 11l-6 6-6-6 1.4-1.4 3.6 3.6V4ZM5 19h14v2H5v-2Z" /></svg>
-                <span>Danh sách đơn</span>
+                <span>Danh sach don</span>
             </a>
         </div>
     </section>
@@ -53,6 +55,26 @@
                 @(SelectedShop?.IsActive == true ? "Active" : "Inactive")
             </span>
         </section>
+
+        <section class="dashboard-filter-bar" aria-label="Dashboard filters">
+            <label>
+                Tu ngay
+                <input type="date" value="@FromDateInput" @onchange="args => FromDateInput = args.Value?.ToString() ?? string.Empty" />
+            </label>
+            <label>
+                Den ngay
+                <input type="date" value="@ToDateInput" @onchange="args => ToDateInput = args.Value?.ToString() ?? string.Empty" />
+            </label>
+            <button type="button" class="secondary-action compact" @onclick="ApplyDateRangeAsync" disabled="@IsLoading">
+                Ap dung
+            </button>
+            <button type="button" class="secondary-action compact" @onclick="ClearDateRangeAsync" disabled="@(!HasDateRange || IsLoading)">
+                Reset
+            </button>
+            <a class="secondary-action compact" href="@(BuildShopLink("/shop/cod-report"))">
+                COD report
+            </a>
+        </section>
     }
 
     @if (!string.IsNullOrWhiteSpace(ErrorMessage))
@@ -66,7 +88,7 @@
             <span class="empty-icon">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-8-8V2Z" /></svg>
             </span>
-            <strong>Đang tải dữ liệu dashboard</strong>
+            <strong>Dang tai dashboard</strong>
         </section>
     }
     else
@@ -89,23 +111,23 @@
 
         <section class="dashboard-card latest-orders">
             <div class="card-header">
-                <h2>Đơn hàng mới nhất</h2>
-                <a class="card-link" href="@(BuildShopLink("/shipments"))">Xem tất cả</a>
+                <h2>Don hang moi nhat</h2>
+                <a class="card-link" href="@(BuildShopLink("/shipments"))">Xem tat ca</a>
             </div>
 
             <div class="table-wrap">
                 <table>
                     <thead>
                         <tr>
-                            <th>Mã vận đơn</th>
-                            <th>Người nhận</th>
-                            <th>Tuyến</th>
-                            <th>Cân tính phí</th>
-                            <th>Trạng thái</th>
+                            <th>Tracking</th>
+                            <th>Nguoi nhan</th>
+                            <th>Tuyen</th>
+                            <th>Can tinh phi</th>
+                            <th>Trang thai</th>
                             <th>COD</th>
-                            <th>Phí vận chuyển</th>
-                            <th>Ngày tạo</th>
-                            <th>Thao tác</th>
+                            <th>Phi van chuyen</th>
+                            <th>Ngay tao</th>
+                            <th>Thao tac</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -117,8 +139,8 @@
                                         <span>
                                             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" /></svg>
                                         </span>
-                                        <strong>Chưa có đơn hàng để hiển thị</strong>
-                                        <p>Tạo vận đơn đầu tiên để dashboard tự động cập nhật số liệu.</p>
+                                        <strong>Chua co don hang de hien thi</strong>
+                                        <p>Tao van don dau tien de dashboard tu dong cap nhat so lieu.</p>
                                     </div>
                                 </td>
                             </tr>
@@ -145,7 +167,7 @@
                                     <td>@FormatMoney(shipment.ShippingFeeAmount, shipment.Currency)</td>
                                     <td>@FormatDate(shipment.CreatedAtUtc)</td>
                                     <td>
-                                        <a class="icon-link" href="@(BuildShopLink($"/shipments/{shipment.ShipmentId}"))" aria-label="Xem chi tiết">
+                                        <a class="icon-link" href="@(BuildShopLink($"/shipments/{shipment.ShipmentId}"))" aria-label="Xem chi tiet">
                                             <svg viewBox="0 0 24 24" aria-hidden="true">
                                                 <path d="m9 6 6 6-6 6-1.4-1.4 4.6-4.6-4.6-4.6L9 6Z" />
                                             </svg>
@@ -158,22 +180,22 @@
                 </table>
             </div>
 
-            <a class="view-all" href="@(BuildShopLink(ShipmentItems.Count == 0 ? "/shipments/create" : "/shipments"))">
-                @(ShipmentItems.Count == 0 ? "Tạo đơn hàng đầu tiên" : "Mở danh sách đơn hàng")
+            <a class="view-all" href="@(BuildShopLink(LatestShipments.Count == 0 ? "/shipments/create" : "/shipments"))">
+                @(LatestShipments.Count == 0 ? "Tao don hang dau tien" : "Mo danh sach don hang")
             </a>
         </section>
 
         <section class="dashboard-bottom">
             <article class="dashboard-card status-card">
                 <div class="card-header">
-                    <h2>Đơn hàng theo trạng thái</h2>
-                    <a class="card-link" href="@(BuildShopLink("/shipments"))">Xem chi tiết</a>
+                    <h2>Don hang theo trang thai</h2>
+                    <a class="card-link" href="@(BuildShopLink("/shipments"))">Xem chi tiet</a>
                 </div>
 
                 <div class="status-content">
                     <div class="donut-empty">
-                        <strong>@ShipmentItems.Count</strong>
-                        <span>Tổng đơn</span>
+                        <strong>@(DashboardKpi?.TotalShipments ?? 0)</strong>
+                        <span>Tong don</span>
                     </div>
 
                     <div class="status-list">
@@ -197,6 +219,12 @@
     [SupplyParameterFromQuery(Name = "shopId")]
     public Guid? ShopId { get; set; }
 
+    [SupplyParameterFromQuery(Name = "fromUtc")]
+    public DateTimeOffset? FromUtc { get; set; }
+
+    [SupplyParameterFromQuery(Name = "toUtc")]
+    public DateTimeOffset? ToUtc { get; set; }
+
     private static readonly ShipmentStatus[] ActiveShipmentStatuses =
     [
         ShipmentStatus.Assigned,
@@ -204,17 +232,6 @@
         ShipmentStatus.PickedUp,
         ShipmentStatus.InTransit,
         ShipmentStatus.Delivering
-    ];
-
-    private static readonly ShipmentStatus[] PendingCodStatuses =
-    [
-        ShipmentStatus.PendingPickup,
-        ShipmentStatus.Assigned,
-        ShipmentStatus.PickingUp,
-        ShipmentStatus.PickedUp,
-        ShipmentStatus.InTransit,
-        ShipmentStatus.Delivering,
-        ShipmentStatus.DeliveryFailed
     ];
 
     private string ShopDisplayName { get; set; } = "Shop";
@@ -230,7 +247,7 @@
 
     private string? ErrorMessage { get; set; }
 
-    private IReadOnlyList<ShipmentListItemResponse> ShipmentItems { get; set; } = [];
+    private ShopDashboardKpiResponse? DashboardKpi { get; set; }
 
     private IReadOnlyList<ShipmentListItemResponse> LatestShipments { get; set; } = [];
 
@@ -238,11 +255,21 @@
 
     private IReadOnlyList<StatusRow> StatusRows { get; set; } = [];
 
+    private string FromDateInput { get; set; } = string.Empty;
+
+    private string ToDateInput { get; set; } = string.Empty;
+
+    private bool HasDateRange => !string.IsNullOrWhiteSpace(FromDateInput)
+        || !string.IsNullOrWhiteSpace(ToDateInput);
+
     protected override async Task OnParametersSetAsync()
     {
         IsLoading = true;
         ErrorMessage = null;
-        ShipmentItems = [];
+        DashboardKpi = null;
+        LatestShipments = [];
+        FromDateInput = FormatDateInput(FromUtc);
+        ToDateInput = FormatDateInput(ToUtc);
 
         var userId = await GetCurrentUserIdAsync();
         if (userId is null)
@@ -264,16 +291,39 @@
         SelectedShopId = contextResult.Value.SelectedShopId;
         ShopDisplayName = SelectedShop?.Name ?? "Shop";
 
-        var shipmentsResult = await GetShipmentsForCurrentShopService.GetAsync(userId.Value, SelectedShopId);
-        if (shipmentsResult.IsFailure)
+        var kpiResult = await GetShopDashboardKpiService.GetAsync(
+            new ShopDashboardKpiQuery(
+                OwnerUserId: userId.Value,
+                ShopId: SelectedShopId,
+                FromUtc: FromUtc,
+                ToUtc: ToUtc));
+        if (kpiResult.IsFailure)
         {
-            ErrorMessage = UiDisplay.ToErrorMessage(shipmentsResult.Error);
+            ErrorMessage = UiDisplay.ToErrorMessage(kpiResult.Error);
             IsLoading = false;
             BuildDashboardModel();
             return;
         }
 
-        ShipmentItems = shipmentsResult.Value;
+        DashboardKpi = kpiResult.Value;
+
+        var latestResult = await GetShipmentsForCurrentShopService.SearchAsync(
+            new GetShipmentsForCurrentShopQuery(
+                OwnerUserId: userId.Value,
+                ShopId: SelectedShopId,
+                FromUtc: FromUtc,
+                ToUtc: ToUtc,
+                PageNumber: 1,
+                PageSize: 5));
+        if (latestResult.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(latestResult.Error);
+            IsLoading = false;
+            BuildDashboardModel();
+            return;
+        }
+
+        LatestShipments = latestResult.Value.Items;
         IsLoading = false;
         BuildDashboardModel();
     }
@@ -282,8 +332,27 @@
     {
         if (Guid.TryParse(args.Value?.ToString(), out var shopId))
         {
-            NavigationManager.NavigateTo(BuildShopLink("/dashboard", shopId));
+            NavigationManager.NavigateTo(BuildDashboardLink(shopId, FromUtc, ToUtc));
         }
+    }
+
+    private Task ApplyDateRangeAsync()
+    {
+        NavigationManager.NavigateTo(BuildDashboardLink(
+            SelectedShopId,
+            ParseDateInput(FromDateInput, endOfDay: false),
+            ParseDateInput(ToDateInput, endOfDay: true)));
+
+        return Task.CompletedTask;
+    }
+
+    private Task ClearDateRangeAsync()
+    {
+        FromDateInput = string.Empty;
+        ToDateInput = string.Empty;
+        NavigationManager.NavigateTo(BuildDashboardLink(SelectedShopId, null, null));
+
+        return Task.CompletedTask;
     }
 
     private async Task<Guid?> GetCurrentUserIdAsync()
@@ -303,63 +372,54 @@
 
     private static string BuildShopLink(string path, Guid shopId)
     {
-        return shopId == Guid.Empty
-            ? path
-            : $"{path}?shopId={shopId:D}";
+        return AppendQueryParameter(path, "shopId", shopId == Guid.Empty ? null : shopId.ToString("D"));
     }
 
     private void BuildDashboardModel()
     {
-        LatestShipments = ShipmentItems.Take(5).ToList();
-
-        var totalShipments = ShipmentItems.Count;
+        var kpi = DashboardKpi;
+        var totalShipments = kpi?.TotalShipments ?? 0;
         var activeShipments = CountByStatuses(ActiveShipmentStatuses);
-        var deliveredShipments = CountByStatus(ShipmentStatus.Delivered);
-        var failedShipments = CountByStatus(ShipmentStatus.DeliveryFailed);
-        var pendingCodAmount = SumCodByStatuses(PendingCodStatuses);
-        var shippingFeeAmount = ShipmentItems.Sum(shipment => shipment.ShippingFeeAmount);
-        var currency = ShipmentItems.FirstOrDefault()?.Currency ?? "VND";
+        var deliveredShipments = kpi?.DeliveredShipments ?? 0;
+        var failedShipments = kpi?.DeliveryFailedShipments ?? 0;
+        var pendingCodAmount = kpi?.PendingCodAmount ?? 0m;
+        var shippingFeeAmount = kpi?.TotalShippingFee ?? 0m;
+        var currency = kpi?.Currency ?? "VND";
 
         StatisticCards =
         [
-            new("Tổng đơn hàng", totalShipments.ToString("N0"), "Tất cả đơn của shop", "blue", BoxIcon),
-            new("Đang vận chuyển", activeShipments.ToString("N0"), "Đơn chưa kết thúc", "amber", TruckIcon),
-            new("Giao thành công", deliveredShipments.ToString("N0"), "Đơn đã giao", "green", CheckIcon),
-            new("Giao thất bại", failedShipments.ToString("N0"), "Cần xử lý lại", "red", CloseIcon),
-            new("COD cần thu", FormatMoney(pendingCodAmount, currency), "Theo đơn chưa hoàn tất", "purple", CoinIcon),
-            new("Tổng phí vận chuyển", FormatMoney(shippingFeeAmount, currency), "Từ các đơn đã tạo", "blue", WalletIcon)
+            new("Tong don hang", totalShipments.ToString("N0"), "Theo filter hien tai", "blue", BoxIcon),
+            new("Dang van chuyen", activeShipments.ToString("N0"), "Don chua ket thuc", "amber", TruckIcon),
+            new("Giao thanh cong", deliveredShipments.ToString("N0"), $"Ty le {FormatPercentage(kpi?.DeliveredRate ?? 0m)}", "green", CheckIcon),
+            new("Giao that bai", failedShipments.ToString("N0"), $"Ty le {FormatPercentage(kpi?.DeliveryFailedRate ?? 0m)}", "red", CloseIcon),
+            new("COD can thu", FormatMoney(pendingCodAmount, currency), "Theo don COD pending", "purple", CoinIcon),
+            new("Tong phi van chuyen", FormatMoney(shippingFeeAmount, currency), "Tu aggregate KPI", "blue", WalletIcon)
         ];
 
         StatusRows =
         [
-            CreateStatusRow(ShipmentStatus.PendingPickup, "Chờ lấy hàng", "blue", totalShipments),
-            CreateStatusRow(ShipmentStatus.Assigned, "Đã phân công", "amber", totalShipments),
-            CreateStatusRow(ShipmentStatus.PickingUp, "Đang lấy hàng", "amber", totalShipments),
-            CreateStatusRow(ShipmentStatus.PickedUp, "Đã lấy hàng", "amber", totalShipments),
-            CreateStatusRow(ShipmentStatus.InTransit, "Đang vận chuyển", "purple", totalShipments),
-            CreateStatusRow(ShipmentStatus.Delivering, "Đang giao", "teal", totalShipments),
-            CreateStatusRow(ShipmentStatus.Delivered, "Đã giao", "green", totalShipments),
-            CreateStatusRow(ShipmentStatus.DeliveryFailed, "Giao thất bại", "red", totalShipments),
-            CreateStatusRow(ShipmentStatus.Returned, "Đã hoàn", "slate", totalShipments),
-            CreateStatusRow(ShipmentStatus.Cancelled, "Đã hủy", "slate", totalShipments)
+            CreateStatusRow(ShipmentStatus.Draft, "Draft", "slate", totalShipments),
+            CreateStatusRow(ShipmentStatus.PendingPickup, "Cho lay hang", "blue", totalShipments),
+            CreateStatusRow(ShipmentStatus.Assigned, "Da phan cong", "amber", totalShipments),
+            CreateStatusRow(ShipmentStatus.PickingUp, "Dang lay hang", "amber", totalShipments),
+            CreateStatusRow(ShipmentStatus.PickedUp, "Da lay hang", "amber", totalShipments),
+            CreateStatusRow(ShipmentStatus.InTransit, "Dang van chuyen", "purple", totalShipments),
+            CreateStatusRow(ShipmentStatus.Delivering, "Dang giao", "teal", totalShipments),
+            CreateStatusRow(ShipmentStatus.Delivered, "Da giao", "green", totalShipments),
+            CreateStatusRow(ShipmentStatus.DeliveryFailed, "Giao that bai", "red", totalShipments),
+            CreateStatusRow(ShipmentStatus.Returned, "Da hoan", "slate", totalShipments),
+            CreateStatusRow(ShipmentStatus.Cancelled, "Da huy", "slate", totalShipments)
         ];
     }
 
     private int CountByStatus(ShipmentStatus status)
     {
-        return ShipmentItems.Count(shipment => shipment.Status == status);
+        return DashboardKpi?.CountByStatus.GetValueOrDefault(status) ?? 0;
     }
 
     private int CountByStatuses(IReadOnlyCollection<ShipmentStatus> statuses)
     {
-        return ShipmentItems.Count(shipment => statuses.Contains(shipment.Status));
-    }
-
-    private decimal SumCodByStatuses(IReadOnlyCollection<ShipmentStatus> statuses)
-    {
-        return ShipmentItems
-            .Where(shipment => shipment.CodAmount > 0 && statuses.Contains(shipment.Status))
-            .Sum(shipment => shipment.CodAmount);
+        return statuses.Sum(CountByStatus);
     }
 
     private StatusRow CreateStatusRow(
@@ -386,13 +446,18 @@
         return $"{amount.ToString("N0")} {currency}";
     }
 
+    private static string FormatPercentage(decimal value)
+    {
+        return $"{value:N2}%";
+    }
+
     private static string FormatRouteType(RouteType routeType)
     {
         return routeType switch
         {
-            RouteType.IntraProvince => "Nội tỉnh",
-            RouteType.IntraRegion => "Nội vùng",
-            RouteType.InterRegion => "Liên vùng",
+            RouteType.IntraProvince => "Noi tinh",
+            RouteType.IntraRegion => "Noi vung",
+            RouteType.InterRegion => "Lien vung",
             _ => routeType.ToString()
         };
     }
@@ -401,16 +466,17 @@
     {
         return status switch
         {
-            ShipmentStatus.PendingPickup => "Chờ lấy hàng",
-            ShipmentStatus.Assigned => "Đã phân công",
-            ShipmentStatus.PickingUp => "Đang lấy hàng",
-            ShipmentStatus.PickedUp => "Đã lấy hàng",
-            ShipmentStatus.InTransit => "Đang vận chuyển",
-            ShipmentStatus.Delivering => "Đang giao",
-            ShipmentStatus.Delivered => "Đã giao",
-            ShipmentStatus.DeliveryFailed => "Giao thất bại",
-            ShipmentStatus.Returned => "Đã hoàn",
-            ShipmentStatus.Cancelled => "Đã hủy",
+            ShipmentStatus.PendingPickup => "Cho lay hang",
+            ShipmentStatus.Assigned => "Da phan cong",
+            ShipmentStatus.PickingUp => "Dang lay hang",
+            ShipmentStatus.PickedUp => "Da lay hang",
+            ShipmentStatus.InTransit => "Dang van chuyen",
+            ShipmentStatus.Delivering => "Dang giao",
+            ShipmentStatus.Delivered => "Da giao",
+            ShipmentStatus.DeliveryFailed => "Giao that bai",
+            ShipmentStatus.Returned => "Da hoan",
+            ShipmentStatus.Cancelled => "Da huy",
+            ShipmentStatus.Draft => "Draft",
             _ => status.ToString()
         };
     }
@@ -424,6 +490,40 @@
             ShipmentStatus.InTransit or ShipmentStatus.Delivering or ShipmentStatus.PickedUp => "info",
             _ => "warning"
         };
+    }
+
+    private static DateTimeOffset? ParseDateInput(string value, bool endOfDay)
+    {
+        if (!DateOnly.TryParse(value, out var date))
+        {
+            return null;
+        }
+
+        var time = endOfDay ? TimeOnly.MaxValue : TimeOnly.MinValue;
+        return new DateTimeOffset(date.ToDateTime(time), TimeSpan.Zero);
+    }
+
+    private static string FormatDateInput(DateTimeOffset? value)
+    {
+        return value?.UtcDateTime.ToString("yyyy-MM-dd") ?? string.Empty;
+    }
+
+    private static string BuildDashboardLink(Guid shopId, DateTimeOffset? fromUtc, DateTimeOffset? toUtc)
+    {
+        var url = BuildShopLink("/dashboard", shopId);
+        url = AppendQueryParameter(url, "fromUtc", fromUtc?.ToString("O"));
+        return AppendQueryParameter(url, "toUtc", toUtc?.ToString("O"));
+    }
+
+    private static string AppendQueryParameter(string url, string name, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return url;
+        }
+
+        var separator = url.Contains('?', StringComparison.Ordinal) ? "&" : "?";
+        return $"{url}{separator}{Uri.EscapeDataString(name)}={Uri.EscapeDataString(value)}";
     }
 
     private sealed record DashboardCard(string Label, string Value, string Note, string IconClass, string Icon);

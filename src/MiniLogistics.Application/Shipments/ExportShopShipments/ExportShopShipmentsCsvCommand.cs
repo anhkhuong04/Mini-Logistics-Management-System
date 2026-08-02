@@ -12,4 +12,6 @@ public sealed record ExportShopShipmentsCsvCommand(
     DateTimeOffset? FromUtc = null,
     DateTimeOffset? ToUtc = null,
     decimal? MinCodAmount = null,
-    decimal? MaxCodAmount = null);
+    decimal? MaxCodAmount = null,
+    ShopShipmentSortBy SortBy = ShopShipmentSortBy.CreatedAt,
+    SortDirection SortDirection = SortDirection.Descending);

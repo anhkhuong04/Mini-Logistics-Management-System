@@ -1,0 +1,387 @@
+@page "/shop/cod-report"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Shop")]
+@using System.Security.Claims
+@using MiniLogistics.Application.Shops.GetShopContext
+@using MiniLogistics.Application.Shops.Reports
+@using MiniLogistics.Domain.CashOnDelivery
+@using MiniLogistics.Domain.Shipments
+@inject IGetShopContextService GetShopContextService
+@inject IGetShopCodReportService GetShopCodReportService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject NavigationManager NavigationManager
+
+<PageTitle>Shop COD Report - MiniLogistics</PageTitle>
+
+<div class="shop-cod-page">
+    <div class="page-heading">
+        <div>
+            <h1>COD report</h1>
+            <p>Doi soat COD theo shop va khoang ngay, chi xem du lieu thuoc shop dang chon.</p>
+        </div>
+
+        <div class="heading-actions">
+            <a class="btn btn-outline-secondary action-button" href="@(BuildShopLink("/dashboard"))">Dashboard</a>
+            <a class="btn btn-primary action-button" href="@BuildExportLink()">Export CSV</a>
+        </div>
+    </div>
+
+    @if (ShopContext is not null)
+    {
+        <section class="shop-context-bar" aria-label="Shop context">
+            <label for="cod-report-shop-context">
+                Shop dang chon
+                <select id="cod-report-shop-context" value="@SelectedShopId" @onchange="OnShopChanged">
+                    @foreach (var shop in ShopContext.Shops)
+                    {
+                        <option value="@shop.ShopId">
+                            @shop.Name@(shop.IsActive ? string.Empty : " (Inactive)")
+                        </option>
+                    }
+                </select>
+            </label>
+            <span class="shop-context-status @(SelectedShop?.IsActive == true ? "active" : "inactive")">
+                @(SelectedShop?.IsActive == true ? "Active" : "Inactive")
+            </span>
+        </section>
+
+        <section class="cod-filter-bar" aria-label="COD report filters">
+            <label>
+                Tu ngay
+                <input type="date" value="@FromDateInput" @onchange="args => FromDateInput = args.Value?.ToString() ?? string.Empty" />
+            </label>
+            <label>
+                Den ngay
+                <input type="date" value="@ToDateInput" @onchange="args => ToDateInput = args.Value?.ToString() ?? string.Empty" />
+            </label>
+            <button type="button" class="btn btn-outline-secondary" @onclick="ApplyDateRangeAsync" disabled="@IsLoading">
+                Ap dung
+            </button>
+            <button type="button" class="btn btn-outline-secondary" @onclick="ClearDateRangeAsync" disabled="@(!HasDateRange || IsLoading)">
+                Reset
+            </button>
+        </section>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert alert-danger" role="alert">@ErrorMessage</div>
+    }
+    else if (IsLoading)
+    {
+        <section class="content-card state-card" aria-live="polite">
+            <strong>Dang tai COD report</strong>
+        </section>
+    }
+    else if (Report is not null)
+    {
+        <section class="cod-summary-grid" aria-label="COD summary">
+            <article>
+                <span>Pending</span>
+                <strong>@FormatMoney(Report.PendingCollectionAmount, Report.Currency)</strong>
+            </article>
+            <article>
+                <span>Collected</span>
+                <strong>@FormatMoney(Report.CollectedAmount, Report.Currency)</strong>
+            </article>
+            <article>
+                <span>Settled</span>
+                <strong>@FormatMoney(Report.SettledAmount, Report.Currency)</strong>
+            </article>
+            <article class="@(Report.DiscrepancyAmount > 0 ? "warning" : string.Empty)">
+                <span>Discrepancy</span>
+                <strong>@FormatMoney(Report.DiscrepancyAmount, Report.Currency)</strong>
+            </article>
+        </section>
+
+        <section class="content-card cod-table-card">
+            <div class="table-card-header">
+                <h2>Chi tiet COD</h2>
+                <span>@Report.Rows.Count.ToString("N0") rows</span>
+            </div>
+
+            @if (Report.Rows.Count == 0)
+            {
+                <div class="table-empty-state">
+                    <strong>Khong co COD transaction</strong>
+                    <p>Thu doi khoang ngay hoac shop dang chon.</p>
+                </div>
+            }
+            else
+            {
+                <div class="table-shell">
+                    <table class="cod-table">
+                        <thead>
+                            <tr>
+                                <th>Tracking</th>
+                                <th>Shipment</th>
+                                <th>COD</th>
+                                <th>Declared</th>
+                                <th>Collected</th>
+                                <th>Discrepancy</th>
+                                <th>Collected at</th>
+                                <th>Created at</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var row in Report.Rows)
+                            {
+                                <tr>
+                                    <td>
+                                        <a class="tracking-link" href="@(BuildShopLink($"/shipments/{row.ShipmentId}"))">
+                                            @row.TrackingCode
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <span class="status-pill @GetShipmentStatusClass(row.ShipmentStatus)">
+                                            @FormatShipmentStatus(row.ShipmentStatus)
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <span class="status-pill @GetCodStatusClass(row.CodStatus)">
+                                            @FormatCodStatus(row.CodStatus)
+                                        </span>
+                                    </td>
+                                    <td>@FormatMoney(row.DeclaredAmount, Report.Currency)</td>
+                                    <td>@(row.CollectedAmount.HasValue ? FormatMoney(row.CollectedAmount.Value, Report.Currency) : "-")</td>
+                                    <td class="@(row.DiscrepancyAmount > 0 ? "amount-warning" : string.Empty)">
+                                        @FormatMoney(row.DiscrepancyAmount, Report.Currency)
+                                    </td>
+                                    <td>@(row.CollectedAtUtc.HasValue ? FormatDate(row.CollectedAtUtc.Value) : "-")</td>
+                                    <td>@FormatDate(row.CreatedAtUtc)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </section>
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "shopId")]
+    public Guid? ShopId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "fromUtc")]
+    public DateTimeOffset? FromUtc { get; set; }
+
+    [SupplyParameterFromQuery(Name = "toUtc")]
+    public DateTimeOffset? ToUtc { get; set; }
+
+    private GetShopContextResponse? ShopContext { get; set; }
+
+    private Guid SelectedShopId { get; set; }
+
+    private ShopContextItemResponse? SelectedShop => ShopContext?.Shops
+        .FirstOrDefault(shop => shop.ShopId == SelectedShopId);
+
+    private ShopCodReportResponse? Report { get; set; }
+
+    private bool IsLoading { get; set; } = true;
+
+    private string? ErrorMessage { get; set; }
+
+    private string FromDateInput { get; set; } = string.Empty;
+
+    private string ToDateInput { get; set; } = string.Empty;
+
+    private bool HasDateRange => !string.IsNullOrWhiteSpace(FromDateInput)
+        || !string.IsNullOrWhiteSpace(ToDateInput);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+        Report = null;
+        FromDateInput = FormatDateInput(FromUtc);
+        ToDateInput = FormatDateInput(ToUtc);
+
+        var userId = await GetCurrentUserIdAsync();
+        if (userId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        var contextResult = await GetShopContextService.GetAsync(userId.Value, ShopId);
+        if (contextResult.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(contextResult.Error);
+            IsLoading = false;
+            return;
+        }
+
+        ShopContext = contextResult.Value;
+        SelectedShopId = contextResult.Value.SelectedShopId;
+
+        var reportResult = await GetShopCodReportService.GetAsync(
+            new GetShopCodReportQuery(
+                OwnerUserId: userId.Value,
+                ShopId: SelectedShopId,
+                FromUtc: FromUtc,
+                ToUtc: ToUtc));
+        if (reportResult.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(reportResult.Error);
+        }
+        else
+        {
+            Report = reportResult.Value;
+        }
+
+        IsLoading = false;
+    }
+
+    private void OnShopChanged(ChangeEventArgs args)
+    {
+        if (Guid.TryParse(args.Value?.ToString(), out var shopId))
+        {
+            NavigationManager.NavigateTo(BuildReportLink(shopId, FromUtc, ToUtc));
+        }
+    }
+
+    private Task ApplyDateRangeAsync()
+    {
+        NavigationManager.NavigateTo(BuildReportLink(
+            SelectedShopId,
+            ParseDateInput(FromDateInput, endOfDay: false),
+            ParseDateInput(ToDateInput, endOfDay: true)));
+
+        return Task.CompletedTask;
+    }
+
+    private Task ClearDateRangeAsync()
+    {
+        FromDateInput = string.Empty;
+        ToDateInput = string.Empty;
+        NavigationManager.NavigateTo(BuildReportLink(SelectedShopId, null, null));
+
+        return Task.CompletedTask;
+    }
+
+    private async Task<Guid?> GetCurrentUserIdAsync()
+    {
+        var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var userIdValue = authenticationState.User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        return Guid.TryParse(userIdValue, out var userId)
+            ? userId
+            : null;
+    }
+
+    private string BuildShopLink(string path)
+    {
+        return BuildShopLink(path, SelectedShopId);
+    }
+
+    private static string BuildShopLink(string path, Guid shopId)
+    {
+        return AppendQueryParameter(path, "shopId", shopId == Guid.Empty ? null : shopId.ToString("D"));
+    }
+
+    private string BuildExportLink()
+    {
+        var url = "/shop/files/cod-report.csv";
+        url = AppendQueryParameter(url, "shopId", SelectedShopId == Guid.Empty ? null : SelectedShopId.ToString("D"));
+        url = AppendQueryParameter(url, "fromUtc", FromUtc?.ToString("O"));
+        return AppendQueryParameter(url, "toUtc", ToUtc?.ToString("O"));
+    }
+
+    private static string BuildReportLink(Guid shopId, DateTimeOffset? fromUtc, DateTimeOffset? toUtc)
+    {
+        var url = BuildShopLink("/shop/cod-report", shopId);
+        url = AppendQueryParameter(url, "fromUtc", fromUtc?.ToString("O"));
+        return AppendQueryParameter(url, "toUtc", toUtc?.ToString("O"));
+    }
+
+    private static DateTimeOffset? ParseDateInput(string value, bool endOfDay)
+    {
+        if (!DateOnly.TryParse(value, out var date))
+        {
+            return null;
+        }
+
+        var time = endOfDay ? TimeOnly.MaxValue : TimeOnly.MinValue;
+        return new DateTimeOffset(date.ToDateTime(time), TimeSpan.Zero);
+    }
+
+    private static string FormatDateInput(DateTimeOffset? value)
+    {
+        return value?.UtcDateTime.ToString("yyyy-MM-dd") ?? string.Empty;
+    }
+
+    private static string AppendQueryParameter(string url, string name, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return url;
+        }
+
+        var separator = url.Contains('?', StringComparison.Ordinal) ? "&" : "?";
+        return $"{url}{separator}{Uri.EscapeDataString(name)}={Uri.EscapeDataString(value)}";
+    }
+
+    private static string FormatDate(DateTimeOffset value)
+    {
+        return UiDisplay.FormatLocalDateTime(value);
+    }
+
+    private static string FormatMoney(decimal amount, string currency)
+    {
+        return $"{amount.ToString("N0")} {currency}";
+    }
+
+    private static string FormatShipmentStatus(ShipmentStatus status)
+    {
+        return status switch
+        {
+            ShipmentStatus.PendingPickup => "Cho lay hang",
+            ShipmentStatus.Assigned => "Da phan cong",
+            ShipmentStatus.PickingUp => "Dang lay hang",
+            ShipmentStatus.PickedUp => "Da lay hang",
+            ShipmentStatus.InTransit => "Dang van chuyen",
+            ShipmentStatus.Delivering => "Dang giao",
+            ShipmentStatus.Delivered => "Da giao",
+            ShipmentStatus.DeliveryFailed => "Giao that bai",
+            ShipmentStatus.Returned => "Da hoan",
+            ShipmentStatus.Cancelled => "Da huy",
+            ShipmentStatus.Draft => "Draft",
+            _ => status.ToString()
+        };
+    }
+
+    private static string FormatCodStatus(CodStatus status)
+    {
+        return status switch
+        {
+            CodStatus.NotRequired => "Not required",
+            CodStatus.PendingCollection => "Pending",
+            CodStatus.Collected => "Collected",
+            CodStatus.Settled => "Settled",
+            _ => status.ToString()
+        };
+    }
+
+    private static string GetShipmentStatusClass(ShipmentStatus status)
+    {
+        return status switch
+        {
+            ShipmentStatus.Delivered => "success",
+            ShipmentStatus.Cancelled or ShipmentStatus.DeliveryFailed or ShipmentStatus.Returned => "danger",
+            ShipmentStatus.InTransit or ShipmentStatus.Delivering or ShipmentStatus.PickedUp => "info",
+            _ => "warning"
+        };
+    }
+
+    private static string GetCodStatusClass(CodStatus status)
+    {
+        return status switch
+        {
+            CodStatus.Settled => "success",
+            CodStatus.Collected => "info",
+            CodStatus.PendingCollection => "warning",
+            _ => "muted"
+        };
+    }
+}
