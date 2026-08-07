@@ -21,6 +21,10 @@ public sealed class WebhookEndpointConfiguration : IEntityTypeConfiguration<Webh
             .HasMaxLength(2048)
             .IsRequired();
 
+        builder.Property(endpoint => endpoint.SecretVersion)
+            .HasDefaultValue(1)
+            .IsRequired();
+
         builder.Property(endpoint => endpoint.IsActive)
             .IsRequired();
 

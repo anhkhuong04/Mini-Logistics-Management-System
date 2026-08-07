@@ -39,4 +39,12 @@ public static class PartnerApiErrors
     public static readonly Error RateLimitExceeded = new(
         "PartnerApi.RateLimitExceeded",
         "API client rate limit was exceeded.");
+
+    public static readonly Error RateLimitUnavailable = new(
+        "PartnerApi.RateLimitUnavailable",
+        "Request cannot be processed because the rate limit service is unavailable.");
+
+    public static readonly Error WebhookUrlResolutionFailed = new(
+        "PartnerApi.WebhookUrlResolutionFailed",
+        "Webhook hostname could not be resolved. Try again later.");
 }

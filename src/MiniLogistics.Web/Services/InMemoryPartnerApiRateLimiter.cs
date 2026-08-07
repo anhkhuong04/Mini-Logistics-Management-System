@@ -19,10 +19,10 @@ public sealed class InMemoryPartnerApiRateLimiter : IPartnerApiRateLimiter
         _timeProvider = timeProvider;
     }
 
-    public bool TryAcquire(
+    public ValueTask<PartnerApiRateLimitDecision> AcquireAsync(
         Guid apiClientId,
         PartnerApiRateLimitKind kind,
-        out TimeSpan retryAfter)
+        CancellationToken cancellationToken = default)
     {
         var now = _timeProvider.GetUtcNow();
         var limit = _options.GetLimit(kind);
@@ -42,17 +42,16 @@ public sealed class InMemoryPartnerApiRateLimiter : IPartnerApiRateLimiter
 
         if (counter.Count <= limit)
         {
-            retryAfter = TimeSpan.Zero;
-            return true;
+            return ValueTask.FromResult(PartnerApiRateLimitDecision.Allowed);
         }
 
-        retryAfter = Window - (now - counter.WindowStartedAtUtc);
+        var retryAfter = Window - (now - counter.WindowStartedAtUtc);
         if (retryAfter < TimeSpan.FromSeconds(1))
         {
             retryAfter = TimeSpan.FromSeconds(1);
         }
 
-        return false;
+        return ValueTask.FromResult(new PartnerApiRateLimitDecision(false, retryAfter));
     }
 
     private sealed record RateLimitKey(Guid ApiClientId, PartnerApiRateLimitKind Kind);

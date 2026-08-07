@@ -28,6 +28,7 @@ public sealed class WebhookEndpoint : AuditableEntity
         ApiClientId = apiClientId;
         Url = RequireUrl(url);
         ProtectedSigningSecret = DomainGuard.RequireText(protectedSigningSecret, nameof(protectedSigningSecret), 2048);
+        SecretVersion = 1;
         IsActive = true;
     }
 
@@ -37,12 +38,15 @@ public sealed class WebhookEndpoint : AuditableEntity
 
     public string ProtectedSigningSecret { get; private set; }
 
+    public int SecretVersion { get; private set; }
+
     public bool IsActive { get; private set; }
 
     public void Update(string url, string protectedSigningSecret, DateTimeOffset updatedAtUtc)
     {
         Url = RequireUrl(url);
         ProtectedSigningSecret = DomainGuard.RequireText(protectedSigningSecret, nameof(protectedSigningSecret), 2048);
+        SecretVersion++;
         MarkUpdated(updatedAtUtc);
     }
 
@@ -62,9 +66,9 @@ public sealed class WebhookEndpoint : AuditableEntity
     {
         var trimmed = DomainGuard.RequireText(value, nameof(value), 500);
         if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)
-            || uri.Scheme is not ("http" or "https"))
+            || uri.Scheme != Uri.UriSchemeHttps)
         {
-            throw new DomainException("Webhook URL must be an absolute HTTP or HTTPS URL.");
+            throw new DomainException("Webhook URL must be an absolute HTTPS URL.");
         }
 
         return trimmed;

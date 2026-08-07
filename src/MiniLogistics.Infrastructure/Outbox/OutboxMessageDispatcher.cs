@@ -7,6 +7,7 @@ using MiniLogistics.Application.Shops.Notifications;
 using MiniLogistics.Domain.Outbox;
 using MiniLogistics.Domain.PartnerApi;
 using MiniLogistics.Domain.Shops;
+using MiniLogistics.Infrastructure.PartnerApi;
 
 namespace MiniLogistics.Infrastructure.Outbox;
 
@@ -23,6 +24,7 @@ public sealed class OutboxMessageDispatcher
 
     private const int BatchSize = 20;
     private const int MaxAttempts = 5;
+    private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(5);
 
     private static readonly JsonSerializerOptions PayloadJsonOptions = new(JsonSerializerDefaults.Web);
 
@@ -32,6 +34,7 @@ public sealed class OutboxMessageDispatcher
     private readonly IShopRepository? _shopRepository;
     private readonly ILogger<OutboxMessageDispatcher> _logger;
     private readonly TimeProvider _timeProvider;
+    private readonly string _workerId = $"{Environment.MachineName}:{Environment.ProcessId}:{Guid.NewGuid():N}";
 
     public OutboxMessageDispatcher(
         IOutboxMessageRepository outboxMessageRepository,
@@ -51,14 +54,19 @@ public sealed class OutboxMessageDispatcher
 
     public async Task DispatchDueAsync(CancellationToken cancellationToken = default)
     {
-        var messages = await _outboxMessageRepository.GetDueAsync(
-            _timeProvider.GetUtcNow(),
+        var now = _timeProvider.GetUtcNow();
+        var messages = await _outboxMessageRepository.ClaimDueAsync(
+            _workerId,
+            now,
+            now + LeaseDuration,
             BatchSize,
             cancellationToken);
 
         foreach (var message in messages)
         {
+            PartnerApiWorkerTelemetry.RecordClaim("outbox", message.CreatedAtUtc, now);
             await DispatchAsync(message, cancellationToken);
+            PartnerApiWorkerTelemetry.RecordResult("outbox", message.Status.ToString());
         }
 
         if (messages.Count > 0)
@@ -71,8 +79,6 @@ public sealed class OutboxMessageDispatcher
         OutboxMessage message,
         CancellationToken cancellationToken)
     {
-        message.MarkProcessing(_timeProvider.GetUtcNow());
-
         try
         {
             if (message.Type == OutboxMessageTypes.ShopNotification)
@@ -104,7 +110,9 @@ public sealed class OutboxMessageDispatcher
                     payload.EventType,
                     payload.AggregateId,
                     payload.WebhookPayloadJson,
-                    _timeProvider.GetUtcNow());
+                    _timeProvider.GetUtcNow(),
+                    protectedSigningSecret: payload.ProtectedSigningSecret,
+                    secretVersion: payload.SecretVersion);
 
                 await _webhookDeliveryRepository.AddAsync(delivery, cancellationToken);
             }

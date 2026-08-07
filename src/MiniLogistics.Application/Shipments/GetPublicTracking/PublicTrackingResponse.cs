@@ -33,4 +33,7 @@ public sealed record PublicTrackingAddressResponse(
 
 public sealed record PublicTrackingTimelineItemResponse(
     ShipmentStatus Status,
+    string MessageCode,
+    string Message,
+    string Locale,
     DateTimeOffset ChangedAtUtc);

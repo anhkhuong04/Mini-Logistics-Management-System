@@ -560,12 +560,22 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("AggregateId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("AttemptId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<string>("LastError")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("LockedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset?>("LockedUntilUtc")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<DateTimeOffset?>("NextAttemptAtUtc")
                         .HasColumnType("datetimeoffset");
@@ -580,6 +590,12 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
 
                     b.Property<int>("RetryCount")
                         .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -598,9 +614,9 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("CreatedAtUtc");
 
-                    b.HasIndex("Status", "NextAttemptAtUtc");
-
                     b.HasIndex("Type", "AggregateId");
+
+                    b.HasIndex("Status", "NextAttemptAtUtc", "LockedUntilUtc");
 
                     b.ToTable("OutboxMessages", (string)null);
                 });
@@ -913,6 +929,9 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("ApiClientId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("AttemptId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<DateTimeOffset>("CreatedAtUtc")
                         .HasColumnType("datetimeoffset");
 
@@ -934,6 +953,13 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                     b.Property<int?>("LastResponseStatusCode")
                         .HasColumnType("int");
 
+                    b.Property<string>("LockedBy")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTimeOffset?>("LockedUntilUtc")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<DateTimeOffset?>("NextAttemptAtUtc")
                         .HasColumnType("datetimeoffset");
 
@@ -942,8 +968,23 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                         .HasMaxLength(4000)
                         .HasColumnType("nvarchar(4000)");
 
+                    b.Property<string>("ProtectedSigningSecret")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
                     b.Property<int>("RetryCount")
                         .HasColumnType("int");
+
+                    b.Property<byte[]>("RowVersion")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .ValueGeneratedOnAddOrUpdate()
+                        .HasColumnType("rowversion");
+
+                    b.Property<int>("SecretVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
 
                     b.Property<string>("Status")
                         .IsRequired()
@@ -964,7 +1005,7 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("WebhookEndpointId");
 
-                    b.HasIndex("Status", "NextAttemptAtUtc");
+                    b.HasIndex("Status", "NextAttemptAtUtc", "LockedUntilUtc");
 
                     b.ToTable("WebhookDeliveries", (string)null);
                 });
@@ -989,6 +1030,11 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2048)
                         .HasColumnType("nvarchar(2048)")
                         .HasColumnName("SigningSecret");
+
+                    b.Property<int>("SecretVersion")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
 
                     b.Property<DateTimeOffset?>("UpdatedAtUtc")
                         .HasColumnType("datetimeoffset");

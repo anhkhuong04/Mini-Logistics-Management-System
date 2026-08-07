@@ -22,13 +22,50 @@ public static class PartnerApiEndpoints
     {
         var group = endpoints
             .MapGroup("/api/v1/partner")
+            .WithGroupName("v1")
+            .WithTags("Partner API")
             .RequireCors(corsPolicyName)
             .AddEndpointFilter(AuditPartnerRequestAsync);
 
-        group.MapPost("/shipping/quote", QuoteAsync);
-        group.MapPost("/shipments", CreateShipmentAsync);
-        group.MapGet("/shipments/{trackingCode}", GetShipmentAsync);
-        group.MapPost("/shipments/{trackingCode}/cancel", CancelShipmentAsync);
+        group.MapPost("/shipping/quote", QuoteAsync)
+            .WithName("PartnerQuote")
+            .WithSummary("Calculate a shipping quote")
+            .Produces<PartnerShippingQuoteResponse>()
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status400BadRequest)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status401Unauthorized)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status403Forbidden)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status429TooManyRequests);
+        group.MapPost("/shipments", CreateShipmentAsync)
+            .WithName("PartnerCreateShipment")
+            .WithSummary("Create a shipment with an idempotency key")
+            .Produces<PartnerShipmentResponse>(StatusCodes.Status201Created)
+            .Produces<PartnerShipmentResponse>(StatusCodes.Status200OK)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status400BadRequest)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status401Unauthorized)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status403Forbidden)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status409Conflict)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status429TooManyRequests)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status503ServiceUnavailable);
+        group.MapGet("/shipments/{trackingCode}", GetShipmentAsync)
+            .WithName("PartnerTrackShipment")
+            .WithSummary("Track any shipment owned by the API client's shop")
+            .Produces<PartnerShipmentTrackingResponse>()
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status400BadRequest)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status401Unauthorized)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status403Forbidden)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status404NotFound)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status429TooManyRequests);
+        group.MapPost("/shipments/{trackingCode}/cancel", CancelShipmentAsync)
+            .WithName("PartnerCancelShipment")
+            .WithSummary("Cancel a shipment created by the same API client")
+            .Produces<PartnerShipmentTrackingResponse>()
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status400BadRequest)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status401Unauthorized)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status403Forbidden)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status404NotFound)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status409Conflict)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status429TooManyRequests)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status503ServiceUnavailable);
 
         return endpoints;
     }
@@ -51,9 +88,14 @@ public static class PartnerApiEndpoints
             return ToErrorResult(PartnerApiErrors.MissingScope, httpContext);
         }
 
-        if (!TryAcquireRateLimit(httpContext, rateLimiter, authenticationResult.Value.ApiClientId, PartnerApiRateLimitKind.Quote))
+        var rateLimitError = await AcquireRateLimitAsync(
+            httpContext,
+            rateLimiter,
+            authenticationResult.Value.ApiClientId,
+            PartnerApiRateLimitKind.Quote);
+        if (rateLimitError is not null)
         {
-            return ToErrorResult(PartnerApiErrors.RateLimitExceeded, httpContext);
+            return ToErrorResult(rateLimitError, httpContext);
         }
 
         if (request?.DeliveryAddress is null || request.Parcel is null)
@@ -105,9 +147,14 @@ public static class PartnerApiEndpoints
             return ToErrorResult(PartnerApiErrors.MissingScope, httpContext);
         }
 
-        if (!TryAcquireRateLimit(httpContext, rateLimiter, authenticationResult.Value.ApiClientId, PartnerApiRateLimitKind.CreateShipment))
+        var rateLimitError = await AcquireRateLimitAsync(
+            httpContext,
+            rateLimiter,
+            authenticationResult.Value.ApiClientId,
+            PartnerApiRateLimitKind.CreateShipment);
+        if (rateLimitError is not null)
         {
-            return ToErrorResult(PartnerApiErrors.RateLimitExceeded, httpContext);
+            return ToErrorResult(rateLimitError, httpContext);
         }
 
         var idempotencyKey = httpContext.Request.Headers["Idempotency-Key"].ToString().Trim();
@@ -217,9 +264,14 @@ public static class PartnerApiEndpoints
             return ToErrorResult(PartnerApiErrors.MissingScope, httpContext);
         }
 
-        if (!TryAcquireRateLimit(httpContext, rateLimiter, authenticationResult.Value.ApiClientId, PartnerApiRateLimitKind.Tracking))
+        var rateLimitError = await AcquireRateLimitAsync(
+            httpContext,
+            rateLimiter,
+            authenticationResult.Value.ApiClientId,
+            PartnerApiRateLimitKind.Tracking);
+        if (rateLimitError is not null)
         {
-            return ToErrorResult(PartnerApiErrors.RateLimitExceeded, httpContext);
+            return ToErrorResult(rateLimitError, httpContext);
         }
 
         var queryResult = await shipmentQueryService.GetAsync(new PartnerGetShipmentCommand(
@@ -252,9 +304,14 @@ public static class PartnerApiEndpoints
             return ToErrorResult(PartnerApiErrors.MissingScope, httpContext);
         }
 
-        if (!TryAcquireRateLimit(httpContext, rateLimiter, authenticationResult.Value.ApiClientId, PartnerApiRateLimitKind.CancelShipment))
+        var rateLimitError = await AcquireRateLimitAsync(
+            httpContext,
+            rateLimiter,
+            authenticationResult.Value.ApiClientId,
+            PartnerApiRateLimitKind.CancelShipment);
+        if (rateLimitError is not null)
         {
-            return ToErrorResult(PartnerApiErrors.RateLimitExceeded, httpContext);
+            return ToErrorResult(rateLimitError, httpContext);
         }
 
         var cancelResult = await cancelShipmentService.CancelAsync(new PartnerCancelShipmentCommand(
@@ -350,19 +407,25 @@ public static class PartnerApiEndpoints
         return (context.Scopes & requiredScope) == requiredScope;
     }
 
-    private static bool TryAcquireRateLimit(
+    private static async ValueTask<Error?> AcquireRateLimitAsync(
         HttpContext httpContext,
         IPartnerApiRateLimiter rateLimiter,
         Guid apiClientId,
         PartnerApiRateLimitKind kind)
     {
-        var isAllowed = rateLimiter.TryAcquire(apiClientId, kind, out var retryAfter);
-        if (!isAllowed)
+        var decision = await rateLimiter.AcquireAsync(
+            apiClientId,
+            kind,
+            httpContext.RequestAborted);
+        if (decision.IsAllowed)
         {
-            httpContext.Response.Headers.RetryAfter = Math.Ceiling(retryAfter.TotalSeconds).ToString("0");
+            return null;
         }
 
-        return isAllowed;
+        httpContext.Response.Headers.RetryAfter = Math.Ceiling(decision.RetryAfter.TotalSeconds).ToString("0");
+        return decision.StoreUnavailable
+            ? PartnerApiErrors.RateLimitUnavailable
+            : PartnerApiErrors.RateLimitExceeded;
     }
 
     private static async Task AuditCreateShipmentAsync(
@@ -446,6 +509,7 @@ public static class PartnerApiEndpoints
             "PartnerApi.ApiClientInactive" or "PartnerApi.ApiClientExpired" or "PartnerApi.IpNotAllowed"
                 or "PartnerApi.MissingScope" or "PartnerApi.ShopInactive" or "Application.Forbidden" => StatusCodes.Status403Forbidden,
             "PartnerApi.RateLimitExceeded" => StatusCodes.Status429TooManyRequests,
+            "PartnerApi.RateLimitUnavailable" => StatusCodes.Status503ServiceUnavailable,
             "Application.NotFound" => StatusCodes.Status404NotFound,
             "Application.Conflict" or "PartnerApi.IdempotencyConflict" => StatusCodes.Status409Conflict,
             "Application.ValidationFailed" => StatusCodes.Status400BadRequest,

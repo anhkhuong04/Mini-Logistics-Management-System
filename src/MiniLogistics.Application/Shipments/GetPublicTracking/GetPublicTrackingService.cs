@@ -56,9 +56,18 @@ public sealed class GetPublicTrackingService : IGetPublicTrackingService
         var isVerified = accessLevel == PublicTrackingAccessLevel.Verified;
         var timeline = shipment.StatusHistory
             .OrderBy(history => history.ChangedAtUtc)
-            .Select(history => new PublicTrackingTimelineItemResponse(
-                history.Status,
-                history.ChangedAtUtc))
+            .Select(history =>
+            {
+                var publicMessage = ShipmentPublicStatusMessageMapper.FromHistory(
+                    history.Status,
+                    history.FailureReasonCode);
+                return new PublicTrackingTimelineItemResponse(
+                    history.Status,
+                    publicMessage.MessageCode,
+                    publicMessage.Message,
+                    publicMessage.Locale,
+                    history.ChangedAtUtc);
+            })
             .ToList();
         var lastUpdatedAtUtc = timeline.Count > 0
             ? timeline[^1].ChangedAtUtc

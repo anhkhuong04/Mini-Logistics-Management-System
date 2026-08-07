@@ -45,6 +45,7 @@ public static class AdminAuditActions
     public const string PartnerWebhookEndpointUpserted = "partner_webhook_endpoint.upserted";
     public const string PartnerWebhookTestQueued = "partner_webhook.test_queued";
     public const string PartnerWebhookDeliveryRetried = "partner_webhook.delivery_retried";
+    public const string PartnerOutboxMessageRetried = "partner_outbox.message_retried";
     public const string RouteRegionConfigChanged = "route_region_config.changed";
     public const string FeeRuleVersionCreated = "fee_rule.version_created";
 }

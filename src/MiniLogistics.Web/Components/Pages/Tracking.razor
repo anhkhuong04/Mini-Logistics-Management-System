@@ -176,6 +176,7 @@
                             <span class="timeline-dot"></span>
                             <div>
                                 <strong>@FormatStatus(item.Status)</strong>
+                                <p>@item.Message</p>
                                 <time>@FormatDate(item.ChangedAtUtc)</time>
                             </div>
                         </li>
@@ -328,12 +329,6 @@
     private string GetClientKey()
     {
         var httpContext = HttpContextAccessor.HttpContext;
-        var forwardedFor = httpContext?.Request.Headers["X-Forwarded-For"].FirstOrDefault();
-        if (!string.IsNullOrWhiteSpace(forwardedFor))
-        {
-            return forwardedFor.Split(',')[0].Trim();
-        }
-
         return httpContext?.Connection.RemoteIpAddress?.ToString() ?? "unknown-circuit";
     }
 

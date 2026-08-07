@@ -31,12 +31,18 @@ public sealed class OutboxMessageConfiguration : IEntityTypeConfiguration<Outbox
         builder.Property(message => message.LastError)
             .HasMaxLength(1000);
 
+        builder.Property(message => message.LockedBy)
+            .HasMaxLength(200);
+
+        builder.Property(message => message.RowVersion)
+            .IsRowVersion();
+
         builder.Property(message => message.CreatedAtUtc)
             .IsRequired();
 
         builder.Property(message => message.UpdatedAtUtc);
 
-        builder.HasIndex(message => new { message.Status, message.NextAttemptAtUtc });
+        builder.HasIndex(message => new { message.Status, message.NextAttemptAtUtc, message.LockedUntilUtc });
         builder.HasIndex(message => new { message.Type, message.AggregateId });
         builder.HasIndex(message => message.CreatedAtUtc);
     }

@@ -6,7 +6,7 @@ namespace MiniLogistics.Application.PartnerApi;
 
 public sealed record PartnerShipmentTrackingResponse(
     string TrackingCode,
-    string ExternalOrderId,
+    string? ExternalOrderId,
     [property: JsonConverter(typeof(JsonStringEnumConverter<ShipmentStatus>))]
     ShipmentStatus Status,
     [property: JsonConverter(typeof(JsonStringEnumConverter<CodStatus>))]
@@ -18,5 +18,7 @@ public sealed record PartnerShipmentTrackingResponse(
 public sealed record PartnerShipmentTimelineItem(
     [property: JsonConverter(typeof(JsonStringEnumConverter<ShipmentStatus>))]
     ShipmentStatus Status,
-    string Note,
+    string MessageCode,
+    string Message,
+    string Locale,
     DateTimeOffset ChangedAtUtc);

@@ -50,6 +50,59 @@ public sealed class PartnerApiServiceTests
     }
 
     [Fact]
+    public async Task Authenticate_RepeatedWithinUsageWindowDoesNotWriteLastUsedAgain()
+    {
+        var shop = CreateShop(_ownerUserId);
+        var apiClient = CreateApiClient(shop.Id);
+        var repository = new FakeApiClientRepository([apiClient]);
+        var service = new PartnerApiAuthenticationService(
+            repository,
+            new FakeShopRepository([shop]),
+            TestClock.Provider);
+
+        var first = await service.AuthenticateAsync($"Bearer {RawApiKey}");
+        var second = await service.AuthenticateAsync($"Bearer {RawApiKey}");
+
+        Assert.True(first.IsSuccess);
+        Assert.True(second.IsSuccess);
+        Assert.Equal(1, repository.SaveChangesCount);
+    }
+
+    [Fact]
+    public async Task Authenticate_KeyFromWrongEnvironmentIsRejectedBeforeDatabaseLookup()
+    {
+        var repository = new FakeApiClientRepository([]);
+        var service = new PartnerApiAuthenticationService(
+            repository,
+            new FakeShopRepository([]),
+            TestClock.Provider,
+            apiCredentialPolicy: new EnvironmentApiCredentialPolicy("Live"));
+
+        var result = await service.AuthenticateAsync($"Bearer {RawApiKey}");
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(PartnerApiErrors.InvalidApiKey, result.Error);
+        Assert.Equal(0, repository.SaveChangesCount);
+    }
+
+    [Fact]
+    public void ApiCredentialPolicy_GeneratesEnvironmentSpecificKeys()
+    {
+        var sandbox = new EnvironmentApiCredentialPolicy("Sandbox");
+        var live = new EnvironmentApiCredentialPolicy("Live");
+
+        var sandboxKey = sandbox.GenerateApiKey();
+        var liveKey = live.GenerateApiKey();
+
+        Assert.StartsWith("ml_test_", sandboxKey, StringComparison.Ordinal);
+        Assert.StartsWith("ml_live_", liveKey, StringComparison.Ordinal);
+        Assert.True(sandbox.IsAllowed(sandboxKey));
+        Assert.False(sandbox.IsAllowed(liveKey));
+        Assert.True(live.IsAllowed(liveKey));
+        Assert.False(live.IsAllowed(sandboxKey));
+    }
+
+    [Fact]
     public async Task Authenticate_InactiveApiClient_IsRejected()
     {
         var apiClient = CreateApiClient(Guid.NewGuid());
@@ -388,7 +441,7 @@ public sealed class PartnerApiServiceTests
     }
 
     [Fact]
-    public async Task GetShipment_OtherApiClientOnSameShopCannotAccessReference()
+    public async Task GetShipment_OtherApiClientOnSameShopCanTrackWithoutExternalOrderId()
     {
         var shop = CreateShop(_ownerUserId);
         var apiClientId = Guid.NewGuid();
@@ -414,8 +467,130 @@ public sealed class PartnerApiServiceTests
             createResult.Value.Shipment.TrackingCode));
 
         Assert.True(createResult.IsSuccess);
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.ExternalOrderId);
+        Assert.Equal(createResult.Value.Shipment.TrackingCode, result.Value.TrackingCode);
+    }
+
+    [Fact]
+    public async Task GetShipment_ShopShipmentWithoutApiReferenceCanBeTracked()
+    {
+        var shop = CreateShop(_ownerUserId);
+        var apiClientId = Guid.NewGuid();
+        var shipmentRepository = new FakeShipmentRepository([]);
+        var createResult = await CreateShipmentService(
+            shop,
+            shipmentRepository,
+            new FakeCodTransactionRepository([]),
+            new FakeExternalShipmentReferenceRepository([]))
+            .CreateAsync(CreateShipmentCommand(Guid.NewGuid(), shop.Id));
+        var shipment = shipmentRepository.Shipments.Single();
+        var queryService = CreateShipmentQueryService(
+            shop,
+            shipmentRepository,
+            new FakeCodTransactionRepository([]),
+            new FakeExternalShipmentReferenceRepository([]));
+
+        var result = await queryService.GetAsync(new PartnerGetShipmentCommand(
+            apiClientId,
+            shop.Id,
+            shipment.TrackingCode.Value));
+
+        Assert.True(createResult.IsSuccess);
+        Assert.True(result.IsSuccess);
+        Assert.Null(result.Value.ExternalOrderId);
+        Assert.Equal(shipment.TrackingCode.Value, result.Value.TrackingCode);
+    }
+
+    [Fact]
+    public async Task GetShipment_DraftShopShipmentIsNotExposed()
+    {
+        var shop = CreateShop(_ownerUserId);
+        var address = new Address("9 Le Loi", "Ben Nghe", "Ho Chi Minh");
+        var weight = new Weight(1m);
+        var draft = Shipment.CreateDraft(
+            shop.Id,
+            "Sender",
+            new PhoneNumber("0900000001"),
+            "Receiver",
+            new PhoneNumber("0911111111"),
+            address,
+            address,
+            weight,
+            new ParcelDimensions(10m, 10m, 10m),
+            weight,
+            new Money(100_000m),
+            Money.Zero,
+            new ShippingFeeBreakdown(new Money(30_000m), Money.Zero, Money.Zero, Money.Zero),
+            RouteType.IntraProvince,
+            _ownerUserId,
+            TestClock.UtcNow);
+        var queryService = CreateShipmentQueryService(
+            shop,
+            new FakeShipmentRepository([draft]),
+            new FakeCodTransactionRepository([]),
+            new FakeExternalShipmentReferenceRepository([]));
+
+        var result = await queryService.GetAsync(new PartnerGetShipmentCommand(
+            Guid.NewGuid(),
+            shop.Id,
+            draft.TrackingCode.Value));
+
         Assert.True(result.IsFailure);
         Assert.Equal("Application.NotFound", result.Error.Code);
+    }
+
+    [Fact]
+    public async Task GetShipment_TimelineDoesNotExposeInternalNote()
+    {
+        const string internalNote = "Phone 0909123456; email customer@example.test; address 9 Le Loi; GPS 10.77,106.69; token secret-token-7788.";
+        var shop = CreateShop(_ownerUserId);
+        var shipmentRepository = new FakeShipmentRepository([]);
+        var createResult = await CreateShipmentService(
+            shop,
+            shipmentRepository,
+            new FakeCodTransactionRepository([]),
+            new FakeExternalShipmentReferenceRepository([]))
+            .CreateAsync(CreateShipmentCommand(Guid.NewGuid(), shop.Id));
+        var shipment = shipmentRepository.Shipments.Single();
+        var updateResult = shipment.AssignShipper(
+            Guid.NewGuid(),
+            _ownerUserId,
+            TestClock.UtcNow.AddMinutes(1),
+            internalNote);
+        var queryService = CreateShipmentQueryService(
+            shop,
+            shipmentRepository,
+            new FakeCodTransactionRepository([]),
+            new FakeExternalShipmentReferenceRepository([]));
+
+        var result = await queryService.GetAsync(new PartnerGetShipmentCommand(
+            Guid.NewGuid(),
+            shop.Id,
+            shipment.TrackingCode.Value));
+
+        Assert.True(createResult.IsSuccess);
+        Assert.True(updateResult.IsSuccess);
+        Assert.True(result.IsSuccess);
+        foreach (var sensitiveValue in new[]
+                 {
+                     "0909123456",
+                     "customer@example.test",
+                     "9 Le Loi",
+                     "10.77,106.69",
+                     "secret-token-7788"
+                 })
+        {
+            Assert.DoesNotContain(
+                result.Value.Timeline,
+                item => item.Message.Contains(sensitiveValue, StringComparison.Ordinal));
+        }
+
+        var assignedItem = Assert.Single(
+            result.Value.Timeline,
+            item => item.MessageCode == "SHIPMENT_ASSIGNED");
+        Assert.Equal("vi-VN", assignedItem.Locale);
+        Assert.DoesNotContain("7788", assignedItem.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -770,7 +945,7 @@ public sealed class PartnerApiServiceTests
             _ownerUserId,
             apiClient.Id,
             "https://partner.example.test/webhooks/minilogistics",
-            "secret-for-signing"));
+            "secret-for-signing-at-least-32-bytes-long"));
         var testResult = await service.TestWebhookAsync(new TestPartnerWebhookCommand(
             _ownerUserId,
             apiClient.Id));
@@ -786,6 +961,43 @@ public sealed class PartnerApiServiceTests
         Assert.Single(deliveryRepository.Deliveries);
         Assert.Equal(WebhookEventTypes.WebhookTest, deliveryRepository.Deliveries.Single().EventType);
         Assert.Equal(WebhookDeliveryStatus.Pending, deliveryRepository.Deliveries.Single().Status);
+    }
+
+    [Fact]
+    public async Task IntegrationManagement_OutboxFailureIsScopedSanitizedAndCanBeRetried()
+    {
+        var shop = CreateShop(_ownerUserId);
+        var otherShop = CreateShop(Guid.NewGuid());
+        var apiClient = CreateApiClient(shop.Id);
+        var otherClient = CreateApiClient(otherShop.Id);
+        var failedMessage = CreateFailedWebhookOutbox(apiClient.Id, "secret-token-in-error");
+        var otherMessage = CreateFailedWebhookOutbox(otherClient.Id, "other-shop-error");
+        var outboxRepository = new FakeOutboxMessageRepository([failedMessage, otherMessage]);
+        var auditRepository = new FakePartnerApiCredentialAuditRepository([]);
+        var service = CreateIntegrationManagementFacade(
+            FakeIdentityService.For(_ownerUserId, UserRole.Shop),
+            new FakeShopRepository([shop, otherShop]),
+            new FakeApiClientRepository([apiClient, otherClient]),
+            new FakeWebhookEndpointRepository([]),
+            new FakeWebhookDeliveryRepository([]),
+            auditRepository,
+            outboxMessageRepository: outboxRepository);
+
+        var dashboardResult = await service.GetDashboardAsync(_ownerUserId);
+        var retryResult = await service.RetryOutboxMessageAsync(
+            new RetryPartnerOutboxMessageCommand(_ownerUserId, failedMessage.Id));
+
+        Assert.True(dashboardResult.IsSuccess);
+        var failure = Assert.Single(dashboardResult.Value.OutboxFailures!);
+        Assert.Equal(failedMessage.Id, failure.OutboxMessageId);
+        Assert.Equal(apiClient.Id, failure.ApiClientId);
+        Assert.DoesNotContain("secret-token", failure.Error, StringComparison.Ordinal);
+        Assert.True(retryResult.IsSuccess);
+        Assert.Equal(OutboxMessageStatus.Pending, failedMessage.Status);
+        Assert.Equal(1, outboxRepository.SaveChangesCount);
+        Assert.Contains(
+            auditRepository.Audits,
+            audit => audit.Action == PartnerApiCredentialAuditActions.OutboxMessageRetried);
     }
 
     [Fact]
@@ -856,7 +1068,7 @@ public sealed class PartnerApiServiceTests
     [Fact]
     public async Task IntegrationManagement_WebhookSecretIsProtectedAndAuditDoesNotContainRawSecret()
     {
-        const string rawSecret = "secret-for-signing";
+        const string rawSecret = "secret-for-signing-at-least-32-bytes-long";
         var shop = CreateShop(_ownerUserId);
         var apiClient = CreateApiClient(shop.Id);
         var endpointRepository = new FakeWebhookEndpointRepository([]);
@@ -888,6 +1100,57 @@ public sealed class PartnerApiServiceTests
         Assert.DoesNotContain(rawSecret, audit.Action, StringComparison.Ordinal);
         Assert.DoesNotContain(rawSecret, audit.ErrorCode ?? string.Empty, StringComparison.Ordinal);
         Assert.DoesNotContain(rawSecret, audit.ErrorMessage ?? string.Empty, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task IntegrationManagement_WebhookUrlQueryIsRedactedFromAdminAudit()
+    {
+        const string sensitiveToken = "sensitive-token-in-query";
+        var shop = CreateShop(_ownerUserId);
+        var apiClient = CreateApiClient(shop.Id);
+        var adminAuditService = new RecordingAdminAuditService();
+        var service = CreateIntegrationManagementFacade(
+            FakeIdentityService.For(_ownerUserId, UserRole.Shop),
+            new FakeShopRepository([shop]),
+            new FakeApiClientRepository([apiClient]),
+            new FakeWebhookEndpointRepository([]),
+            new FakeWebhookDeliveryRepository([]),
+            adminAuditService: adminAuditService);
+
+        var result = await service.UpsertWebhookEndpointAsync(new UpsertPartnerWebhookEndpointCommand(
+            _ownerUserId,
+            apiClient.Id,
+            $"https://partner.example.test/webhooks/minilogistics?token={sensitiveToken}",
+            "secret-for-signing-at-least-32-bytes-long"));
+
+        Assert.True(result.IsSuccess);
+        var serializedAudit = JsonSerializer.Serialize(Assert.Single(adminAuditService.Entries));
+        Assert.DoesNotContain(sensitiveToken, serializedAudit, StringComparison.Ordinal);
+        Assert.Contains("redacted", serializedAudit, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task IntegrationManagement_WebhookSecretShorterThan32BytesIsRejected()
+    {
+        var shop = CreateShop(_ownerUserId);
+        var apiClient = CreateApiClient(shop.Id);
+        var endpointRepository = new FakeWebhookEndpointRepository([]);
+        var service = CreateIntegrationManagementFacade(
+            FakeIdentityService.For(_ownerUserId, UserRole.Shop),
+            new FakeShopRepository([shop]),
+            new FakeApiClientRepository([apiClient]),
+            endpointRepository,
+            new FakeWebhookDeliveryRepository([]));
+
+        var result = await service.UpsertWebhookEndpointAsync(new UpsertPartnerWebhookEndpointCommand(
+            _ownerUserId,
+            apiClient.Id,
+            "https://partner.example.test/webhooks/minilogistics",
+            "too-short"));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Application.ValidationFailed", result.Error.Code);
+        Assert.Empty(endpointRepository.Endpoints);
     }
 
     private static PartnerQuoteService CreateQuoteService(Shop shop)
@@ -954,7 +1217,9 @@ public sealed class PartnerApiServiceTests
         FakeWebhookEndpointRepository endpointRepository,
         FakeWebhookDeliveryRepository deliveryRepository,
         FakePartnerApiCredentialAuditRepository? credentialAuditRepository = null,
-        ISecretProtector? secretProtector = null)
+        ISecretProtector? secretProtector = null,
+        IOutboxMessageRepository? outboxMessageRepository = null,
+        IAdminAuditService? adminAuditService = null)
     {
         var auditRepository = credentialAuditRepository ?? new FakePartnerApiCredentialAuditRepository([]);
         var scopeService = new IntegrationScopeService(
@@ -966,7 +1231,8 @@ public sealed class PartnerApiServiceTests
             apiClientRepository,
             endpointRepository,
             deliveryRepository,
-            auditRepository);
+            auditRepository,
+            outboxMessageRepository: outboxMessageRepository);
 
         return new PartnerIntegrationManagementFacade(
             new ApiClientManagementService(
@@ -974,7 +1240,7 @@ public sealed class PartnerApiServiceTests
                 apiClientRepository,
                 new PartnerCredentialAuditWriter(auditRepository, TestClock.Provider),
                 TestClock.Provider,
-                NullAdminAuditService.Instance),
+                adminAuditService ?? NullAdminAuditService.Instance),
             new WebhookManagementService(
                 scopeService,
                 dashboardBuilder,
@@ -982,8 +1248,49 @@ public sealed class PartnerApiServiceTests
                 deliveryRepository,
                 new PartnerCredentialAuditWriter(auditRepository, TestClock.Provider),
                 secretProtector ?? new FakeSecretProtector(),
+                new FakeWebhookUrlPolicy(),
                 TestClock.Provider,
-                NullAdminAuditService.Instance));
+                adminAuditService ?? NullAdminAuditService.Instance,
+                outboxMessageRepository));
+    }
+
+    private sealed class RecordingAdminAuditService : IAdminAuditService
+    {
+        public List<AdminAuditEntry> Entries { get; } = [];
+
+        public Task RecordAsync(
+            AdminAuditEntry entry,
+            CancellationToken cancellationToken = default)
+        {
+            Entries.Add(entry);
+            return Task.CompletedTask;
+        }
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.CompletedTask;
+        }
+    }
+
+    private static OutboxMessage CreateFailedWebhookOutbox(Guid apiClientId, string error)
+    {
+        var eventId = Guid.NewGuid();
+        var payload = new WebhookDeliveryOutboxPayload(
+            Guid.NewGuid(),
+            apiClientId,
+            WebhookEventTypes.ShipmentStatusChanged,
+            Guid.NewGuid(),
+            "{\"event\":\"shipment.status_changed\"}",
+            "protected-secret",
+            1);
+        var message = new OutboxMessage(
+            eventId,
+            OutboxMessageTypes.WebhookShipmentStatusChanged,
+            payload.AggregateId,
+            JsonSerializer.Serialize(payload, new JsonSerializerOptions(JsonSerializerDefaults.Web)),
+            TestClock.UtcNow);
+        message.MarkFailed(error, null, TestClock.UtcNow.AddMinutes(1));
+        return message;
     }
 
     private sealed class PartnerIntegrationManagementFacade
@@ -1039,6 +1346,13 @@ public sealed class PartnerApiServiceTests
             CancellationToken cancellationToken = default)
         {
             return _webhooks.TestWebhookAsync(command, cancellationToken);
+        }
+
+        public Task<Result> RetryOutboxMessageAsync(
+            RetryPartnerOutboxMessageCommand command,
+            CancellationToken cancellationToken = default)
+        {
+            return _webhooks.RetryOutboxMessageAsync(command, cancellationToken);
         }
     }
 
@@ -1361,6 +1675,23 @@ public sealed class PartnerApiServiceTests
         public IReadOnlyList<OutboxMessage> Messages => _messages.AsReadOnly();
 
         public int SaveChangesCount { get; private set; }
+
+        public Task<OutboxMessage?> GetByIdAsync(
+            Guid outboxMessageId,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(_messages.FirstOrDefault(message => message.Id == outboxMessageId));
+        }
+
+        public Task<IReadOnlyList<OutboxMessage>> GetRecentFailuresAsync(
+            int limit,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IReadOnlyList<OutboxMessage>>(_messages
+                .Where(message => message.Status is OutboxMessageStatus.Failed or OutboxMessageStatus.DeadLettered)
+                .Take(limit)
+                .ToList());
+        }
 
         public Task<IReadOnlyList<OutboxMessage>> GetDueAsync(
             DateTimeOffset dueAtUtc,

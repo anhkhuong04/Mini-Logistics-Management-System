@@ -1508,7 +1508,13 @@ public sealed class ShipmentBusinessRuleTests
         Assert.Null(result.Value.ReceiverPhone);
         Assert.Null(result.Value.PickupAddress);
         Assert.Null(result.Value.DeliveryAddress);
-        Assert.Contains(result.Value.Timeline, item => item.Status == ShipmentStatus.PickingUp);
+        var timelineItem = Assert.Single(
+            result.Value.Timeline,
+            item => item.Status == ShipmentStatus.PickingUp);
+        Assert.Equal("SHIPMENT_PICKING_UP", timelineItem.MessageCode);
+        Assert.Equal("vi-VN", timelineItem.Locale);
+        Assert.DoesNotContain("Sensitive internal handoff note", timelineItem.Message, StringComparison.Ordinal);
+        Assert.DoesNotContain("0900000000", timelineItem.Message, StringComparison.Ordinal);
     }
 
     [Fact]

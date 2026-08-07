@@ -1,12 +1,13 @@
 {
   "info": {
     "name": "MiniLogistics Partner API",
+    "description": "Partner API v1 collection maintained against docs/partner-api.openapi.json. Use only from a shop backend.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
-    { "key": "baseUrl", "value": "http://localhost:5221" },
-    { "key": "apiKey", "value": "<partner-api-key>" },
-    { "key": "trackingCode", "value": "ML202606290001" }
+    { "key": "baseUrl", "value": "https://localhost:7195" },
+    { "key": "apiKey", "value": "<ml_test_or_ml_live_key>" },
+    { "key": "trackingCode", "value": "ML202608020001" }
   ],
   "auth": {
     "type": "bearer",
@@ -40,14 +41,48 @@
           "mode": "raw",
           "raw": "{\n  \"externalOrderId\": \"ECOM-10001\",\n  \"sender\": null,\n  \"receiver\": {\n    \"name\": \"Nguyen Van A\",\n    \"phone\": \"0911111111\"\n  },\n  \"pickupAddress\": null,\n  \"deliveryAddress\": {\n    \"street\": \"9 Le Loi\",\n    \"ward\": \"Hoan Kiem\",\n    \"province\": \"Ha Noi\",\n    \"country\": \"Vietnam\"\n  },\n  \"parcel\": {\n    \"weightKg\": 1.2,\n    \"lengthCm\": 20,\n    \"widthCm\": 15,\n    \"heightCm\": 10\n  },\n  \"goodsValueAmount\": 2000000,\n  \"codAmount\": 150000,\n  \"currency\": \"VND\",\n  \"note\": \"Deliver during office hours\"\n}"
         }
-      }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200 || pm.response.code === 201) {",
+              "  const body = pm.response.json();",
+              "  if (body.trackingCode) pm.collectionVariables.set('trackingCode', body.trackingCode);",
+              "}"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "Get tracking",
       "request": {
         "method": "GET",
         "url": "{{baseUrl}}/api/v1/partner/shipments/{{trackingCode}}"
-      }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Tracking response does not expose internal note', () => {",
+              "  if (pm.response.code !== 200) return;",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.timeline).to.be.an('array');",
+              "  body.timeline.forEach(item => {",
+              "    pm.expect(item).to.have.property('messageCode');",
+              "    pm.expect(item).to.have.property('locale', 'vi-VN');",
+              "    pm.expect(item).not.to.have.property('note');",
+              "  });",
+              "});"
+            ]
+          }
+        }
+      ]
     },
     {
       "name": "Cancel shipment",

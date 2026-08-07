@@ -20,19 +20,25 @@ public sealed class WebhookDeliveryDispatcher
 
     private const int BatchSize = 20;
     private const int MaxAttempts = 5;
+    private static readonly TimeSpan LeaseDuration = TimeSpan.FromMinutes(5);
 
     private readonly HttpClient _httpClient;
     private readonly IWebhookDeliveryRepository _webhookDeliveryRepository;
     private readonly IWebhookEndpointRepository _webhookEndpointRepository;
     private readonly ISecretProtector _secretProtector;
+    private readonly IWebhookUrlPolicy _webhookUrlPolicy;
+    private readonly WebhookSecurityOptions _securityOptions;
     private readonly ILogger<WebhookDeliveryDispatcher> _logger;
     private readonly TimeProvider _timeProvider;
+    private readonly string _workerId = $"{Environment.MachineName}:{Environment.ProcessId}:{Guid.NewGuid():N}";
 
     public WebhookDeliveryDispatcher(
         HttpClient httpClient,
         IWebhookDeliveryRepository webhookDeliveryRepository,
         IWebhookEndpointRepository webhookEndpointRepository,
         ISecretProtector secretProtector,
+        IWebhookUrlPolicy webhookUrlPolicy,
+        Microsoft.Extensions.Options.IOptions<WebhookSecurityOptions> securityOptions,
         ILogger<WebhookDeliveryDispatcher> logger,
         TimeProvider timeProvider)
     {
@@ -40,20 +46,30 @@ public sealed class WebhookDeliveryDispatcher
         _webhookDeliveryRepository = webhookDeliveryRepository;
         _webhookEndpointRepository = webhookEndpointRepository;
         _secretProtector = secretProtector;
+        _webhookUrlPolicy = webhookUrlPolicy;
+        _securityOptions = securityOptions.Value;
         _logger = logger;
         _timeProvider = timeProvider;
     }
 
     public async Task DispatchDueAsync(CancellationToken cancellationToken = default)
     {
-        var deliveries = await _webhookDeliveryRepository.GetDueAsync(
-            _timeProvider.GetUtcNow(),
+        var now = _timeProvider.GetUtcNow();
+        var deliveries = await _webhookDeliveryRepository.ClaimDueAsync(
+            _workerId,
+            now,
+            now + LeaseDuration,
             BatchSize,
             cancellationToken);
 
         foreach (var delivery in deliveries)
         {
+            PartnerApiWorkerTelemetry.RecordClaim("webhook", delivery.CreatedAtUtc, now);
             await DispatchAsync(delivery, cancellationToken);
+            PartnerApiWorkerTelemetry.RecordResult(
+                "webhook",
+                delivery.Status.ToString(),
+                delivery.LastDurationMs);
         }
 
         if (deliveries.Count > 0)
@@ -80,10 +96,34 @@ public sealed class WebhookDeliveryDispatcher
 
         var attemptedAtUtc = _timeProvider.GetUtcNow();
         var stopwatch = Stopwatch.StartNew();
+        using var attemptTimeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        attemptTimeout.CancelAfter(TimeSpan.FromSeconds(_securityOptions.RequestTimeoutSeconds));
+        var attemptToken = attemptTimeout.Token;
         try
         {
+            var urlValidationResult = await _webhookUrlPolicy.ValidateAsync(endpoint.Url, attemptToken);
+            if (urlValidationResult.IsFailure)
+            {
+                stopwatch.Stop();
+                var isTransientResolutionFailure =
+                    urlValidationResult.Error.Code == PartnerApiErrors.WebhookUrlResolutionFailed.Code;
+                MarkFailed(
+                    delivery,
+                    null,
+                    isTransientResolutionFailure
+                        ? "Webhook destination DNS resolution failed."
+                        : "Webhook destination is blocked by outbound security policy.",
+                    attemptedAtUtc,
+                    retry: isTransientResolutionFailure,
+                    durationMs: stopwatch.ElapsedMilliseconds);
+                return;
+            }
+
             using var request = BuildRequest(delivery, endpoint, attemptedAtUtc);
-            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            using var response = await _httpClient.SendAsync(
+                request,
+                HttpCompletionOption.ResponseHeadersRead,
+                attemptToken);
             stopwatch.Stop();
             var statusCode = (int)response.StatusCode;
 
@@ -97,13 +137,11 @@ public sealed class WebhookDeliveryDispatcher
                 return;
             }
 
-            var responseText = await response.Content.ReadAsStringAsync(cancellationToken);
+            await ReadLimitedResponseAsync(response.Content, attemptToken);
             MarkFailed(
                 delivery,
                 statusCode,
-                string.IsNullOrWhiteSpace(responseText)
-                    ? $"Webhook endpoint returned HTTP {statusCode}."
-                    : responseText,
+                $"Webhook endpoint returned HTTP {statusCode}.",
                 attemptedAtUtc,
                 retry: true,
                 durationMs: stopwatch.ElapsedMilliseconds);
@@ -112,17 +150,47 @@ public sealed class WebhookDeliveryDispatcher
         {
             throw;
         }
+        catch (OperationCanceledException)
+        {
+            stopwatch.Stop();
+            MarkFailed(
+                delivery,
+                null,
+                "Webhook delivery timed out.",
+                attemptedAtUtc,
+                retry: true,
+                durationMs: stopwatch.ElapsedMilliseconds);
+        }
         catch (Exception exception)
         {
             stopwatch.Stop();
             MarkFailed(
                 delivery,
                 null,
-                exception.Message,
+                "Webhook delivery failed due to a network or protocol error.",
                 attemptedAtUtc,
                 retry: true,
                 durationMs: stopwatch.ElapsedMilliseconds);
+            _logger.LogDebug(
+                "Webhook delivery {DeliveryId} raised transport exception type {ExceptionType}.",
+                delivery.Id,
+                exception.GetType().Name);
         }
+    }
+
+    private async Task<string> ReadLimitedResponseAsync(
+        HttpContent content,
+        CancellationToken cancellationToken)
+    {
+        await using var stream = await content.ReadAsStreamAsync(cancellationToken);
+        var buffer = new byte[_securityOptions.MaxResponseBodyBytes];
+        var bytesRead = await stream.ReadAtLeastAsync(
+            buffer,
+            buffer.Length,
+            throwOnEndOfStream: false,
+            cancellationToken);
+        var value = Encoding.UTF8.GetString(buffer, 0, bytesRead);
+        return bytesRead == buffer.Length ? value + " [truncated]" : value;
     }
 
     private HttpRequestMessage BuildRequest(
@@ -131,7 +199,8 @@ public sealed class WebhookDeliveryDispatcher
         DateTimeOffset attemptedAtUtc)
     {
         var timestamp = attemptedAtUtc.ToString("O");
-        var signingSecret = _secretProtector.Unprotect(endpoint.ProtectedSigningSecret);
+        var protectedSigningSecret = delivery.ProtectedSigningSecret ?? endpoint.ProtectedSigningSecret;
+        var signingSecret = _secretProtector.Unprotect(protectedSigningSecret);
         var signature = WebhookSignature.Compute(
             signingSecret,
             timestamp,
@@ -144,6 +213,10 @@ public sealed class WebhookDeliveryDispatcher
         request.Headers.Add("X-MiniLogistics-Event", delivery.EventType);
         request.Headers.Add("X-MiniLogistics-Signature", signature);
         request.Headers.Add("X-MiniLogistics-Timestamp", timestamp);
+        request.Headers.Add("X-MiniLogistics-Webhook-Version", "1.0");
+        request.Headers.Add(
+            "X-MiniLogistics-Secret-Version",
+            delivery.SecretVersion.ToString(System.Globalization.CultureInfo.InvariantCulture));
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         return request;

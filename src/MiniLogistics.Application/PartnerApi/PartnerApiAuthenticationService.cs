@@ -7,22 +7,26 @@ namespace MiniLogistics.Application.PartnerApi;
 public sealed class PartnerApiAuthenticationService : IPartnerApiAuthenticationService
 {
     private const string BearerPrefix = "Bearer ";
+    private static readonly TimeSpan UsageWriteInterval = TimeSpan.FromMinutes(15);
 
     private readonly IApiClientRepository _apiClientRepository;
     private readonly IShopRepository _shopRepository;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<PartnerApiAuthenticationService>? _logger;
+    private readonly IApiCredentialPolicy? _apiCredentialPolicy;
 
     public PartnerApiAuthenticationService(
         IApiClientRepository apiClientRepository,
         IShopRepository shopRepository,
         TimeProvider timeProvider,
-        ILogger<PartnerApiAuthenticationService>? logger = null)
+        ILogger<PartnerApiAuthenticationService>? logger = null,
+        IApiCredentialPolicy? apiCredentialPolicy = null)
     {
         _apiClientRepository = apiClientRepository;
         _shopRepository = shopRepository;
         _timeProvider = timeProvider;
         _logger = logger;
+        _apiCredentialPolicy = apiCredentialPolicy;
     }
 
     public async Task<Result<PartnerApiClientContext>> AuthenticateAsync(
@@ -56,6 +60,12 @@ public sealed class PartnerApiAuthenticationService : IPartnerApiAuthenticationS
             return Result<PartnerApiClientContext>.Failure(PartnerApiErrors.InvalidApiKey);
         }
 
+        if (_apiCredentialPolicy is not null && !_apiCredentialPolicy.IsAllowed(apiKey))
+        {
+            _logger?.LogWarning("Partner API authentication failed because API key environment prefix is invalid");
+            return Result<PartnerApiClientContext>.Failure(PartnerApiErrors.InvalidApiKey);
+        }
+
         var apiKeyHash = ApiKeyHasher.Hash(apiKey);
         var apiClient = await _apiClientRepository.GetByApiKeyHashAsync(apiKeyHash, cancellationToken);
         if (apiClient is null)
@@ -82,9 +92,8 @@ public sealed class PartnerApiAuthenticationService : IPartnerApiAuthenticationS
         if (!apiClient.IsIpAllowed(remoteIpAddress))
         {
             _logger?.LogWarning(
-                "Partner API client {ApiClientId} rejected request IP {RemoteIpAddress}",
-                apiClient.Id,
-                remoteIpAddress);
+                "Partner API client {ApiClientId} rejected the resolved request IP.",
+                apiClient.Id);
             return Result<PartnerApiClientContext>.Failure(PartnerApiErrors.IpNotAllowed);
         }
 
@@ -107,8 +116,11 @@ public sealed class PartnerApiAuthenticationService : IPartnerApiAuthenticationS
             return Result<PartnerApiClientContext>.Failure(PartnerApiErrors.ShopInactive);
         }
 
-        apiClient.MarkUsed(now);
-        await _apiClientRepository.SaveChangesAsync(cancellationToken);
+        await _apiClientRepository.MarkUsedIfStaleAsync(
+            apiClient.Id,
+            now,
+            UsageWriteInterval,
+            cancellationToken);
 
         _logger?.LogInformation(
             "Partner API client {ApiClientId} authenticated for shop {ShopId}",

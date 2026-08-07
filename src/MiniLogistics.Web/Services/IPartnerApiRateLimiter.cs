@@ -2,8 +2,16 @@ namespace MiniLogistics.Web.Services;
 
 public interface IPartnerApiRateLimiter
 {
-    bool TryAcquire(
+    ValueTask<PartnerApiRateLimitDecision> AcquireAsync(
         Guid apiClientId,
         PartnerApiRateLimitKind kind,
-        out TimeSpan retryAfter);
+        CancellationToken cancellationToken = default);
+}
+
+public sealed record PartnerApiRateLimitDecision(
+    bool IsAllowed,
+    TimeSpan RetryAfter,
+    bool StoreUnavailable = false)
+{
+    public static PartnerApiRateLimitDecision Allowed { get; } = new(true, TimeSpan.Zero);
 }

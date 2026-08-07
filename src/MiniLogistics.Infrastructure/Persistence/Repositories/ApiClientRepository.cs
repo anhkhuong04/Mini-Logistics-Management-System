@@ -26,6 +26,7 @@ public sealed class ApiClientRepository : IApiClientRepository
         CancellationToken cancellationToken = default)
     {
         return _dbContext.ApiClients
+            .AsNoTracking()
             .FirstOrDefaultAsync(apiClient => apiClient.ApiKeyHash == apiKeyHash, cancellationToken);
     }
 
@@ -49,6 +50,44 @@ public sealed class ApiClientRepository : IApiClientRepository
     public async Task AddAsync(ApiClient apiClient, CancellationToken cancellationToken = default)
     {
         await _dbContext.ApiClients.AddAsync(apiClient, cancellationToken);
+    }
+
+    public async Task MarkUsedIfStaleAsync(
+        Guid apiClientId,
+        DateTimeOffset usedAtUtc,
+        TimeSpan minimumInterval,
+        CancellationToken cancellationToken = default)
+    {
+        if (!string.Equals(
+                _dbContext.Database.ProviderName,
+                "Microsoft.EntityFrameworkCore.SqlServer",
+                StringComparison.Ordinal))
+        {
+            var apiClient = await _dbContext.ApiClients.FirstOrDefaultAsync(
+                client => client.Id == apiClientId,
+                cancellationToken);
+            if (apiClient is null
+                || (apiClient.LastUsedAtUtc.HasValue
+                    && usedAtUtc - apiClient.LastUsedAtUtc.Value < minimumInterval))
+            {
+                return;
+            }
+
+            apiClient.MarkUsed(usedAtUtc);
+            await _dbContext.SaveChangesAsync(cancellationToken);
+            return;
+        }
+
+        var staleBeforeUtc = usedAtUtc - minimumInterval;
+        await _dbContext.ApiClients
+            .Where(apiClient =>
+                apiClient.Id == apiClientId
+                && (apiClient.LastUsedAtUtc == null || apiClient.LastUsedAtUtc <= staleBeforeUtc))
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(apiClient => apiClient.LastUsedAtUtc, usedAtUtc)
+                    .SetProperty(apiClient => apiClient.UpdatedAtUtc, usedAtUtc),
+                cancellationToken);
     }
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default)

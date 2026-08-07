@@ -21,6 +21,19 @@ public interface IWebhookDeliveryRepository
         int takePerClient,
         CancellationToken cancellationToken = default);
 
+    async Task<IReadOnlyList<WebhookDelivery>> ClaimDueAsync(
+        string workerId,
+        DateTimeOffset nowUtc,
+        DateTimeOffset lockedUntilUtc,
+        int batchSize,
+        CancellationToken cancellationToken = default)
+    {
+        var due = await GetDueAsync(nowUtc, batchSize, cancellationToken);
+        return due
+            .Where(delivery => delivery.TryAcquireLease(workerId, Guid.NewGuid(), nowUtc, lockedUntilUtc))
+            .ToList();
+    }
+
     Task<WebhookDelivery?> GetByIdAsync(
         Guid deliveryId,
         CancellationToken cancellationToken = default)

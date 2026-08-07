@@ -4,4 +4,5 @@ public sealed record WebhookTestPayload(
     Guid EventId,
     string Event,
     string Message,
-    DateTimeOffset CreatedAtUtc);
+    DateTimeOffset CreatedAtUtc,
+    string SchemaVersion = "1.0");

@@ -374,10 +374,61 @@
                                             <td data-label="Last attempt">@FormatNullableDate(delivery.LastAttemptAtUtc)</td>
                                             <td data-label="Error" class="error-cell">@(delivery.LastError ?? "-")</td>
                                             <td data-label="Action">
-                                                @if (delivery.Status == WebhookDeliveryStatus.Failed && !delivery.NextAttemptAtUtc.HasValue)
+                                                @if (delivery.Status == WebhookDeliveryStatus.DeadLettered
+                                                    || (delivery.Status == WebhookDeliveryStatus.Failed && !delivery.NextAttemptAtUtc.HasValue))
                                                 {
                                                     <button type="button" class="secondary-button" disabled="@IsBusy" @onclick="() => RetryDeliveryAsync(delivery.WebhookDeliveryId)">Retry</button>
                                                 }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </article>
+
+                <article class="content-card delivery-section">
+                    <div class="section-heading">
+                        <div>
+                            <p class="eyebrow">Outbox recovery</p>
+                            <h2>Event chua tao delivery</h2>
+                        </div>
+                        <span class="section-count">@SelectedOutboxFailures.Count.ToString("N0") event loi</span>
+                    </div>
+
+                    @if (SelectedOutboxFailures.Count == 0)
+                    {
+                        <div class="state-card compact">
+                            <strong>Khong co outbox loi</strong>
+                            <p>Cac event webhook da duoc chuyen sang delivery queue.</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="table-shell compact-table">
+                            <table class="deliveries-table">
+                                <thead>
+                                    <tr>
+                                        <th>Event</th>
+                                        <th>Status</th>
+                                        <th>Retry</th>
+                                        <th>Created</th>
+                                        <th>Error</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var failure in SelectedOutboxFailures)
+                                    {
+                                        <tr>
+                                            <td data-label="Event"><strong>@failure.EventType</strong></td>
+                                            <td data-label="Status"><span class="status-pill danger">@failure.Status</span></td>
+                                            <td data-label="Retry">@failure.RetryCount</td>
+                                            <td data-label="Created">@FormatDate(failure.CreatedAtUtc)</td>
+                                            <td data-label="Error" class="error-cell">@failure.Error</td>
+                                            <td data-label="Action">
+                                                <button type="button" class="secondary-button" disabled="@IsBusy" @onclick="() => RetryOutboxAsync(failure.OutboxMessageId)">Retry</button>
                                             </td>
                                         </tr>
                                     }
@@ -463,12 +514,19 @@
 
     private bool IsRetryingDelivery { get; set; }
 
-    private bool IsBusy => IsCreatingClient || IsSavingWebhook || IsTestingWebhook || IsSavingSecurity || IsRetryingDelivery;
+    private bool IsRetryingOutbox { get; set; }
+
+    private bool IsBusy => IsCreatingClient || IsSavingWebhook || IsTestingWebhook || IsSavingSecurity || IsRetryingDelivery || IsRetryingOutbox;
 
     private Guid SelectedShopId { get; set; }
 
     private PartnerIntegrationShopResponse? SelectedShop => Dashboard.Shops
         .FirstOrDefault(shop => shop.ShopId == SelectedShopId);
+
+    private IReadOnlyList<PartnerOutboxFailureResponse> SelectedOutboxFailures =>
+        Dashboard.OutboxFailures?
+            .Where(failure => failure.ApiClientId == SelectedClientId)
+            .ToList() ?? [];
 
     private bool CanManageSelectedShop => SelectedShop?.IsActive == true;
 
@@ -762,6 +820,19 @@
         await LoadAsync(clearMessages: false);
     }
 
+    private async Task RetryOutboxAsync(Guid outboxMessageId)
+    {
+        var currentUserId = await GetCurrentUserIdAsync();
+        if (currentUserId is null) return;
+        IsRetryingOutbox = true;
+        var result = await WebhookManagementService.RetryOutboxMessageAsync(
+            new RetryPartnerOutboxMessageCommand(currentUserId.Value, outboxMessageId));
+        IsRetryingOutbox = false;
+        if (result.IsFailure) { ErrorMessage = UiDisplay.ToErrorMessage(result.Error); return; }
+        SuccessMessage = "Da dua outbox event vao retry queue.";
+        await LoadAsync(clearMessages: false);
+    }
+
     private async Task OnShopChangedAsync(ChangeEventArgs args)
     {
         if (Guid.TryParse(args.Value?.ToString(), out var shopId))
@@ -855,7 +926,7 @@
         return status switch
         {
             WebhookDeliveryStatus.Succeeded => "active",
-            WebhookDeliveryStatus.Failed => "danger",
+            WebhookDeliveryStatus.Failed or WebhookDeliveryStatus.DeadLettered => "danger",
             _ => "warning"
         };
     }
@@ -877,6 +948,7 @@
             PartnerApiCredentialAuditActions.WebhookEndpointUpserted => "Save webhook",
             PartnerApiCredentialAuditActions.WebhookTestQueued => "Test webhook",
             PartnerApiCredentialAuditActions.WebhookDeliveryRetried => "Retry webhook",
+            PartnerApiCredentialAuditActions.OutboxMessageRetried => "Retry outbox",
             _ => action
         };
     }

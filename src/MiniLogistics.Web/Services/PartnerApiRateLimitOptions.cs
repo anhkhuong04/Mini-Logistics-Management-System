@@ -6,6 +6,14 @@ public sealed class PartnerApiRateLimitOptions
 
     public string Mode { get; set; } = "Memory";
 
+    public int StoreTimeoutMilliseconds { get; set; } = 500;
+
+    public int StoreFailureThreshold { get; set; } = 3;
+
+    public int CircuitBreakSeconds { get; set; } = 10;
+
+    public string KeyPrefix { get; set; } = "mini-logistics";
+
     public int QuoteLimitPerMinute { get; set; } = 60;
 
     public int CreateShipmentLimitPerMinute { get; set; } = 30;
@@ -24,5 +32,10 @@ public sealed class PartnerApiRateLimitOptions
             PartnerApiRateLimitKind.CancelShipment => CancelShipmentLimitPerMinute,
             _ => QuoteLimitPerMinute
         };
+    }
+
+    public bool FailClosed(PartnerApiRateLimitKind kind)
+    {
+        return kind is PartnerApiRateLimitKind.CreateShipment or PartnerApiRateLimitKind.CancelShipment;
     }
 }

@@ -1,4 +1,3 @@
-using System.Security.Cryptography;
 using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Domain.Common;
@@ -13,19 +12,22 @@ public sealed class ApiClientManagementService : IApiClientManagementService
     private readonly PartnerCredentialAuditWriter _credentialAuditWriter;
     private readonly IAdminAuditService _adminAuditService;
     private readonly TimeProvider _timeProvider;
+    private readonly IApiCredentialPolicy _apiCredentialPolicy;
 
     public ApiClientManagementService(
         IIntegrationScopeService scopeService,
         IApiClientRepository apiClientRepository,
         PartnerCredentialAuditWriter credentialAuditWriter,
         TimeProvider timeProvider,
-        IAdminAuditService? adminAuditService = null)
+        IAdminAuditService? adminAuditService = null,
+        IApiCredentialPolicy? apiCredentialPolicy = null)
     {
         _scopeService = scopeService;
         _apiClientRepository = apiClientRepository;
         _credentialAuditWriter = credentialAuditWriter;
         _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
+        _apiCredentialPolicy = apiCredentialPolicy ?? new EnvironmentApiCredentialPolicy("Live");
     }
 
     public async Task<Result<PartnerApiClientSecretResponse>> CreateApiClientAsync(
@@ -65,7 +67,7 @@ public sealed class ApiClientManagementService : IApiClientManagementService
             return Result<PartnerApiClientSecretResponse>.Failure(accessResult.Error);
         }
 
-        var apiKey = GenerateApiKey();
+        var apiKey = _apiCredentialPolicy.GenerateApiKey();
         var now = _timeProvider.GetUtcNow();
         ApiClient apiClient;
         try
@@ -144,7 +146,7 @@ public sealed class ApiClientManagementService : IApiClientManagementService
         var apiClient = apiClientResult.Value;
         var oldApiKeyPrefix = apiClient.ApiKeyPrefix;
         var oldIsActive = apiClient.IsActive;
-        var apiKey = GenerateApiKey();
+        var apiKey = _apiCredentialPolicy.GenerateApiKey();
         var now = _timeProvider.GetUtcNow();
         apiClient.RotateKey(ApiKeyHasher.GetPrefix(apiKey), ApiKeyHasher.Hash(apiKey), now);
         apiClient.Activate(now);
@@ -294,12 +296,4 @@ public sealed class ApiClientManagementService : IApiClientManagementService
         return Result.Success();
     }
 
-    private static string GenerateApiKey()
-    {
-        var bytes = RandomNumberGenerator.GetBytes(32);
-        return "ml_live_" + Convert.ToBase64String(bytes)
-            .Replace("+", "-", StringComparison.Ordinal)
-            .Replace("/", "_", StringComparison.Ordinal)
-            .TrimEnd('=');
-    }
 }

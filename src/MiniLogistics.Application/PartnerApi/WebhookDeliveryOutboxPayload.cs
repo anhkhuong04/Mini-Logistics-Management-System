@@ -5,4 +5,6 @@ public sealed record WebhookDeliveryOutboxPayload(
     Guid ApiClientId,
     string EventType,
     Guid AggregateId,
-    string WebhookPayloadJson);
+    string WebhookPayloadJson,
+    string? ProtectedSigningSecret = null,
+    int SecretVersion = 1);

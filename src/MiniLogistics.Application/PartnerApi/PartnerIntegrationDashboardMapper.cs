@@ -34,7 +34,8 @@ public static class PartnerIntegrationDashboardMapper
     {
         var total = deliveries.Count;
         var succeeded = deliveries.Count(delivery => delivery.Status == WebhookDeliveryStatus.Succeeded);
-        var failed = deliveries.Count(delivery => delivery.Status == WebhookDeliveryStatus.Failed);
+        var failed = deliveries.Count(delivery =>
+            delivery.Status is WebhookDeliveryStatus.Failed or WebhookDeliveryStatus.DeadLettered);
         var pendingRetry = deliveries.Count(delivery =>
             delivery.Status != WebhookDeliveryStatus.Succeeded
             && delivery.NextAttemptAtUtc.HasValue);

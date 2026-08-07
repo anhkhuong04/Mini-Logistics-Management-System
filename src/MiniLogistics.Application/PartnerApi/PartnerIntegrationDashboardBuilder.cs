@@ -1,3 +1,5 @@
+using System.Text.Json;
+using MiniLogistics.Application.Outbox;
 using MiniLogistics.Domain.Common;
 using static MiniLogistics.Application.PartnerApi.PartnerIntegrationDashboardMapper;
 
@@ -7,6 +9,8 @@ public sealed class PartnerIntegrationDashboardBuilder
 {
     private const int RecentDeliveryCountPerClient = 10;
     private const int RecentCredentialAuditCountPerClient = 10;
+    private const int RecentOutboxFailureCount = 100;
+    private static readonly JsonSerializerOptions PayloadJsonOptions = new(JsonSerializerDefaults.Web);
 
     private readonly IIntegrationScopeService _scopeService;
     private readonly IApiClientRepository _apiClientRepository;
@@ -14,6 +18,7 @@ public sealed class PartnerIntegrationDashboardBuilder
     private readonly IWebhookDeliveryRepository _webhookDeliveryRepository;
     private readonly IPartnerApiCredentialAuditRepository _credentialAuditRepository;
     private readonly IPartnerApiRequestAuditRepository? _requestAuditRepository;
+    private readonly IOutboxMessageRepository? _outboxMessageRepository;
     private readonly TimeProvider _timeProvider;
 
     public PartnerIntegrationDashboardBuilder(
@@ -23,7 +28,8 @@ public sealed class PartnerIntegrationDashboardBuilder
         IWebhookDeliveryRepository webhookDeliveryRepository,
         IPartnerApiCredentialAuditRepository credentialAuditRepository,
         IPartnerApiRequestAuditRepository? requestAuditRepository = null,
-        TimeProvider? timeProvider = null)
+        TimeProvider? timeProvider = null,
+        IOutboxMessageRepository? outboxMessageRepository = null)
     {
         _scopeService = scopeService;
         _apiClientRepository = apiClientRepository;
@@ -31,6 +37,7 @@ public sealed class PartnerIntegrationDashboardBuilder
         _webhookDeliveryRepository = webhookDeliveryRepository;
         _credentialAuditRepository = credentialAuditRepository;
         _requestAuditRepository = requestAuditRepository;
+        _outboxMessageRepository = outboxMessageRepository;
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
@@ -64,6 +71,13 @@ public sealed class PartnerIntegrationDashboardBuilder
                     apiClientIds,
                     _timeProvider.GetUtcNow(),
                     cancellationToken);
+        var outboxFailures = _outboxMessageRepository is null
+            ? []
+            : MapOutboxFailures(
+                await _outboxMessageRepository.GetRecentFailuresAsync(
+                    RecentOutboxFailureCount,
+                    cancellationToken),
+                apiClientIds);
 
         var shopNames = shops.ToDictionary(shop => shop.Id, shop => shop.Name);
         var latestEndpoints = endpoints
@@ -120,6 +134,47 @@ public sealed class PartnerIntegrationDashboardBuilder
             }).ToList());
 
         return Result<PartnerIntegrationDashboardResponse>.Success(
-            response with { GranularPermissionEnabled = accessResult.Value.GranularPermissionEnabled });
+            response with
+            {
+                GranularPermissionEnabled = accessResult.Value.GranularPermissionEnabled,
+                OutboxFailures = outboxFailures
+            });
+    }
+
+    private static IReadOnlyList<PartnerOutboxFailureResponse> MapOutboxFailures(
+        IReadOnlyList<MiniLogistics.Domain.Outbox.OutboxMessage> messages,
+        IReadOnlyCollection<Guid> accessibleApiClientIds)
+    {
+        var result = new List<PartnerOutboxFailureResponse>();
+        foreach (var message in messages)
+        {
+            try
+            {
+                var payload = JsonSerializer.Deserialize<WebhookDeliveryOutboxPayload>(
+                    message.PayloadJson,
+                    PayloadJsonOptions);
+                if (payload is null || !accessibleApiClientIds.Contains(payload.ApiClientId))
+                {
+                    continue;
+                }
+
+                result.Add(new PartnerOutboxFailureResponse(
+                    message.Id,
+                    payload.ApiClientId,
+                    payload.EventType,
+                    payload.AggregateId,
+                    message.Status.ToString(),
+                    message.RetryCount,
+                    message.NextAttemptAtUtc,
+                    "Outbox processing failed. Review the correlated server log before retrying.",
+                    message.CreatedAtUtc));
+            }
+            catch (JsonException)
+            {
+                // An invalid payload cannot be safely attributed to an accessible API client.
+            }
+        }
+
+        return result;
     }
 }

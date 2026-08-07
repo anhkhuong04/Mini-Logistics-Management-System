@@ -90,7 +90,9 @@ public sealed class WebhookEventPublisher : IWebhookEventPublisher
                 reference.ApiClientId,
                 eventType,
                 shipment.Id,
-                JsonSerializer.Serialize(payload, PayloadJsonOptions));
+                JsonSerializer.Serialize(payload, PayloadJsonOptions),
+                endpoint.ProtectedSigningSecret,
+                endpoint.SecretVersion);
             var outboxMessage = new OutboxMessage(
                 eventId,
                 ToOutboxMessageType(eventType),

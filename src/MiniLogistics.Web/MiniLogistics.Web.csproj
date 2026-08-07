@@ -5,6 +5,9 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
+    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)\..\..\docs</OpenApiDocumentsDirectory>
+    <OpenApiGenerateDocumentsOptions>--file-name partner-api --document-name v1</OpenApiGenerateDocumentsOptions>
   </PropertyGroup>
 
   <ItemGroup>
@@ -12,6 +15,13 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
+    <PackageReference Include="Microsoft.OpenApi" Version="2.11.0" />
+    <PackageReference Include="Microsoft.Extensions.ApiDescription.Server" Version="10.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="StackExchange.Redis" Version="3.0.17" />
   </ItemGroup>
 
   <ItemGroup>
@@ -22,5 +32,11 @@
   <ItemGroup>
     <Folder Include="wwwroot\images\landing\" />
   </ItemGroup>
+
+  <Target Name="RenamePartnerOpenApiDocument" AfterTargets="GenerateOpenApiDocuments">
+    <Move SourceFiles="$(OpenApiDocumentsDirectory)\partner-api.json"
+          DestinationFiles="$(OpenApiDocumentsDirectory)\partner-api.openapi.json"
+          Condition="Exists('$(OpenApiDocumentsDirectory)\partner-api.json')" />
+  </Target>
 
 </Project>

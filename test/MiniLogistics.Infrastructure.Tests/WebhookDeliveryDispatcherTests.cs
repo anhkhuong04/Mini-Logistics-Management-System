@@ -1,5 +1,6 @@
 using System.Net;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Domain.PartnerApi;
 using MiniLogistics.Infrastructure.PartnerApi;
@@ -64,25 +65,161 @@ public sealed class WebhookDeliveryDispatcherTests
         Assert.Equal(WebhookDeliveryStatus.Failed, delivery.Status);
         Assert.Equal(1, delivery.RetryCount);
         Assert.Equal(500, delivery.LastResponseStatusCode);
-        Assert.Equal("temporary failure", delivery.LastError);
+        Assert.Equal("Webhook endpoint returned HTTP 500.", delivery.LastError);
         Assert.NotNull(delivery.LastAttemptAtUtc);
         Assert.NotNull(delivery.NextAttemptAtUtc);
         Assert.True(delivery.NextAttemptAtUtc >= beforeDispatch.AddMinutes(1));
         Assert.Equal(1, deliveryRepository.SaveChangesCount);
     }
 
+    [Fact]
+    public async Task DispatchDueAsync_AfterSecretRotationUsesSecretSnapshotFromQueuedDelivery()
+    {
+        var apiClientId = Guid.NewGuid();
+        var endpoint = new WebhookEndpoint(
+            apiClientId,
+            "https://partner.example.test/webhooks",
+            FakeSecretProtector.ProtectValue("old-secret"),
+            TestClock.UtcNow);
+        var delivery = new WebhookDelivery(
+            Guid.NewGuid(),
+            endpoint.Id,
+            apiClientId,
+            WebhookEventTypes.ShipmentStatusChanged,
+            Guid.NewGuid(),
+            "{\"event\":\"shipment.status_changed\"}",
+            TestClock.UtcNow,
+            protectedSigningSecret: endpoint.ProtectedSigningSecret,
+            secretVersion: endpoint.SecretVersion);
+        endpoint.Update(
+            endpoint.Url,
+            FakeSecretProtector.ProtectValue("new-secret"),
+            TestClock.UtcNow.AddMinutes(1));
+        var handler = new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.NoContent));
+        var dispatcher = CreateDispatcher(
+            handler,
+            new FakeWebhookDeliveryRepository([delivery]),
+            new FakeWebhookEndpointRepository([endpoint]));
+
+        await dispatcher.DispatchDueAsync();
+
+        var timestamp = Assert.Single(handler.LastRequest!.Headers.GetValues("X-MiniLogistics-Timestamp"));
+        var signature = Assert.Single(handler.LastRequest.Headers.GetValues("X-MiniLogistics-Signature"));
+        Assert.Equal(WebhookSignature.Compute("old-secret", timestamp, delivery.PayloadJson), signature);
+        Assert.NotEqual(WebhookSignature.Compute("new-secret", timestamp, delivery.PayloadJson), signature);
+        Assert.Equal("1", Assert.Single(handler.LastRequest.Headers.GetValues("X-MiniLogistics-Secret-Version")));
+        Assert.Equal("1.0", Assert.Single(handler.LastRequest.Headers.GetValues("X-MiniLogistics-Webhook-Version")));
+        Assert.Equal(2, endpoint.SecretVersion);
+    }
+
+    [Fact]
+    public async Task DispatchDueAsync_WhenTransportLeaksSensitiveMessage_StoresOnlyGenericError()
+    {
+        var apiClientId = Guid.NewGuid();
+        var endpoint = new WebhookEndpoint(
+            apiClientId,
+            "https://partner.example.test/webhooks?token=sensitive-token",
+            FakeSecretProtector.ProtectValue("secret"),
+            TestClock.UtcNow);
+        var delivery = CreateDelivery(endpoint, apiClientId);
+        var handler = new ThrowingHttpMessageHandler(
+            "Connection failed for https://partner.example.test/webhooks?token=sensitive-token");
+        var dispatcher = CreateDispatcher(
+            handler,
+            new FakeWebhookDeliveryRepository([delivery]),
+            new FakeWebhookEndpointRepository([endpoint]));
+
+        await dispatcher.DispatchDueAsync();
+
+        Assert.Equal(WebhookDeliveryStatus.Failed, delivery.Status);
+        Assert.Equal("Webhook delivery failed due to a network or protocol error.", delivery.LastError);
+        Assert.DoesNotContain("sensitive-token", delivery.LastError, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task DispatchDueAsync_WhenReceiverHangs_TimesOutEntireAttemptAndSchedulesRetry()
+    {
+        var apiClientId = Guid.NewGuid();
+        var endpoint = new WebhookEndpoint(
+            apiClientId,
+            "https://partner.example.test/webhooks",
+            FakeSecretProtector.ProtectValue("secret"),
+            TestClock.UtcNow);
+        var delivery = CreateDelivery(endpoint, apiClientId);
+        var dispatcher = CreateDispatcher(
+            new BlockingHttpMessageHandler(),
+            new FakeWebhookDeliveryRepository([delivery]),
+            new FakeWebhookEndpointRepository([endpoint]),
+            new WebhookSecurityOptions { RequestTimeoutSeconds = 1 });
+
+        await dispatcher.DispatchDueAsync();
+
+        Assert.Equal(WebhookDeliveryStatus.Failed, delivery.Status);
+        Assert.Equal("Webhook delivery timed out.", delivery.LastError);
+        Assert.NotNull(delivery.NextAttemptAtUtc);
+        Assert.InRange(delivery.LastDurationMs ?? 0, 500, 5_000);
+    }
+
+    [Fact]
+    public async Task DispatchDueAsync_WhenDnsResolutionFailsTemporarily_SchedulesRetry()
+    {
+        var apiClientId = Guid.NewGuid();
+        var endpoint = new WebhookEndpoint(
+            apiClientId,
+            "https://partner.example.test/webhooks",
+            FakeSecretProtector.ProtectValue("secret"),
+            TestClock.UtcNow);
+        var delivery = CreateDelivery(endpoint, apiClientId);
+        var dispatcher = CreateDispatcher(
+            new FakeHttpMessageHandler(_ => new HttpResponseMessage(HttpStatusCode.NoContent)),
+            new FakeWebhookDeliveryRepository([delivery]),
+            new FakeWebhookEndpointRepository([endpoint]),
+            urlPolicy: new TransientDnsFailurePolicy());
+
+        await dispatcher.DispatchDueAsync();
+
+        Assert.Equal(WebhookDeliveryStatus.Failed, delivery.Status);
+        Assert.Equal("Webhook destination DNS resolution failed.", delivery.LastError);
+        Assert.NotNull(delivery.NextAttemptAtUtc);
+    }
+
     private static WebhookDeliveryDispatcher CreateDispatcher(
         HttpMessageHandler handler,
         IWebhookDeliveryRepository deliveryRepository,
-        IWebhookEndpointRepository endpointRepository)
+        IWebhookEndpointRepository endpointRepository,
+        WebhookSecurityOptions? securityOptions = null,
+        IWebhookUrlPolicy? urlPolicy = null)
     {
         return new WebhookDeliveryDispatcher(
             new HttpClient(handler),
             deliveryRepository,
             endpointRepository,
             new FakeSecretProtector(),
+            urlPolicy ?? new AllowWebhookUrlPolicy(),
+            Options.Create(securityOptions ?? new WebhookSecurityOptions()),
             NullLogger<WebhookDeliveryDispatcher>.Instance,
             TestClock.Provider);
+    }
+
+    private sealed class AllowWebhookUrlPolicy : IWebhookUrlPolicy
+    {
+        public Task<MiniLogistics.Domain.Common.Result> ValidateAsync(
+            string url,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(MiniLogistics.Domain.Common.Result.Success());
+        }
+    }
+
+    private sealed class TransientDnsFailurePolicy : IWebhookUrlPolicy
+    {
+        public Task<MiniLogistics.Domain.Common.Result> ValidateAsync(
+            string url,
+            CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(MiniLogistics.Domain.Common.Result.Failure(
+                PartnerApiErrors.WebhookUrlResolutionFailed));
+        }
     }
 
     private static WebhookDelivery CreateDelivery(WebhookEndpoint endpoint, Guid apiClientId)
@@ -94,7 +231,9 @@ public sealed class WebhookDeliveryDispatcherTests
             WebhookEventTypes.ShipmentStatusChanged,
             Guid.NewGuid(),
             "{\"event\":\"shipment.status_changed\"}",
-            TestClock.UtcNow);
+            TestClock.UtcNow,
+            protectedSigningSecret: endpoint.ProtectedSigningSecret,
+            secretVersion: endpoint.SecretVersion);
     }
 
     private sealed class FakeHttpMessageHandler : HttpMessageHandler
@@ -114,6 +253,34 @@ public sealed class WebhookDeliveryDispatcherTests
         {
             LastRequest = request;
             return Task.FromResult(_responseFactory(request));
+        }
+    }
+
+    private sealed class ThrowingHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly string _message;
+
+        public ThrowingHttpMessageHandler(string message)
+        {
+            _message = message;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            throw new HttpRequestException(_message);
+        }
+    }
+
+    private sealed class BlockingHttpMessageHandler : HttpMessageHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            throw new InvalidOperationException("Unreachable after cancellation.");
         }
     }
 

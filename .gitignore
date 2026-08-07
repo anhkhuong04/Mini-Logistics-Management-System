@@ -17,6 +17,7 @@ publish/
 .agent/
 /*.md
 !/README.md
+!/task.md
 
 # Logs
 *.log

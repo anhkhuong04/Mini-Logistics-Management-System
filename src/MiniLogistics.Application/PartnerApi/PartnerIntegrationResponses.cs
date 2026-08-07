@@ -5,7 +5,19 @@ namespace MiniLogistics.Application.PartnerApi;
 public sealed record PartnerIntegrationDashboardResponse(
     IReadOnlyList<PartnerIntegrationShopResponse> Shops,
     IReadOnlyList<PartnerApiClientResponse> ApiClients,
-    bool GranularPermissionEnabled = false);
+    bool GranularPermissionEnabled = false,
+    IReadOnlyList<PartnerOutboxFailureResponse>? OutboxFailures = null);
+
+public sealed record PartnerOutboxFailureResponse(
+    Guid OutboxMessageId,
+    Guid ApiClientId,
+    string EventType,
+    Guid AggregateId,
+    string Status,
+    int RetryCount,
+    DateTimeOffset? NextAttemptAtUtc,
+    string Error,
+    DateTimeOffset CreatedAtUtc);
 
 public sealed record PartnerIntegrationShopResponse(
     Guid ShopId,

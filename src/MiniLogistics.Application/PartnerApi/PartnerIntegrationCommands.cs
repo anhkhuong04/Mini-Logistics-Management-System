@@ -39,3 +39,7 @@ public sealed record TestPartnerWebhookCommand(
 public sealed record RetryPartnerWebhookDeliveryCommand(
     Guid CurrentUserId,
     Guid WebhookDeliveryId);
+
+public sealed record RetryPartnerOutboxMessageCommand(
+    Guid CurrentUserId,
+    Guid OutboxMessageId);

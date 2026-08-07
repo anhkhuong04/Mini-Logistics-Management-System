@@ -1,6 +1,8 @@
 using System.Text.Json;
+using System.Text;
 using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.Common;
+using MiniLogistics.Application.Outbox;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.PartnerApi;
 
@@ -16,7 +18,9 @@ public sealed class WebhookManagementService : IWebhookManagementService
     private readonly IWebhookDeliveryRepository _webhookDeliveryRepository;
     private readonly PartnerCredentialAuditWriter _credentialAuditWriter;
     private readonly ISecretProtector _secretProtector;
+    private readonly IWebhookUrlPolicy _webhookUrlPolicy;
     private readonly IAdminAuditService _adminAuditService;
+    private readonly IOutboxMessageRepository? _outboxMessageRepository;
     private readonly TimeProvider _timeProvider;
 
     public WebhookManagementService(
@@ -26,8 +30,10 @@ public sealed class WebhookManagementService : IWebhookManagementService
         IWebhookDeliveryRepository webhookDeliveryRepository,
         PartnerCredentialAuditWriter credentialAuditWriter,
         ISecretProtector secretProtector,
+        IWebhookUrlPolicy webhookUrlPolicy,
         TimeProvider timeProvider,
-        IAdminAuditService? adminAuditService = null)
+        IAdminAuditService? adminAuditService = null,
+        IOutboxMessageRepository? outboxMessageRepository = null)
     {
         _scopeService = scopeService;
         _dashboardBuilder = dashboardBuilder;
@@ -35,8 +41,10 @@ public sealed class WebhookManagementService : IWebhookManagementService
         _webhookDeliveryRepository = webhookDeliveryRepository;
         _credentialAuditWriter = credentialAuditWriter;
         _secretProtector = secretProtector;
+        _webhookUrlPolicy = webhookUrlPolicy;
         _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
+        _outboxMessageRepository = outboxMessageRepository;
     }
 
     public async Task<Result<PartnerIntegrationDashboardResponse>> GetDashboardAsync(
@@ -64,9 +72,11 @@ public sealed class WebhookManagementService : IWebhookManagementService
             return Result<PartnerWebhookEndpointResponse>.Failure(PartnerApiErrors.MissingScope);
         }
 
-        if (string.IsNullOrWhiteSpace(command.SigningSecret))
+        if (string.IsNullOrWhiteSpace(command.SigningSecret)
+            || Encoding.UTF8.GetByteCount(command.SigningSecret) < 32)
         {
-            var validationError = ApplicationErrors.ValidationFailed("Webhook signing secret is required.");
+            var validationError = ApplicationErrors.ValidationFailed(
+                "Webhook signing secret must contain at least 32 bytes.");
             await _credentialAuditWriter.SaveAsync(
                 command.CurrentUserId,
                 apiClientResult.Value.ShopId,
@@ -79,6 +89,21 @@ public sealed class WebhookManagementService : IWebhookManagementService
             return Result<PartnerWebhookEndpointResponse>.Failure(validationError);
         }
 
+        var urlValidationResult = await _webhookUrlPolicy.ValidateAsync(command.Url, cancellationToken);
+        if (urlValidationResult.IsFailure)
+        {
+            await _credentialAuditWriter.SaveAsync(
+                command.CurrentUserId,
+                apiClientResult.Value.ShopId,
+                apiClientResult.Value.Id,
+                PartnerApiCredentialAuditActions.WebhookEndpointUpserted,
+                isSuccess: false,
+                urlValidationResult.Error,
+                cancellationToken);
+
+            return Result<PartnerWebhookEndpointResponse>.Failure(urlValidationResult.Error);
+        }
+
         try
         {
             var protectedSigningSecret = _secretProtector.Protect(command.SigningSecret);
@@ -89,7 +114,7 @@ public sealed class WebhookManagementService : IWebhookManagementService
                 ? null
                 : new
                 {
-                    endpoint.Url,
+                    Url = GetAuditUrl(endpoint.Url),
                     endpoint.IsActive
                 };
             var now = _timeProvider.GetUtcNow();
@@ -122,7 +147,7 @@ public sealed class WebhookManagementService : IWebhookManagementService
                     NewValue: new
                     {
                         endpoint.ApiClientId,
-                        endpoint.Url,
+                        Url = GetAuditUrl(endpoint.Url),
                         endpoint.IsActive
                     }),
                 cancellationToken);
@@ -195,7 +220,9 @@ public sealed class WebhookManagementService : IWebhookManagementService
             WebhookEventTypes.WebhookTest,
             endpoint.Id,
             JsonSerializer.Serialize(payload, PayloadJsonOptions),
-            now);
+            now,
+            protectedSigningSecret: endpoint.ProtectedSigningSecret,
+            secretVersion: endpoint.SecretVersion);
 
         await _webhookDeliveryRepository.AddAsync(delivery, cancellationToken);
         await _credentialAuditWriter.AddAsync(
@@ -283,4 +310,94 @@ public sealed class WebhookManagementService : IWebhookManagementService
         return Result.Success();
     }
 
+    public async Task<Result> RetryOutboxMessageAsync(
+        RetryPartnerOutboxMessageCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        if (_outboxMessageRepository is null)
+        {
+            return Result.Failure(ApplicationErrors.ValidationFailed(
+                "Outbox recovery is not configured."));
+        }
+
+        var message = await _outboxMessageRepository.GetByIdAsync(
+            command.OutboxMessageId,
+            cancellationToken);
+        if (message is null)
+        {
+            return Result.Failure(ApplicationErrors.NotFound("Outbox message was not found."));
+        }
+
+        WebhookDeliveryOutboxPayload? payload;
+        try
+        {
+            payload = JsonSerializer.Deserialize<WebhookDeliveryOutboxPayload>(
+                message.PayloadJson,
+                PayloadJsonOptions);
+        }
+        catch (JsonException)
+        {
+            payload = null;
+        }
+
+        if (payload is null)
+        {
+            return Result.Failure(ApplicationErrors.NotFound("Outbox message was not found."));
+        }
+
+        var apiClientResult = await _scopeService.GetManageableApiClientAsync(
+            command.CurrentUserId,
+            payload.ApiClientId,
+            cancellationToken);
+        if (apiClientResult.IsFailure)
+        {
+            return Result.Failure(apiClientResult.Error);
+        }
+
+        if (!apiClientResult.Value.HasScope(PartnerApiScope.WebhookManage))
+        {
+            return Result.Failure(PartnerApiErrors.MissingScope);
+        }
+
+        var retryResult = message.Retry(_timeProvider.GetUtcNow());
+        if (retryResult.IsFailure)
+        {
+            return retryResult;
+        }
+
+        await _credentialAuditWriter.AddAsync(
+            command.CurrentUserId,
+            apiClientResult.Value.ShopId,
+            apiClientResult.Value.Id,
+            PartnerApiCredentialAuditActions.OutboxMessageRetried,
+            isSuccess: true,
+            error: null,
+            cancellationToken);
+        await _adminAuditService.RecordAsync(
+            new AdminAuditEntry(
+                command.CurrentUserId,
+                AdminAuditActions.PartnerOutboxMessageRetried,
+                AdminAuditTargetTypes.OutboxMessage,
+                message.Id,
+                NewValue: new
+                {
+                    payload.ApiClientId,
+                    message.Status,
+                    message.NextAttemptAtUtc
+                }),
+            cancellationToken);
+        await _outboxMessageRepository.SaveChangesAsync(cancellationToken);
+        return Result.Success();
+    }
+
+    private static string GetAuditUrl(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return "[invalid webhook URL]";
+        }
+
+        var sanitized = uri.GetLeftPart(UriPartial.Path);
+        return string.IsNullOrEmpty(uri.Query) ? sanitized : sanitized + "?[redacted]";
+    }
 }

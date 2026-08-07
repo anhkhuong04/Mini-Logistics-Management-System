@@ -10,4 +10,5 @@ public static class PartnerApiCredentialAuditActions
     public const string WebhookEndpointUpserted = nameof(WebhookEndpointUpserted);
     public const string WebhookTestQueued = nameof(WebhookTestQueued);
     public const string WebhookDeliveryRetried = nameof(WebhookDeliveryRetried);
+    public const string OutboxMessageRetried = nameof(OutboxMessageRetried);
 }

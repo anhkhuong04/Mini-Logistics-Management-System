@@ -19,6 +19,24 @@ public interface IApiClientRepository
         IReadOnlyCollection<Guid> shopIds,
         CancellationToken cancellationToken = default);
 
+    async Task MarkUsedIfStaleAsync(
+        Guid apiClientId,
+        DateTimeOffset usedAtUtc,
+        TimeSpan minimumInterval,
+        CancellationToken cancellationToken = default)
+    {
+        var apiClient = await GetByIdAsync(apiClientId, cancellationToken);
+        if (apiClient is null
+            || (apiClient.LastUsedAtUtc.HasValue
+                && usedAtUtc - apiClient.LastUsedAtUtc.Value < minimumInterval))
+        {
+            return;
+        }
+
+        apiClient.MarkUsed(usedAtUtc);
+        await SaveChangesAsync(cancellationToken);
+    }
+
     Task AddAsync(
         ApiClient apiClient,
         CancellationToken cancellationToken = default);

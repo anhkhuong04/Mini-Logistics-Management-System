@@ -20,6 +20,13 @@ public sealed class WebhookDeliveryConfiguration : IEntityTypeConfiguration<Webh
             .HasMaxLength(4000)
             .IsRequired();
 
+        builder.Property(delivery => delivery.ProtectedSigningSecret)
+            .HasMaxLength(2048);
+
+        builder.Property(delivery => delivery.SecretVersion)
+            .HasDefaultValue(1)
+            .IsRequired();
+
         builder.Property(delivery => delivery.Status)
             .HasConversion<string>()
             .HasMaxLength(30)
@@ -30,10 +37,16 @@ public sealed class WebhookDeliveryConfiguration : IEntityTypeConfiguration<Webh
 
         builder.Property(delivery => delivery.LastDurationMs);
 
+        builder.Property(delivery => delivery.LockedBy)
+            .HasMaxLength(200);
+
+        builder.Property(delivery => delivery.RowVersion)
+            .IsRowVersion();
+
         builder.Property(delivery => delivery.CreatedAtUtc)
             .IsRequired();
 
-        builder.HasIndex(delivery => new { delivery.Status, delivery.NextAttemptAtUtc });
+        builder.HasIndex(delivery => new { delivery.Status, delivery.NextAttemptAtUtc, delivery.LockedUntilUtc });
 
         builder.HasIndex(delivery => delivery.AggregateId);
 

@@ -106,6 +106,7 @@ public sealed class PartnerIntegrationP3Tests
             deliveryRepository,
             new PartnerCredentialAuditWriter(auditRepository, TestClock.Provider),
             new FakeSecretProtector(),
+            new FakeWebhookUrlPolicy(),
             TestClock.Provider,
             NullAdminAuditService.Instance);
     }

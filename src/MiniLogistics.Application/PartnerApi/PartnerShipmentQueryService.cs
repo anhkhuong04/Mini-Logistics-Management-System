@@ -55,7 +55,7 @@ public sealed class PartnerShipmentQueryService : IPartnerShipmentQueryService
             new TrackingCode(command.TrackingCode),
             shop.Id,
             cancellationToken);
-        if (shipment is null)
+        if (shipment is null || shipment.Status == ShipmentStatus.Draft)
         {
             return Result<PartnerShipmentTrackingResponse>.Failure(ApplicationErrors.NotFound("Shipment was not found for API client."));
         }
@@ -64,10 +64,6 @@ public sealed class PartnerShipmentQueryService : IPartnerShipmentQueryService
             command.ApiClientId,
             shipment.Id,
             cancellationToken);
-        if (reference is null)
-        {
-            return Result<PartnerShipmentTrackingResponse>.Failure(ApplicationErrors.NotFound("Shipment was not found for API client."));
-        }
 
         var codTransaction = await _codTransactionRepository.GetByShipmentIdAsync(shipment.Id, cancellationToken);
 

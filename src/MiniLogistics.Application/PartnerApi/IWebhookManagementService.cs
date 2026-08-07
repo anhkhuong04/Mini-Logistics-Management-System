@@ -37,4 +37,8 @@ public interface IWebhookManagementService
     Task<Result> RetryWebhookDeliveryAsync(
         RetryPartnerWebhookDeliveryCommand command,
         CancellationToken cancellationToken = default);
+
+    Task<Result> RetryOutboxMessageAsync(
+        RetryPartnerOutboxMessageCommand command,
+        CancellationToken cancellationToken = default);
 }

@@ -1,10 +1,13 @@
 using System.Text.Json;
+using System.Net;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using MiniLogistics.Application.Outbox;
 using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Domain.Outbox;
 using MiniLogistics.Domain.PartnerApi;
 using MiniLogistics.Infrastructure.Outbox;
+using MiniLogistics.Infrastructure.PartnerApi;
 using Xunit;
 
 namespace MiniLogistics.Infrastructure.Tests;
@@ -76,6 +79,43 @@ public sealed class OutboxMessageDispatcherTests
         Assert.Empty(deliveryRepository.Deliveries);
     }
 
+    [Fact]
+    public async Task EndToEnd_OutboxToSignedReceiver_SucceedsWithSameEventId()
+    {
+        const string secret = "integration-secret-at-least-32-bytes";
+        var apiClientId = Guid.NewGuid();
+        var endpoint = new WebhookEndpoint(
+            apiClientId,
+            "https://partner.example.test/webhooks",
+            secret,
+            TestClock.UtcNow);
+        var message = CreateWebhookOutboxMessage(endpoint);
+        var outboxRepository = new FakeOutboxMessageRepository([message]);
+        var deliveryRepository = new FakeWebhookDeliveryRepository([]);
+
+        await CreateDispatcher(outboxRepository, deliveryRepository).DispatchDueAsync();
+
+        var handler = new CapturingHttpMessageHandler();
+        var webhookDispatcher = new WebhookDeliveryDispatcher(
+            new HttpClient(handler),
+            deliveryRepository,
+            new FakeWebhookEndpointRepository(endpoint),
+            new PassThroughSecretProtector(),
+            new AllowWebhookUrlPolicy(),
+            Options.Create(new WebhookSecurityOptions()),
+            NullLogger<WebhookDeliveryDispatcher>.Instance,
+            TestClock.Provider);
+        await webhookDispatcher.DispatchDueAsync();
+
+        var delivery = Assert.Single(deliveryRepository.Deliveries);
+        Assert.Equal(message.Id, delivery.Id);
+        Assert.Equal(WebhookDeliveryStatus.Succeeded, delivery.Status);
+        Assert.NotNull(handler.Request);
+        var timestamp = Assert.Single(handler.Request.Headers.GetValues("X-MiniLogistics-Timestamp"));
+        var signature = Assert.Single(handler.Request.Headers.GetValues("X-MiniLogistics-Signature"));
+        Assert.Equal(WebhookSignature.Compute(secret, timestamp, delivery.PayloadJson), signature);
+    }
+
     private static OutboxMessageDispatcher CreateDispatcher(
         IOutboxMessageRepository outboxRepository,
         IWebhookDeliveryRepository deliveryRepository)
@@ -87,7 +127,7 @@ public sealed class OutboxMessageDispatcherTests
             TestClock.Provider);
     }
 
-    private static OutboxMessage CreateWebhookOutboxMessage()
+    private static OutboxMessage CreateWebhookOutboxMessage(WebhookEndpoint? endpoint = null)
     {
         var eventId = Guid.NewGuid();
         var aggregateId = Guid.NewGuid();
@@ -101,11 +141,13 @@ public sealed class OutboxMessageDispatcherTests
                 TestClock.UtcNow),
             JsonOptions);
         var outboxPayload = new WebhookDeliveryOutboxPayload(
-            Guid.NewGuid(),
-            Guid.NewGuid(),
+            endpoint?.Id ?? Guid.NewGuid(),
+            endpoint?.ApiClientId ?? Guid.NewGuid(),
             WebhookEventTypes.ShipmentCreated,
             aggregateId,
-            webhookPayloadJson);
+            webhookPayloadJson,
+            endpoint?.ProtectedSigningSecret,
+            endpoint?.SecretVersion ?? 1);
 
         return new OutboxMessage(
             eventId,
@@ -174,7 +216,12 @@ public sealed class OutboxMessageDispatcherTests
             int batchSize,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult<IReadOnlyList<WebhookDelivery>>([]);
+            return Task.FromResult<IReadOnlyList<WebhookDelivery>>(_deliveries
+                .Where(delivery => delivery.Status is WebhookDeliveryStatus.Pending or WebhookDeliveryStatus.Failed
+                    && delivery.NextAttemptAtUtc is not null
+                    && delivery.NextAttemptAtUtc <= dueAtUtc)
+                .Take(batchSize)
+                .ToList());
         }
 
         public Task<IReadOnlyList<WebhookDelivery>> GetRecentByApiClientIdsAsync(
@@ -194,6 +241,68 @@ public sealed class OutboxMessageDispatcherTests
         public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         {
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeWebhookEndpointRepository(WebhookEndpoint endpoint)
+        : IWebhookEndpointRepository
+    {
+        public Task<IReadOnlyList<WebhookEndpoint>> GetActiveByApiClientIdAsync(
+            Guid apiClientId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<WebhookEndpoint>>(
+                endpoint.ApiClientId == apiClientId && endpoint.IsActive ? [endpoint] : []);
+
+        public Task<IReadOnlyList<WebhookEndpoint>> GetByApiClientIdsAsync(
+            IReadOnlyCollection<Guid> apiClientIds,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<WebhookEndpoint>>(
+                apiClientIds.Contains(endpoint.ApiClientId) ? [endpoint] : []);
+
+        public Task<WebhookEndpoint?> GetByIdAsync(
+            Guid endpointId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<WebhookEndpoint?>(endpoint.Id == endpointId ? endpoint : null);
+
+        public Task<WebhookEndpoint?> GetLatestByApiClientIdAsync(
+            Guid apiClientId,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<WebhookEndpoint?>(endpoint.ApiClientId == apiClientId ? endpoint : null);
+
+        public Task AddAsync(WebhookEndpoint value, CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
+            Task.CompletedTask;
+    }
+
+    private sealed class PassThroughSecretProtector : ISecretProtector
+    {
+        public string Protect(string plaintextSecret) => plaintextSecret;
+
+        public string Unprotect(string protectedSecret) => protectedSecret;
+
+        public bool IsProtected(string value) => true;
+    }
+
+    private sealed class AllowWebhookUrlPolicy : IWebhookUrlPolicy
+    {
+        public Task<MiniLogistics.Domain.Common.Result> ValidateAsync(
+            string url,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(MiniLogistics.Domain.Common.Result.Success());
+    }
+
+    private sealed class CapturingHttpMessageHandler : HttpMessageHandler
+    {
+        public HttpRequestMessage? Request { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken)
+        {
+            Request = request;
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
         }
     }
 }

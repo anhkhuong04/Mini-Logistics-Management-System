@@ -6,4 +6,5 @@ public sealed record WebhookShipmentPayload(
     string TrackingCode,
     string ExternalOrderId,
     string Status,
-    DateTimeOffset ChangedAtUtc);
+    DateTimeOffset ChangedAtUtc,
+    string SchemaVersion = "1.0");

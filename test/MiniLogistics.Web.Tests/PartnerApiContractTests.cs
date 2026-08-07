@@ -11,7 +11,9 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Domain.Common;
+using MiniLogistics.Domain.Fees;
 using MiniLogistics.Domain.PartnerApi;
+using MiniLogistics.Domain.Shipments;
 using MiniLogistics.Domain.Shops;
 using MiniLogistics.Domain.ValueObjects;
 using MiniLogistics.Infrastructure.Persistence;
@@ -22,6 +24,23 @@ namespace MiniLogistics.Web.Tests;
 public sealed class PartnerApiContractTests
 {
     private const string TestApiKey = "ml_test_contract_key_123456";
+    private const string ShopTrackingCode = "MLUI202608020001";
+    private const string OtherShopTrackingCode = "MLUI202608020002";
+
+    [Theory]
+    [InlineData("/health/live")]
+    [InlineData("/health/ready")]
+    public async Task HealthEndpoint_WhenDependenciesAreAvailable_ReturnsHealthy(string path)
+    {
+        await using var factory = new PartnerApiWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        var response = await client.GetAsync(path);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal("Healthy", document.RootElement.GetProperty("status").GetString());
+    }
 
     [Fact]
     public async Task Quote_WhenMissingApiKey_ReturnsStandardUnauthorizedError()
@@ -38,6 +57,37 @@ public sealed class PartnerApiContractTests
         Assert.Equal("PartnerApi.MissingApiKey", document.RootElement.GetProperty("error").GetProperty("code").GetString());
         Assert.False(string.IsNullOrWhiteSpace(document.RootElement.GetProperty("error").GetProperty("message").GetString()));
         Assert.False(string.IsNullOrWhiteSpace(document.RootElement.GetProperty("error").GetProperty("traceId").GetString()));
+        Assert.True(response.Headers.Contains("X-Correlation-ID"));
+    }
+
+    [Fact]
+    public async Task TrackShipment_WhenCreatedOutsidePartnerApi_ReturnsShopShipmentWithoutInternalNote()
+    {
+        await using var factory = new PartnerApiWebApplicationFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestApiKey);
+
+        var response = await client.GetAsync($"/api/v1/partner/shipments/{ShopTrackingCode}");
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Equal(JsonValueKind.Null, document.RootElement.GetProperty("externalOrderId").ValueKind);
+        var timelineItem = document.RootElement.GetProperty("timeline")[0];
+        Assert.Equal("SHIPMENT_PENDING_PICKUP", timelineItem.GetProperty("messageCode").GetString());
+        Assert.False(timelineItem.TryGetProperty("note", out _));
+        Assert.DoesNotContain("0909123456", document.RootElement.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task TrackShipment_WhenShipmentBelongsToOtherShop_ReturnsNotFound()
+    {
+        await using var factory = new PartnerApiWebApplicationFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestApiKey);
+
+        var response = await client.GetAsync($"/api/v1/partner/shipments/{OtherShopTrackingCode}");
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
@@ -313,6 +363,12 @@ public sealed class PartnerApiContractTests
                     new PhoneNumber("0900000001"),
                     new Address("123 Nguyen Trai", "Ben Thanh", "Ho Chi Minh"),
                     TestClock.UtcNow);
+                var otherShop = new Shop(
+                    Guid.Parse("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
+                    "Other Contract Test Shop",
+                    new PhoneNumber("0900000002"),
+                    new Address("8 Tran Hung Dao", "Hoan Kiem", "Ha Noi"),
+                    TestClock.UtcNow);
                 var apiClient = new ApiClient(
                     shop.Id,
                     "Contract Test Client",
@@ -327,9 +383,47 @@ public sealed class PartnerApiContractTests
                 }
 
                 dbContext.Shops.Add(shop);
+                dbContext.Shops.Add(otherShop);
                 dbContext.ApiClients.Add(apiClient);
+                dbContext.Shipments.Add(CreateTrackingShipment(
+                    shop.Id,
+                    shop.OwnerUserId,
+                    ShopTrackingCode,
+                    "Internal note with phone 0909123456."));
+                dbContext.Shipments.Add(CreateTrackingShipment(
+                    otherShop.Id,
+                    otherShop.OwnerUserId,
+                    OtherShopTrackingCode,
+                    "Other shop internal note."));
                 dbContext.SaveChanges();
             });
+        }
+
+        private static Shipment CreateTrackingShipment(
+            Guid shopId,
+            Guid ownerUserId,
+            string trackingCode,
+            string note)
+        {
+            return Shipment.Create(
+                shopId,
+                "Contract Sender",
+                new PhoneNumber("0900000010"),
+                "Contract Receiver",
+                new PhoneNumber("0900000011"),
+                new Address("1 Nguyen Hue", "Ben Nghe", "Ho Chi Minh"),
+                new Address("2 Le Loi", "Ben Thanh", "Ho Chi Minh"),
+                new Weight(1m),
+                new ParcelDimensions(10m, 10m, 10m),
+                new Weight(1m),
+                new Money(100_000m),
+                Money.Zero,
+                new ShippingFeeBreakdown(new Money(25_000m), Money.Zero, Money.Zero, Money.Zero),
+                RouteType.IntraRegion,
+                ownerUserId,
+                TestClock.UtcNow,
+                note,
+                new TrackingCode(trackingCode));
         }
     }
 

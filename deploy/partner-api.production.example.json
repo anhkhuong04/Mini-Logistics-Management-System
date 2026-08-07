@@ -1,0 +1,57 @@
+{
+  "PublicBaseUrl": "https://api.minilogistics.example",
+  "AllowedHosts": "api.minilogistics.example",
+  "PartnerApi": {
+    "Environment": "Live",
+    "WebhookSecurity": {
+      "AllowedPorts": [443],
+      "ConnectTimeoutSeconds": 5,
+      "RequestTimeoutSeconds": 10,
+      "MaxResponseBodyBytes": 2048,
+      "MaxResponseHeadersKilobytes": 16,
+      "MaxConnectionsPerServer": 8
+    },
+    "RateLimiting": {
+      "Mode": "Redis",
+      "StoreTimeoutMilliseconds": 500,
+      "StoreFailureThreshold": 3,
+      "CircuitBreakSeconds": 10,
+      "KeyPrefix": "mini-logistics-production",
+      "QuoteLimitPerMinute": 60,
+      "CreateShipmentLimitPerMinute": 30,
+      "TrackingLimitPerMinute": 120,
+      "CancelShipmentLimitPerMinute": 30
+    },
+    "Retention": {
+      "Enabled": true,
+      "RunOnStartup": false,
+      "IntervalHours": 6,
+      "SucceededQueueRetentionDays": 30,
+      "RequestAuditRetentionDays": 180,
+      "CredentialAuditRetentionDays": 365,
+      "BatchSize": 1000
+    }
+  },
+  "TrustedProxy": {
+    "KnownProxies": [],
+    "KnownNetworks": ["10.20.0.0/16"],
+    "ForwardLimit": 1,
+    "ForwardedForHeaderName": "X-Forwarded-For",
+    "ForwardedProtoHeaderName": "X-Forwarded-Proto"
+  },
+  "DataProtection": {
+    "ApplicationName": "MiniLogistics-Production",
+    "KeysPath": "/mnt/minilogistics-keyring",
+    "CertificatePath": "/mnt/secrets/key-ring.pfx",
+    "CertificatePassword": "",
+    "KeyLifetimeDays": 90
+  },
+  "Cors": {
+    "PartnerApi": {
+      "AllowedOrigins": []
+    }
+  },
+  "Seeding": {
+    "Enabled": false
+  }
+}

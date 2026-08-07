@@ -186,7 +186,7 @@ dotnet run --project src/MiniLogistics.Web -- --seed
 dotnet run --project src/MiniLogistics.Web
 ```
 
-The app runs at: **https://localhost:5221**
+The app runs at: **https://localhost:7195** (HTTPS profile)
 
 ---
 
@@ -212,14 +212,14 @@ key must come from environment variables or another secure configuration source.
 | `/shipments/{id}`         | Shop           | Shipment detail, tracking timeline, cancel action                        |
 | `/operations/assignments` | Admin/Operator | Dispatch hub: assign shippers, monitor operations, update status, COD support |
 | `/shipper/shipments`      | Shipper        | Shipper workspace: active shipments, status updates, COD confirmation    |
-| `/partner/integrations`   | Admin          | Configure partner webhooks                                               |
+| `/partner/integrations`   | Shop/Admin/IntegrationAdmin | Configure partner API clients, security and webhooks              |
 | `/admin/users`            | Admin          | User management                                                          |
 
 ---
 
 ## Partner API
 
-**Base URL:** `http://localhost:5221/api/v1/partner`
+**Base URL:** `https://localhost:7195/api/v1/partner`
 
 **Authentication:** `Authorization: Bearer {api_key}`
 
@@ -231,6 +231,10 @@ key must come from environment variables or another secure configuration source.
 | POST   | `/shipments/{trackingCode}/cancel` | Cancel a shipment    | 30/min     |
 
 For full details, see [`docs/partner-api.md`](docs/partner-api.md) and [`docs/third-party-shipment-integration-guide.md`](docs/third-party-shipment-integration-guide.md).
+
+Tracking is authorized by shop: a client with `TrackShipment` can read shipments
+created through UI, CSV, or Partner API in the same shop. External order IDs remain
+private to the API client that created the reference.
 
 ---
 
@@ -248,7 +252,7 @@ Run infrastructure integration tests only (requires SQL Server LocalDB):
 dotnet test test/MiniLogistics.Infrastructure.Tests/MiniLogistics.Infrastructure.Tests.csproj
 ```
 
-Current results: **14 passed / 0 failed**.
+Current results: **267 passed / 0 failed / 0 skipped**.
 
 ---
 
@@ -295,6 +299,7 @@ Mini-logistics-management-system/
 │   ├── partner-api.md
 │   ├── partner-api.openapi.json
 │   ├── third-party-shipment-integration-guide.md
+│   ├── partner-api-production-readiness-report.md
 │   └── roles/                # Role-specific flow documentation
 │
 ├── postman/                  # Postman collection
@@ -380,7 +385,10 @@ TotalFee = BaseFee + ExtraWeightFee + InsuranceFee + ReturnFee
 | [overview.md](overview.md) | Project overview, progress, and upcoming tasks |
 | [fee.md](fee.md) | In-depth fee calculation analysis and comparison with SPX Express |
 | [docs/partner-api.md](docs/partner-api.md) | Partner REST API reference |
+| [docs/partner-api.openapi.json](docs/partner-api.openapi.json) | Build-generated OpenAPI contract |
 | [docs/third-party-shipment-integration-guide.md](docs/third-party-shipment-integration-guide.md) | Integration guide for third-party partners |
+| [docs/partner-api-production-readiness-report.md](docs/partner-api-production-readiness-report.md) | Production readiness assessment and required actions |
+| [docs/operations/partner-api-production-runbook.md](docs/operations/partner-api-production-runbook.md) | Deployment, recovery, alerting, and certification runbook |
 
 ---
 

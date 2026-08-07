@@ -80,7 +80,8 @@ public sealed class AdminDashboardMetricsRepository : IAdminDashboardMetricsRepo
             .AsNoTracking()
             .Where(delivery => delivery.CreatedAtUtc >= fromUtc && delivery.CreatedAtUtc <= toUtc);
         var failedWebhooks = await webhookQuery.CountAsync(
-            delivery => delivery.Status == WebhookDeliveryStatus.Failed,
+            delivery => delivery.Status == WebhookDeliveryStatus.Failed
+                || delivery.Status == WebhookDeliveryStatus.DeadLettered,
             cancellationToken);
         var retryPendingWebhooks = await webhookQuery.CountAsync(
             delivery => delivery.NextAttemptAtUtc != null

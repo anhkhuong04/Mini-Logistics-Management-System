@@ -11,6 +11,7 @@ public sealed class WebhookDelivery : AuditableEntity
     {
         EventType = string.Empty;
         PayloadJson = string.Empty;
+        RowVersion = [];
     }
 
     public WebhookDelivery(
@@ -21,7 +22,9 @@ public sealed class WebhookDelivery : AuditableEntity
         Guid aggregateId,
         string payloadJson,
         DateTimeOffset createdAtUtc,
-        DateTimeOffset? nextAttemptAtUtc = null)
+        DateTimeOffset? nextAttemptAtUtc = null,
+        string? protectedSigningSecret = null,
+        int secretVersion = 1)
         : base(id, createdAtUtc)
     {
         if (id == Guid.Empty)
@@ -49,6 +52,10 @@ public sealed class WebhookDelivery : AuditableEntity
         EventType = DomainGuard.RequireText(eventType, nameof(eventType), 100);
         AggregateId = aggregateId;
         PayloadJson = DomainGuard.RequireText(payloadJson, nameof(payloadJson), 4000);
+        ProtectedSigningSecret = DomainGuard.TrimOptional(protectedSigningSecret, 2048);
+        SecretVersion = secretVersion > 0
+            ? secretVersion
+            : throw new DomainException("Webhook secret version must be greater than zero.");
         Status = WebhookDeliveryStatus.Pending;
         NextAttemptAtUtc = nextAttemptAtUtc ?? createdAtUtc;
     }
@@ -62,6 +69,10 @@ public sealed class WebhookDelivery : AuditableEntity
     public Guid AggregateId { get; private set; }
 
     public string PayloadJson { get; private set; }
+
+    public string? ProtectedSigningSecret { get; private set; }
+
+    public int SecretVersion { get; private set; }
 
     public WebhookDeliveryStatus Status { get; private set; }
 
@@ -77,6 +88,39 @@ public sealed class WebhookDelivery : AuditableEntity
 
     public string? LastError { get; private set; }
 
+    public string? LockedBy { get; private set; }
+
+    public DateTimeOffset? LockedUntilUtc { get; private set; }
+
+    public Guid? AttemptId { get; private set; }
+
+    public byte[] RowVersion { get; private set; } = [];
+
+    public bool TryAcquireLease(
+        string workerId,
+        Guid attemptId,
+        DateTimeOffset nowUtc,
+        DateTimeOffset lockedUntilUtc)
+    {
+        if (Status is WebhookDeliveryStatus.Succeeded or WebhookDeliveryStatus.DeadLettered
+            || NextAttemptAtUtc is null
+            || NextAttemptAtUtc > nowUtc
+            || (LockedUntilUtc.HasValue && LockedUntilUtc > nowUtc))
+        {
+            return false;
+        }
+
+        LockedBy = DomainGuard.RequireText(workerId, nameof(workerId), 200);
+        AttemptId = attemptId == Guid.Empty
+            ? throw new DomainException("Attempt id is required.")
+            : attemptId;
+        LockedUntilUtc = lockedUntilUtc > nowUtc
+            ? lockedUntilUtc
+            : throw new DomainException("Lease expiration must be in the future.");
+        MarkUpdated(nowUtc);
+        return true;
+    }
+
     public void MarkSucceeded(
         int statusCode,
         DateTimeOffset attemptedAtUtc,
@@ -88,6 +132,7 @@ public sealed class WebhookDelivery : AuditableEntity
         LastDurationMs = NormalizeDuration(durationMs);
         LastError = null;
         NextAttemptAtUtc = null;
+        ReleaseLease();
         MarkUpdated(attemptedAtUtc);
     }
 
@@ -98,30 +143,41 @@ public sealed class WebhookDelivery : AuditableEntity
         DateTimeOffset? nextAttemptAtUtc,
         long? durationMs = null)
     {
-        Status = WebhookDeliveryStatus.Failed;
+        Status = nextAttemptAtUtc.HasValue
+            ? WebhookDeliveryStatus.Failed
+            : WebhookDeliveryStatus.DeadLettered;
         RetryCount++;
         LastAttemptAtUtc = attemptedAtUtc;
         LastResponseStatusCode = statusCode;
         LastDurationMs = NormalizeDuration(durationMs);
         LastError = DomainGuard.TrimOptional(error, 1000);
         NextAttemptAtUtc = nextAttemptAtUtc;
+        ReleaseLease();
         MarkUpdated(attemptedAtUtc);
     }
 
     public Result Retry(DateTimeOffset queuedAtUtc)
     {
-        if (Status != WebhookDeliveryStatus.Failed)
+        if (Status is not (WebhookDeliveryStatus.Failed or WebhookDeliveryStatus.DeadLettered))
         {
             return Result.Failure(new Error(
                 "WebhookDelivery.NotFailed",
-                "Only failed webhook deliveries can be retried."));
+                "Only failed or dead-lettered webhook deliveries can be retried."));
         }
 
         Status = WebhookDeliveryStatus.Pending;
         NextAttemptAtUtc = queuedAtUtc;
         LastError = null;
+        ReleaseLease();
         MarkUpdated(queuedAtUtc);
         return Result.Success();
+    }
+
+    private void ReleaseLease()
+    {
+        LockedBy = null;
+        LockedUntilUtc = null;
+        AttemptId = null;
     }
 
     private static long? NormalizeDuration(long? durationMs)
