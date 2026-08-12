@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using MiniLogistics.Application.Shops.Reports;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Shipments;
+using MiniLogistics.Domain.ValueObjects;
 
 namespace MiniLogistics.Infrastructure.Persistence.Repositories;
 
@@ -31,19 +32,22 @@ public sealed class ShopReportingRepository : IShopReportingRepository
             .Select(group => new { Status = group.Key, Count = group.Count() })
             .ToDictionaryAsync(row => row.Status, row => row.Count, cancellationToken);
 
-        var totalShippingFee = await shipmentQuery
-            .SumAsync(shipment => (decimal?)shipment.ShippingFee.Amount, cancellationToken) ?? 0m;
+        var shippingFees = await shipmentQuery
+            .Select(shipment => shipment.ShippingFee)
+            .ToListAsync(cancellationToken);
+        var totalShippingFee = shippingFees.Sum(fee => fee.Amount);
 
-        var codQuery = CreateCodRowsQuery(shopId, fromUtc, toUtc);
-        var pendingCodAmount = await codQuery
+        var codRows = await CreateCodRowsQuery(shopId, fromUtc, toUtc)
+            .ToListAsync(cancellationToken);
+        var pendingCodAmount = codRows
             .Where(row => row.CodStatus == CodStatus.PendingCollection)
-            .SumAsync(row => (decimal?)row.DeclaredAmount, cancellationToken) ?? 0m;
-        var collectedCodAmount = await codQuery
+            .Sum(row => row.DeclaredAmount.Amount);
+        var collectedCodAmount = codRows
             .Where(row => row.CodStatus == CodStatus.Collected || row.CodStatus == CodStatus.Settled)
-            .SumAsync(row => (decimal?)(row.CollectedAmount ?? row.DeclaredAmount), cancellationToken) ?? 0m;
-        var settledCodAmount = await codQuery
+            .Sum(row => (row.CollectedAmount ?? row.DeclaredAmount).Amount);
+        var settledCodAmount = codRows
             .Where(row => row.CodStatus == CodStatus.Settled)
-            .SumAsync(row => (decimal?)(row.CollectedAmount ?? row.DeclaredAmount), cancellationToken) ?? 0m;
+            .Sum(row => (row.CollectedAmount ?? row.DeclaredAmount).Amount);
 
         return new ShopDashboardKpiMetrics(
             countByStatus.Values.Sum(),
@@ -73,12 +77,12 @@ public sealed class ShopReportingRepository : IShopReportingRepository
         return rows
             .Select(row => new ShopCodReportRowResponse(
                 row.ShipmentId,
-                row.TrackingCode,
+                row.TrackingCode.Value,
                 row.ShipmentStatus,
                 row.CodStatus,
-                row.DeclaredAmount,
-                row.CollectedAmount,
-                row.DiscrepancyAmount ?? 0m,
+                row.DeclaredAmount.Amount,
+                row.CollectedAmount?.Amount,
+                row.DiscrepancyAmount?.Amount ?? 0m,
                 row.CollectedAtUtc,
                 row.CreatedAtUtc))
             .ToList();
@@ -122,25 +126,24 @@ public sealed class ShopReportingRepository : IShopReportingRepository
                 on shipment.Id equals cod.ShipmentId
             select new ShopCodReportRowProjection(
                 shipment.Id,
-                shipment.TrackingCode.Value,
+                shipment.TrackingCode,
                 shipment.Status,
                 cod.Status,
-                cod.Amount.Amount,
-                cod.CollectedAmount == null ? null : cod.CollectedAmount.Amount,
-                cod.DiscrepancyAmount == null ? null : cod.DiscrepancyAmount.Amount,
+                cod.Amount,
+                cod.CollectedAmount,
+                cod.DiscrepancyAmount,
                 cod.CollectedAtUtc,
                 shipment.CreatedAtUtc);
     }
 
     private sealed record ShopCodReportRowProjection(
         Guid ShipmentId,
-        string TrackingCode,
+        TrackingCode TrackingCode,
         ShipmentStatus ShipmentStatus,
         CodStatus CodStatus,
-        decimal DeclaredAmount,
-        decimal? CollectedAmount,
-        decimal? DiscrepancyAmount,
+        Money DeclaredAmount,
+        Money? CollectedAmount,
+        Money? DiscrepancyAmount,
         DateTimeOffset? CollectedAtUtc,
         DateTimeOffset CreatedAtUtc);
 }
-

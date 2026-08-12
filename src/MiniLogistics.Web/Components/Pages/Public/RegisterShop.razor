@@ -1,119 +1,95 @@
 @page "/register-shop"
 @layout MiniLogistics.Web.Components.Layout.LandingLayout
 @attribute [AllowAnonymous]
+@using Microsoft.AspNetCore.DataProtection
+@inject IHttpContextAccessor HttpContextAccessor
+@inject IDataProtectionProvider DataProtectionProvider
 
 <PageTitle>Đăng ký shop - LAK Logistics</PageTitle>
 
 <main class="auth-page register-page">
-    <div class="auth-shell">
-        <section class="auth-visual" aria-label="Đăng ký shop LAK Logistics">
-            <a class="brand-lockup" href="/">
-                <img src="/images/auth/lak-logo.svg" alt="LAK Logistics" />
-                <span class="brand-copy">
-                    <strong>LAK Logistics</strong>
-                    <span>Đăng ký tài khoản shop để bắt đầu tạo và theo dõi vận đơn</span>
-                </span>
-            </a>
+    <section class="auth-shell" aria-label="Đăng ký shop LAK Logistics">
+        <a class="auth-brand" href="/" aria-label="LAK Logistics">
+            <img src="/images/landing/lak-logo.svg" alt="LAK Logistics" />
+            <span>LAK Logistics</span>
+        </a>
 
-            <div class="auth-copy">
-                <span class="auth-chip">Tài khoản shop</span>
-                <h1>Tạo không gian quản lý đơn hàng và bắt đầu luồng giao nhận trong vài phút.</h1>
-                <p>Biểu mẫu chỉ giữ các thông tin cần thiết để shop có thể tạo đơn, theo dõi vận đơn và cấu hình điểm lấy hàng mặc định.</p>
+        <div class="auth-card">
+            <div class="auth-card-head">
+                <h1>Đăng ký shop</h1>
             </div>
 
-            <ul class="auth-points" aria-label="Điểm chính của biểu mẫu đăng ký">
-                <li>Thông tin gọn, rõ và đủ để tạo tài khoản quản trị ban đầu.</li>
-                <li>Bố cục hai cột giúp điền nhanh hơn trên màn hình desktop.</li>
-                <li>Các thiết lập vận hành khác có thể cập nhật sau khi đăng nhập.</li>
-            </ul>
+            @if (!string.IsNullOrWhiteSpace(Error))
+            {
+                <div class="auth-error" role="alert">@UiDisplay.ToErrorMessage(Error)</div>
+            }
 
-            <div class="auth-visual-frame">
-                <img src="/images/auth/register-visual.png" alt="Chủ shop chuẩn bị đơn hàng tại bàn làm việc" />
-            </div>
-        </section>
+            <form method="post" action="/auth/register-shop" class="auth-form">
+                <AntiforgeryToken />
 
-        <section class="auth-panel" aria-label="Biểu mẫu đăng ký shop">
-            <div class="auth-panel-inner">
-                <div class="auth-topbar">
-                    <div class="auth-topbar-links">
-                        <a class="auth-link" href="/login">Quay lại đăng nhập</a>
-                        <a class="auth-link" href="/">Trang chủ</a>
-                    </div>
-                    <span class="auth-lang">Tiếng Việt</span>
+                <div class="auth-form-grid">
+                    <label class="form-field" for="full-name">
+                        <span>Họ và tên</span>
+                        <input id="full-name" class="form-input" name="FullName" autocomplete="name" required maxlength="150" placeholder="Nguyễn Văn A" value="@Draft?.FullName" />
+                    </label>
+
+                    <label class="form-field" for="email">
+                        <span>Email</span>
+                        <input id="email" class="form-input" name="Email" type="email" autocomplete="email" required maxlength="256" placeholder="name@shop.vn" value="@Draft?.Email" />
+                    </label>
+
+                    <label class="form-field" for="password">
+                        <span>Mật khẩu</span>
+                        <input id="password" class="form-input" name="Password" type="password" autocomplete="new-password" required minlength="8" maxlength="100" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,100}" aria-describedby="password-requirement" title="Ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt." placeholder="Tối thiểu 8 ký tự" />
+                        <small id="password-requirement" class="form-hint">Ít nhất 8 ký tự, gồm chữ hoa, chữ thường, số và ký tự đặc biệt.</small>
+                    </label>
+
+                    <label class="form-field" for="phone-number">
+                        <span>Số điện thoại</span>
+                        <input id="phone-number" class="form-input" name="PhoneNumber" type="tel" autocomplete="tel" required maxlength="20" placeholder="09xxxxxxxx" value="@Draft?.PhoneNumber" />
+                    </label>
+
+                    <label class="form-field form-field--span-two" for="shop-name">
+                        <span>Tên shop</span>
+                        <input id="shop-name" class="form-input" name="ShopName" required maxlength="200" placeholder="Ví dụ: LAK Shop" value="@Draft?.ShopName" />
+                    </label>
+
+                    <label class="form-field" for="province">
+                        <span>Tỉnh / Thành phố</span>
+                        <input id="province" class="form-input" name="Province" required maxlength="100" placeholder="Hà Nội" value="@Draft?.Province" />
+                    </label>
+
+                    <label class="form-field" for="ward">
+                        <span>Phường / Xã</span>
+                        <input id="ward" class="form-input" name="Ward" required maxlength="100" placeholder="Phường ..." value="@Draft?.Ward" />
+                    </label>
+
+                    <label class="form-field" for="address-line">
+                        <span>Địa chỉ lấy hàng</span>
+                        <input id="address-line" class="form-input" name="AddressLine" required maxlength="300" placeholder="Số nhà, đường, khu vực nhận hàng" value="@Draft?.AddressLine" />
+                    </label>
                 </div>
 
-                <div class="auth-card">
-                    <div class="auth-card-head">
-                        <h2>Đăng ký shop</h2>
-                        <p>Dùng thông tin liên hệ chính để quản lý đơn hàng, vận hành giao nhận và đối soát COD trên hệ thống LAK.</p>
-                    </div>
+                <input type="hidden" name="Country" value="Vietnam" />
+                <button type="submit" class="auth-primary">Tạo tài khoản</button>
+            </form>
 
-                    @if (!string.IsNullOrWhiteSpace(Error))
-                    {
-                        <div class="auth-error" role="alert">@UiDisplay.ToErrorMessage(Error)</div>
-                    }
-
-                    <form method="post" action="/auth/register-shop" class="auth-form">
-                        <AntiforgeryToken />
-
-                        <div class="auth-form-grid">
-                            <label class="form-field" for="full-name">
-                                <span>Họ và tên</span>
-                                <input id="full-name" class="form-input" name="FullName" autocomplete="name" required maxlength="150" placeholder="Nguyễn Văn A" />
-                            </label>
-
-                            <label class="form-field" for="email">
-                                <span>Email</span>
-                                <input id="email" class="form-input" name="Email" type="email" autocomplete="email" required maxlength="256" placeholder="name@shop.vn" />
-                            </label>
-
-                            <label class="form-field" for="password">
-                                <span>Mật khẩu</span>
-                                <input id="password" class="form-input" name="Password" type="password" autocomplete="new-password" required minlength="8" maxlength="100" placeholder="8+ ký tự: hoa, thường, số, ký tự đặc biệt" />
-                            </label>
-
-                            <label class="form-field" for="phone-number">
-                                <span>Số điện thoại</span>
-                                <input id="phone-number" class="form-input" name="PhoneNumber" type="tel" autocomplete="tel" required maxlength="20" placeholder="09xxxxxxxx" />
-                            </label>
-
-                            <label class="form-field form-field--full" for="shop-name">
-                                <span>Tên shop</span>
-                                <input id="shop-name" class="form-input" name="ShopName" required maxlength="200" placeholder="Ví dụ: LAK Shop" />
-                            </label>
-
-                            <label class="form-field" for="province">
-                                <span>Tỉnh / Thành phố</span>
-                                <input id="province" class="form-input" name="Province" required maxlength="100" placeholder="Hà Nội" />
-                            </label>
-
-                            <label class="form-field" for="ward">
-                                <span>Phường / Xã</span>
-                                <input id="ward" class="form-input" name="Ward" required maxlength="100" placeholder="Phường ..." />
-                            </label>
-
-                            <label class="form-field form-field--full" for="address-line">
-                                <span>Địa chỉ lấy hàng</span>
-                                <input id="address-line" class="form-input" name="AddressLine" required maxlength="300" placeholder="Số nhà, đường, khu vực nhận hàng" />
-                            </label>
-                        </div>
-
-                        <input type="hidden" name="Country" value="Vietnam" />
-
-                        <div class="auth-actions">
-                            <button type="submit" class="auth-primary">Tạo tài khoản</button>
-                            <a class="auth-secondary" href="/login">Tôi đã có tài khoản</a>
-                        </div>
-                    </form>
-
-                    <p class="auth-note">Bạn có thể cập nhật thêm cấu hình shop, địa chỉ và thông tin vận hành sau khi đăng nhập vào hệ thống.</p>
-                </div>
-            </div>
-        </section>
-    </div>
+            <p class="auth-switch">Đã có tài khoản? <a href="/login">Đăng nhập</a></p>
+        </div>
+    </section>
 </main>
 
 @code {
     [SupplyParameterFromQuery(Name = "error")]
     public string? Error { get; set; }
+
+    private RegistrationDraft? Draft { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (!string.IsNullOrWhiteSpace(Error))
+        {
+            Draft = RegistrationDraftCookie.TryRead(HttpContextAccessor.HttpContext?.Request, DataProtectionProvider);
+        }
+    }
 }

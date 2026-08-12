@@ -58,6 +58,8 @@ public sealed class MiniLogisticsDbContext : IdentityDbContext<ApplicationUser, 
 
     public DbSet<WebhookDelivery> WebhookDeliveries => Set<WebhookDelivery>();
 
+    public DbSet<MiniLogistics.Domain.Banners.Banner> Banners => Set<MiniLogistics.Domain.Banners.Banner>();
+
     public DbSet<PartnerApiRequestAudit> PartnerApiRequestAudits => Set<PartnerApiRequestAudit>();
 
     public DbSet<PartnerApiCredentialAudit> PartnerApiCredentialAudits => Set<PartnerApiCredentialAudit>();

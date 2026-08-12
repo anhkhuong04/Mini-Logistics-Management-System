@@ -1,39 +1,28 @@
 .register-page .auth-shell {
-    grid-template-columns: minmax(0, 0.96fr) minmax(34rem, 1.04fr);
-}
-
-.register-page .auth-panel-inner {
-    max-width: 36rem;
-}
-
-.register-page .auth-card {
-    gap: 18px;
-    padding: 24px;
+    max-width: 66rem;
+    width: min(100%, 66rem);
 }
 
 .register-page .auth-form-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.register-page .form-field--full {
-    grid-column: 1 / -1;
-}
-
-.register-page .auth-actions {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.register-page .auth-visual-frame {
-    aspect-ratio: 16 / 9;
-}
-
-.register-page .auth-visual-frame img {
-    object-position: center;
+.register-page .form-field--span-two {
+    grid-column: span 2;
 }
 
 @media (max-width: 860px) {
-    .register-page .auth-form-grid,
-    .register-page .auth-actions {
+    .register-page .auth-form-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .register-page .form-field--span-two {
+        grid-column: span 1;
+    }
+}
+
+@media (max-width: 620px) {
+    .register-page .auth-form-grid {
         grid-template-columns: 1fr;
     }
 }

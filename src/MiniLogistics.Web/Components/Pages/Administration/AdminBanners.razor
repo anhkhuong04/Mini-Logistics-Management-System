@@ -1,0 +1,262 @@
+@page "/admin/banners"
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Admin")]
+@using MiniLogistics.Application.Banners
+@inject IBannerService BannerService
+
+<PageTitle>Quản lý Banner - MiniLogistics</PageTitle>
+
+<div class="admin-banners-page">
+    <header class="admin-hero">
+        <div>
+            <p class="eyebrow">Public UI</p>
+            <h1>Quản lý Banner</h1>
+            <p>Thêm, sửa, xóa và sắp xếp các banner hiển thị trên trang chủ.</p>
+        </div>
+        <button type="button" class="refresh-button" disabled="@IsLoading" @onclick="LoadAsync">Làm mới</button>
+    </header>
+
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="alert-box danger" role="alert">@ErrorMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
+    {
+        <div class="alert-box success" role="status">@SuccessMessage</div>
+    }
+
+    <section class="admin-panel banner-editor">
+        <div class="panel-heading">
+            <div>
+                <p class="eyebrow">Cấu hình Banner</p>
+                <h2>@(EditingBannerId.HasValue ? "Sửa banner" : "Tạo banner")</h2>
+            </div>
+            @if (EditingBannerId.HasValue)
+            {
+                <button type="button" class="secondary-button" @onclick="ClearForm">Tạo mới</button>
+            }
+        </div>
+
+        <form class="banner-form" @onsubmit="SaveBannerAsync" @onsubmit:preventDefault="true">
+            <label class="field-group" for="banner-title">
+                <span>Tiêu đề</span>
+                <input id="banner-title" maxlength="200" required @bind="Title" @bind:event="oninput" />
+            </label>
+
+            <label class="field-group" for="banner-image">
+                <span>URL Hình ảnh</span>
+                <input id="banner-image" maxlength="1000" type="url" required @bind="ImageUrl" @bind:event="oninput" />
+            </label>
+
+            <label class="field-group" for="banner-link">
+                <span>URL Đích đến (Tùy chọn)</span>
+                <input id="banner-link" maxlength="1000" type="url" @bind="LinkUrl" @bind:event="oninput" />
+            </label>
+
+            <div class="form-row">
+                <label class="field-group" for="banner-sort">
+                    <span>Thứ tự</span>
+                    <input id="banner-sort" type="number" required @bind="SortOrder" @bind:event="oninput" />
+                </label>
+
+                <label class="checkbox-group">
+                    <input type="checkbox" @bind="IsActive" />
+                    <span>Hoạt động</span>
+                </label>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="primary-button" disabled="@(IsLoading || string.IsNullOrWhiteSpace(Title) || string.IsNullOrWhiteSpace(ImageUrl))">Lưu</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="admin-panel banner-list">
+        @if (IsLoading && Banners.Count == 0)
+        {
+            <p class="loading-state">Đang tải...</p>
+        }
+        else if (Banners.Count == 0)
+        {
+            <p class="empty-state">Không có banner nào. Hãy tạo một banner mới.</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Thứ tự</th>
+                            <th>Hình ảnh</th>
+                            <th>Tiêu đề</th>
+                            <th>Đường dẫn</th>
+                            <th>Trạng thái</th>
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var banner in Banners)
+                        {
+                            <tr class="@(banner.IsActive ? "" : "inactive-row")">
+                                <td>@banner.SortOrder</td>
+                                <td>
+                                    <img src="@banner.ImageUrl" alt="Banner" style="height: 40px; border-radius: 4px;" />
+                                </td>
+                                <td><strong>@banner.Title</strong></td>
+                                <td class="mono-text">@(string.IsNullOrWhiteSpace(banner.LinkUrl) ? "-" : banner.LinkUrl)</td>
+                                <td>
+                                    @if (banner.IsActive)
+                                    {
+                                        <span class="status-badge success">Active</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status-badge warning">Inactive</span>
+                                    }
+                                </td>
+                                <td class="actions-cell">
+                                    <button class="icon-btn edit-btn" @onclick="() => EditBanner(banner)" title="Sửa">✏️</button>
+                                    <button class="icon-btn toggle-btn" @onclick="() => ToggleStatusAsync(banner.Id)" title="Đổi trạng thái">@(banner.IsActive ? "⏸️" : "▶️")</button>
+                                    <button class="icon-btn delete-btn" @onclick="() => DeleteBannerAsync(banner.Id)" title="Xóa">🗑️</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+</div>
+
+@code {
+    private bool IsLoading;
+    private string? ErrorMessage;
+    private string? SuccessMessage;
+
+    private List<BannerDto> Banners = new();
+
+    private Guid? EditingBannerId;
+    private string Title = string.Empty;
+    private string ImageUrl = string.Empty;
+    private string? LinkUrl;
+    private int SortOrder = 0;
+    private bool IsActive = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (IsLoading) return;
+        IsLoading = true;
+        ErrorMessage = null;
+        SuccessMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var result = await BannerService.GetAllBannersAsync();
+            Banners = result.ToList();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Lỗi khi tải danh sách banner: " + ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private void EditBanner(BannerDto banner)
+    {
+        EditingBannerId = banner.Id;
+        Title = banner.Title;
+        ImageUrl = banner.ImageUrl;
+        LinkUrl = banner.LinkUrl;
+        SortOrder = banner.SortOrder;
+        IsActive = banner.IsActive;
+        ErrorMessage = null;
+        SuccessMessage = null;
+    }
+
+    private void ClearForm()
+    {
+        EditingBannerId = null;
+        Title = string.Empty;
+        ImageUrl = string.Empty;
+        LinkUrl = null;
+        SortOrder = Banners.Count > 0 ? Banners.Max(b => b.SortOrder) + 1 : 0;
+        IsActive = true;
+        ErrorMessage = null;
+        SuccessMessage = null;
+    }
+
+    private async Task SaveBannerAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Title) || string.IsNullOrWhiteSpace(ImageUrl)) return;
+
+        IsLoading = true;
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        try
+        {
+            if (EditingBannerId.HasValue)
+            {
+                await BannerService.UpdateBannerAsync(EditingBannerId.Value, Title, ImageUrl, LinkUrl, SortOrder);
+                SuccessMessage = "Cập nhật banner thành công.";
+            }
+            else
+            {
+                await BannerService.CreateBannerAsync(Title, ImageUrl, LinkUrl, SortOrder, IsActive);
+                SuccessMessage = "Tạo banner thành công.";
+            }
+
+            await LoadAsync();
+            ClearForm();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Lỗi khi lưu banner: " + ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task ToggleStatusAsync(Guid id)
+    {
+        try
+        {
+            await BannerService.ToggleBannerStatusAsync(id);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Lỗi khi cập nhật trạng thái: " + ex.Message;
+        }
+    }
+
+    private async Task DeleteBannerAsync(Guid id)
+    {
+        try
+        {
+            await BannerService.DeleteBannerAsync(id);
+            SuccessMessage = "Xóa banner thành công.";
+            if (EditingBannerId == id)
+            {
+                ClearForm();
+            }
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = "Lỗi khi xóa banner: " + ex.Message;
+        }
+    }
+}

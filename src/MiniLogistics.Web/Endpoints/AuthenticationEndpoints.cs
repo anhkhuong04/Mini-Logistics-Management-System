@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.DataProtection;
 using MiniLogistics.Application.Shops.RegisterShop;
 using MiniLogistics.Domain.Users;
 using MiniLogistics.Infrastructure.Identity;
+using MiniLogistics.Web.Services;
 
 namespace MiniLogistics.Web.Endpoints;
 
@@ -21,7 +23,8 @@ public static class AuthenticationEndpoints
         HttpContext httpContext,
         IRegisterShopService registerShopService,
         UserManager<ApplicationUser> userManager,
-        SignInManager<ApplicationUser> signInManager)
+        SignInManager<ApplicationUser> signInManager,
+        IDataProtectionProvider dataProtectionProvider)
     {
         var form = await httpContext.Request.ReadFormAsync(httpContext.RequestAborted);
         var command = new RegisterShopCommand(
@@ -38,8 +41,21 @@ public static class AuthenticationEndpoints
         var result = await registerShopService.RegisterAsync(command, httpContext.RequestAborted);
         if (result.IsFailure)
         {
+            RegistrationDraftCookie.Store(
+                httpContext.Response,
+                dataProtectionProvider,
+                new RegistrationDraft(
+                    GetValue(form, "FullName"),
+                    GetValue(form, "Email"),
+                    GetValue(form, "ShopName"),
+                    GetValue(form, "PhoneNumber"),
+                    GetValue(form, "AddressLine"),
+                    GetValue(form, "Ward"),
+                    GetValue(form, "Province")));
             return RedirectWithError("/register-shop", result.Error.Description);
         }
+
+        RegistrationDraftCookie.Clear(httpContext.Response);
 
         var user = await userManager.FindByIdAsync(result.Value.UserId.ToString());
         if (user is null)

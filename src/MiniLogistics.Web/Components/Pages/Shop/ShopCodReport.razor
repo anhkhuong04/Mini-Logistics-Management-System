@@ -164,10 +164,14 @@
     public Guid? ShopId { get; set; }
 
     [SupplyParameterFromQuery(Name = "fromUtc")]
-    public DateTimeOffset? FromUtc { get; set; }
+    public DateTime? FromUtcQuery { get; set; }
 
     [SupplyParameterFromQuery(Name = "toUtc")]
-    public DateTimeOffset? ToUtc { get; set; }
+    public DateTime? ToUtcQuery { get; set; }
+
+    private DateTimeOffset? FromUtc => FromUtcQuery.HasValue ? new DateTimeOffset(DateTime.SpecifyKind(FromUtcQuery.Value, DateTimeKind.Utc)) : null;
+
+    private DateTimeOffset? ToUtc => ToUtcQuery.HasValue ? new DateTimeOffset(DateTime.SpecifyKind(ToUtcQuery.Value, DateTimeKind.Utc)) : null;
 
     private GetShopContextResponse? ShopContext { get; set; }
 

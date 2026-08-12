@@ -1,7 +1,7 @@
 using MiniLogistics.Application.Shipments.GetPendingPickupShipments;
 using MiniLogistics.Application.Shippers;
 using MiniLogistics.Application.Shippers.GetActiveShippers;
-using MiniLogistics.Web.Components.Pages;
+using MiniLogistics.Web.Components.Pages.Operations;
 using Xunit;
 
 namespace MiniLogistics.Web.Tests;

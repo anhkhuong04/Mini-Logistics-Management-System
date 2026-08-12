@@ -2,7 +2,7 @@ using MiniLogistics.Application.Shipments.GetPendingPickupShipments;
 using MiniLogistics.Application.Shippers;
 using MiniLogistics.Application.Shippers.GetActiveShippers;
 
-namespace MiniLogistics.Web.Components.Pages;
+namespace MiniLogistics.Web.Components.Pages.Operations;
 
 public sealed record OperationsPendingAssignmentInsight(
     Guid ShipmentId,

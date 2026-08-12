@@ -8,6 +8,7 @@ using MiniLogistics.Application.CashOnDelivery.MarkCodCollected;
 using MiniLogistics.Application.CashOnDelivery.MarkCodSettled;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.PartnerApi;
+using MiniLogistics.Application.Shops.Reports;
 using MiniLogistics.Application.Shipments.AssignShipperToShipment;
 using MiniLogistics.Application.Shipments.CancelShipmentForCurrentShop;
 using MiniLogistics.Application.Shipments.CreateShipment;
@@ -138,6 +139,22 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
 
         Assert.True(pendingResult.IsSuccess, pendingResult.Error.Description);
         Assert.DoesNotContain(pendingResult.Value, shipment => shipment.ShipmentId == createResult.Value.ShipmentId);
+    }
+
+    [Fact]
+    public async Task ShopDashboardKpi_ReadsConvertedMoneyColumns()
+    {
+        var createResult = await CreateShipmentAsync("Integration Dashboard", codAmount: 175_000m);
+        Assert.True(createResult.IsSuccess, createResult.Error.Description);
+
+        var dashboardResult = await _fixture.ExecuteAsync(services =>
+            services.GetRequiredService<IGetShopDashboardKpiService>().GetAsync(
+                new ShopDashboardKpiQuery(DemoShopUserId)));
+
+        Assert.True(dashboardResult.IsSuccess, dashboardResult.Error.Description);
+        Assert.True(dashboardResult.Value.TotalShipments > 0);
+        Assert.True(dashboardResult.Value.TotalShippingFee >= createResult.Value.ShippingFeeAmount);
+        Assert.True(dashboardResult.Value.PendingCodAmount >= 175_000m);
     }
 
     [Fact]

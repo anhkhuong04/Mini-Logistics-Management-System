@@ -1,0 +1,57 @@
+@page "/contact"
+@layout MiniLogistics.Web.Components.Layout.LandingLayout
+
+<PageTitle>Thông tin liên hệ | LAK</PageTitle>
+
+<header class="site-header">
+    <div class="container header-inner">
+        <a class="brand" href="/" aria-label="LAK">
+            <img class="brand-logo" src="/images/landing/lak-logo.svg" alt="LAK" />
+        </a>
+        <div class="header-actions">
+            <a class="toolbar-button toolbar-button-outline" href="/">Về trang chủ</a>
+        </div>
+    </div>
+</header>
+
+<main class="landing-main" style="padding-top: 40px; padding-bottom: 60px;">
+    <div class="container section-narrow">
+        <h1 style="font-size: 2rem; color: var(--lak-text); font-weight: 700; margin-bottom: 24px;">Thông tin liên hệ</h1>
+        <p style="color: var(--lak-muted); font-size: 1.05rem; margin-bottom: 32px; line-height: 1.6;">
+            Chào mừng bạn đến với <strong>LAK Logistics</strong>. Nếu bạn có bất kỳ câu hỏi nào về dịch vụ, cần hỗ trợ tra cứu vận đơn, hoặc muốn hợp tác cùng chúng tôi, đừng ngần ngại liên hệ qua các kênh dưới đây.
+        </p>
+        
+        <div style="display: grid; gap: 24px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); margin-bottom: 40px;">
+            <div style="background: #fff; border: 1px solid var(--lak-border); border-radius: 12px; padding: 24px; box-shadow: 0 4px 12px rgba(18, 52, 77, 0.04);">
+                <h3 style="color: var(--lak-blue); font-size: 1.2rem; margin-top: 0; margin-bottom: 12px; font-weight: 600;">📞 Tổng đài CSKH</h3>
+                <p style="margin: 0; color: var(--lak-text); font-weight: 500; font-size: 1.1rem; padding-bottom: 4px;">1900 6885</p>
+                <span style="color: var(--lak-muted); font-size: 0.88rem;">(Hỗ trợ từ 8:00 - 22:00 hằng ngày)</span>
+            </div>
+
+            <div style="background: #fff; border: 1px solid var(--lak-border); border-radius: 12px; padding: 24px; box-shadow: 0 4px 12px rgba(18, 52, 77, 0.04);">
+                <h3 style="color: var(--lak-blue); font-size: 1.2rem; margin-top: 0; margin-bottom: 12px; font-weight: 600;">✉️ Email hỗ trợ</h3>
+                <p style="margin: 0; color: var(--lak-text); font-weight: 500; font-size: 1.1rem; padding-bottom: 4px;">
+                    <a href="mailto:support@laklogistics.vn" style="color: var(--lak-text); text-decoration: none;">support@laklogistics.vn</a>
+                </p>
+                <span style="color: var(--lak-muted); font-size: 0.88rem;">(Phản hồi trong vòng 24h làm việc)</span>
+            </div>
+
+            <div style="background: #fff; border: 1px solid var(--lak-border); border-radius: 12px; padding: 24px; box-shadow: 0 4px 12px rgba(18, 52, 77, 0.04);">
+                <h3 style="color: var(--lak-blue); font-size: 1.2rem; margin-top: 0; margin-bottom: 12px; font-weight: 600;">🏢 Trụ sở chính</h3>
+                <p style="margin: 0; color: var(--lak-text); font-weight: 500; font-size: 1.1rem; padding-bottom: 4px;">Tòa nhà LAK, 123 Nguyễn Trãi</p>
+                <span style="color: var(--lak-muted); font-size: 0.88rem;">Phường Bến Thành, Quận 1, TP. Hồ Chí Minh</span>
+            </div>
+        </div>
+        
+        <div style="padding: 32px; background: var(--lak-soft); border-radius: 12px; border: 1px solid var(--lak-border);">
+            <h2 style="font-size: 1.5rem; color: var(--lak-text); margin-top: 0; font-weight: 600;">Gửi tin nhắn trực tuyến</h2>
+            <p style="color: var(--lak-muted); margin-bottom: 24px; line-height: 1.6;">Bạn cũng có thể để lại thông tin, đội ngũ CSKH của LAK sẽ chủ động liên hệ lại hỗ trợ bạn sớm nhất.</p>
+            <form style="display: grid; gap: 16px; max-width: 500px;">
+                <input class="form-input" type="text" placeholder="Họ và tên *" required />
+                <input class="form-input" type="email" placeholder="Email liên hệ *" required />
+                <textarea class="form-input" rows="4" placeholder="Nội dung cần hỗ trợ *" style="resize: vertical; padding-top: 12px;" required></textarea>
+                <button type="submit" class="toolbar-button toolbar-button-solid" style="justify-self: start; margin-top: 8px;">Gửi yêu cầu hỗ trợ</button>
+            </form>
+        </div>
+    </div>
+</main>

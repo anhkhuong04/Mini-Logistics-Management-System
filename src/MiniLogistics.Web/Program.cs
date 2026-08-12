@@ -246,6 +246,14 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
+// Pre-warm the EF Core model to avoid ObjectDisposedException in background workers
+// caused by EF Core's internal service provider caching the scoped ApplicationServiceProvider
+using (var scope = app.Services.CreateScope())
+{
+    var dbContext = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+    _ = dbContext.Model; // This forces the model to be built and cached
+}
+
 app.Run();
 
 static async Task RunDatabaseCommandsAsync(

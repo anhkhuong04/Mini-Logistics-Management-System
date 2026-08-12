@@ -1,0 +1,70 @@
+@page "/faq"
+@layout MiniLogistics.Web.Components.Layout.LandingLayout
+
+<PageTitle>Câu hỏi thường gặp | LAK</PageTitle>
+
+<header class="site-header">
+    <div class="container header-inner">
+        <a class="brand" href="/" aria-label="LAK">
+            <img class="brand-logo" src="/images/landing/lak-logo.svg" alt="LAK" />
+        </a>
+        <div class="header-actions">
+            <a class="toolbar-button toolbar-button-outline" href="/">Về trang chủ</a>
+        </div>
+    </div>
+</header>
+
+<main class="landing-main" style="padding-top: 40px; padding-bottom: 60px;">
+    <div class="container section-narrow">
+        <h1 style="font-size: 2rem; color: var(--lak-text); font-weight: 700; margin-bottom: 16px;">Câu hỏi thường gặp (FAQ)</h1>
+        <p style="color: var(--lak-muted); font-size: 1.05rem; margin-bottom: 40px; line-height: 1.6;">
+            Tổng hợp các thắc mắc phổ biến của Khách hàng & Đối tác khi sử dụng dịch vụ của <strong>LAK Logistics</strong>.
+        </p>
+
+        <div style="display: grid; gap: 24px;">
+            <div style="background: #fff; border: 1px solid var(--lak-border); border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(18, 52, 77, 0.03);">
+                <h3 style="color: var(--lak-text); font-size: 1.15rem; margin-top: 0; margin-bottom: 12px; font-weight: 600;">1. Làm thế nào để tra cứu vận đơn?</h3>
+                <p style="color: var(--lak-muted); line-height: 1.6; margin: 0; font-size: 0.95rem;">
+                    Bạn có thể tra cứu nhanh trên Trang chủ bằng cách nhập mã vận đơn vào ô <strong>"Nhập mã đơn hàng bạn cần tra cứu"</strong>. Hoặc truy cập trực tiếp trang <a href="/tracking" style="color: var(--lak-blue); text-decoration: none; font-weight: 500;">Tra cứu</a> để xem chi tiết lịch trình di chuyển và trạng thái giao nhận.
+                </p>
+            </div>
+
+            <div style="background: #fff; border: 1px solid var(--lak-border); border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(18, 52, 77, 0.03);">
+                <h3 style="color: var(--lak-text); font-size: 1.15rem; margin-top: 0; margin-bottom: 12px; font-weight: 600;">2. Thời gian lấy hàng và giao hàng chuẩn của LAK là bao lâu?</h3>
+                <p style="color: var(--lak-muted); line-height: 1.6; margin: 0; font-size: 0.95rem;">
+                    Thời gian lấy hàng thường trong vòng <strong>2-4 giờ</strong> kể từ lúc tạo đơn thành công (trong giờ hành chính). Thời gian giao hàng phụ thuộc vào tuyến đường:
+                </p>
+                <ul style="color: var(--lak-muted); line-height: 1.6; margin: 12px 0 0 0; padding-left: 24px; font-size: 0.95rem;">
+                    <li style="margin-bottom: 4px;"><strong>Nội thành:</strong> Giao trong ngày hoặc muộn nhất vào ngày hôm sau.</li>
+                    <li><strong>Liên tỉnh / Vùng xa:</strong> Giao từ 2 đến 5 ngày làm việc.</li>
+                </ul>
+            </div>
+
+            <div style="background: #fff; border: 1px solid var(--lak-border); border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(18, 52, 77, 0.03);">
+                <h3 style="color: var(--lak-text); font-size: 1.15rem; margin-top: 0; margin-bottom: 12px; font-weight: 600;">3. LAK có hỗ trợ thu tiền hộ (COD) không và thời gian đối soát như thế nào?</h3>
+                <p style="color: var(--lak-muted); line-height: 1.6; margin: 0; font-size: 0.95rem;">
+                    Có, chúng tôi <strong>miễn phí thu tiền hộ (COD)</strong> cho hầu hết các tuyến vận chuyển. Việc chuyển tiền đối soát COD cho các Shop được thực hiện <strong>định kỳ 3 lần/tuần</strong> (Thứ 2, Thứ 4, Thứ 6) qua tài khoản ngân hàng đã đăng ký với LAK.
+                </p>
+            </div>
+
+            <div style="background: #fff; border: 1px solid var(--lak-border); border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(18, 52, 77, 0.03);">
+                <h3 style="color: var(--lak-text); font-size: 1.15rem; margin-top: 0; margin-bottom: 12px; font-weight: 600;">4. Cần làm gì khi hàng hóa bị thất lạc hoặc hư hỏng?</h3>
+                <p style="color: var(--lak-muted); line-height: 1.6; margin: 0; font-size: 0.95rem;">
+                    Nếu gặp sự cố với hàng hóa, quý khách vui lòng liên hệ ngay tổng đài <strong>1900 6885</strong> trong vòng 48h kể từ lúc nhận hàng. LAK có <strong>chính sách đền bù rõ ràng</strong> dựa trên giá trị khai báo và loại hình dịch vụ bạn đã chọn.
+                </p>
+            </div>
+
+            <div style="background: #fff; border: 1px solid var(--lak-border); border-radius: 12px; padding: 24px; box-shadow: 0 2px 8px rgba(18, 52, 77, 0.03);">
+                <h3 style="color: var(--lak-text); font-size: 1.15rem; margin-top: 0; margin-bottom: 12px; font-weight: 600;">5. Tôi có thể tích hợp LAK Logistics vào website bán hàng của mình không?</h3>
+                <p style="color: var(--lak-muted); line-height: 1.6; margin: 0; font-size: 0.95rem;">
+                    Hoàn toàn được. LAK cung cấp bộ <strong>Open API (Partner API)</strong> đầy đủ tài liệu để các nhà phát triển dễ dàng tích hợp dịch vụ tạo đơn, tra cứu và webhook cập nhật trạng thái vào hệ thống E-commerce của riêng bạn.
+                </p>
+            </div>
+        </div>
+        
+        <div style="margin-top: 40px; text-align: center;">
+            <p style="color: var(--lak-muted); font-size: 0.95rem; margin-bottom: 16px;">Vẫn còn thắc mắc?</p>
+            <a href="/contact" class="toolbar-button toolbar-button-outline">Liên hệ với chúng tôi</a>
+        </div>
+    </div>
+</main>

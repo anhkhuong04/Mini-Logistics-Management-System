@@ -306,6 +306,12 @@ textarea {
     font-weight: 600;
 }
 
+.form-hint {
+    color: #6b7f90;
+    font-size: 0.78rem;
+    line-height: 1.45;
+}
+
 .form-input {
     background: #ffffff;
     border: 1px solid #cfe0ee;
@@ -418,6 +424,100 @@ textarea {
     font-size: 0.92rem;
     line-height: 1.6;
     margin: 0;
+}
+
+/* Compact authentication pages share one centered form surface. */
+.auth-page {
+    align-items: center;
+    background: linear-gradient(135deg, #f8fcff 0%, #eaf5ff 52%, #f7fbff 100%);
+    display: grid;
+    justify-items: center;
+    padding: 24px;
+}
+
+.auth-shell {
+    background: #ffffff;
+    border: 1px solid #d9e7f2;
+    border-radius: 8px;
+    box-shadow: 0 20px 48px rgba(18, 52, 77, 0.1);
+    display: grid;
+    gap: 28px;
+    margin: 0;
+    min-height: auto;
+    padding: 32px;
+    width: min(100%, 36rem);
+}
+
+.auth-brand {
+    align-items: center;
+    color: #12344d;
+    display: inline-flex;
+    font-size: 1.05rem;
+    font-weight: 700;
+    gap: 10px;
+    justify-self: center;
+    text-decoration: none;
+}
+
+.auth-brand img {
+    display: block;
+    height: 36px;
+    object-fit: contain;
+    width: 78px;
+}
+
+.auth-card {
+    border: 0;
+    box-shadow: none;
+    gap: 20px;
+    padding: 0;
+}
+
+.auth-card-head {
+    text-align: center;
+}
+
+.auth-card-head h1 {
+    color: #12344d;
+    font-size: 1.6rem;
+    font-weight: 600;
+    line-height: 1.25;
+    margin: 0;
+}
+
+.auth-form,
+.auth-form-grid {
+    gap: 14px;
+}
+
+.form-input {
+    border-radius: 8px;
+    min-height: 48px;
+}
+
+.auth-primary {
+    border-radius: 8px;
+    margin-top: 4px;
+    min-height: 48px;
+}
+
+.auth-switch {
+    color: #63788b;
+    font-size: 0.9rem;
+    margin: 0;
+    text-align: center;
+}
+
+.auth-switch a {
+    color: #0077c8;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.auth-switch a:hover,
+.auth-switch a:focus-visible {
+    color: #005b9f;
+    text-decoration: underline;
 }
 
 .form-actions {
@@ -572,8 +672,7 @@ h1:focus {
     }
 
     .auth-card {
-        border-radius: 20px;
-        padding: 20px;
+        padding: 0;
     }
 
     .auth-copy h1,
@@ -592,5 +691,11 @@ h1:focus {
 
     .auth-link {
         text-align: center;
+    }
+
+    .auth-shell {
+        border-radius: 8px;
+        gap: 24px;
+        padding: 24px 20px;
     }
 }

@@ -5,86 +5,40 @@
 <PageTitle>Đăng nhập - LAK Logistics</PageTitle>
 
 <main class="auth-page login-page">
-    <div class="auth-shell">
-        <section class="auth-visual" aria-label="Giới thiệu hệ thống LAK Logistics">
-            <a class="brand-lockup" href="/">
-                <img src="/images/auth/lak-logo.svg" alt="LAK Logistics" />
-                <span class="brand-copy">
-                    <strong>LAK Logistics</strong>
-                    <span>Nền tảng vận hành giao nhận cho shop và đội điều phối</span>
-                </span>
-            </a>
+    <section class="auth-shell" aria-label="Đăng nhập LAK Logistics">
+        <a class="auth-brand" href="/" aria-label="LAK Logistics">
+            <img src="/images/landing/lak-logo.svg" alt="LAK Logistics" />
+        </a>
 
-            <div class="auth-copy">
-                <span class="auth-chip">Đăng nhập hệ thống</span>
-                <h1>Quản lý vận đơn, trạng thái giao nhận và COD trên một giao diện gọn gàng.</h1>
-                <p>Luồng đăng nhập được rút gọn để người dùng vào việc nhanh, ít nhiễu và dễ thao tác trên màn hình desktop.</p>
+        <div class="auth-card">
+            <div class="auth-card-head">
+                <h1>Đăng nhập</h1>
             </div>
 
-            <ul class="auth-points" aria-label="Lợi ích chính">
-                <li>Tạo và theo dõi vận đơn trên cùng một hệ thống.</li>
-                <li>Cập nhật trạng thái giao nhận theo thời gian thực.</li>
-                <li>Kiểm soát luồng vận hành và đối soát COD rõ ràng hơn.</li>
-            </ul>
+            @if (!string.IsNullOrWhiteSpace(Error))
+            {
+                <div class="auth-error" role="alert">@UiDisplay.ToErrorMessage(Error)</div>
+            }
 
-            <div class="auth-visual-frame">
-                <img src="/images/auth/login-visual.png" alt="Nhân viên logistics kiểm tra lộ trình trên máy tính bảng" />
-            </div>
-        </section>
+            <form method="post" action="/auth/login" class="auth-form">
+                <AntiforgeryToken />
 
-        <section class="auth-panel" aria-label="Biểu mẫu đăng nhập">
-            <div class="auth-panel-inner">
-                <div class="auth-topbar">
-                    <div class="auth-topbar-links">
-                        <a class="auth-link" href="/">Trang chủ</a>
-                        <a class="auth-link" href="/tracking">Tra cứu vận đơn</a>
-                    </div>
-                    <span class="auth-lang">Tiếng Việt</span>
-                </div>
+                <label class="form-field" for="email">
+                    <span>Email hoặc số điện thoại</span>
+                    <input id="email" class="form-input" name="Email" type="text" autocomplete="username" required maxlength="100"/>
+                </label>
 
-                <div class="auth-card">
-                    <div class="auth-card-head">
-                        <h2>Đăng nhập</h2>
-                        <p>Nhập thông tin tài khoản để tiếp tục làm việc trên hệ thống LAK.</p>
-                    </div>
+                <label class="form-field" for="password">
+                    <span>Mật khẩu</span>
+                    <input id="password" class="form-input" name="Password" type="password" autocomplete="current-password" required maxlength="100" />
+                </label>
 
-                    @if (!string.IsNullOrWhiteSpace(Error))
-                    {
-                        <div class="auth-error" role="alert">@UiDisplay.ToErrorMessage(Error)</div>
-                    }
+                <button type="submit" class="auth-primary">Đăng nhập</button>
+            </form>
 
-                    <form method="post" action="/auth/login" class="auth-form">
-                        <AntiforgeryToken />
-
-                        <label class="form-field" for="email">
-                            <span>Email hoặc số điện thoại</span>
-                            <input id="email" class="form-input" name="Email" type="text" autocomplete="username" required maxlength="256" placeholder="name@shop.vn hoặc 09xxxxxxxx" />
-                        </label>
-
-                        <label class="form-field" for="password">
-                            <span>Mật khẩu</span>
-                            <input id="password" class="form-input" name="Password" type="password" autocomplete="current-password" required maxlength="100" placeholder="Nhập mật khẩu" />
-                        </label>
-
-                        <div class="auth-helper">
-                            <label class="checkbox-line" for="remember-me">
-                                <input id="remember-me" name="RememberMe" type="checkbox" />
-                                <span>Ghi nhớ đăng nhập</span>
-                            </label>
-                            <p class="auth-note">Nếu quên mật khẩu, vui lòng liên hệ quản trị hệ thống để được cấp lại.</p>
-                        </div>
-
-                        <div class="auth-actions">
-                            <button type="submit" class="auth-primary">Đăng nhập</button>
-                            <a class="auth-secondary" href="/register-shop">Đăng ký shop mới</a>
-                        </div>
-                    </form>
-
-                    <p class="auth-note">Bạn chưa cần đăng nhập? Có thể tra cứu đơn hàng tại <a class="auth-inline-link" href="/tracking">trang theo dõi vận đơn</a>.</p>
-                </div>
-            </div>
-        </section>
-    </div>
+            <p class="auth-switch">Chưa có tài khoản? <a href="/register-shop">Đăng ký shop</a></p>
+        </div>
+    </section>
 </main>
 
 @code {
