@@ -5,6 +5,8 @@
 
 <PageTitle>LAK | Nền tảng quản lý logistics</PageTitle>
 
+@implements IDisposable
+
 <header class="site-header">
     <div class="container header-inner">
         <a class="brand" href="/" aria-label="LAK">
@@ -53,13 +55,7 @@
                     </div>
                 </Authorized>
                 <NotAuthorized>
-                    <a class="header-icon-btn" href="/login" title="Đăng nhập" aria-label="Đăng nhập">
-                        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
-                            <polyline points="10 17 15 12 10 7"></polyline>
-                            <line x1="15" y1="12" x2="3" y2="12"></line>
-                        </svg>
-                    </a>
+                    <a class="header-login-button" href="/login">Đăng nhập</a>
                 </NotAuthorized>
             </AuthorizeView>
         </div>
@@ -124,17 +120,32 @@
     <section class="actions-section">
         <div class="container action-grid">
             <a class="action-card" href="/login">
-                <strong>Bắt đầu tạo đơn</strong>
-                <span>Tạo đơn lấy hàng hoặc gửi hàng</span>
+                <span class="action-card-copy">
+                    <strong>Bắt đầu tạo đơn</strong>
+                    <span>Tạo đơn lấy hàng hoặc gửi hàng</span>
+                </span>
+                <span class="action-card-arrow" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6-1.4-1.4 4.6-4.6-4.6-4.6L9 6Z" /></svg>
+                </span>
             </a>
-            <a class="action-card" href="/tracking">
-                <strong>Tra cứu vận đơn</strong>
-                <span>Kiểm tra trạng thái và lịch sử giao nhận</span>
-            </a>
-            <a class="action-card" href="/register-shop">
-                <strong>Đăng ký shop</strong>
-                <span>Tạo workspace giao nhận cho shop</span>
-            </a>
+            <button type="button" class="action-card">
+                <span class="action-card-copy">
+                    <strong>Ước tính chi phí</strong>
+                    <span>Ước tính phí vận chuyển</span>
+                </span>
+                <span class="action-card-arrow" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6-1.4-1.4 4.6-4.6-4.6-4.6L9 6Z" /></svg>
+                </span>
+            </button>
+            <button type="button" class="action-card">
+                <span class="action-card-copy">
+                    <strong>Tra cứu điểm dịch vụ</strong>
+                    <span>Gửi hàng tại các điểm dịch vụ</span>
+                </span>
+                <span class="action-card-arrow" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6-1.4-1.4 4.6-4.6-4.6-4.6L9 6Z" /></svg>
+                </span>
+            </button>
         </div>
     </section>
 
@@ -250,11 +261,29 @@
 @code {
     private List<BannerDto> Banners = new();
     private int CurrentBannerIndex = 0;
+    private System.Threading.Timer? _timer;
     
     protected override async Task OnInitializedAsync()
     {
         var activeBanners = await BannerService.GetActiveBannersAsync();
         Banners = activeBanners.ToList();
+
+        if (Banners.Count > 1)
+        {
+            _timer = new System.Threading.Timer(_ =>
+            {
+                InvokeAsync(() =>
+                {
+                    NextBanner();
+                    StateHasChanged();
+                });
+            }, null, 3000, 3000);
+        }
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
     }
 
     private void NextBanner()

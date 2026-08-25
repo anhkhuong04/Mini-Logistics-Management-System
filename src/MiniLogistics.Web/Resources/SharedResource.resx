@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Language" xml:space="preserve"><value>Ngôn ngữ</value></data>
+  <data name="Vietnamese" xml:space="preserve"><value>Tiếng Việt</value></data>
+  <data name="English" xml:space="preserve"><value>Tiếng Anh</value></data>
+  <data name="MainNavigation" xml:space="preserve"><value>Điều hướng chính</value></data>
+  <data name="OpenNavigation" xml:space="preserve"><value>Mở điều hướng</value></data>
+  <data name="CloseNavigation" xml:space="preserve"><value>Đóng điều hướng</value></data>
+  <data name="Notifications" xml:space="preserve"><value>Thông báo</value></data>
+  <data name="Account" xml:space="preserve"><value>Tài khoản</value></data>
+  <data name="Administrator" xml:space="preserve"><value>Quản trị viên</value></data>
+  <data name="Operator" xml:space="preserve"><value>Điều phối</value></data>
+  <data name="Shipper" xml:space="preserve"><value>Shipper</value></data>
+  <data name="Shop" xml:space="preserve"><value>Shop</value></data>
+  <data name="SignIn" xml:space="preserve"><value>Đăng nhập</value></data>
+  <data name="SignOut" xml:space="preserve"><value>Đăng xuất</value></data>
+  <data name="Stay" xml:space="preserve"><value>Ở lại</value></data>
+  <data name="Logout_Title" xml:space="preserve"><value>Đăng xuất khỏi phiên làm việc?</value></data>
+  <data name="Logout_Message" xml:space="preserve"><value>Bạn sẽ cần đăng nhập lại để tiếp tục sử dụng khu vực quản trị.</value></data>
+  <data name="UnhandledError" xml:space="preserve"><value>Đã xảy ra lỗi không mong muốn.</value></data>
+  <data name="Reload" xml:space="preserve"><value>Tải lại</value></data>
+  <data name="Nav_Overview" xml:space="preserve"><value>Tổng quan</value></data>
+  <data name="Nav_Shipments" xml:space="preserve"><value>Vận đơn</value></data>
+  <data name="Nav_CreateShipment" xml:space="preserve"><value>Tạo đơn mới</value></data>
+  <data name="Nav_ShipmentList" xml:space="preserve"><value>Danh sách đơn</value></data>
+  <data name="Nav_CodReport" xml:space="preserve"><value>Báo cáo COD</value></data>
+  <data name="Nav_Notifications" xml:space="preserve"><value>Thông báo</value></data>
+  <data name="Nav_ActivityHistory" xml:space="preserve"><value>Lịch sử hoạt động</value></data>
+  <data name="Nav_ShopStaff" xml:space="preserve"><value>Nhân sự shop</value></data>
+  <data name="Nav_ApiIntegration" xml:space="preserve"><value>Tích hợp API</value></data>
+  <data name="Nav_ShopProfile" xml:space="preserve"><value>Hồ sơ shop</value></data>
+  <data name="Nav_Administration" xml:space="preserve"><value>Quản trị</value></data>
+  <data name="Nav_Dashboard" xml:space="preserve"><value>Dashboard</value></data>
+  <data name="Nav_Users" xml:space="preserve"><value>Người dùng</value></data>
+  <data name="Nav_Shops" xml:space="preserve"><value>Shop</value></data>
+  <data name="Nav_Hubs" xml:space="preserve"><value>Hub</value></data>
+  <data name="Nav_Banners" xml:space="preserve"><value>Banner</value></data>
+  <data name="Nav_SystemConfig" xml:space="preserve"><value>Cấu hình hệ thống</value></data>
+  <data name="Nav_Cod" xml:space="preserve"><value>COD</value></data>
+  <data name="Nav_AuditLog" xml:space="preserve"><value>Nhật ký kiểm toán</value></data>
+  <data name="Nav_Integration" xml:space="preserve"><value>Tích hợp</value></data>
+  <data name="Nav_Operations" xml:space="preserve"><value>Điều phối</value></data>
+  <data name="Nav_AssignedShipments" xml:space="preserve"><value>Đơn được giao</value></data>
+  <data name="Nav_Lookup" xml:space="preserve"><value>Tra cứu</value></data>
+  <data name="Nav_TrackShipment" xml:space="preserve"><value>Tra cứu vận đơn</value></data>
+  <data name="Nav_Home" xml:space="preserve"><value>Trang chủ</value></data>
+  <data name="Nav_RegisterShop" xml:space="preserve"><value>Đăng ký shop</value></data>
+  <data name="Tracking_PageTitle" xml:space="preserve"><value>Tra cứu vận đơn</value></data>
+  <data name="Tracking_Eyebrow" xml:space="preserve"><value>Theo dõi vận đơn</value></data>
+  <data name="Tracking_Title" xml:space="preserve"><value>Theo dõi đơn hàng của bạn</value></data>
+  <data name="Tracking_Description" xml:space="preserve"><value>Nhập mã vận đơn để kiểm tra hành trình theo thời gian thực</value></data>
+  <data name="Tracking_SearchTitle" xml:space="preserve"><value>Tra cứu vận đơn</value></data>
+  <data name="Tracking_SearchDescription" xml:space="preserve"><value>Nhập chính xác mã vận đơn của bạn để xem trạng thái mới nhất.</value></data>
+  <data name="Tracking_Placeholder" xml:space="preserve"><value>Ví dụ: LG123456789</value></data>
+  <data name="Tracking_Searching" xml:space="preserve"><value>Đang tra cứu</value></data>
+  <data name="Tracking_Search" xml:space="preserve"><value>Tra cứu</value></data>
+  <data name="Tracking_Hint" xml:space="preserve"><value>Mã vận đơn thường có trong email, tin nhắn xác nhận hoặc danh sách đơn hàng.</value></data>
+  <data name="Tracking_ResultEyebrow" xml:space="preserve"><value>Kết quả</value></data>
+  <data name="Tracking_ResultTitle" xml:space="preserve"><value>Thông tin vận đơn</value></data>
+  <data name="Tracking_NotFound" xml:space="preserve"><value>Không tìm thấy vận đơn</value></data>
+  <data name="Tracking_EmptyTitle" xml:space="preserve"><value>Chưa có dữ liệu tra cứu</value></data>
+  <data name="Tracking_EmptyDescription" xml:space="preserve"><value>Thông tin vận đơn sẽ hiển thị sau khi nhập tracking code hợp lệ.</value></data>
+  <data name="Tracking_Code" xml:space="preserve"><value>Mã vận đơn</value></data>
+  <data name="Tracking_Estimated" xml:space="preserve"><value>Dự kiến: {0}</value></data>
+  <data name="Tracking_EstimatedShort" xml:space="preserve"><value>Dự kiến {0}</value></data>
+  <data name="Tracking_PickedUp" xml:space="preserve"><value>Đã lấy hàng</value></data>
+  <data name="Tracking_Sorting" xml:space="preserve"><value>Đang phân loại</value></data>
+  <data name="Tracking_InTransit" xml:space="preserve"><value>Đang vận chuyển</value></data>
+  <data name="Tracking_Delivery" xml:space="preserve"><value>Giao hàng</value></data>
+  <data name="Tracking_SenderPhone" xml:space="preserve"><value>Điện thoại gửi</value></data>
+  <data name="Tracking_ReceiverPhone" xml:space="preserve"><value>Điện thoại nhận</value></data>
+  <data name="Tracking_PickupAddress" xml:space="preserve"><value>Địa chỉ lấy</value></data>
+  <data name="Tracking_DeliveryAddress" xml:space="preserve"><value>Địa chỉ giao</value></data>
+  <data name="Tracking_Journey" xml:space="preserve"><value>Hành trình đơn hàng</value></data>
+  <data name="Tracking_Hidden" xml:space="preserve"><value>Đã ẩn</value></data>
+  <data name="Tracking_RateLimited" xml:space="preserve"><value>Bạn thao tác quá nhanh. Vui lòng thử lại sau {0}.</value></data>
+  <data name="Tracking_ErrorRequired" xml:space="preserve"><value>Vui lòng nhập mã vận đơn.</value></data>
+  <data name="Tracking_ErrorNotFound" xml:space="preserve"><value>Không tìm thấy vận đơn phù hợp với mã đã nhập.</value></data>
+  <data name="RetryAfterSeconds" xml:space="preserve"><value>{0} giây</value></data>
+  <data name="Status_Draft" xml:space="preserve"><value>Nháp</value></data>
+  <data name="Status_PendingPickup" xml:space="preserve"><value>Chờ lấy hàng</value></data>
+  <data name="Status_Assigned" xml:space="preserve"><value>Đã phân công</value></data>
+  <data name="Status_PickingUp" xml:space="preserve"><value>Đang lấy hàng</value></data>
+  <data name="Status_PickedUp" xml:space="preserve"><value>Đã lấy hàng</value></data>
+  <data name="Status_InTransit" xml:space="preserve"><value>Đang vận chuyển</value></data>
+  <data name="Status_Delivering" xml:space="preserve"><value>Đang giao</value></data>
+  <data name="Status_Delivered" xml:space="preserve"><value>Đã giao</value></data>
+  <data name="Status_DeliveryFailed" xml:space="preserve"><value>Giao thất bại</value></data>
+  <data name="Status_Returned" xml:space="preserve"><value>Đã hoàn</value></data>
+  <data name="Status_Cancelled" xml:space="preserve"><value>Đã hủy</value></data>
+</root>

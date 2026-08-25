@@ -5,6 +5,7 @@
 @using System.Text
 @using MiniLogistics.Application.AdminUsers.CreateInternalUser
 @using MiniLogistics.Application.AdminUsers.GetAdminUsers
+@using MiniLogistics.Application.AdminUsers.ResetUserPassword
 @using MiniLogistics.Application.AdminUsers.SetShipperCapacity
 @using MiniLogistics.Application.AdminUsers.SetUserActiveStatus
 @using MiniLogistics.Application.Shippers
@@ -13,6 +14,7 @@
 @using MiniLogistics.Domain.Users
 @inject ICreateInternalUserService CreateInternalUserService
 @inject IGetAdminUsersService GetAdminUsersService
+@inject IResetUserPasswordService ResetUserPasswordService
 @inject ISetShipperCapacityService SetShipperCapacityService
 @inject ISetUserActiveStatusService SetUserActiveStatusService
 @inject IGetLogisticsHubsService GetLogisticsHubsService
@@ -371,9 +373,22 @@
                                     </td>
                                     <td data-label="Ngay tao">@FormatDate(user.CreatedAtUtc)</td>
                                     <td data-label="Thao tac">
-                                        @if (CanToggleUser(user))
-                                        {
-                                            <div class="user-action-stack">
+                                        <div class="user-action-stack">
+                                            <input class="password-input"
+                                                   type="password"
+                                                   minlength="8"
+                                                   maxlength="100"
+                                                   placeholder="Mat khau moi"
+                                                   value="@GetResetPassword(user.UserId)"
+                                                   @oninput="eventArgs => SetResetPassword(user.UserId, eventArgs.Value)" />
+                                            <button type="button"
+                                                    class="toggle-button"
+                                                    disabled="@IsResettingPassword(user.UserId)"
+                                                    @onclick="() => RequestPasswordReset(user)">
+                                                @(IsResettingPassword(user.UserId) ? "Dang reset..." : "Reset mat khau")
+                                            </button>
+                                            @if (CanToggleUser(user))
+                                            {
                                                 <input class="reason-input"
                                                        maxlength="500"
                                                        placeholder="Reason"
@@ -382,15 +397,11 @@
                                                 <button type="button"
                                                         class="toggle-button @(user.IsActive ? "danger" : "success")"
                                                         disabled="@IsToggling(user.UserId)"
-                                                        @onclick="() => ToggleUserAsync(user)">
+                                                        @onclick="() => RequestToggleUser(user)">
                                                     @GetToggleButtonText(user)
                                                 </button>
-                                            </div>
-                                        }
-                                        else
-                                        {
-                                            <span class="locked-note">Chi xem</span>
-                                        }
+                                            }
+                                        </div>
                                     </td>
                                 </tr>
                             }
@@ -408,6 +419,15 @@
     }
 </div>
 
+<ConfirmActionDialog IsOpen="@(PendingUserAction is not null)"
+                     Title="@PendingUserActionTitle"
+                     Message="@PendingUserActionMessage"
+                     ConfirmText="@PendingUserActionConfirmText"
+                     Tone="@PendingUserActionTone"
+                     IsBusy="@IsConfirmingUserAction"
+                     OnConfirm="ConfirmPendingUserActionAsync"
+                     OnCancel="CancelPendingUserAction" />
+
 @code {
     private const int AdminUsersPageSize = 25;
 
@@ -420,6 +440,10 @@
     private bool IsSavingCapacity { get; set; }
 
     private Guid? TogglingUserId { get; set; }
+
+    private Guid? ResettingPasswordUserId { get; set; }
+
+    private PendingUserActionRequest? PendingUserAction { get; set; }
 
     private Guid? SelectedShipperForAreaId { get; set; }
 
@@ -442,6 +466,8 @@
     private HashSet<Guid> SelectedWorkingAreaHubIds { get; set; } = [];
 
     private Dictionary<Guid, string> ToggleReasons { get; } = [];
+
+    private Dictionary<Guid, string> ResetPasswords { get; } = [];
 
     private bool SelectedShipperIsAvailableForAssignment { get; set; } = true;
 
@@ -745,6 +771,125 @@
         await LoadAsync(clearMessages: false);
     }
 
+    private async Task ResetUserPasswordAsync(GetAdminUserResponse user)
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        var adminUserId = await GetCurrentUserIdAsync();
+        if (adminUserId is null)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        ResettingPasswordUserId = user.UserId;
+        var result = await ResetUserPasswordService.ResetAsync(new ResetUserPasswordCommand(
+            adminUserId.Value,
+            user.UserId,
+            GetResetPassword(user.UserId),
+            GetToggleReason(user.UserId)));
+        ResettingPasswordUserId = null;
+
+        if (result.IsFailure)
+        {
+            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            return;
+        }
+
+        ResetPasswords.Remove(user.UserId);
+        SuccessMessage = $"Da reset mat khau cho {user.FullName}.";
+    }
+
+    private void RequestPasswordReset(GetAdminUserResponse user)
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+
+        if (string.IsNullOrWhiteSpace(GetResetPassword(user.UserId)))
+        {
+            ErrorMessage = "Vui long nhap mat khau moi truoc khi reset.";
+            return;
+        }
+
+        PendingUserAction = new PendingUserActionRequest(user, UserActionKind.ResetPassword);
+    }
+
+    private void RequestToggleUser(GetAdminUserResponse user)
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+        PendingUserAction = new PendingUserActionRequest(user, UserActionKind.ToggleAccess);
+    }
+
+    private async Task ConfirmPendingUserActionAsync()
+    {
+        if (PendingUserAction is null)
+        {
+            return;
+        }
+
+        var action = PendingUserAction;
+        if (action.Kind == UserActionKind.ResetPassword)
+        {
+            await ResetUserPasswordAsync(action.User);
+        }
+        else
+        {
+            await ToggleUserAsync(action.User);
+        }
+
+        PendingUserAction = null;
+    }
+
+    private void CancelPendingUserAction()
+    {
+        PendingUserAction = null;
+    }
+
+    private bool IsConfirmingUserAction => PendingUserAction switch
+    {
+        { Kind: UserActionKind.ResetPassword } action => IsResettingPassword(action.User.UserId),
+        { Kind: UserActionKind.ToggleAccess } action => IsToggling(action.User.UserId),
+        _ => false
+    };
+
+    private string PendingUserActionTitle => PendingUserAction switch
+    {
+        { Kind: UserActionKind.ResetPassword } => "Xác nhận đặt lại mật khẩu",
+        { User.IsActive: true } => "Xác nhận khóa tài khoản",
+        _ => "Xác nhận kích hoạt tài khoản"
+    };
+
+    private string PendingUserActionMessage => PendingUserAction switch
+    {
+        { Kind: UserActionKind.ResetPassword } action => $"Mật khẩu của {action.User.FullName} sẽ được thay đổi ngay. Người dùng cần dùng mật khẩu mới ở lần đăng nhập tiếp theo.",
+        { User.IsActive: true } action => $"{action.User.FullName} sẽ không thể truy cập hệ thống cho đến khi được kích hoạt lại.",
+        _ => $"Khôi phục quyền truy cập cho {PendingUserAction?.User.FullName}."
+    };
+
+    private string PendingUserActionConfirmText => PendingUserAction switch
+    {
+        { Kind: UserActionKind.ResetPassword } => "Đặt lại mật khẩu",
+        { User.IsActive: true } => "Khóa tài khoản",
+        _ => "Kích hoạt"
+    };
+
+    private string PendingUserActionTone => PendingUserAction switch
+    {
+        { Kind: UserActionKind.ResetPassword } => "danger",
+        { User.IsActive: true } => "danger",
+        _ => "primary"
+    };
+
+    private enum UserActionKind
+    {
+        ResetPassword,
+        ToggleAccess
+    }
+
+    private sealed record PendingUserActionRequest(GetAdminUserResponse User, UserActionKind Kind);
+
     private async Task<Guid?> GetCurrentUserIdAsync()
     {
         var authenticationState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
@@ -767,6 +912,11 @@
     private bool IsToggling(Guid userId)
     {
         return TogglingUserId == userId;
+    }
+
+    private bool IsResettingPassword(Guid userId)
+    {
+        return ResettingPasswordUserId == userId;
     }
 
     private bool IsHubSelected(Guid hubId)
@@ -850,6 +1000,18 @@
     private void SetToggleReason(Guid userId, object? value)
     {
         ToggleReasons[userId] = value?.ToString() ?? string.Empty;
+    }
+
+    private string GetResetPassword(Guid userId)
+    {
+        return ResetPasswords.TryGetValue(userId, out var password)
+            ? password
+            : string.Empty;
+    }
+
+    private void SetResetPassword(Guid userId, object? value)
+    {
+        ResetPasswords[userId] = value?.ToString() ?? string.Empty;
     }
 
     private static string FormatShipperOption(GetAdminUserResponse shipper)

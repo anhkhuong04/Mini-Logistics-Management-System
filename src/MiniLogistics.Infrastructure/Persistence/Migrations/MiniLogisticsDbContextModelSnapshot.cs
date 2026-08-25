@@ -862,9 +862,10 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ActorUserId", "CreatedAtUtc");
 
-                    b.HasIndex("ApiClientId", "CreatedAtUtc");
-
                     b.HasIndex("ShopId", "CreatedAtUtc");
+
+                    b.HasIndex("ApiClientId", "CreatedAtUtc", "Id")
+                        .IsDescending(false, true, true);
 
                     b.ToTable("PartnerApiCredentialAudits", (string)null);
                 });
@@ -949,7 +950,8 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("TraceId");
 
-                    b.HasIndex("ApiClientId", "CreatedAtUtc");
+                    b.HasIndex("ApiClientId", "CreatedAtUtc", "Id")
+                        .IsDescending(false, true, true);
 
                     b.ToTable("PartnerApiRequestAudits", (string)null);
                 });
@@ -1038,9 +1040,10 @@ namespace MiniLogistics.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("AggregateId");
 
-                    b.HasIndex("ApiClientId");
-
                     b.HasIndex("WebhookEndpointId");
+
+                    b.HasIndex("ApiClientId", "CreatedAtUtc", "Id")
+                        .IsDescending(false, true, true);
 
                     b.HasIndex("Status", "NextAttemptAtUtc", "LockedUntilUtc");
 

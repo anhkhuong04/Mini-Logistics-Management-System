@@ -150,6 +150,7 @@ public static class DependencyInjection
         services.AddScoped<IOutboxMessageRepository>(provider => provider.GetRequiredService<OutboxMessageRepository>());
         services.AddScoped<IOutboxWriter>(provider => provider.GetRequiredService<OutboxMessageRepository>());
         services.AddScoped<IIdentityService, IdentityService>();
+        services.AddScoped<IUserPasswordService, UserPasswordService>();
         services.AddSingleton<ISecretProtector, DataProtectionSecretProtector>();
         services.AddSingleton<IWebhookDnsResolver, SystemWebhookDnsResolver>();
         services.AddSingleton<IWebhookUrlPolicy, WebhookUrlPolicy>();

@@ -21,6 +21,29 @@ public sealed class PartnerApiExceptionHandler : IExceptionHandler
             return false;
         }
 
+        if (exception is BadHttpRequestException badRequestException)
+        {
+            var statusCode = badRequestException.StatusCode is >= 400 and < 500
+                ? badRequestException.StatusCode
+                : StatusCodes.Status400BadRequest;
+            var isRequestTooLarge = statusCode == StatusCodes.Status413PayloadTooLarge;
+            _logger.LogWarning(
+                "Rejected malformed Partner API request with HTTP {StatusCode}. TraceId: {TraceId}",
+                statusCode,
+                httpContext.TraceIdentifier);
+
+            httpContext.Response.StatusCode = statusCode;
+            await httpContext.Response.WriteAsJsonAsync(
+                new PartnerApiErrorResponse(new PartnerApiError(
+                    isRequestTooLarge ? "Request.TooLarge" : "Application.ValidationFailed",
+                    isRequestTooLarge
+                        ? "Request body exceeds the allowed size."
+                        : "Request body contains invalid JSON.",
+                    httpContext.TraceIdentifier)),
+                cancellationToken);
+            return true;
+        }
+
         _logger.LogError(
             exception,
             "Unhandled exception in Partner API. TraceId: {TraceId}",

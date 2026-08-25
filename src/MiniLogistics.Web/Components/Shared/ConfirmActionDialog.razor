@@ -1,0 +1,64 @@
+@if (IsOpen)
+{
+    <div class="confirm-dialog-backdrop" role="presentation" @onclick="CancelAsync">
+        <section class="confirm-dialog" role="dialog" aria-modal="true" aria-labelledby="@TitleId" aria-describedby="@DescriptionId" @onclick:stopPropagation="true">
+            <div class="confirm-dialog__icon @Tone" aria-hidden="true">
+                @if (Tone == "danger")
+                {
+                    <span>!</span>
+                }
+                else
+                {
+                    <span>i</span>
+                }
+            </div>
+            <div class="confirm-dialog__content">
+                <h2 id="@TitleId">@Title</h2>
+                <p id="@DescriptionId">@Message</p>
+            </div>
+            <div class="confirm-dialog__actions">
+                @if (Footer is not null)
+                {
+                    @Footer
+                }
+                else
+                {
+                    <button type="button" class="ui-button ui-button--secondary" disabled="@IsBusy" @onclick="CancelAsync">@CancelText</button>
+                    <button type="button" class="ui-button @(Tone == "danger" ? "ui-button--danger" : "ui-button--primary")" disabled="@IsBusy" @onclick="ConfirmAsync">
+                        @(IsBusy ? "Đang xử lý..." : ConfirmText)
+                    </button>
+                }
+            </div>
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+
+    [Parameter] public string Title { get; set; } = "Xác nhận thao tác";
+
+    [Parameter] public string Message { get; set; } = "Thao tác này sẽ được áp dụng ngay sau khi xác nhận.";
+
+    [Parameter] public string ConfirmText { get; set; } = "Tiếp tục";
+
+    [Parameter] public string CancelText { get; set; } = "Quay lại";
+
+    [Parameter] public string Tone { get; set; } = "primary";
+
+    [Parameter] public bool IsBusy { get; set; }
+
+    [Parameter] public EventCallback OnConfirm { get; set; }
+
+    [Parameter] public EventCallback OnCancel { get; set; }
+
+    [Parameter] public RenderFragment? Footer { get; set; }
+
+    private string TitleId { get; } = $"confirm-title-{Guid.NewGuid():N}";
+
+    private string DescriptionId { get; } = $"confirm-description-{Guid.NewGuid():N}";
+
+    private Task ConfirmAsync() => IsBusy ? Task.CompletedTask : OnConfirm.InvokeAsync();
+
+    private Task CancelAsync() => IsBusy ? Task.CompletedTask : OnCancel.InvokeAsync();
+}

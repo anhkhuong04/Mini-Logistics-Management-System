@@ -1,6 +1,6 @@
 .app-shell {
-    background: #f8fbff;
-    color: #071b4d;
+    background: var(--ui-canvas);
+    color: var(--ui-text);
     display: flex;
     min-width: 0;
     min-height: 100vh;
@@ -8,11 +8,14 @@
 }
 
 .sidebar {
-    background: #fff;
-    border-right: 1px solid #e5eef8;
+    align-self: flex-start;
+    background: var(--ui-surface);
+    border-right: 1px solid var(--ui-border);
     box-shadow: 6px 0 24px rgba(7, 27, 77, 0.04);
     flex: 0 0 clamp(15.5rem, 17vw, 17rem);
+    height: 100dvh;
     min-height: 100vh;
+    overflow: hidden;
     position: sticky;
     top: 0;
     width: clamp(15.5rem, 17vw, 17rem);
@@ -29,7 +32,8 @@
 .app-topbar {
     align-items: center;
     background: rgba(255, 255, 255, 0.92);
-    border-bottom: 1px solid #e5eef8;
+    border-bottom: 1px solid var(--ui-border);
+    backdrop-filter: blur(12px);
     display: flex;
     gap: 1rem;
     min-height: 5rem;
@@ -44,13 +48,26 @@
 .icon-button {
     align-items: center;
     background: #fff;
-    border: 1px solid #e5eef8;
+    border: 1px solid var(--ui-border);
     border-radius: 12px;
-    color: #071b4d;
+    color: var(--ui-text);
     display: inline-flex;
     height: 44px;
     justify-content: center;
     width: 44px;
+    transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.menu-button:hover,
+.menu-button:focus-visible,
+.icon-button:hover,
+.icon-button:focus-visible {
+    background: var(--ui-primary-soft);
+    border-color: var(--ui-primary);
+    box-shadow: 0 8px 18px rgba(18, 52, 77, 0.1);
+    color: var(--ui-primary);
+    outline: 0;
+    transform: translateY(-1px);
 }
 
 .menu-button svg,
@@ -70,6 +87,77 @@
     margin-left: auto;
 }
 
+.language-selector {
+    position: relative;
+}
+
+.language-selector[open] .language-button {
+    background: var(--ui-primary-soft);
+    border-color: var(--ui-primary);
+    color: var(--ui-primary);
+}
+
+.language-button {
+    cursor: pointer;
+    gap: 7px;
+    min-width: 44px;
+    padding: 0 10px;
+    width: auto;
+}
+
+.language-button::-webkit-details-marker { display: none; }
+.language-button::marker { content: ''; }
+
+.language-code {
+    font-size: .73rem;
+    font-weight: 800;
+    letter-spacing: .04em;
+}
+
+.language-menu {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius);
+    box-shadow: var(--ui-shadow-md);
+    display: grid;
+    gap: 4px;
+    min-width: 12rem;
+    padding: .45rem;
+    position: absolute;
+    right: 0;
+    top: calc(100% + .55rem);
+    z-index: 30;
+}
+
+.language-option {
+    align-items: center;
+    border-radius: var(--ui-radius-sm);
+    color: var(--ui-text);
+    display: grid;
+    font-size: .86rem;
+    font-weight: 650;
+    gap: .65rem;
+    grid-template-columns: 2rem 1fr auto;
+    min-height: 2.75rem;
+    padding: .45rem .65rem;
+    text-decoration: none;
+}
+
+.language-option:hover,
+.language-option:focus-visible,
+.language-option.active {
+    background: var(--ui-primary-soft);
+    color: var(--ui-primary-hover);
+    outline: 0;
+}
+
+.language-option-code {
+    color: var(--ui-muted);
+    font-size: .7rem;
+    font-weight: 800;
+    letter-spacing: .05em;
+}
+
 .account-chip {
     align-items: center;
     display: flex;
@@ -78,9 +166,9 @@
 
 .account-avatar {
     align-items: center;
-    background: #eaf4ff;
+    background: var(--ui-primary-soft);
     border-radius: 999px;
-    color: #0b63f6;
+    color: var(--ui-primary);
     display: inline-flex;
     height: 48px;
     justify-content: center;
@@ -93,7 +181,7 @@
 }
 
 .account-text strong {
-    color: #071b4d;
+    color: var(--ui-text);
     font-size: 0.95rem;
     font-weight: 700;
     max-width: 180px;
@@ -113,7 +201,7 @@
 }
 
 .signin-link {
-    color: #0b63f6;
+    color: var(--ui-primary);
     font-weight: 700;
     text-decoration: none;
 }
@@ -125,19 +213,47 @@
     width: 100%;
 }
 
+.navigation-backdrop {
+    display: none;
+}
+
 @media (max-width: 980px) {
     .app-shell {
-        display: block;
+        display: flex;
     }
 
     .sidebar {
-        min-height: auto;
-        position: relative;
-        width: 100%;
+        box-shadow: var(--ui-shadow-lg);
+        height: 100dvh;
+        max-width: min(19rem, 86vw);
+        position: fixed;
+        transform: translateX(-105%);
+        transition: transform 200ms ease;
+        width: 19rem;
+        z-index: 20;
+    }
+
+    .sidebar.is-open {
+        transform: translateX(0);
+    }
+
+    .navigation-backdrop {
+        background: rgba(15, 33, 51, 0.42);
+        border: 0;
+        display: block;
+        inset: 0;
+        position: fixed;
+        z-index: 10;
     }
 
     .app-topbar {
         padding-inline: 1.25rem;
+    }
+}
+
+@media (min-width: 981px) {
+    .menu-button {
+        display: none;
     }
 }
 

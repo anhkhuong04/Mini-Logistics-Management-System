@@ -2,8 +2,13 @@ using System.Net;
 using System.Diagnostics;
 using System.Reflection;
 using System.Text.Json;
+using System.Globalization;
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.Localization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using MiniLogistics.Application;
@@ -19,6 +24,9 @@ using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 const string PartnerApiCorsPolicy = "PartnerApiPolicy";
+const string PartnerApiIngressRateLimitPolicy = "PartnerApiIngress";
+const long PartnerApiMaxRequestBodySize = 64 * 1024;
+const int PartnerApiIngressRequestsPerMinute = 120;
 var isOpenApiDocumentGeneration = string.Equals(
     Assembly.GetEntryAssembly()?.GetName().Name,
     "GetDocument.Insider",
@@ -35,6 +43,20 @@ if (isOpenApiDocumentGeneration
 
 // Add services to the container.
 builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddLocalization(options => options.ResourcesPath = "Resources");
+builder.Services.Configure<RequestLocalizationOptions>(options =>
+{
+    var supportedCultures = new[]
+    {
+        new CultureInfo("vi-VN"),
+        new CultureInfo("en-US")
+    };
+
+    options.DefaultRequestCulture = new RequestCulture("vi-VN");
+    options.SupportedCultures = supportedCultures;
+    options.SupportedUICultures = supportedCultures;
+    options.RequestCultureProviders = [new CookieRequestCultureProvider()];
+});
 var partnerApiEnvironment = builder.Configuration["PartnerApi:Environment"] ?? "Sandbox";
 builder.Services.AddSingleton<IApiCredentialPolicy>(
     new EnvironmentApiCredentialPolicy(partnerApiEnvironment));
@@ -91,6 +113,30 @@ builder.Services.AddCors(options =>
             .WithHeaders("Authorization", "Content-Type", "Idempotency-Key")
             .SetPreflightMaxAge(TimeSpan.FromMinutes(10));
     });
+});
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(PartnerApiIngressRateLimitPolicy, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+            _ => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = PartnerApiIngressRequestsPerMinute,
+                QueueLimit = 0,
+                Window = TimeSpan.FromMinutes(1)
+            }));
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.Headers.RetryAfter = "60";
+        await context.HttpContext.Response.WriteAsJsonAsync(
+            new PartnerApiErrorResponse(new PartnerApiError(
+                "PartnerApi.RateLimitExceeded",
+                "Too many requests. Please retry later.",
+                context.HttpContext.TraceIdentifier)),
+            cancellationToken);
+    };
 });
 builder.Services.AddExceptionHandler<PartnerApiExceptionHandler>();
 builder.Services.AddProblemDetails();
@@ -182,31 +228,58 @@ if (app.Environment.IsProduction() && !isOpenApiDocumentGeneration)
 
 // Configure the HTTP request pipeline.
 app.UseForwardedHeaders();
+app.UseRequestLocalization();
 app.UseWhen(
     context => context.Request.Path.StartsWithSegments("/api/v1/partner"),
-    partnerApi => partnerApi.Use(async (context, next) =>
+    partnerApi =>
     {
-        var startedTimestamp = Stopwatch.GetTimestamp();
-        context.Response.Headers["X-Correlation-ID"] = context.TraceIdentifier;
-        using var logScope = app.Logger.BeginScope(new Dictionary<string, object?>
+        partnerApi.Use(async (context, next) =>
         {
-            ["CorrelationId"] = context.TraceIdentifier,
-            ["TraceId"] = Activity.Current?.TraceId.ToString()
+            var startedTimestamp = Stopwatch.GetTimestamp();
+            context.Response.Headers["X-Correlation-ID"] = context.TraceIdentifier;
+            using var logScope = app.Logger.BeginScope(new Dictionary<string, object?>
+            {
+                ["CorrelationId"] = context.TraceIdentifier,
+                ["TraceId"] = Activity.Current?.TraceId.ToString()
+            });
+            try
+            {
+                await next(context);
+            }
+            finally
+            {
+                var route = context.GetEndpoint()?.DisplayName ?? context.Request.Path.Value ?? "/api/v1/partner";
+                PartnerApiTelemetry.RecordRequest(
+                    context.Request.Method,
+                    route,
+                    context.Response.StatusCode,
+                    Stopwatch.GetElapsedTime(startedTimestamp).TotalMilliseconds);
+            }
         });
-        try
+
+        partnerApi.Use(async (context, next) =>
         {
+            var maxRequestBodySizeFeature = context.Features.Get<IHttpMaxRequestBodySizeFeature>();
+            if (maxRequestBodySizeFeature is { IsReadOnly: false })
+            {
+                maxRequestBodySizeFeature.MaxRequestBodySize = PartnerApiMaxRequestBodySize;
+            }
+
+            if (context.Request.ContentLength > PartnerApiMaxRequestBodySize)
+            {
+                context.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+                await context.Response.WriteAsJsonAsync(
+                    new PartnerApiErrorResponse(new PartnerApiError(
+                        "Request.TooLarge",
+                        $"Request body must not exceed {PartnerApiMaxRequestBodySize / 1024} KB.",
+                        context.TraceIdentifier)),
+                    context.RequestAborted);
+                return;
+            }
+
             await next(context);
-        }
-        finally
-        {
-            var route = context.GetEndpoint()?.DisplayName ?? context.Request.Path.Value ?? "/api/v1/partner";
-            PartnerApiTelemetry.RecordRequest(
-                context.Request.Method,
-                route,
-                context.Response.StatusCode,
-                Stopwatch.GetElapsedTime(startedTimestamp).TotalMilliseconds);
-        }
-    }));
+        });
+    });
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
@@ -220,15 +293,17 @@ app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages:
 app.UseHttpsRedirection();
 
 app.UseRouting();
+app.UseRateLimiter();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.MapLocalizationEndpoints();
 app.MapAuthenticationEndpoints();
 app.MapShopShipmentFileEndpoints();
-app.MapPartnerApiEndpoints(PartnerApiCorsPolicy);
+app.MapPartnerApiEndpoints(PartnerApiCorsPolicy, PartnerApiIngressRateLimitPolicy);
 if (!app.Environment.IsProduction())
 {
     app.MapOpenApi("/openapi/{documentName}.json");

@@ -4,6 +4,7 @@ public static class AdminAuditActions
 {
     public const string InternalUserCreated = "internal_user.created";
     public const string UserActiveStatusChanged = "user.active_status_changed";
+    public const string UserPasswordReset = "user.password_reset";
     public const string ShipperCapacityChanged = "shipper.capacity_changed";
     public const string ShipperAvailabilityChanged = "shipper.availability.changed";
     public const string ShipperWorkingAreasChanged = "shipper.working_areas_changed";

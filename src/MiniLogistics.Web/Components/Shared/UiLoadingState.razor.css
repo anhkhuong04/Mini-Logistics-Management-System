@@ -1,0 +1,26 @@
+.ui-loading-state {
+    align-items: center;
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-lg);
+    box-shadow: var(--ui-shadow);
+    color: var(--ui-text);
+    display: flex;
+    gap: 1rem;
+    min-height: 7rem;
+    padding: 1.25rem;
+}
+
+.ui-loading-state__spinner {
+    animation: ui-spin .8s linear infinite;
+    border: 3px solid var(--ui-primary-soft);
+    border-radius: 50%;
+    border-top-color: var(--ui-primary);
+    height: 2rem;
+    width: 2rem;
+}
+
+.ui-loading-state strong { font-size: .95rem; }
+.ui-loading-state p { color: var(--ui-muted); font-size: .85rem; margin: .25rem 0 0; }
+@keyframes ui-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ui-loading-state__spinner { animation-duration: 1.8s; } }

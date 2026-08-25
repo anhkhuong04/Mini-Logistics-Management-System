@@ -1,5 +1,6 @@
 using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.AdminUsers.SetUserActiveStatus;
+using MiniLogistics.Application.AdminUsers.ResetUserPassword;
 using MiniLogistics.Application.CashOnDelivery;
 using MiniLogistics.Application.CashOnDelivery.MarkCodSettled;
 using MiniLogistics.Application.Identity;
@@ -72,6 +73,33 @@ public sealed class AdminAuditActionTests
         Assert.Equal(AdminAuditTargetTypes.User, auditEntry.TargetType);
         Assert.Equal(_shipperId, auditEntry.TargetId);
         Assert.Equal(1, auditService.SaveChangesCount);
+    }
+
+    [Fact]
+    public async Task ResetUserPassword_AllowsAdminToResetAnyRoleAndWritesAuditWithoutPassword()
+    {
+        var auditService = new FakeAdminAuditService();
+        var passwordService = new FakeUserPasswordService();
+        var service = new ResetUserPasswordService(
+            new ResetUserPasswordCommandValidator(),
+            CreateIdentityService(),
+            passwordService,
+            auditService);
+
+        var result = await service.ResetAsync(new ResetUserPasswordCommand(
+            _adminId,
+            _shopOwnerId,
+            "NewPassword1!",
+            "Shop owner requested support."));
+
+        Assert.True(result.IsSuccess, result.Error.Description);
+        Assert.Equal(_shopOwnerId, passwordService.ResetUserId);
+        Assert.Equal("NewPassword1!", passwordService.NewPassword);
+        var auditEntry = Assert.Single(auditService.Entries);
+        Assert.Equal(AdminAuditActions.UserPasswordReset, auditEntry.Action);
+        Assert.Equal(AdminAuditTargetTypes.User, auditEntry.TargetType);
+        Assert.Equal(_shopOwnerId, auditEntry.TargetId);
+        Assert.DoesNotContain("NewPassword1!", auditEntry.NewValue?.ToString() ?? string.Empty);
     }
 
     [Fact]
@@ -294,6 +322,23 @@ public sealed class AdminAuditActionTests
         {
             SaveChangesCount++;
             return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeUserPasswordService : IUserPasswordService
+    {
+        public Guid? ResetUserId { get; private set; }
+
+        public string? NewPassword { get; private set; }
+
+        public Task<Result> ResetPasswordAsync(
+            Guid userId,
+            string newPassword,
+            CancellationToken cancellationToken = default)
+        {
+            ResetUserId = userId;
+            NewPassword = newPassword;
+            return Task.FromResult(Result.Success());
         }
     }
 

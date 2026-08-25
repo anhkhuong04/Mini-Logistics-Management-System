@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Hosting;
@@ -43,6 +44,45 @@ public sealed class PartnerApiContractTests
     }
 
     [Fact]
+    public async Task CreateShipment_WhenJsonIsMalformed_ReturnsValidationErrorInsteadOfServerError()
+    {
+        await using var factory = new PartnerApiWebApplicationFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestApiKey);
+        client.DefaultRequestHeaders.Add("Idempotency-Key", "malformed-json-test");
+
+        using var response = await client.PostAsync(
+            "/api/v1/partner/shipments",
+            new StringContent("{invalid-json", Encoding.UTF8, "application/json"));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(
+            "Application.ValidationFailed",
+            document.RootElement.GetProperty("error").GetProperty("code").GetString());
+    }
+
+    [Fact]
+    public async Task PartnerApi_WhenRequestBodyExceedsLimit_ReturnsPayloadTooLarge()
+    {
+        await using var factory = new PartnerApiWebApplicationFactory();
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestApiKey);
+
+        using var response = await client.PostAsync(
+            "/api/v1/partner/shipping/quote",
+            new StringContent(
+                JsonSerializer.Serialize(new { padding = new string('x', 70 * 1024) }),
+                Encoding.UTF8,
+                "application/json"));
+
+        Assert.Equal(HttpStatusCode.RequestEntityTooLarge, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal("Request.TooLarge", document.RootElement.GetProperty("error").GetProperty("code").GetString());
+        Assert.True(response.Headers.Contains("X-Correlation-ID"));
+    }
+
+    [Fact]
     public async Task Quote_WhenMissingApiKey_ReturnsStandardUnauthorizedError()
     {
         await using var factory = new PartnerApiWebApplicationFactory();
@@ -58,6 +98,32 @@ public sealed class PartnerApiContractTests
         Assert.False(string.IsNullOrWhiteSpace(document.RootElement.GetProperty("error").GetProperty("message").GetString()));
         Assert.False(string.IsNullOrWhiteSpace(document.RootElement.GetProperty("error").GetProperty("traceId").GetString()));
         Assert.True(response.Headers.Contains("X-Correlation-ID"));
+    }
+
+    [Fact]
+    public async Task PartnerApi_WhenIngressLimitIsExceeded_RejectsBeforeAuthentication()
+    {
+        await using var factory = new PartnerApiWebApplicationFactory();
+        using var client = factory.CreateClient();
+
+        for (var index = 0; index < 120; index++)
+        {
+            using var allowedResponse = await client.PostAsJsonAsync(
+                "/api/v1/partner/shipping/quote",
+                new { });
+            Assert.Equal(HttpStatusCode.Unauthorized, allowedResponse.StatusCode);
+        }
+
+        using var rejectedResponse = await client.PostAsJsonAsync(
+            "/api/v1/partner/shipping/quote",
+            new { });
+        Assert.Equal(HttpStatusCode.TooManyRequests, rejectedResponse.StatusCode);
+        Assert.True(rejectedResponse.Headers.Contains("Retry-After"));
+
+        using var document = JsonDocument.Parse(await rejectedResponse.Content.ReadAsStringAsync());
+        Assert.Equal(
+            "PartnerApi.RateLimitExceeded",
+            document.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 
     [Fact]
@@ -120,6 +186,26 @@ public sealed class PartnerApiContractTests
         Assert.Equal("Application.ValidationFailed", audit.ErrorCode);
         Assert.NotEmpty(audit.RequestHash);
         Assert.True(audit.DurationMs >= 0);
+    }
+
+    [Fact]
+    public async Task CreateShipment_WhenAuditStoreFails_PreservesBusinessResponse()
+    {
+        await using var factory = new PartnerApiWebApplicationFactory(throwAudit: true);
+        using var client = factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", TestApiKey);
+        client.DefaultRequestHeaders.Add("Idempotency-Key", "audit-store-failure");
+
+        var response = await client.PostAsJsonAsync("/api/v1/partner/shipments", new
+        {
+            externalOrderId = "ECOM-AUDIT-FAILURE"
+        });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        Assert.Equal(
+            "Application.ValidationFailed",
+            document.RootElement.GetProperty("error").GetProperty("code").GetString());
     }
 
     [Fact]
@@ -316,17 +402,20 @@ public sealed class PartnerApiContractTests
         private readonly string _databaseName = "MiniLogisticsContractTests-" + Guid.NewGuid();
         private readonly bool _isShopActive;
         private readonly bool _throwQuote;
+        private readonly bool _throwAudit;
         private readonly PartnerApiScope _scopes;
         private readonly IReadOnlyList<string> _allowedIpAddresses;
 
         public PartnerApiWebApplicationFactory(
             bool isShopActive = true,
             bool throwQuote = false,
+            bool throwAudit = false,
             PartnerApiScope scopes = PartnerApiScope.All,
             IReadOnlyList<string>? allowedIpAddresses = null)
         {
             _isShopActive = isShopActive;
             _throwQuote = throwQuote;
+            _throwAudit = throwAudit;
             _scopes = scopes;
             _allowedIpAddresses = allowedIpAddresses ?? [];
         }
@@ -341,6 +430,12 @@ public sealed class PartnerApiContractTests
                 {
                     services.RemoveAll<IPartnerQuoteService>();
                     services.AddScoped<IPartnerQuoteService, ThrowingPartnerQuoteService>();
+                }
+
+                if (_throwAudit)
+                {
+                    services.RemoveAll<IPartnerApiRequestAuditRepository>();
+                    services.AddScoped<IPartnerApiRequestAuditRepository, ThrowingRequestAuditRepository>();
                 }
 
                 var inMemoryProvider = new ServiceCollection()
@@ -434,6 +529,21 @@ public sealed class PartnerApiContractTests
             CancellationToken cancellationToken = default)
         {
             throw new InvalidOperationException("quote service failed");
+        }
+    }
+
+    private sealed class ThrowingRequestAuditRepository : IPartnerApiRequestAuditRepository
+    {
+        public Task AddAsync(
+            PartnerApiRequestAudit audit,
+            CancellationToken cancellationToken = default)
+        {
+            throw new InvalidOperationException("audit store failed");
+        }
+
+        public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            throw new InvalidOperationException("audit store failed");
         }
     }
 }

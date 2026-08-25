@@ -227,7 +227,7 @@
                                             <button type="button"
                                                     class="toggle-button @(hub.IsActive ? "danger" : "success")"
                                                     disabled="@IsToggling(hub.HubId)"
-                                                    @onclick="() => ToggleHubAsync(hub)">
+                                                    @onclick="() => RequestToggleHub(hub)">
                                                 @(IsToggling(hub.HubId)
                                                     ? "Dang luu..."
                                                     : hub.IsActive ? "Deactivate" : "Activate")
@@ -243,6 +243,15 @@
         </section>
     }
 </div>
+
+<ConfirmActionDialog IsOpen="@(PendingHubToggle is not null)"
+                     Title="@(PendingHubToggle?.IsActive == true ? "Dừng hub?" : "Kích hoạt hub?")"
+                     Message="@PendingHubToggleMessage"
+                     ConfirmText="@(PendingHubToggle?.IsActive == true ? "Dừng hub" : "Kích hoạt")"
+                     Tone="@(PendingHubToggle?.IsActive == true ? "danger" : "primary")"
+                     IsBusy="@(PendingHubToggle is not null && IsToggling(PendingHubToggle.HubId))"
+                     OnConfirm="ConfirmToggleHubAsync"
+                     OnCancel="CancelToggleHub" />
 
 @code {
     private bool IsLoading { get; set; } = true;
@@ -404,6 +413,35 @@
             ? $"Da activate hub {hub.Code}."
             : $"Da deactivate hub {hub.Code}.";
         await LoadAsync();
+    }
+
+    private AdminHubResponse? PendingHubToggle { get; set; }
+
+    private string PendingHubToggleMessage => PendingHubToggle?.IsActive == true
+        ? $"Hub {PendingHubToggle.Code} sẽ không còn được dùng để gán khu vực làm việc mới cho shipper."
+        : $"Khôi phục hub {PendingHubToggle?.Code} để tiếp tục điều phối.";
+
+    private void RequestToggleHub(AdminHubResponse hub)
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+        PendingHubToggle = hub;
+    }
+
+    private async Task ConfirmToggleHubAsync()
+    {
+        if (PendingHubToggle is null)
+        {
+            return;
+        }
+
+        await ToggleHubAsync(PendingHubToggle);
+        PendingHubToggle = null;
+    }
+
+    private void CancelToggleHub()
+    {
+        PendingHubToggle = null;
     }
 
     private void EditHub(AdminHubResponse hub)

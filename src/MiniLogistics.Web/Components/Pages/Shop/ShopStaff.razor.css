@@ -1,13 +1,16 @@
 .staff-page {
+    color: var(--ui-text);
     display: grid;
-    gap: 1rem;
+    gap: 1.25rem;
 }
 
 .staff-create-section,
 .staff-list-section {
-    padding: 1rem;
-    border: 1px solid #dbe2ea;
-    background: #fff;
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius);
+    box-shadow: var(--ui-shadow);
+    padding: 1.25rem;
 }
 
 .section-heading {
@@ -19,6 +22,7 @@
 }
 
 .section-heading h2 {
+    color: var(--ui-text);
     margin: 0;
     font-size: 1.1rem;
 }
@@ -32,6 +36,7 @@
 
 .staff-form-grid label,
 .staff-row > label {
+    color: var(--ui-text);
     display: grid;
     gap: 0.35rem;
 }
@@ -50,6 +55,24 @@
     gap: 0.45rem;
 }
 
+.staff-page :is(input, select) {
+    border: 1px solid var(--ui-border);
+    border-radius: 8px;
+    color: var(--ui-text);
+    min-height: 2.5rem;
+}
+
+.staff-page :is(input, select):focus {
+    border-color: var(--ui-primary);
+    box-shadow: 0 0 0 3px rgba(0, 119, 200, 0.12);
+    outline: 0;
+}
+
+.staff-page input[type="checkbox"] {
+    accent-color: var(--ui-primary);
+    min-height: 1rem;
+}
+
 .staff-list {
     display: grid;
     gap: 0.75rem;
@@ -60,8 +83,17 @@
     grid-template-columns: minmax(12rem, 1.2fr) minmax(8rem, 0.6fr) minmax(22rem, 2fr) auto auto;
     gap: 0.75rem;
     align-items: center;
-    padding: 0.85rem;
-    border: 1px solid #dbe2ea;
+    background: #fbfdff;
+    border: 1px solid var(--ui-border);
+    border-radius: 10px;
+    padding: 1rem;
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.staff-row:hover {
+    border-color: #b9d9f3;
+    box-shadow: var(--ui-shadow);
+    transform: translateY(-1px);
 }
 
 .staff-identity {
@@ -81,8 +113,10 @@
 }
 
 .staff-state {
+    background: var(--ui-primary-soft);
+    border-radius: 10px;
+    color: var(--ui-muted);
     padding: 1rem;
-    color: #52606d;
 }
 
 @media (max-width: 960px) {

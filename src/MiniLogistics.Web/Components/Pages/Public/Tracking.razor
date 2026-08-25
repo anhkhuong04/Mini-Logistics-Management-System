@@ -8,175 +8,155 @@
 @inject IGetPublicTrackingService GetPublicTrackingService
 @inject IPublicTrackingRateLimiter TrackingRateLimiter
 @inject IHttpContextAccessor HttpContextAccessor
+@inject IStringLocalizer<SharedResource> L
 
-<PageTitle>Tracking</PageTitle>
+<PageTitle>@L["Tracking_PageTitle"]</PageTitle>
 
 <div class="tracking-page">
-    <div class="page-heading">
+    <header class="tracking-hero">
         <div>
-            <h1>Tra cứu vận đơn</h1>
-            <p>Nhập tracking code để xem trạng thái hiện tại và tuyến giao hàng.</p>
+            <p class="tracking-eyebrow">@L["Tracking_Eyebrow"]</p>
+            <h1>@L["Tracking_Title"]</h1>
+            <p>@L["Tracking_Description"]</p>
         </div>
-    </div>
+    </header>
 
-    <div class="tracking-grid">
-        <section class="content-card search-card">
-            <div class="section-heading">
-                <span class="section-icon">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M10.5 4a6.5 6.5 0 0 1 5.1 10.5l4 4-1.4 1.4-4-4A6.5 6.5 0 1 1 10.5 4Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" />
-                    </svg>
-                </span>
-                <h2>Tracking code</h2>
+    <section class="tracking-search-zone" aria-labelledby="tracking-search-title">
+        <div class="section-heading">
+            <span class="section-icon"><AppIcon Name="search" Size="21" /></span>
+            <div>
+                <h2 id="tracking-search-title">@L["Tracking_SearchTitle"]</h2>
+                <p>@L["Tracking_SearchDescription"]</p>
             </div>
+        </div>
 
-            <EditForm Model="Form" OnValidSubmit="HandleSearchAsync" class="tracking-form">
-                <DataAnnotationsValidator />
+        <EditForm Model="Form" OnValidSubmit="HandleSearchAsync" class="tracking-form">
+            <DataAnnotationsValidator />
 
-                <div class="form-field">
-                    <label for="tracking-code">Mã vận đơn</label>
-                    <InputText id="tracking-code" class="form-control" @bind-Value="Form.TrackingCode" />
-                    <ValidationMessage For="() => Form.TrackingCode" />
-                </div>
-
-                <button class="btn btn-primary search-button" type="submit" disabled="@IsSearching">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M10.5 4a6.5 6.5 0 0 1 5.1 10.5l4 4-1.4 1.4-4-4A6.5 6.5 0 1 1 10.5 4Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" />
-                    </svg>
-                    <span>@(IsSearching ? "Đang tra cứu..." : "Tra cứu")</span>
+            <div class="search-input-group">
+                <InputText id="tracking-code" class="tracking-input" placeholder="@L["Tracking_Placeholder"]" autocomplete="off" @bind-Value="Form.TrackingCode" />
+                <button class="ui-button ui-button--primary search-button" type="submit" disabled="@IsSearching">
+                    <AppIcon Name="search" Size="18" />
+                    <span>@(IsSearching ? L["Tracking_Searching"] : L["Tracking_Search"])</span>
                 </button>
-            </EditForm>
-        </section>
+            </div>
+            <ValidationMessage For="() => Form.TrackingCode" />
+            <p class="search-hint">@L["Tracking_Hint"]</p>
+        </EditForm>
+    </section>
 
-        <section class="content-card result-card">
+    <section class="tracking-result-zone" aria-labelledby="tracking-result-title" aria-live="polite">
+        <div class="result-zone-heading">
+            <div>
+                <p class="tracking-eyebrow">@L["Tracking_ResultEyebrow"]</p>
+                <h2 id="tracking-result-title">@L["Tracking_ResultTitle"]</h2>
+            </div>
+            @if (TrackingResult is not null)
+            {
+                <span class="status-pill @GetStatusClass(TrackingResult.CurrentStatus)">@FormatStatus(TrackingResult.CurrentStatus)</span>
+            }
+        </div>
+
             @if (!string.IsNullOrWhiteSpace(ErrorMessage))
             {
                 <div class="empty-result">
-                    <span class="result-icon danger">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm1 15h-2v-2h2v2Zm0-4h-2V7h2v6Z" />
-                        </svg>
-                    </span>
-                    <strong>Không tìm thấy vận đơn</strong>
+                    <span class="result-icon danger"><AppIcon Name="alert" Size="26" /></span>
+                    <strong>@L["Tracking_NotFound"]</strong>
                     <p>@ErrorMessage</p>
                 </div>
             }
             else if (TrackingResult is null)
             {
                 <div class="empty-result">
-                    <span class="result-icon">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" />
-                        </svg>
-                    </span>
-                    <strong>Chưa có dữ liệu tra cứu</strong>
-                    <p>Thông tin vận đơn sẽ hiển thị sau khi nhập tracking code hợp lệ.</p>
+                    <span class="result-icon"><AppIcon Name="package" Size="26" /></span>
+                    <strong>@L["Tracking_EmptyTitle"]</strong>
+                    <p>@L["Tracking_EmptyDescription"]</p>
                 </div>
             }
             else
             {
-                <div class="tracking-summary">
-                    <span>Tracking code</span>
-                    <strong>@TrackingResult.TrackingCode</strong>
-                    <div class="summary-pills">
-                        <span class="status-pill @GetStatusClass(TrackingResult.CurrentStatus)">
-                            @FormatStatus(TrackingResult.CurrentStatus)
-                        </span>
-                        <span class="access-pill @GetAccessClass(TrackingResult.AccessLevel)">
-                            @FormatAccessLevel(TrackingResult.AccessLevel)
-                        </span>
+                <div class="tracking-summary mockup-layout">
+                    <div class="tracking-header">
+                        <div class="col-left">
+                            <span class="label-text">@L["Tracking_Code"]</span>
+                            <div class="status-indicator">
+                                <span class="status-dot @GetStatusClass(TrackingResult.CurrentStatus)">●</span>
+                                <strong>@FormatStatus(TrackingResult.CurrentStatus).ToUpper()</strong>
+                            </div>
+                        </div>
+                        <div class="col-right text-end">
+                            <span class="tracking-code-text">#@TrackingResult.TrackingCode</span>
+                            <span class="expected-date">@L["Tracking_Estimated", TrackingResult.CreatedAtUtc.AddDays(2).ToString("d")].Value</span>
+                        </div>
+                    </div>
+
+                    <div class="location-grid">
+                        <div class="col-left">
+                            <strong>@TrackingResult.PickupProvince</strong>
+                            <span class="date-text">@TrackingResult.CreatedAtUtc.ToString("dd/MM/yyyy HH:mm")</span>
+                        </div>
+                        <div class="col-right text-end">
+                            <strong>@TrackingResult.DeliveryProvince</strong>
+                            <span class="date-text">@L["Tracking_EstimatedShort", TrackingResult.CreatedAtUtc.AddDays(2).ToString("d")].Value</span>
+                        </div>
                     </div>
                 </div>
 
-                <dl class="summary-grid">
+                <div class="horizontal-progress-bar">
+                    @{
+                        var step = GetProgressStep(TrackingResult.CurrentStatus);
+                    }
+                    <div class="progress-track">
+                        <div class="progress-node @(step >= 1 ? "active" : "")">
+                            <span class="node-dot"></span>
+                            <span class="node-label">@L["Tracking_PickedUp"]</span>
+                        </div>
+                        <div class="progress-line @(step >= 2 ? "active" : "")"></div>
+                        <div class="progress-node @(step >= 2 ? "active" : "")">
+                            <span class="node-dot"></span>
+                            <span class="node-label">@L["Tracking_Sorting"]</span>
+                        </div>
+                        <div class="progress-line @(step >= 3 ? "active" : "")"></div>
+                        <div class="progress-node @(step >= 3 ? "active" : "")">
+                            <span class="node-dot"></span>
+                            <span class="node-label">@L["Tracking_InTransit"]</span>
+                        </div>
+                        <div class="progress-line @(step >= 4 ? "active" : "")"></div>
+                        <div class="progress-node @(step >= 4 ? "active" : "")">
+                            <span class="node-dot"></span>
+                            <span class="node-label">@L["Tracking_Delivery"]</span>
+                        </div>
+                    </div>
+                </div>
+
+                <dl class="summary-grid detail-grid">
                     <div>
-                        <dt>Ngày tạo</dt>
-                        <dd>@FormatDate(TrackingResult.CreatedAtUtc)</dd>
+                        <dt>@L["Tracking_SenderPhone"]</dt>
+                        <dd>@DisplayOrHidden(TrackingResult.SenderPhone)</dd>
                     </div>
                     <div>
-                        <dt>Cập nhật cuối</dt>
-                        <dd>@FormatDate(TrackingResult.LastUpdatedAtUtc)</dd>
+                        <dt>@L["Tracking_ReceiverPhone"]</dt>
+                        <dd>@DisplayOrHidden(TrackingResult.ReceiverPhone)</dd>
                     </div>
                     <div>
-                        <dt>Từ</dt>
-                        <dd>@TrackingResult.PickupProvince</dd>
+                        <dt>@L["Tracking_PickupAddress"]</dt>
+                        <dd>@DisplayOrHidden(TrackingResult.PickupAddress?.FullAddress)</dd>
                     </div>
                     <div>
-                        <dt>Đến</dt>
-                        <dd>@TrackingResult.DeliveryProvince</dd>
-                    </div>
-                    <div>
-                        <dt>Người gửi</dt>
-                        <dd>@DisplayOrHidden(TrackingResult.SenderName)</dd>
-                    </div>
-                    <div>
-                        <dt>Người nhận</dt>
-                        <dd>@DisplayOrHidden(TrackingResult.ReceiverName)</dd>
+                        <dt>@L["Tracking_DeliveryAddress"]</dt>
+                        <dd>@DisplayOrHidden(TrackingResult.DeliveryAddress?.FullAddress)</dd>
                     </div>
                 </dl>
 
-                @if (TrackingResult.AccessLevel == PublicTrackingAccessLevel.Summary)
-                {
-                    <div class="privacy-panel">
-                        <div class="privacy-copy">
-                            <strong>Chi tiết đang được ẩn</strong>
-                            <p>Xác minh bằng 4 số cuối điện thoại người gửi hoặc người nhận.</p>
-                        </div>
-
-                        <EditForm Model="VerificationForm" OnValidSubmit="HandleVerifyAsync" class="verify-form">
-                            <DataAnnotationsValidator />
-
-                            <div class="form-field">
-                                <label for="phone-last4">4 số cuối điện thoại</label>
-                                <InputText id="phone-last4" class="form-control" inputmode="numeric" maxlength="4" @bind-Value="VerificationForm.PhoneLast4" />
-                                <ValidationMessage For="() => VerificationForm.PhoneLast4" />
-                            </div>
-
-                            <button class="btn btn-secondary verify-button" type="submit" disabled="@IsVerifying">
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M12 2 4 5.5V11c0 5 3.4 9.3 8 10.5 4.6-1.2 8-5.5 8-10.5V5.5L12 2Zm0 2.2 6 2.7V11c0 3.9-2.5 7.3-6 8.4-3.5-1.1-6-4.5-6-8.4V6.9l6-2.7Zm3.7 5.1-5 5-2.4-2.4-1.4 1.4 3.8 3.8 6.4-6.4-1.4-1.4Z" />
-                                </svg>
-                                <span>@(IsVerifying ? "Đang xác minh..." : "Xác minh")</span>
-                            </button>
-                        </EditForm>
-
-                        @if (!string.IsNullOrWhiteSpace(VerifyMessage))
-                        {
-                            <p class="inline-message">@VerifyMessage</p>
-                        }
-                    </div>
-                }
-                else
-                {
-                    <dl class="summary-grid detail-grid">
-                        <div>
-                            <dt>Điện thoại gửi</dt>
-                            <dd>@DisplayOrHidden(TrackingResult.SenderPhone)</dd>
-                        </div>
-                        <div>
-                            <dt>Điện thoại nhận</dt>
-                            <dd>@DisplayOrHidden(TrackingResult.ReceiverPhone)</dd>
-                        </div>
-                        <div>
-                            <dt>Địa chỉ lấy</dt>
-                            <dd>@DisplayOrHidden(TrackingResult.PickupAddress?.FullAddress)</dd>
-                        </div>
-                        <div>
-                            <dt>Địa chỉ giao</dt>
-                            <dd>@DisplayOrHidden(TrackingResult.DeliveryAddress?.FullAddress)</dd>
-                        </div>
-                    </dl>
-                }
-
-                <h2 class="timeline-title">Timeline</h2>
-                <ol class="timeline">
-                    @foreach (var item in TrackingResult.Timeline)
+                <h2 class="timeline-title">@L["Tracking_Journey"]</h2>
+                <ol class="timeline mockup-timeline">
+                    @foreach (var item in TrackingResult.Timeline.OrderByDescending(x => x.ChangedAtUtc))
                     {
                         <li>
                             <span class="timeline-dot"></span>
                             <div>
                                 <strong>@FormatStatus(item.Status)</strong>
-                                <p>@item.Message</p>
+                                <p>@GetTimelineMessage(item)</p>
                                 <time>@FormatDate(item.ChangedAtUtc)</time>
                             </div>
                         </li>
@@ -184,23 +164,16 @@
                 </ol>
             }
         </section>
-    </div>
 </div>
 
 @code {
     private TrackingFormModel Form { get; set; } = new();
 
-    private TrackingVerificationFormModel VerificationForm { get; set; } = new();
-
     private bool IsSearching { get; set; }
-
-    private bool IsVerifying { get; set; }
 
     private string? LoadedQueryCode { get; set; }
 
     private string? ErrorMessage { get; set; }
-
-    private string? VerifyMessage { get; set; }
 
     private PublicTrackingResponse? TrackingResult { get; set; }
 
@@ -222,7 +195,7 @@
         IsSearching = true;
         try
         {
-            await SearchAsync(normalizedCode, clearResult: true);
+            await SearchAsync(normalizedCode);
         }
         finally
         {
@@ -235,7 +208,7 @@
         IsSearching = true;
         try
         {
-            await SearchAsync(Form.TrackingCode, clearResult: true);
+            await SearchAsync(Form.TrackingCode);
         }
         finally
         {
@@ -243,82 +216,27 @@
         }
     }
 
-    private async Task HandleVerifyAsync()
-    {
-        if (TrackingResult is null)
-        {
-            return;
-        }
-
-        IsVerifying = true;
-        try
-        {
-            await SearchAsync(
-                TrackingResult.TrackingCode,
-                VerificationForm.PhoneLast4,
-                clearResult: false);
-
-            if (TrackingResult?.AccessLevel == PublicTrackingAccessLevel.Summary
-                && string.IsNullOrWhiteSpace(VerifyMessage))
-            {
-                VerifyMessage = "4 số cuối không khớp với vận đơn này.";
-            }
-        }
-        finally
-        {
-            IsVerifying = false;
-        }
-    }
-
-    private async Task SearchAsync(
-        string trackingCode,
-        string? phoneLast4 = null,
-        bool clearResult = true)
+    private async Task SearchAsync(string trackingCode)
     {
         var normalizedCode = trackingCode.Trim();
-        if (clearResult)
-        {
-            ErrorMessage = null;
-            VerifyMessage = null;
-            TrackingResult = null;
-            VerificationForm.PhoneLast4 = string.Empty;
-        }
-        else
-        {
-            ErrorMessage = null;
-            VerifyMessage = null;
-        }
+        ErrorMessage = null;
+        TrackingResult = null;
 
         if (!TrackingRateLimiter.TryAcquire(GetClientKey(), normalizedCode, out var retryAfter))
         {
-            var message = $"Bạn thao tác quá nhanh. Vui lòng thử lại sau {FormatRetryAfter(retryAfter)}.";
-            if (clearResult)
-            {
-                ErrorMessage = message;
-            }
-            else
-            {
-                VerifyMessage = message;
-            }
-
+            ErrorMessage = L["Tracking_RateLimited", FormatRetryAfter(retryAfter)];
             return;
         }
 
-        var result = await GetPublicTrackingService.GetAsync(
-            normalizedCode,
-            phoneLast4?.Trim());
+        var result = await GetPublicTrackingService.GetAsync(normalizedCode);
         if (result.IsFailure)
         {
-            var message = UiDisplay.ToErrorMessage(result.Error);
-            if (clearResult)
+            ErrorMessage = result.Error.Code switch
             {
-                ErrorMessage = message;
-            }
-            else
-            {
-                VerifyMessage = message;
-            }
-
+                "Application.ValidationFailed" => L["Tracking_ErrorRequired"],
+                "Application.NotFound" => L["Tracking_ErrorNotFound"],
+                _ => result.Error.Description
+            };
             return;
         }
 
@@ -337,17 +255,17 @@
         return UiDisplay.FormatLocalDateTime(value);
     }
 
-    private static string DisplayOrHidden(string? value)
+    private string DisplayOrHidden(string? value)
     {
         return string.IsNullOrWhiteSpace(value)
-            ? "Đã ẩn"
+            ? L["Tracking_Hidden"]
             : value;
     }
 
-    private static string FormatRetryAfter(TimeSpan retryAfter)
+    private string FormatRetryAfter(TimeSpan retryAfter)
     {
         var seconds = Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds));
-        return $"{seconds} giây";
+        return L["RetryAfterSeconds", seconds];
     }
 
     private static string FormatAccessLevel(PublicTrackingAccessLevel accessLevel)
@@ -364,23 +282,29 @@
             : "summary";
     }
 
-    private static string FormatStatus(ShipmentStatus status)
+    private string FormatStatus(ShipmentStatus status)
     {
         return status switch
         {
-            ShipmentStatus.Draft => "Nháp",
-            ShipmentStatus.PendingPickup => "Chờ lấy hàng",
-            ShipmentStatus.Assigned => "Đã phân công",
-            ShipmentStatus.PickingUp => "Đang lấy hàng",
-            ShipmentStatus.PickedUp => "Đã lấy hàng",
-            ShipmentStatus.InTransit => "Đang vận chuyển",
-            ShipmentStatus.Delivering => "Đang giao",
-            ShipmentStatus.Delivered => "Đã giao",
-            ShipmentStatus.DeliveryFailed => "Giao thất bại",
-            ShipmentStatus.Returned => "Đã hoàn",
-            ShipmentStatus.Cancelled => "Đã hủy",
+            ShipmentStatus.Draft => L["Status_Draft"],
+            ShipmentStatus.PendingPickup => L["Status_PendingPickup"],
+            ShipmentStatus.Assigned => L["Status_Assigned"],
+            ShipmentStatus.PickingUp => L["Status_PickingUp"],
+            ShipmentStatus.PickedUp => L["Status_PickedUp"],
+            ShipmentStatus.InTransit => L["Status_InTransit"],
+            ShipmentStatus.Delivering => L["Status_Delivering"],
+            ShipmentStatus.Delivered => L["Status_Delivered"],
+            ShipmentStatus.DeliveryFailed => L["Status_DeliveryFailed"],
+            ShipmentStatus.Returned => L["Status_Returned"],
+            ShipmentStatus.Cancelled => L["Status_Cancelled"],
             _ => status.ToString()
         };
+    }
+
+    private string GetTimelineMessage(PublicTrackingTimelineItemResponse item)
+    {
+        var localizedMessage = L[item.MessageCode];
+        return localizedMessage.ResourceNotFound ? item.Message : localizedMessage.Value;
     }
 
     private static string GetStatusClass(ShipmentStatus status)
@@ -391,6 +315,22 @@
             ShipmentStatus.Cancelled or ShipmentStatus.DeliveryFailed or ShipmentStatus.Returned => "danger",
             ShipmentStatus.InTransit or ShipmentStatus.Delivering or ShipmentStatus.PickedUp => "info",
             _ => "warning"
+        };
+    }
+
+    private static int GetProgressStep(ShipmentStatus status)
+    {
+        return status switch
+        {
+            ShipmentStatus.Draft => 0,
+            ShipmentStatus.PendingPickup => 0,
+            ShipmentStatus.Assigned => 0,
+            ShipmentStatus.PickingUp => 0,
+            ShipmentStatus.PickedUp => 1,
+            ShipmentStatus.InTransit => 2,
+            ShipmentStatus.Delivering => 3,
+            ShipmentStatus.Delivered => 4,
+            _ => 0
         };
     }
 

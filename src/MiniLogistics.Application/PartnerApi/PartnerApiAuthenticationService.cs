@@ -43,26 +43,26 @@ public sealed class PartnerApiAuthenticationService : IPartnerApiAuthenticationS
     {
         if (string.IsNullOrWhiteSpace(authorizationHeader))
         {
-            _logger?.LogWarning("Partner API authentication failed because Authorization header is missing");
+            _logger?.LogDebug("Partner API authentication failed because Authorization header is missing");
             return Result<PartnerApiClientContext>.Failure(PartnerApiErrors.MissingApiKey);
         }
 
         if (!authorizationHeader.StartsWith(BearerPrefix, StringComparison.OrdinalIgnoreCase))
         {
-            _logger?.LogWarning("Partner API authentication failed because Authorization scheme is invalid");
+            _logger?.LogDebug("Partner API authentication failed because Authorization scheme is invalid");
             return Result<PartnerApiClientContext>.Failure(PartnerApiErrors.InvalidApiKey);
         }
 
         var apiKey = authorizationHeader[BearerPrefix.Length..].Trim();
         if (string.IsNullOrWhiteSpace(apiKey))
         {
-            _logger?.LogWarning("Partner API authentication failed because bearer token is empty");
+            _logger?.LogDebug("Partner API authentication failed because bearer token is empty");
             return Result<PartnerApiClientContext>.Failure(PartnerApiErrors.InvalidApiKey);
         }
 
         if (_apiCredentialPolicy is not null && !_apiCredentialPolicy.IsAllowed(apiKey))
         {
-            _logger?.LogWarning("Partner API authentication failed because API key environment prefix is invalid");
+            _logger?.LogDebug("Partner API authentication failed because API key environment prefix is invalid");
             return Result<PartnerApiClientContext>.Failure(PartnerApiErrors.InvalidApiKey);
         }
 
@@ -70,7 +70,7 @@ public sealed class PartnerApiAuthenticationService : IPartnerApiAuthenticationS
         var apiClient = await _apiClientRepository.GetByApiKeyHashAsync(apiKeyHash, cancellationToken);
         if (apiClient is null)
         {
-            _logger?.LogWarning("Partner API authentication failed because API key hash was not found");
+            _logger?.LogDebug("Partner API authentication failed because API key hash was not found");
             return Result<PartnerApiClientContext>.Failure(PartnerApiErrors.InvalidApiKey);
         }
 
@@ -122,7 +122,7 @@ public sealed class PartnerApiAuthenticationService : IPartnerApiAuthenticationS
             UsageWriteInterval,
             cancellationToken);
 
-        _logger?.LogInformation(
+        _logger?.LogDebug(
             "Partner API client {ApiClientId} authenticated for shop {ShopId}",
             apiClient.Id,
             apiClient.ShopId);

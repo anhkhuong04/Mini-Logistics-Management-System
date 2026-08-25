@@ -66,7 +66,8 @@ public sealed class PartnerApiRequestAuditConfiguration : IEntityTypeConfigurati
             .HasForeignKey(audit => audit.ShopId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasIndex(audit => new { audit.ApiClientId, audit.CreatedAtUtc });
+        builder.HasIndex(audit => new { audit.ApiClientId, audit.CreatedAtUtc, audit.Id })
+            .IsDescending(false, true, true);
         builder.HasIndex(audit => audit.TraceId);
         builder.HasIndex(audit => audit.ShipmentId);
     }

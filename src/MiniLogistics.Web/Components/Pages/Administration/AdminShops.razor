@@ -129,7 +129,7 @@
                                         <button type="button"
                                                 class="toggle-button @(shop.IsActive ? "danger" : "success")"
                                                 disabled="@IsToggling(shop.ShopId)"
-                                                @onclick="() => ToggleShopAsync(shop)">
+                                                @onclick="() => RequestToggleShop(shop)">
                                             @GetToggleButtonText(shop)
                                         </button>
                                     </td>
@@ -142,6 +142,15 @@
         </section>
     }
 </div>
+
+<ConfirmActionDialog IsOpen="@(PendingShopToggle is not null)"
+                     Title="@(PendingShopToggle?.IsActive == true ? "Tạm dừng shop?" : "Kích hoạt shop?")"
+                     Message="@PendingShopToggleMessage"
+                     ConfirmText="@(PendingShopToggle?.IsActive == true ? "Tạm dừng shop" : "Kích hoạt")"
+                     Tone="@(PendingShopToggle?.IsActive == true ? "danger" : "primary")"
+                     IsBusy="@(PendingShopToggle is not null && IsToggling(PendingShopToggle.ShopId))"
+                     OnConfirm="ConfirmToggleShopAsync"
+                     OnCancel="CancelToggleShop" />
 
 @code {
     private bool IsLoading { get; set; } = true;
@@ -231,6 +240,35 @@
             ? $"Da kich hoat shop {shop.Name}."
             : $"Da tam dung shop {shop.Name}.";
         await LoadAsync(clearMessages: false);
+    }
+
+    private GetAdminShopResponse? PendingShopToggle { get; set; }
+
+    private string PendingShopToggleMessage => PendingShopToggle?.IsActive == true
+        ? $"Shop {PendingShopToggle.Name} sẽ tạm thời không thể tạo hoặc quản lý các vận đơn mới."
+        : $"Khôi phục hoạt động cho shop {PendingShopToggle?.Name}.";
+
+    private void RequestToggleShop(GetAdminShopResponse shop)
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+        PendingShopToggle = shop;
+    }
+
+    private async Task ConfirmToggleShopAsync()
+    {
+        if (PendingShopToggle is null)
+        {
+            return;
+        }
+
+        await ToggleShopAsync(PendingShopToggle);
+        PendingShopToggle = null;
+    }
+
+    private void CancelToggleShop()
+    {
+        PendingShopToggle = null;
     }
 
     private async Task<Guid?> GetCurrentUserIdAsync()

@@ -11,81 +11,54 @@
 <PageTitle>Admin Dashboard - MiniLogistics</PageTitle>
 
 <div class="admin-dashboard-page">
-    <header class="admin-hero">
-        <div>
-            <p class="eyebrow">Control tower</p>
-            <h1>Admin dashboard</h1>
-            <p>Tong quan van hanh, shipper, COD, shop va webhook trong mot man hinh.</p>
-        </div>
+    <UiPageHeader Eyebrow="Trung tâm điều hành"
+                  Title="Tổng quan hệ thống"
+                  Description="Theo dõi vận hành, năng lực giao hàng, dòng tiền COD và sức khỏe tích hợp đối tác."
+                  Icon="activity">
+        <Actions>
+            <button type="button" class="ui-button ui-button--secondary" disabled="@IsLoading" @onclick="LoadAsync">
+                <AppIcon Name="refresh" Size="18" />
+                <span>@(IsLoading ? "Đang tải" : "Làm mới")</span>
+            </button>
+        </Actions>
+    </UiPageHeader>
 
-        <button type="button" class="refresh-button" disabled="@IsLoading" @onclick="LoadAsync">Lam moi</button>
-    </header>
-
-    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
-    {
-        <div class="alert-box danger" role="alert">@ErrorMessage</div>
-    }
+    <UiAlert Message="@ErrorMessage" Tone="danger" />
 
     <section class="admin-panel dashboard-filters">
         <label class="field-group" for="dashboard-from">
-            <span>Tu ngay</span>
+            <span>Từ ngày</span>
             <input id="dashboard-from" type="date" value="@FromDateText" @onchange="OnFromDateChanged" />
         </label>
 
         <label class="field-group" for="dashboard-to">
-            <span>Den ngay</span>
+            <span>Đến ngày</span>
             <input id="dashboard-to" type="date" value="@ToDateText" @onchange="OnToDateChanged" />
         </label>
 
         <label class="field-group" for="dashboard-province">
-            <span>Province</span>
-            <input id="dashboard-province" placeholder="Tat ca" @bind="ProvinceFilter" @bind:event="oninput" />
+            <span>Tỉnh / thành phố</span>
+            <input id="dashboard-province" placeholder="Tất cả khu vực" @bind="ProvinceFilter" @bind:event="oninput" />
         </label>
 
         <div class="form-actions">
-            <button type="button" class="primary-button" disabled="@IsLoading" @onclick="LoadAsync">Ap dung</button>
+            <button type="button" class="ui-button ui-button--primary" disabled="@IsLoading" @onclick="LoadAsync">Áp dụng</button>
         </div>
     </section>
 
     @if (IsLoading)
     {
-        <section class="admin-panel state-card" aria-live="polite">
-            <strong>Dang tai dashboard</strong>
-        </section>
+        <UiLoadingState Title="Đang tổng hợp dữ liệu" Description="Số liệu vận hành mới nhất đang được cập nhật." />
     }
     else if (Dashboard is not null)
     {
         <section class="summary-grid" aria-label="Admin dashboard metrics">
-            <a class="metric-card" href="/operations/assignments">
-                <span>Don tao trong ky</span>
-                <strong>@Dashboard.Shipments.Created.ToString("N0")</strong>
-                <small>Khong tinh Draft</small>
-            </a>
-            <a class="metric-card warning" href="/operations/assignments">
-                <span>Pending chua assign</span>
-                <strong>@Dashboard.Shipments.PendingPickupUnassigned.ToString("N0")</strong>
-                <small>Can retry/assign thu cong</small>
-            </a>
-            <a class="metric-card danger" href="/operations/assignments">
-                <span>Delivery failed</span>
-                <strong>@Dashboard.Shipments.DeliveryFailed.ToString("N0")</strong>
-                <small>@Dashboard.Shipments.DeliveryFailedRate.ToString("N2")% tren tong non-draft</small>
-            </a>
-            <a class="metric-card" href="/admin/users">
-                <span>Shipper active</span>
-                <strong>@Dashboard.Shippers.Active.ToString("N0")</strong>
-                <small>@Dashboard.Shippers.AvailableForAssignment.ToString("N0") dang nhan auto assign</small>
-            </a>
-            <a class="metric-card warning" href="/admin/users">
-                <span>Shipper qua capacity</span>
-                <strong>@Dashboard.Shippers.OverCapacity.ToString("N0")</strong>
-                <small>Theo active assignment load</small>
-            </a>
-            <a class="metric-card" href="/admin/shops">
-                <span>Shop active</span>
-                <strong>@Dashboard.Shops.Active.ToString("N0")</strong>
-                <small>@Dashboard.Shops.Inactive.ToString("N0") inactive</small>
-            </a>
+            <UiMetricCard Label="Đơn tạo trong kỳ" Value="@Dashboard.Shipments.Created.ToString("N0")" Note="Không bao gồm đơn nháp" Icon="package" Href="/operations/assignments" />
+            <UiMetricCard Label="Chờ phân công" Value="@Dashboard.Shipments.PendingPickupUnassigned.ToString("N0")" Note="Cần phân công hoặc thử lại" Icon="clock" Tone="warning" Href="/operations/assignments" />
+            <UiMetricCard Label="Giao thất bại" Value="@Dashboard.Shipments.DeliveryFailed.ToString("N0")" Note="@($"{Dashboard.Shipments.DeliveryFailedRate:N2}% tổng đơn hợp lệ")" Icon="alert" Tone="danger" Href="/operations/assignments" />
+            <UiMetricCard Label="Shipper hoạt động" Value="@Dashboard.Shippers.Active.ToString("N0")" Note="@($"{Dashboard.Shippers.AvailableForAssignment:N0} sẵn sàng nhận đơn")" Icon="truck" Href="/admin/users" />
+            <UiMetricCard Label="Vượt công suất" Value="@Dashboard.Shippers.OverCapacity.ToString("N0")" Note="Theo tải phân công hiện tại" Icon="users" Tone="warning" Href="/admin/users" />
+            <UiMetricCard Label="Shop hoạt động" Value="@Dashboard.Shops.Active.ToString("N0")" Note="@($"{Dashboard.Shops.Inactive:N0} shop đang tạm ngưng")" Icon="store" Href="/admin/shops" />
         </section>
 
         <section class="dashboard-grid">
@@ -93,26 +66,26 @@
                 <div class="panel-heading">
                     <div>
                         <p class="eyebrow">COD</p>
-                        <h2>Dong tien COD</h2>
+                        <h2>Dòng tiền thu hộ</h2>
                     </div>
-                    <a class="panel-link" href="/admin/cod">Mo COD</a>
+                    <a class="panel-link" href="/admin/cod">Mở quản lý COD</a>
                 </div>
 
                 <div class="stacked-metrics">
                     <div>
-                        <span>Pending collection</span>
+                        <span>Chờ thu</span>
                         <strong>@FormatMoney(Dashboard.Cod.PendingCollectionAmount, Dashboard.Cod.Currency)</strong>
-                        <small>@Dashboard.Cod.PendingCollectionCount.ToString("N0") don</small>
+                        <small>@Dashboard.Cod.PendingCollectionCount.ToString("N0") đơn</small>
                     </div>
                     <div>
-                        <span>Collected waiting settlement</span>
+                        <span>Chờ đối soát</span>
                         <strong>@FormatMoney(Dashboard.Cod.CollectedAwaitingSettlementAmount, Dashboard.Cod.Currency)</strong>
-                        <small>@Dashboard.Cod.CollectedAwaitingSettlementCount.ToString("N0") don</small>
+                        <small>@Dashboard.Cod.CollectedAwaitingSettlementCount.ToString("N0") đơn</small>
                     </div>
                     <div>
-                        <span>Settled</span>
+                        <span>Đã đối soát</span>
                         <strong>@FormatMoney(Dashboard.Cod.SettledAmount, Dashboard.Cod.Currency)</strong>
-                        <small>@Dashboard.Cod.SettledCount.ToString("N0") don</small>
+                        <small>@Dashboard.Cod.SettledCount.ToString("N0") đơn</small>
                     </div>
                 </div>
             </article>
@@ -121,18 +94,18 @@
                 <div class="panel-heading">
                     <div>
                         <p class="eyebrow">Webhook</p>
-                        <h2>Partner delivery health</h2>
+                        <h2>Sức khỏe tích hợp</h2>
                     </div>
-                    <a class="panel-link" href="/partner/integrations">Mo API</a>
+                    <a class="panel-link" href="/partner/integrations">Quản lý API</a>
                 </div>
 
                 <div class="stacked-metrics compact">
                     <div>
-                        <span>Failed deliveries</span>
+                        <span>Gửi thất bại</span>
                         <strong>@Dashboard.Webhooks.Failed.ToString("N0")</strong>
                     </div>
                     <div>
-                        <span>Retry pending</span>
+                        <span>Đang chờ thử lại</span>
                         <strong>@Dashboard.Webhooks.RetryPending.ToString("N0")</strong>
                     </div>
                 </div>

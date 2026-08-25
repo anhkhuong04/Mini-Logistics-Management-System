@@ -1,0 +1,6 @@
+.app-icon {
+    display: block;
+    flex: 0 0 auto;
+    height: var(--app-icon-size);
+    width: var(--app-icon-size);
+}

@@ -1,3 +1,31 @@
+:root {
+    --lak-blue: #0077c8;
+    --lak-blue-deep: #005b9f;
+    --lak-text: #17384e;
+    --lak-muted: #63788b;
+    --lak-border: #deebf4;
+    --lak-soft: #f6fbff;
+    --ui-primary: #0077c8;
+    --ui-primary-hover: #005b9f;
+    --ui-primary-soft: #eaf5ff;
+    --ui-text: #17384e;
+    --ui-text-strong: #102f44;
+    --ui-muted: #63788b;
+    --ui-border: #dbe8f2;
+    --ui-surface: #ffffff;
+    --ui-canvas: #f7faff;
+    --ui-danger: #b42318;
+    --ui-danger-hover: #8f1d15;
+    --ui-success: #087a55;
+    --ui-warning: #a15c07;
+    --ui-radius-sm: 10px;
+    --ui-radius: 14px;
+    --ui-radius-lg: 20px;
+    --ui-shadow: 0 8px 24px rgba(18, 52, 77, 0.055);
+    --ui-shadow-md: 0 16px 38px rgba(18, 52, 77, 0.1);
+    --ui-shadow-lg: 0 22px 55px rgba(18, 52, 77, 0.18);
+}
+
 html,
 body {
     font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif;
@@ -6,8 +34,8 @@ body {
 }
 
 body {
-    background: #f8fbff;
-    color: #071b4d;
+    background: var(--ui-canvas);
+    color: var(--ui-text);
     overflow-x: hidden;
 }
 
@@ -15,6 +43,90 @@ body {
 *::before,
 *::after {
     box-sizing: border-box;
+}
+
+:focus-visible {
+    outline: 3px solid rgba(0, 119, 200, 0.3);
+    outline-offset: 2px;
+}
+
+.ui-button {
+    align-items: center;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    cursor: pointer;
+    display: inline-flex;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    gap: 0.45rem;
+    justify-content: center;
+    line-height: 1.2;
+    min-height: 2.6rem;
+    padding: 0.6rem 0.95rem;
+    text-decoration: none;
+    transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease, transform 160ms ease;
+}
+
+.ui-button svg {
+    height: 1.1rem;
+    width: 1.1rem;
+}
+
+.ui-button--compact {
+    min-height: 2.45rem;
+    padding: .55rem .85rem;
+}
+
+.ui-button:hover:not(:disabled),
+.ui-button:focus-visible:not(:disabled) {
+    box-shadow: 0 8px 18px rgba(18, 52, 77, 0.12);
+    outline: 0;
+    transform: translateY(-1px);
+}
+
+.ui-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.ui-button--primary {
+    background: var(--ui-primary);
+    border-color: var(--ui-primary);
+    color: #fff;
+}
+
+.ui-button--primary:hover:not(:disabled),
+.ui-button--primary:focus-visible:not(:disabled) {
+    background: var(--ui-primary-hover);
+    border-color: var(--ui-primary-hover);
+    color: #fff;
+}
+
+.ui-button--secondary {
+    background: var(--ui-surface);
+    border-color: var(--ui-border);
+    color: var(--ui-text);
+}
+
+.ui-button--secondary:hover:not(:disabled),
+.ui-button--secondary:focus-visible:not(:disabled) {
+    background: var(--ui-primary-soft);
+    border-color: var(--ui-primary);
+    color: var(--ui-primary-hover);
+}
+
+.ui-button--danger {
+    background: var(--ui-danger);
+    border-color: var(--ui-danger);
+    color: #fff;
+}
+
+.ui-button--danger:hover:not(:disabled),
+.ui-button--danger:focus-visible:not(:disabled) {
+    background: var(--ui-danger-hover);
+    border-color: var(--ui-danger-hover);
+    color: #fff;
 }
 
 img,

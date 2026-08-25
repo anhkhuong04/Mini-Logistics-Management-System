@@ -1,0 +1,18 @@
+@if (string.IsNullOrWhiteSpace(Href))
+{
+    <UiMetricCardPanel Label="@Label" Value="@Value" Note="@Note" Icon="@Icon" Tone="@Tone" />
+}
+else
+{
+    <UiMetricCardLink Href="@Href" Label="@Label" Value="@Value" Note="@Note" Icon="@Icon" Tone="@Tone" />
+}
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public string Value { get; set; } = string.Empty;
+    [Parameter] public string? Note { get; set; }
+    [Parameter] public string Icon { get; set; } = "activity";
+    [Parameter] public string Tone { get; set; } = "primary";
+    [Parameter] public string? Href { get; set; }
+
+}

@@ -1,0 +1,12 @@
+@if (!string.IsNullOrWhiteSpace(Message))
+{
+    <div class="ui-alert ui-alert--@Tone" role="@(Tone == "danger" ? "alert" : "status")">
+        <span class="ui-alert__icon"><AppIcon Name="@(Tone == "success" ? "check" : Tone == "danger" ? "alert" : "info")" Size="19" /></span>
+        <span>@Message</span>
+    </div>
+}
+
+@code {
+    [Parameter] public string? Message { get; set; }
+    [Parameter] public string Tone { get; set; } = "info";
+}

@@ -107,7 +107,7 @@
                     }
                 </div>
 
-                <button type="submit" class="btn btn-primary" disabled="@IsSaving">
+                <button type="submit" class="ui-button ui-button--primary" disabled="@IsSaving">
                     @(IsSaving ? "Creating..." : "Create staff")
                 </button>
             </EditForm>
@@ -159,7 +159,7 @@
                                 <input type="checkbox" @bind="row.IsActive" />
                                 <span>Active</span>
                             </label>
-                            <button type="button" class="btn btn-outline-secondary" @onclick="() => SaveStaffAsync(row)" disabled="@row.IsSaving">
+                            <button type="button" class="ui-button ui-button--secondary" @onclick="() => RequestSaveStaff(row)" disabled="@row.IsSaving">
                                 @(row.IsSaving ? "Saving..." : "Save")
                             </button>
                         </article>
@@ -169,6 +169,15 @@
         </section>
     }
 </div>
+
+<ConfirmActionDialog IsOpen="@(PendingStaffSave is not null)"
+                     Title="@PendingStaffSaveTitle"
+                     Message="@PendingStaffSaveMessage"
+                     ConfirmText="Lưu quyền truy cập"
+                     Tone="@PendingStaffSaveTone"
+                     IsBusy="@(PendingStaffSave?.IsSaving == true)"
+                     OnConfirm="ConfirmSaveStaffAsync"
+                     OnCancel="CancelSaveStaff" />
 
 @code {
     [SupplyParameterFromQuery(Name = "shopId")]
@@ -197,6 +206,7 @@
     private bool IsSaving { get; set; }
     private string? ErrorMessage { get; set; }
     private string? SuccessMessage { get; set; }
+    private StaffRowModel? PendingStaffSave { get; set; }
 
     protected override async Task OnParametersSetAsync()
     {
@@ -316,6 +326,39 @@
             row.IsSaving = false;
         }
     }
+
+    private void RequestSaveStaff(StaffRowModel row)
+    {
+        ErrorMessage = null;
+        SuccessMessage = null;
+        PendingStaffSave = row;
+    }
+
+    private async Task ConfirmSaveStaffAsync()
+    {
+        if (PendingStaffSave is null)
+        {
+            return;
+        }
+
+        await SaveStaffAsync(PendingStaffSave);
+        PendingStaffSave = null;
+    }
+
+    private void CancelSaveStaff()
+    {
+        PendingStaffSave = null;
+    }
+
+    private string PendingStaffSaveTitle => PendingStaffSave?.IsActive == false
+        ? "Tạm dừng tài khoản nhân viên?"
+        : "Cập nhật quyền truy cập?";
+
+    private string PendingStaffSaveMessage => PendingStaffSave?.IsActive == false
+        ? $"{PendingStaffSave.FullName} sẽ không thể truy cập shop này cho đến khi được kích hoạt lại."
+        : $"Áp dụng vai trò và quyền mới cho {PendingStaffSave?.FullName}.";
+
+    private string PendingStaffSaveTone => PendingStaffSave?.IsActive == false ? "danger" : "primary";
 
     private void OnCreateRoleChanged(ChangeEventArgs args)
     {

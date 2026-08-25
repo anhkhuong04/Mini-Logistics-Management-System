@@ -580,6 +580,16 @@ button:disabled {
     padding: 0 0.75rem;
 }
 
+.password-input {
+    background: #fff;
+    border: 1px solid var(--admin-border);
+    border-radius: 8px;
+    color: var(--admin-text);
+    font: inherit;
+    min-height: 2.4rem;
+    padding: 0 0.75rem;
+}
+
 .toggle-button.danger {
     border: 1px solid #ffd5d5;
     color: #b42318;

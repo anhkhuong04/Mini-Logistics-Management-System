@@ -37,41 +37,24 @@
 <PageTitle>Điều phối vận hành - MiniLogistics</PageTitle>
 
 <div class="operations-assignments-page">
-    <div class="page-heading">
-        <div>
-            <p class="eyebrow">Vận hành</p>
-            <h1>Điều phối vận hành</h1>
-            <p>Phân công shipper, theo dõi đơn đang xử lý và hỗ trợ cập nhật trạng thái hoặc COD khi cần.</p>
-        </div>
+    <UiPageHeader Eyebrow="Vận hành"
+                  Title="Điều phối giao nhận"
+                  Description="Phân công shipper, kiểm soát tiến độ, SLA và dòng tiền COD trên một workspace thống nhất."
+                  Icon="truck">
+        <Actions>
+            <button type="button" class="ui-button ui-button--secondary" disabled="@IsLoading" @onclick="RefreshAsync">
+                <AppIcon Name="refresh" Size="18" />
+                <span>Làm mới</span>
+            </button>
+        </Actions>
+    </UiPageHeader>
 
-        <button type="button" class="refresh-button" disabled="@IsLoading" @onclick="RefreshAsync">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 5a7 7 0 1 1-6.3 4H3.5A9 9 0 1 0 6 5.8V3H4v6h6V7H7.4A7 7 0 0 1 12 5Z" />
-            </svg>
-            <span>Làm mới</span>
-        </button>
-    </div>
-
-    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
-    {
-        <div class="alert-box danger" role="alert">@ErrorMessage</div>
-    }
-
-    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
-    {
-        <div class="alert-box success" role="status">@SuccessMessage</div>
-    }
+    <UiAlert Message="@ErrorMessage" Tone="danger" />
+    <UiAlert Message="@SuccessMessage" Tone="success" />
 
     @if (IsLoading)
     {
-        <section class="content-card state-card" aria-live="polite">
-            <span class="state-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-8-8V2Z" />
-                </svg>
-            </span>
-            <strong>Đang tải workspace điều phối</strong>
-        </section>
+        <UiLoadingState Title="Đang tải workspace điều phối" Description="Hệ thống đang đồng bộ đơn hàng, shipper và trạng thái COD." />
     }
     else
     {

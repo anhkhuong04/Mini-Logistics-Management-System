@@ -1,0 +1,15 @@
+<section class="ui-loading-state" aria-live="polite" aria-busy="true">
+    <span class="ui-loading-state__spinner" aria-hidden="true"></span>
+    <div>
+        <strong>@Title</strong>
+        @if (!string.IsNullOrWhiteSpace(Description))
+        {
+            <p>@Description</p>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter] public string Title { get; set; } = "Đang tải dữ liệu";
+    [Parameter] public string? Description { get; set; }
+}

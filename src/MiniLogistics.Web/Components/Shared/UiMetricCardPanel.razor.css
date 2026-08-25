@@ -1,0 +1,37 @@
+.ui-metric {
+    background: var(--ui-surface);
+    border: 1px solid var(--ui-border);
+    border-radius: var(--ui-radius-lg);
+    box-shadow: var(--ui-shadow);
+    display: grid;
+    gap: .45rem;
+    height: 100%;
+    min-height: 9.5rem;
+    padding: 1.1rem;
+    position: relative;
+    transition: border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.ui-metric__icon {
+    align-items: center;
+    background: var(--ui-primary-soft);
+    border-radius: 10px;
+    color: var(--ui-primary);
+    display: inline-flex;
+    height: 2.35rem;
+    justify-content: center;
+    position: absolute;
+    right: 1rem;
+    top: 1rem;
+    width: 2.35rem;
+}
+
+.ui-metric__label { color: var(--ui-muted); font-size: .76rem; font-weight: 750; letter-spacing: .035em; padding-right: 2.75rem; text-transform: uppercase; }
+.ui-metric strong { color: var(--ui-text-strong); font-size: 1.85rem; letter-spacing: -.035em; line-height: 1; margin-top: auto; }
+.ui-metric small { color: var(--ui-muted); font-size: .8rem; line-height: 1.45; }
+.ui-metric--warning .ui-metric__icon, .ui-metric--warning strong { color: var(--ui-warning); }
+.ui-metric--warning .ui-metric__icon { background: #fffbeb; }
+.ui-metric--danger .ui-metric__icon, .ui-metric--danger strong { color: var(--ui-danger); }
+.ui-metric--danger .ui-metric__icon { background: #fff5f5; }
+.ui-metric--success .ui-metric__icon, .ui-metric--success strong { color: var(--ui-success); }
+.ui-metric--success .ui-metric__icon { background: #f0fdf7; }

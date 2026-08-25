@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <resheader name="reader"><value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <resheader name="writer"><value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value></resheader>
+  <data name="Language" xml:space="preserve"><value>Language</value></data>
+  <data name="Vietnamese" xml:space="preserve"><value>Vietnamese</value></data>
+  <data name="English" xml:space="preserve"><value>English</value></data>
+  <data name="MainNavigation" xml:space="preserve"><value>Main navigation</value></data>
+  <data name="OpenNavigation" xml:space="preserve"><value>Open navigation</value></data>
+  <data name="CloseNavigation" xml:space="preserve"><value>Close navigation</value></data>
+  <data name="Notifications" xml:space="preserve"><value>Notifications</value></data>
+  <data name="Account" xml:space="preserve"><value>Account</value></data>
+  <data name="Administrator" xml:space="preserve"><value>Administrator</value></data>
+  <data name="Operator" xml:space="preserve"><value>Operator</value></data>
+  <data name="Shipper" xml:space="preserve"><value>Shipper</value></data>
+  <data name="Shop" xml:space="preserve"><value>Shop</value></data>
+  <data name="SignIn" xml:space="preserve"><value>Sign in</value></data>
+  <data name="SignOut" xml:space="preserve"><value>Sign out</value></data>
+  <data name="Stay" xml:space="preserve"><value>Stay signed in</value></data>
+  <data name="Logout_Title" xml:space="preserve"><value>Sign out of this session?</value></data>
+  <data name="Logout_Message" xml:space="preserve"><value>You will need to sign in again to continue using the management area.</value></data>
+  <data name="UnhandledError" xml:space="preserve"><value>An unexpected error occurred.</value></data>
+  <data name="Reload" xml:space="preserve"><value>Reload</value></data>
+  <data name="Nav_Overview" xml:space="preserve"><value>Overview</value></data>
+  <data name="Nav_Shipments" xml:space="preserve"><value>Shipments</value></data>
+  <data name="Nav_CreateShipment" xml:space="preserve"><value>Create shipment</value></data>
+  <data name="Nav_ShipmentList" xml:space="preserve"><value>Shipment list</value></data>
+  <data name="Nav_CodReport" xml:space="preserve"><value>COD report</value></data>
+  <data name="Nav_Notifications" xml:space="preserve"><value>Notifications</value></data>
+  <data name="Nav_ActivityHistory" xml:space="preserve"><value>Activity history</value></data>
+  <data name="Nav_ShopStaff" xml:space="preserve"><value>Shop staff</value></data>
+  <data name="Nav_ApiIntegration" xml:space="preserve"><value>API integration</value></data>
+  <data name="Nav_ShopProfile" xml:space="preserve"><value>Shop profile</value></data>
+  <data name="Nav_Administration" xml:space="preserve"><value>Administration</value></data>
+  <data name="Nav_Dashboard" xml:space="preserve"><value>Dashboard</value></data>
+  <data name="Nav_Users" xml:space="preserve"><value>Users</value></data>
+  <data name="Nav_Shops" xml:space="preserve"><value>Shops</value></data>
+  <data name="Nav_Hubs" xml:space="preserve"><value>Hubs</value></data>
+  <data name="Nav_Banners" xml:space="preserve"><value>Banners</value></data>
+  <data name="Nav_SystemConfig" xml:space="preserve"><value>System configuration</value></data>
+  <data name="Nav_Cod" xml:space="preserve"><value>COD</value></data>
+  <data name="Nav_AuditLog" xml:space="preserve"><value>Audit log</value></data>
+  <data name="Nav_Integration" xml:space="preserve"><value>Integration</value></data>
+  <data name="Nav_Operations" xml:space="preserve"><value>Operations</value></data>
+  <data name="Nav_AssignedShipments" xml:space="preserve"><value>Assigned shipments</value></data>
+  <data name="Nav_Lookup" xml:space="preserve"><value>Lookup</value></data>
+  <data name="Nav_TrackShipment" xml:space="preserve"><value>Track shipment</value></data>
+  <data name="Nav_Home" xml:space="preserve"><value>Home</value></data>
+  <data name="Nav_RegisterShop" xml:space="preserve"><value>Register shop</value></data>
+  <data name="Tracking_PageTitle" xml:space="preserve"><value>Track shipment</value></data>
+  <data name="Tracking_Eyebrow" xml:space="preserve"><value>Shipment tracking</value></data>
+  <data name="Tracking_Title" xml:space="preserve"><value>Track your shipment</value></data>
+  <data name="Tracking_Description" xml:space="preserve"><value>Enter a tracking code to check the journey in real time</value></data>
+  <data name="Tracking_SearchTitle" xml:space="preserve"><value>Track a shipment</value></data>
+  <data name="Tracking_SearchDescription" xml:space="preserve"><value>Enter the exact tracking code to view its latest status.</value></data>
+  <data name="Tracking_Placeholder" xml:space="preserve"><value>Example: LG123456789</value></data>
+  <data name="Tracking_Searching" xml:space="preserve"><value>Searching</value></data>
+  <data name="Tracking_Search" xml:space="preserve"><value>Track</value></data>
+  <data name="Tracking_Hint" xml:space="preserve"><value>Your tracking code is usually available in the confirmation email, message, or shipment list.</value></data>
+  <data name="Tracking_ResultEyebrow" xml:space="preserve"><value>Result</value></data>
+  <data name="Tracking_ResultTitle" xml:space="preserve"><value>Shipment information</value></data>
+  <data name="Tracking_NotFound" xml:space="preserve"><value>Shipment not found</value></data>
+  <data name="Tracking_EmptyTitle" xml:space="preserve"><value>No tracking result yet</value></data>
+  <data name="Tracking_EmptyDescription" xml:space="preserve"><value>Shipment information will appear after you enter a valid tracking code.</value></data>
+  <data name="Tracking_Code" xml:space="preserve"><value>Tracking code</value></data>
+  <data name="Tracking_Estimated" xml:space="preserve"><value>Estimated: {0}</value></data>
+  <data name="Tracking_EstimatedShort" xml:space="preserve"><value>Estimated {0}</value></data>
+  <data name="Tracking_PickedUp" xml:space="preserve"><value>Picked up</value></data>
+  <data name="Tracking_Sorting" xml:space="preserve"><value>Sorting</value></data>
+  <data name="Tracking_InTransit" xml:space="preserve"><value>In transit</value></data>
+  <data name="Tracking_Delivery" xml:space="preserve"><value>Delivery</value></data>
+  <data name="Tracking_SenderPhone" xml:space="preserve"><value>Sender phone</value></data>
+  <data name="Tracking_ReceiverPhone" xml:space="preserve"><value>Receiver phone</value></data>
+  <data name="Tracking_PickupAddress" xml:space="preserve"><value>Pickup address</value></data>
+  <data name="Tracking_DeliveryAddress" xml:space="preserve"><value>Delivery address</value></data>
+  <data name="Tracking_Journey" xml:space="preserve"><value>Shipment journey</value></data>
+  <data name="Tracking_Hidden" xml:space="preserve"><value>Hidden</value></data>
+  <data name="Tracking_RateLimited" xml:space="preserve"><value>Too many attempts. Please try again in {0}.</value></data>
+  <data name="Tracking_ErrorRequired" xml:space="preserve"><value>Enter a tracking code.</value></data>
+  <data name="Tracking_ErrorNotFound" xml:space="preserve"><value>No shipment was found for that tracking code.</value></data>
+  <data name="RetryAfterSeconds" xml:space="preserve"><value>{0} seconds</value></data>
+  <data name="Status_Draft" xml:space="preserve"><value>Draft</value></data>
+  <data name="Status_PendingPickup" xml:space="preserve"><value>Pending pickup</value></data>
+  <data name="Status_Assigned" xml:space="preserve"><value>Assigned</value></data>
+  <data name="Status_PickingUp" xml:space="preserve"><value>Picking up</value></data>
+  <data name="Status_PickedUp" xml:space="preserve"><value>Picked up</value></data>
+  <data name="Status_InTransit" xml:space="preserve"><value>In transit</value></data>
+  <data name="Status_Delivering" xml:space="preserve"><value>Out for delivery</value></data>
+  <data name="Status_Delivered" xml:space="preserve"><value>Delivered</value></data>
+  <data name="Status_DeliveryFailed" xml:space="preserve"><value>Delivery failed</value></data>
+  <data name="Status_Returned" xml:space="preserve"><value>Returned</value></data>
+  <data name="Status_Cancelled" xml:space="preserve"><value>Cancelled</value></data>
+  <data name="SHIPMENT_DRAFT" xml:space="preserve"><value>The shipment was saved as a draft.</value></data>
+  <data name="SHIPMENT_PENDING_PICKUP" xml:space="preserve"><value>The shipment is waiting for pickup.</value></data>
+  <data name="SHIPMENT_ASSIGNED" xml:space="preserve"><value>A shipper has been assigned.</value></data>
+  <data name="SHIPMENT_PICKING_UP" xml:space="preserve"><value>The shipper is on the way to pick up the parcel.</value></data>
+  <data name="SHIPMENT_PICKED_UP" xml:space="preserve"><value>The parcel has been picked up.</value></data>
+  <data name="SHIPMENT_IN_TRANSIT" xml:space="preserve"><value>The shipment is in transit.</value></data>
+  <data name="SHIPMENT_DELIVERING" xml:space="preserve"><value>The shipment is out for delivery.</value></data>
+  <data name="SHIPMENT_DELIVERED" xml:space="preserve"><value>The shipment was delivered successfully.</value></data>
+  <data name="SHIPMENT_DELIVERY_FAILED" xml:space="preserve"><value>The delivery attempt was unsuccessful.</value></data>
+  <data name="SHIPMENT_RETURNED" xml:space="preserve"><value>The shipment was returned.</value></data>
+  <data name="SHIPMENT_CANCELLED" xml:space="preserve"><value>The shipment was cancelled.</value></data>
+  <data name="SHIPMENT_STATUS_UPDATED" xml:space="preserve"><value>The shipment status was updated.</value></data>
+  <data name="SHIPMENT_DELIVERY_FAILED_RECEIVER_UNAVAILABLE" xml:space="preserve"><value>Delivery could not be completed because the recipient was unavailable.</value></data>
+  <data name="SHIPMENT_DELIVERY_FAILED_WRONG_ADDRESS" xml:space="preserve"><value>The delivery address needs to be verified.</value></data>
+  <data name="SHIPMENT_DELIVERY_FAILED_RECEIVER_REJECTED" xml:space="preserve"><value>The recipient refused the shipment.</value></data>
+  <data name="SHIPMENT_DELIVERY_FAILED_CANNOT_CONTACT_RECEIVER" xml:space="preserve"><value>The recipient could not be contacted.</value></data>
+  <data name="SHIPMENT_DELIVERY_FAILED_DAMAGED_PARCEL" xml:space="preserve"><value>The parcel requires inspection before delivery can continue.</value></data>
+  <data name="SHIPMENT_DELIVERY_FAILED_PAYMENT_ISSUE" xml:space="preserve"><value>Delivery could not be completed because of a payment issue.</value></data>
+  <data name="SHIPMENT_DELIVERY_FAILED_WEATHER_OR_ACCESS" xml:space="preserve"><value>Delivery could not be completed because of weather or access conditions.</value></data>
+</root>

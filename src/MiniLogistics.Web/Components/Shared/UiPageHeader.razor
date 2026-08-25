@@ -1,0 +1,31 @@
+<header class="ui-page-header">
+    <div class="ui-page-header__identity">
+        @if (!string.IsNullOrWhiteSpace(Icon))
+        {
+            <span class="ui-page-header__icon"><AppIcon Name="@Icon" Size="24" /></span>
+        }
+        <div>
+            @if (!string.IsNullOrWhiteSpace(Eyebrow))
+            {
+                <p class="ui-page-header__eyebrow">@Eyebrow</p>
+            }
+            <h1>@Title</h1>
+            @if (!string.IsNullOrWhiteSpace(Description))
+            {
+                <p class="ui-page-header__description">@Description</p>
+            }
+        </div>
+    </div>
+    @if (Actions is not null)
+    {
+        <div class="ui-page-header__actions">@Actions</div>
+    }
+</header>
+
+@code {
+    [Parameter, EditorRequired] public string Title { get; set; } = string.Empty;
+    [Parameter] public string? Eyebrow { get; set; }
+    [Parameter] public string? Description { get; set; }
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public RenderFragment? Actions { get; set; }
+}

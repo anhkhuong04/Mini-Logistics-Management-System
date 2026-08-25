@@ -1,0 +1,10 @@
+<a class="ui-metric-link" href="@Href"><UiMetricCardPanel Label="@Label" Value="@Value" Note="@Note" Icon="@Icon" Tone="@Tone" /></a>
+
+@code {
+    [Parameter] public string? Href { get; set; }
+    [Parameter] public string Label { get; set; } = string.Empty;
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public string? Note { get; set; }
+    [Parameter] public string Icon { get; set; } = "activity";
+    [Parameter] public string Tone { get; set; } = "primary";
+}

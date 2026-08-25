@@ -26,41 +26,24 @@
 <PageTitle>Không gian shipper - MiniLogistics</PageTitle>
 
 <div class="shipper-workspace-page">
-    <div class="page-heading">
-        <div>
-            <p class="eyebrow">Shipper workspace</p>
-            <h1>Đơn được phân công</h1>
-            <p>Xử lý các vận đơn đang active của tài khoản shipper hiện tại. Đơn Delivered còn COD chờ thu sẽ hiện cho đến khi xác nhận COD.</p>
-        </div>
+    <UiPageHeader Eyebrow="Không gian Shipper"
+                  Title="Đơn được phân công"
+                  Description="Ưu tiên công việc theo trạng thái, cập nhật hành trình và kiểm soát COD cần thu trong ngày."
+                  Icon="truck">
+        <Actions>
+            <button type="button" class="ui-button ui-button--secondary" disabled="@IsLoading" @onclick="RefreshAsync">
+                <AppIcon Name="refresh" Size="18" />
+                <span>Làm mới</span>
+            </button>
+        </Actions>
+    </UiPageHeader>
 
-        <button type="button" class="refresh-button" disabled="@IsLoading" @onclick="RefreshAsync">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 5a7 7 0 1 1-6.3 4H3.5A9 9 0 1 0 6 5.8V3H4v6h6V7H7.4A7 7 0 0 1 12 5Z" />
-            </svg>
-            <span>Làm mới</span>
-        </button>
-    </div>
-
-    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
-    {
-        <div class="alert-box danger" role="alert">@ErrorMessage</div>
-    }
-
-    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
-    {
-        <div class="alert-box success" role="status">@SuccessMessage</div>
-    }
+    <UiAlert Message="@ErrorMessage" Tone="danger" />
+    <UiAlert Message="@SuccessMessage" Tone="success" />
 
     @if (IsLoading)
     {
-        <section class="content-card state-card" aria-live="polite">
-            <span class="state-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-8-8V2Z" />
-                </svg>
-            </span>
-            <strong>Đang tải danh sách vận đơn</strong>
-        </section>
+        <UiLoadingState Title="Đang tải danh sách vận đơn" Description="Đang cập nhật lộ trình và công việc mới nhất của bạn." />
     }
     else
     {
@@ -73,7 +56,7 @@
                 </div>
                 <div class="profile-actions">
                     <span class="capacity-badge @GetCapacityBadgeClass()">@FormatLoadCapacity()</span>
-                    <button type="button" class="toggle-availability-button" disabled="@IsTogglingAvailability" @onclick="ToggleAvailabilityAsync">
+                    <button type="button" class="toggle-availability-button" disabled="@IsTogglingAvailability" @onclick="RequestToggleAvailability">
                         @(CurrentShipper?.IsAvailableForAssignment == true ? "Tạm dừng nhận đơn" : "Nhận auto assign")
                     </button>
                 </div>
@@ -230,13 +213,13 @@
                             </label>
                             <button type="button"
                                     disabled="@IsCollectingCod(shipment.ShipmentId)"
-                                    @onclick="() => MarkCodCollectedAsync(shipment)">
+                                    @onclick="() => RequestMarkCodCollected(shipment)">
                                 @(IsCollectingCod(shipment.ShipmentId) ? "Đang xác nhận..." : "Xác nhận đã thu COD")
                             </button>
                         </section>
                     }
 
-                    <form class="status-form" @onsubmit="() => UpdateStatusAsync(shipment)" @onsubmit:preventDefault="true">
+                    <form class="status-form" @onsubmit="() => RequestStatusUpdate(shipment)" @onsubmit:preventDefault="true">
                         <label for="@($"next-status-{shipment.ShipmentId}")">Cập nhật trạng thái</label>
 
                         @if (GetNextStatuses(shipment.Status).Count == 0)
@@ -320,6 +303,15 @@
     }
 </div>
 
+<ConfirmActionDialog IsOpen="@(PendingShipperAction is not null)"
+                     Title="@PendingShipperActionTitle"
+                     Message="@PendingShipperActionMessage"
+                     ConfirmText="@PendingShipperActionConfirmText"
+                     Tone="@PendingShipperActionTone"
+                     IsBusy="@IsConfirmingShipperAction"
+                     OnConfirm="ConfirmShipperActionAsync"
+                     OnCancel="CancelShipperAction" />
+
 @code {
     private bool IsLoading { get; set; } = true;
 
@@ -328,6 +320,8 @@
     private Guid? CollectingCodShipmentId { get; set; }
 
     private bool IsTogglingAvailability { get; set; }
+
+    private PendingShipperActionRequest? PendingShipperAction { get; set; }
 
     private string? ErrorMessage { get; set; }
 
@@ -625,6 +619,102 @@
         SuccessMessage = $"Đã xác nhận thu COD cho {shipment.TrackingCode}.";
         await LoadAsync(clearMessages: false);
     }
+
+    private void RequestToggleAvailability()
+    {
+        PendingShipperAction = new PendingShipperActionRequest(ShipperActionKind.ToggleAvailability, null);
+    }
+
+    private void RequestStatusUpdate(GetAssignedShipmentForShipperResponse shipment)
+    {
+        PendingShipperAction = new PendingShipperActionRequest(ShipperActionKind.UpdateStatus, shipment);
+    }
+
+    private void RequestMarkCodCollected(GetAssignedShipmentForShipperResponse shipment)
+    {
+        PendingShipperAction = new PendingShipperActionRequest(ShipperActionKind.MarkCodCollected, shipment);
+    }
+
+    private async Task ConfirmShipperActionAsync()
+    {
+        if (PendingShipperAction is null)
+        {
+            return;
+        }
+
+        var action = PendingShipperAction;
+        switch (action.Kind)
+        {
+            case ShipperActionKind.ToggleAvailability:
+                await ToggleAvailabilityAsync();
+                break;
+            case ShipperActionKind.UpdateStatus when action.Shipment is not null:
+                await UpdateStatusAsync(action.Shipment);
+                break;
+            case ShipperActionKind.MarkCodCollected when action.Shipment is not null:
+                await MarkCodCollectedAsync(action.Shipment);
+                break;
+        }
+
+        PendingShipperAction = null;
+    }
+
+    private void CancelShipperAction()
+    {
+        PendingShipperAction = null;
+    }
+
+    private bool IsConfirmingShipperAction => PendingShipperAction switch
+    {
+        { Kind: ShipperActionKind.ToggleAvailability } => IsTogglingAvailability,
+        { Kind: ShipperActionKind.UpdateStatus, Shipment: not null } action => IsUpdating(action.Shipment.ShipmentId),
+        { Kind: ShipperActionKind.MarkCodCollected, Shipment: not null } action => IsCollectingCod(action.Shipment.ShipmentId),
+        _ => false
+    };
+
+    private string PendingShipperActionTitle => PendingShipperAction switch
+    {
+        { Kind: ShipperActionKind.MarkCodCollected } => "Xác nhận đã thu COD?",
+        { Kind: ShipperActionKind.UpdateStatus } => "Xác nhận cập nhật trạng thái?",
+        { } when CurrentShipper?.IsAvailableForAssignment == true => "Tạm dừng nhận đơn?",
+        _ => "Bật nhận đơn tự động?"
+    };
+
+    private string PendingShipperActionMessage => PendingShipperAction switch
+    {
+        { Kind: ShipperActionKind.MarkCodCollected, Shipment: not null } action => $"Xác nhận đã thu COD cho đơn {action.Shipment.TrackingCode}. Dữ liệu đối soát sẽ được cập nhật.",
+        { Kind: ShipperActionKind.UpdateStatus, Shipment: not null } action => $"Cập nhật đơn {action.Shipment.TrackingCode} sang “{GetPendingStatusLabel(action.Shipment)}”.",
+        { } when CurrentShipper?.IsAvailableForAssignment == true => "Các đơn mới sẽ không còn được tự động phân công cho bạn.",
+        _ => "Bạn sẽ có thể nhận các đơn được phân công tự động trở lại."
+    };
+
+    private string PendingShipperActionConfirmText => PendingShipperAction?.Kind switch
+    {
+        ShipperActionKind.MarkCodCollected => "Xác nhận đã thu",
+        ShipperActionKind.UpdateStatus => "Cập nhật trạng thái",
+        _ when CurrentShipper?.IsAvailableForAssignment == true => "Tạm dừng nhận đơn",
+        _ => "Bật nhận đơn"
+    };
+
+    private string PendingShipperActionTone => PendingShipperAction?.Kind == ShipperActionKind.MarkCodCollected
+        ? "danger"
+        : "primary";
+
+    private string GetPendingStatusLabel(GetAssignedShipmentForShipperResponse shipment)
+    {
+        return SelectedStatuses.TryGetValue(shipment.ShipmentId, out var status)
+            ? FormatStatus(status)
+            : "trạng thái đã chọn";
+    }
+
+    private enum ShipperActionKind
+    {
+        ToggleAvailability,
+        UpdateStatus,
+        MarkCodCollected
+    }
+
+    private sealed record PendingShipperActionRequest(ShipperActionKind Kind, GetAssignedShipmentForShipperResponse? Shipment);
 
     private async Task<Guid?> GetCurrentUserIdAsync()
     {

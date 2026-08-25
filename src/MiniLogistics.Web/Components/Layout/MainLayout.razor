@@ -1,26 +1,58 @@
 @inherits LayoutComponentBase
+@inject IStringLocalizer<SharedResource> L
+@inject NavigationManager NavigationManager
 
 <div class="app-shell">
-    <aside class="sidebar">
-        <NavMenu />
+    <aside class="sidebar @(IsNavigationOpen ? "is-open" : null)" aria-label="@L["MainNavigation"]">
+        <NavMenu OnNavigate="CloseNavigation" />
     </aside>
+
+    @if (IsNavigationOpen)
+    {
+        <button type="button" class="navigation-backdrop" aria-label="@L["CloseNavigation"]" @onclick="CloseNavigation"></button>
+    }
 
     <main class="app-main">
         <header class="app-topbar">
-            <button class="menu-button" type="button" aria-label="Open navigation">
+            <button class="menu-button" type="button" aria-label="@L["OpenNavigation"]" aria-expanded="@IsNavigationOpen" @onclick="ToggleNavigation">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z" />
                 </svg>
             </button>
 
-            <AuthorizeView>
-                <Authorized>
-                    <div class="topbar-actions">
-                        <button class="icon-button" type="button" aria-label="Notifications">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4A2.8 2.8 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 0 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Zm-2 1H7v-6a5 5 0 0 1 10 0v6Z" />
-                            </svg>
-                        </button>
+            <div class="topbar-actions">
+                <details class="language-selector">
+                    <summary class="icon-button language-button" aria-label="@L["Language"]" title="@L["Language"]">
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                            <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm6.9 9h-3a15.7 15.7 0 0 0-1.4-5A8 8 0 0 1 18.9 11ZM12 4c.9 1.1 1.7 3.5 1.9 7h-3.8c.2-3.5 1-5.9 1.9-7ZM9.5 6a15.7 15.7 0 0 0-1.4 5h-3A8 8 0 0 1 9.5 6ZM5.1 13h3a15.7 15.7 0 0 0 1.4 5 8 8 0 0 1-4.4-5Zm6.9 7c-.9-1.1-1.7-3.5-1.9-7h3.8c-.2 3.5-1 5.9-1.9 7Zm2.5-2a15.7 15.7 0 0 0 1.4-5h3a8 8 0 0 1-4.4 5Z" />
+                        </svg>
+                        <span class="language-code">@CurrentLanguageCode</span>
+                    </summary>
+                    <div class="language-menu" role="menu" aria-label="@L["Language"]">
+                        <a class="language-option @(IsCulture("vi") ? "active" : null)" href="@BuildCultureUrl("vi-VN")" role="menuitem" data-enhance-nav="false">
+                            <span class="language-option-code">VI</span>
+                            <span>@L["Vietnamese"]</span>
+                            @if (IsCulture("vi")) { <AppIcon Name="check" Size="17" /> }
+                        </a>
+                        <a class="language-option @(IsCulture("en") ? "active" : null)" href="@BuildCultureUrl("en-US")" role="menuitem" data-enhance-nav="false">
+                            <span class="language-option-code">EN</span>
+                            <span>@L["English"]</span>
+                            @if (IsCulture("en")) { <AppIcon Name="check" Size="17" /> }
+                        </a>
+                    </div>
+                </details>
+
+                <AuthorizeView Context="layoutContext">
+                    <Authorized>
+                        <AuthorizeView Roles="Shop" Context="shopNotificationsContext">
+                            <Authorized>
+                                <a class="icon-button" href="/shop/notifications" aria-label="@L["Notifications"]">
+                                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                                        <path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4A2.8 2.8 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 0 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Zm-2 1H7v-6a5 5 0 0 1 10 0v6Z" />
+                                    </svg>
+                                </a>
+                            </Authorized>
+                        </AuthorizeView>
 
                         <div class="account-chip">
                             <span class="account-avatar" aria-hidden="true">
@@ -29,19 +61,19 @@
                                 </svg>
                             </span>
                             <span class="account-text">
-                                <strong>@(context.User.Identity?.Name ?? "Shop")</strong>
-                                <small>Shop</small>
+                                <strong>@(layoutContext.User.Identity?.Name ?? L["Account"])</strong>
+                                <small>@GetRoleLabel(layoutContext.User)</small>
                             </span>
                             <svg class="account-chevron" viewBox="0 0 24 24" aria-hidden="true">
                                 <path d="m7 9 5 5 5-5 1.4 1.4L12 16.8l-6.4-6.4L7 9Z" />
                             </svg>
                         </div>
-                    </div>
-                </Authorized>
-                <NotAuthorized>
-                    <a class="signin-link" href="/login">Đăng nhập</a>
-                </NotAuthorized>
-            </AuthorizeView>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a class="signin-link" href="/login">@L["SignIn"]</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+            </div>
         </header>
 
         <article class="app-content">
@@ -50,8 +82,44 @@
     </main>
 </div>
 
+@code {
+    private bool IsNavigationOpen { get; set; }
+
+    private void ToggleNavigation() => IsNavigationOpen = !IsNavigationOpen;
+
+    private void CloseNavigation() => IsNavigationOpen = false;
+
+    private string CurrentLanguageCode => System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.ToUpperInvariant();
+
+    private string CurrentReturnUrl
+    {
+        get
+        {
+            var relativeUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+            return string.IsNullOrWhiteSpace(relativeUrl) ? "/" : $"/{relativeUrl}";
+        }
+    }
+
+    private bool IsCulture(string language) => string.Equals(
+        System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName,
+        language,
+        StringComparison.OrdinalIgnoreCase);
+
+    private string BuildCultureUrl(string culture) =>
+        $"/culture/set?culture={Uri.EscapeDataString(culture)}&returnUrl={Uri.EscapeDataString(CurrentReturnUrl)}";
+
+    private string GetRoleLabel(System.Security.Claims.ClaimsPrincipal user)
+    {
+        if (user.IsInRole("Admin")) return L["Administrator"];
+        if (user.IsInRole("Operator")) return L["Operator"];
+        if (user.IsInRole("Shipper")) return L["Shipper"];
+        if (user.IsInRole("Shop")) return L["Shop"];
+        return L["Account"];
+    }
+}
+
 <div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
+    @L["UnhandledError"]
+    <a href="." class="reload">@L["Reload"]</a>
     <span class="dismiss">x</span>
 </div>

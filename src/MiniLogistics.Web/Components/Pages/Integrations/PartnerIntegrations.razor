@@ -9,61 +9,50 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
+@inject ILogger<PartnerIntegrations> Logger
 
 <PageTitle>Partner integrations - MiniLogistics</PageTitle>
 
 <div class="partner-integrations-page">
-    <div class="page-heading">
-        <div>
-            <p class="eyebrow">Partner API</p>
-            <h1>Tich hop ban hang ben thu ba</h1>
-            <p>Quan ly API key, webhook URL va lich su delivery cho cac website ban hang lien ket.</p>
-        </div>
+    <UiPageHeader Eyebrow="Partner API"
+                  Title="Tích hợp đối tác"
+                  Description="Quản lý quyền truy cập API, webhook và độ tin cậy của luồng dữ liệu với website bên thứ ba."
+                  Icon="webhook">
+        <Actions>
+            <button type="button" class="ui-button ui-button--secondary" disabled="@IsLoading" @onclick="RefreshAsync">
+                <AppIcon Name="refresh" Size="18" />
+                <span>Làm mới</span>
+            </button>
+        </Actions>
+    </UiPageHeader>
 
-        <button type="button" class="refresh-button" disabled="@IsLoading" @onclick="RefreshAsync">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 5a7 7 0 1 1-6.3 4H3.5A9 9 0 1 0 6 5.8V3H4v6h6V7H7.4A7 7 0 0 1 12 5Z" />
-            </svg>
-            <span>Lam moi</span>
-        </button>
-    </div>
-
-    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
-    {
-        <div class="alert-box danger" role="alert">@ErrorMessage</div>
-    }
-
-    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
-    {
-        <div class="alert-box success" role="status">@SuccessMessage</div>
-    }
+    <UiAlert Message="@ErrorMessage" Tone="danger" />
+    <UiAlert Message="@SuccessMessage" Tone="success" />
 
     @if (!string.IsNullOrWhiteSpace(GeneratedApiKey))
     {
         <section class="content-card secret-card">
             <div>
-                <p class="eyebrow">API key moi</p>
-                <h2>Luu lai key nay</h2>
-                <p>He thong chi hien thi API key goc sau khi tao hoac rotate.</p>
+                <p class="eyebrow">API key mới</p>
+                <h2>Lưu khóa truy cập an toàn</h2>
+                <p>Khóa gốc chỉ được hiển thị một lần sau khi tạo hoặc xoay vòng.</p>
             </div>
             <div class="secret-row">
                 <code>@GeneratedApiKey</code>
-                <button type="button" class="secondary-button" @onclick="CopyGeneratedKeyAsync">Copy</button>
+                <button type="button" class="ui-button ui-button--secondary ui-button--compact" @onclick="CopyGeneratedKeyAsync">Sao chép</button>
             </div>
         </section>
     }
 
     @if (IsLoading)
     {
-        <section class="content-card state-card" aria-live="polite">
-            <strong>Dang tai cau hinh integration</strong>
-        </section>
+        <UiLoadingState Title="Đang tải cấu hình tích hợp" Description="Đang kiểm tra API client, webhook và lịch sử delivery." />
     }
     else if (Dashboard.Shops.Count == 0)
     {
         <section class="content-card state-card">
-            <strong>Chua co shop kha dung</strong>
-            <p>Can tao shop active truoc khi cap API key cho website ben thu ba.</p>
+            <strong>Chưa có shop khả dụng</strong>
+            <p>Cần kích hoạt shop trước khi cấp API key cho website bên thứ ba.</p>
         </section>
     }
     else
@@ -594,32 +583,48 @@
             SuccessMessage = null;
         }
 
-        var currentUserId = await GetCurrentUserIdAsync();
-        if (currentUserId is null)
+        try
         {
-            NavigationManager.NavigateTo("/login", forceLoad: true);
-            return;
-        }
+            var currentUserId = await GetCurrentUserIdAsync();
+            if (currentUserId is null)
+            {
+                NavigationManager.NavigateTo("/login", forceLoad: true);
+                return;
+            }
 
-        var previousShopId = ShopId ?? SelectedShopId;
-        var previousClientId = SelectedClientId;
-        var result = await WebhookManagementService.GetDashboardAsync(currentUserId.Value);
-        if (result.IsFailure)
+            var previousShopId = ShopId ?? SelectedShopId;
+            var previousClientId = SelectedClientId;
+            var result = await WebhookManagementService.GetDashboardAsync(currentUserId.Value);
+            if (result.IsFailure)
+            {
+                ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+                Dashboard = new([], []);
+                SelectedShopId = Guid.Empty;
+                SelectedClientId = null;
+                return;
+            }
+
+            Dashboard = result.Value;
+            SelectedShopId = Dashboard.Shops.Any(shop => shop.ShopId == previousShopId)
+                ? previousShopId
+                : Dashboard.Shops.FirstOrDefault()?.ShopId ?? Guid.Empty;
+            SelectedClientId = Dashboard.ApiClients.Any(client => client.ApiClientId == previousClientId)
+                ? previousClientId
+                : VisibleClients.FirstOrDefault()?.ApiClientId;
+            SyncWebhookForm();
+        }
+        catch (Exception exception)
         {
-            ErrorMessage = UiDisplay.ToErrorMessage(result.Error);
+            Logger.LogError(exception, "Failed to load the partner integration dashboard.");
+            Dashboard = new([], []);
+            SelectedShopId = Guid.Empty;
+            SelectedClientId = null;
+            ErrorMessage = "Khong the tai cau hinh Partner API. Vui long thu lai; neu loi tiep dien, kiem tra ket noi database va server log.";
+        }
+        finally
+        {
             IsLoading = false;
-            return;
         }
-
-        Dashboard = result.Value;
-        SelectedShopId = Dashboard.Shops.Any(shop => shop.ShopId == previousShopId)
-            ? previousShopId
-            : Dashboard.Shops.FirstOrDefault()?.ShopId ?? Guid.Empty;
-        SelectedClientId = Dashboard.ApiClients.Any(client => client.ApiClientId == previousClientId)
-            ? previousClientId
-            : VisibleClients.FirstOrDefault()?.ApiClientId;
-        SyncWebhookForm();
-        IsLoading = false;
     }
 
     private async Task CreateApiClientAsync()

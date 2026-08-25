@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using System.Text.Json;
 using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Domain.PartnerApi;
 
@@ -7,6 +8,23 @@ namespace MiniLogistics.Infrastructure.Persistence.Repositories;
 
 public sealed class WebhookDeliveryRepository : IWebhookDeliveryRepository
 {
+    private const string RecentDeliveryIdsSql = """
+        ;WITH ranked AS
+        (
+            SELECT delivery.[Id],
+                   ROW_NUMBER() OVER (
+                       PARTITION BY delivery.[ApiClientId]
+                       ORDER BY delivery.[CreatedAtUtc] DESC, delivery.[Id] DESC) AS [RowNumber]
+            FROM [WebhookDeliveries] AS delivery
+            INNER JOIN OPENJSON(@ApiClientIds)
+                WITH ([ApiClientId] uniqueidentifier '$') AS requested
+                ON requested.[ApiClientId] = delivery.[ApiClientId]
+        )
+        SELECT [Id]
+        FROM ranked
+        WHERE [RowNumber] <= @TakePerClient;
+        """;
+
     private readonly MiniLogisticsDbContext _dbContext;
 
     public WebhookDeliveryRepository(MiniLogisticsDbContext dbContext)
@@ -100,15 +118,48 @@ public sealed class WebhookDeliveryRepository : IWebhookDeliveryRepository
             return [];
         }
 
-        return await _dbContext.WebhookDeliveries
-            .AsNoTracking()
-            .Where(delivery => apiClientIds.Contains(delivery.ApiClientId))
-            .GroupBy(delivery => delivery.ApiClientId)
-            .SelectMany(group => group
+        var distinctApiClientIds = apiClientIds.Distinct().ToArray();
+        if (_dbContext.Database.IsSqlServer())
+        {
+            var selectedIds = await SqlServerQueryExecutor.QueryIdsAsync(
+                _dbContext,
+                RecentDeliveryIdsSql,
+                [
+                    new SqlQueryParameter(
+                        "@ApiClientIds",
+                        JsonSerializer.Serialize(distinctApiClientIds),
+                        DbType.String,
+                        Size: -1),
+                    new SqlQueryParameter("@TakePerClient", takePerClient, DbType.Int32)
+                ],
+                cancellationToken);
+
+            return await _dbContext.WebhookDeliveries
+                .AsNoTracking()
+                .Where(delivery => selectedIds.Contains(delivery.Id))
                 .OrderByDescending(delivery => delivery.CreatedAtUtc)
-                .Take(takePerClient))
+                .ThenByDescending(delivery => delivery.Id)
+                .ToListAsync(cancellationToken);
+        }
+
+        // Non-SQL Server providers are used by tests and local tooling. Keep the
+        // fallback bounded because the portable GroupBy top-N shape is not translated.
+        var deliveries = new List<WebhookDelivery>(distinctApiClientIds.Length * takePerClient);
+        foreach (var apiClientId in distinctApiClientIds)
+        {
+            deliveries.AddRange(await _dbContext.WebhookDeliveries
+                .AsNoTracking()
+                .Where(delivery => delivery.ApiClientId == apiClientId)
+                .OrderByDescending(delivery => delivery.CreatedAtUtc)
+                .ThenByDescending(delivery => delivery.Id)
+                .Take(takePerClient)
+                .ToListAsync(cancellationToken));
+        }
+
+        return deliveries
             .OrderByDescending(delivery => delivery.CreatedAtUtc)
-            .ToListAsync(cancellationToken);
+            .ThenByDescending(delivery => delivery.Id)
+            .ToList();
     }
 
     public Task<WebhookDelivery?> GetByIdAsync(

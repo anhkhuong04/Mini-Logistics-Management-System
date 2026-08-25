@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using Microsoft.AspNetCore.RateLimiting;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Shipments.CreateShipment;
@@ -18,13 +19,15 @@ public static class PartnerApiEndpoints
 
     public static IEndpointRouteBuilder MapPartnerApiEndpoints(
         this IEndpointRouteBuilder endpoints,
-        string corsPolicyName)
+        string corsPolicyName,
+        string ingressRateLimitPolicyName)
     {
         var group = endpoints
             .MapGroup("/api/v1/partner")
             .WithGroupName("v1")
             .WithTags("Partner API")
             .RequireCors(corsPolicyName)
+            .RequireRateLimiting(ingressRateLimitPolicyName)
             .AddEndpointFilter(AuditPartnerRequestAsync);
 
         group.MapPost("/shipping/quote", QuoteAsync)
@@ -34,6 +37,7 @@ public static class PartnerApiEndpoints
             .Produces<PartnerApiErrorResponse>(StatusCodes.Status400BadRequest)
             .Produces<PartnerApiErrorResponse>(StatusCodes.Status401Unauthorized)
             .Produces<PartnerApiErrorResponse>(StatusCodes.Status403Forbidden)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status413PayloadTooLarge)
             .Produces<PartnerApiErrorResponse>(StatusCodes.Status429TooManyRequests);
         group.MapPost("/shipments", CreateShipmentAsync)
             .WithName("PartnerCreateShipment")
@@ -44,6 +48,7 @@ public static class PartnerApiEndpoints
             .Produces<PartnerApiErrorResponse>(StatusCodes.Status401Unauthorized)
             .Produces<PartnerApiErrorResponse>(StatusCodes.Status403Forbidden)
             .Produces<PartnerApiErrorResponse>(StatusCodes.Status409Conflict)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status413PayloadTooLarge)
             .Produces<PartnerApiErrorResponse>(StatusCodes.Status429TooManyRequests)
             .Produces<PartnerApiErrorResponse>(StatusCodes.Status503ServiceUnavailable);
         group.MapGet("/shipments/{trackingCode}", GetShipmentAsync)
@@ -64,6 +69,7 @@ public static class PartnerApiEndpoints
             .Produces<PartnerApiErrorResponse>(StatusCodes.Status403Forbidden)
             .Produces<PartnerApiErrorResponse>(StatusCodes.Status404NotFound)
             .Produces<PartnerApiErrorResponse>(StatusCodes.Status409Conflict)
+            .Produces<PartnerApiErrorResponse>(StatusCodes.Status413PayloadTooLarge)
             .Produces<PartnerApiErrorResponse>(StatusCodes.Status429TooManyRequests)
             .Produces<PartnerApiErrorResponse>(StatusCodes.Status503ServiceUnavailable);
 
@@ -354,7 +360,8 @@ public static class PartnerApiEndpoints
         EndpointFilterDelegate next)
     {
         var httpContext = invocationContext.HttpContext;
-        var startedAtUtc = DateTimeOffset.UtcNow;
+        var timeProvider = httpContext.RequestServices.GetRequiredService<TimeProvider>();
+        var startedAtUtc = timeProvider.GetUtcNow();
         var result = await next(invocationContext);
         if (httpContext.Items.ContainsKey(DetailedRequestAuditWrittenKey)
             || !httpContext.Items.TryGetValue(AuthenticatedClientContextKey, out var contextValue)
@@ -368,7 +375,7 @@ public static class PartnerApiEndpoints
             var statusCode = result is IStatusCodeHttpResult statusResult
                 ? statusResult.StatusCode ?? StatusCodes.Status200OK
                 : StatusCodes.Status200OK;
-            var completedAtUtc = DateTimeOffset.UtcNow;
+            var completedAtUtc = timeProvider.GetUtcNow();
             var repository = httpContext.RequestServices.GetRequiredService<IPartnerApiRequestAuditRepository>();
             await repository.AddAsync(
                 new PartnerApiRequestAudit(
@@ -391,6 +398,12 @@ public static class PartnerApiEndpoints
                     completedAtUtc),
                 httpContext.RequestAborted);
             await repository.SaveChangesAsync(httpContext.RequestAborted);
+        }
+        catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
+        {
+            var logger = httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                .CreateLogger(typeof(PartnerApiEndpoints));
+            logger.LogDebug("Partner API request audit was cancelled for {Path}.", httpContext.Request.Path);
         }
         catch (Exception exception)
         {
@@ -442,29 +455,56 @@ public static class PartnerApiEndpoints
         IPartnerApiRequestAuditRepository auditRepository,
         TimeProvider timeProvider)
     {
-        var completedAtUtc = timeProvider.GetUtcNow();
-        var audit = new PartnerApiRequestAudit(
-            context.ApiClientId,
-            context.ShopId,
-            httpContext.Request.Method,
-            httpContext.Request.Path.Value ?? "/api/v1/partner/shipments",
-            httpContext.TraceIdentifier,
-            request?.ExternalOrderId,
-            idempotencyKey,
-            ComputeRequestHash(request),
-            statusCode,
-            CalculateDurationMs(startedAtUtc, completedAtUtc),
-            isSuccess,
-            isIdempotentReplay,
-            shipment?.ShipmentId,
-            shipment?.TrackingCode,
-            error?.Code,
-            error?.Description,
-            completedAtUtc);
+        try
+        {
+            var completedAtUtc = timeProvider.GetUtcNow();
+            var audit = new PartnerApiRequestAudit(
+                context.ApiClientId,
+                context.ShopId,
+                httpContext.Request.Method,
+                httpContext.Request.Path.Value ?? "/api/v1/partner/shipments",
+                httpContext.TraceIdentifier,
+                request?.ExternalOrderId,
+                idempotencyKey,
+                ComputeRequestHash(request),
+                statusCode,
+                CalculateDurationMs(startedAtUtc, completedAtUtc),
+                isSuccess,
+                isIdempotentReplay,
+                shipment?.ShipmentId,
+                shipment?.TrackingCode,
+                error?.Code,
+                error?.Description,
+                completedAtUtc);
 
-        await auditRepository.AddAsync(audit, httpContext.RequestAborted);
-        await auditRepository.SaveChangesAsync(httpContext.RequestAborted);
-        httpContext.Items[DetailedRequestAuditWrittenKey] = true;
+            await auditRepository.AddAsync(audit, httpContext.RequestAborted);
+            await auditRepository.SaveChangesAsync(httpContext.RequestAborted);
+        }
+        catch (OperationCanceledException) when (httpContext.RequestAborted.IsCancellationRequested)
+        {
+            var logger = httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                .CreateLogger(typeof(PartnerApiEndpoints));
+            logger.LogDebug(
+                "Partner API request audit was cancelled for {Path}. TraceId: {TraceId}",
+                httpContext.Request.Path,
+                httpContext.TraceIdentifier);
+        }
+        catch (Exception exception)
+        {
+            var logger = httpContext.RequestServices.GetRequiredService<ILoggerFactory>()
+                .CreateLogger(typeof(PartnerApiEndpoints));
+            logger.LogError(
+                exception,
+                "Failed to persist detailed partner API request audit for {Path}. TraceId: {TraceId}",
+                httpContext.Request.Path,
+                httpContext.TraceIdentifier);
+        }
+        finally
+        {
+            // Audit telemetry is non-critical and must never change the outcome of
+            // an already completed shipment operation.
+            httpContext.Items[DetailedRequestAuditWrittenKey] = true;
+        }
     }
 
     private static int CalculateDurationMs(DateTimeOffset startedAtUtc, DateTimeOffset completedAtUtc)

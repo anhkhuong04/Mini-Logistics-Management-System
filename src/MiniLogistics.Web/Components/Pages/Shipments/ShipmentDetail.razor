@@ -240,7 +240,7 @@
                             <h2>Hủy đơn hàng</h2>
                         </div>
 
-                        <form class="cancel-form" @onsubmit="CancelShipmentAsync" @onsubmit:preventDefault="true">
+                        <form class="cancel-form" @onsubmit="RequestCancelShipment" @onsubmit:preventDefault="true">
                             <label for="cancel-reason">Lý do hủy</label>
                             <textarea id="cancel-reason"
                                       maxlength="500"
@@ -288,6 +288,15 @@
     }
 </div>
 
+<ConfirmActionDialog IsOpen="@IsCancelConfirmationOpen"
+                     Title="Hủy đơn hàng này?"
+                     Message="Đơn sẽ dừng xử lý và không thể khôi phục về trạng thái trước đó."
+                     ConfirmText="Hủy đơn hàng"
+                     Tone="danger"
+                     IsBusy="@IsCancelling"
+                     OnConfirm="ConfirmCancelShipmentAsync"
+                     OnCancel="CancelCancelConfirmation" />
+
 @code {
     [Parameter]
     public Guid Id { get; set; }
@@ -313,6 +322,8 @@
     private bool IsCancelling { get; set; }
 
     private bool IsSubmittingDraft { get; set; }
+
+    private bool IsCancelConfirmationOpen { get; set; }
 
     private string? ErrorMessage { get; set; }
 
@@ -419,6 +430,31 @@
         ActionSuccessMessage = "Đã hủy đơn hàng.";
 
         await LoadShipmentAsync(clearActionMessages: false);
+    }
+
+    private void RequestCancelShipment()
+    {
+        ActionErrorMessage = null;
+        ActionSuccessMessage = null;
+
+        if (string.IsNullOrWhiteSpace(CancelReason))
+        {
+            ActionErrorMessage = "Vui lòng nhập lý do hủy đơn.";
+            return;
+        }
+
+        IsCancelConfirmationOpen = true;
+    }
+
+    private async Task ConfirmCancelShipmentAsync()
+    {
+        await CancelShipmentAsync();
+        IsCancelConfirmationOpen = false;
+    }
+
+    private void CancelCancelConfirmation()
+    {
+        IsCancelConfirmationOpen = false;
     }
 
     private async Task SubmitDraftAsync()

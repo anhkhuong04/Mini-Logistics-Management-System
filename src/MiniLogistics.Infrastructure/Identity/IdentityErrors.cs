@@ -15,4 +15,7 @@ public static class IdentityErrors
 
     public static Error RoleAssignmentFailed(string description) =>
         new("Identity.RoleAssignmentFailed", description);
+
+    public static Error PasswordResetFailed(string description) =>
+        new("Identity.PasswordResetFailed", description);
 }

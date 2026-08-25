@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using MiniLogistics.Application.Common;
@@ -18,6 +19,7 @@ using MiniLogistics.Application.Shipments.GetPendingPickupShipments;
 using MiniLogistics.Application.Shipments.UpdateShipmentStatus;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Fees;
+using MiniLogistics.Domain.PartnerApi;
 using MiniLogistics.Domain.Shipments;
 using MiniLogistics.Infrastructure.Identity;
 using MiniLogistics.Infrastructure.Persistence;
@@ -94,6 +96,231 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
         Assert.Contains(users, user =>
             user.UserId == DemoShipperUserId
             && user.Roles.SequenceEqual(["Shipper"]));
+    }
+
+    [Fact]
+    public async Task PartnerDashboard_RecentWebhookDeliveries_ReturnsBoundedResultsWithoutSqlTranslationFailure()
+    {
+        var apiClientId = Guid.Empty;
+        var expectedDeliveryIds = new List<Guid>();
+
+        await _fixture.ExecuteAsync(async services =>
+        {
+            var dbContext = services.GetRequiredService<MiniLogisticsDbContext>();
+            var shopId = await dbContext.Shops
+                .Where(shop => shop.OwnerUserId == DemoShopUserId)
+                .Select(shop => shop.Id)
+                .SingleAsync();
+            var now = DateTimeOffset.UtcNow;
+            var apiKey = $"ml_test_dashboard_{Guid.NewGuid():N}";
+            var apiClient = new ApiClient(
+                shopId,
+                "Dashboard query regression client",
+                ApiKeyHasher.GetPrefix(apiKey),
+                ApiKeyHasher.Hash(apiKey),
+                now);
+            var endpoint = new WebhookEndpoint(
+                apiClient.Id,
+                "https://partner.example/webhooks/logistics",
+                "protected-test-secret",
+                now);
+
+            dbContext.ApiClients.Add(apiClient);
+            dbContext.WebhookEndpoints.Add(endpoint);
+            for (var index = 0; index < 12; index++)
+            {
+                var delivery = new WebhookDelivery(
+                    Guid.NewGuid(),
+                    endpoint.Id,
+                    apiClient.Id,
+                    "shipment.status_changed",
+                    Guid.NewGuid(),
+                    "{}",
+                    now.AddMinutes(index));
+                dbContext.WebhookDeliveries.Add(delivery);
+                expectedDeliveryIds.Add(delivery.Id);
+            }
+
+            await dbContext.SaveChangesAsync();
+            apiClientId = apiClient.Id;
+        });
+
+        var recent = await _fixture.ExecuteAsync(services =>
+            services.GetRequiredService<IWebhookDeliveryRepository>()
+                .GetRecentByApiClientIdsAsync([apiClientId], takePerClient: 10));
+
+        Assert.Equal(10, recent.Count);
+        Assert.All(recent, delivery => Assert.Equal(apiClientId, delivery.ApiClientId));
+        Assert.Equal(
+            expectedDeliveryIds.Skip(2).Reverse(),
+            recent.Select(delivery => delivery.Id));
+    }
+
+    [Fact]
+    public async Task PartnerDashboard_BatchedHistoryQueries_ReturnTopTenForEveryClient()
+    {
+        await _fixture.ExecuteAsync(async services =>
+        {
+            var dbContext = services.GetRequiredService<MiniLogisticsDbContext>();
+            var shopId = await dbContext.Shops
+                .Where(shop => shop.OwnerUserId == DemoShopUserId)
+                .Select(shop => shop.Id)
+                .SingleAsync();
+            var now = DateTimeOffset.UtcNow;
+            var apiClients = Enumerable.Range(0, 2)
+                .Select(index =>
+                {
+                    var apiKey = $"ml_test_batched_dashboard_{index}_{Guid.NewGuid():N}";
+                    return new ApiClient(
+                        shopId,
+                        $"Batched dashboard client {index}",
+                        ApiKeyHasher.GetPrefix(apiKey),
+                        ApiKeyHasher.Hash(apiKey),
+                        now);
+                })
+                .ToArray();
+
+            foreach (var apiClient in apiClients)
+            {
+                var endpoint = new WebhookEndpoint(
+                    apiClient.Id,
+                    $"https://{apiClient.Id:N}.partner.example/webhooks",
+                    "protected-test-secret",
+                    now);
+                dbContext.ApiClients.Add(apiClient);
+                dbContext.WebhookEndpoints.Add(endpoint);
+
+                for (var index = 0; index < 12; index++)
+                {
+                    var createdAtUtc = now.AddMinutes(-index);
+                    dbContext.WebhookDeliveries.Add(new WebhookDelivery(
+                        Guid.NewGuid(),
+                        endpoint.Id,
+                        apiClient.Id,
+                        "shipment.status_changed",
+                        Guid.NewGuid(),
+                        "{}",
+                        createdAtUtc));
+                    dbContext.PartnerApiCredentialAudits.Add(new PartnerApiCredentialAudit(
+                        DemoShopUserId,
+                        shopId,
+                        apiClient.Id,
+                        "ApiKey.Rotated",
+                        isSuccess: true,
+                        createdAtUtc));
+                    dbContext.PartnerApiRequestAudits.Add(new PartnerApiRequestAudit(
+                        apiClient.Id,
+                        shopId,
+                        "POST",
+                        "/api/v1/partner/shipments",
+                        $"trace-{apiClient.Id:N}-{index}",
+                        $"order-{apiClient.Id:N}-{index}",
+                        $"idem-{apiClient.Id:N}-{index}",
+                        new string('A', 64),
+                        StatusCodes.Status400BadRequest,
+                        durationMs: index + 1,
+                        isSuccess: false,
+                        isIdempotentReplay: false,
+                        shipmentId: null,
+                        trackingCode: null,
+                        errorCode: "Application.ValidationFailed",
+                        errorMessage: "Invalid request.",
+                        createdAtUtc: createdAtUtc));
+                }
+
+                dbContext.PartnerApiRequestAudits.Add(new PartnerApiRequestAudit(
+                    apiClient.Id,
+                    shopId,
+                    "GET",
+                    "/api/v1/partner/shipments/MLTEST",
+                    $"trace-success-{apiClient.Id:N}",
+                    externalOrderId: null,
+                    idempotencyKey: null,
+                    requestHash: new string('B', 64),
+                    statusCode: StatusCodes.Status200OK,
+                    durationMs: 5,
+                    isSuccess: true,
+                    isIdempotentReplay: false,
+                    shipmentId: null,
+                    trackingCode: "MLTEST",
+                    errorCode: null,
+                    errorMessage: null,
+                    createdAtUtc: now));
+            }
+
+            await dbContext.SaveChangesAsync();
+            var apiClientIds = apiClients.Select(client => client.Id).ToArray();
+            var deliveries = await services.GetRequiredService<IWebhookDeliveryRepository>()
+                .GetRecentByApiClientIdsAsync(apiClientIds, takePerClient: 10);
+            var credentialAudits = await services.GetRequiredService<IPartnerApiCredentialAuditRepository>()
+                .GetRecentByApiClientIdsAsync(apiClientIds, takePerClient: 10);
+            var usage = await services.GetRequiredService<IPartnerApiRequestAuditRepository>()
+                .GetUsageByApiClientIdsAsync(apiClientIds, now);
+
+            Assert.Equal(20, deliveries.Count);
+            Assert.Equal(20, credentialAudits.Count);
+            foreach (var apiClientId in apiClientIds)
+            {
+                Assert.Equal(10, deliveries.Count(delivery => delivery.ApiClientId == apiClientId));
+                Assert.Equal(10, credentialAudits.Count(audit => audit.ApiClientId == apiClientId));
+                Assert.Equal(13, usage[apiClientId].TotalRequests);
+                Assert.Equal(1, usage[apiClientId].SuccessfulRequests);
+                Assert.Equal(12, usage[apiClientId].FailedRequests);
+                Assert.Equal(10, usage[apiClientId].LatestFailedRequests.Count);
+            }
+
+            await dbContext.WebhookDeliveries
+                .Where(delivery => apiClientIds.Contains(delivery.ApiClientId))
+                .ExecuteDeleteAsync();
+            await dbContext.PartnerApiRequestAudits
+                .Where(audit => apiClientIds.Contains(audit.ApiClientId))
+                .ExecuteDeleteAsync();
+            await dbContext.PartnerApiCredentialAudits
+                .Where(audit => audit.ApiClientId.HasValue && apiClientIds.Contains(audit.ApiClientId.Value))
+                .ExecuteDeleteAsync();
+            await dbContext.WebhookEndpoints
+                .Where(endpoint => apiClientIds.Contains(endpoint.ApiClientId))
+                .ExecuteDeleteAsync();
+            await dbContext.ApiClients
+                .Where(client => apiClientIds.Contains(client.Id))
+                .ExecuteDeleteAsync();
+        });
+    }
+
+    [Fact]
+    public async Task PartnerTracking_AfterOperationalStatusUpdate_ReturnsCurrentStatusAndTimeline()
+    {
+        var createResult = await CreateShipmentAsync("Partner tracking status sync", codAmount: 125_000m);
+        Assert.True(createResult.IsSuccess, createResult.Error.Description);
+        Assert.Equal(ShipmentStatus.Assigned, createResult.Value.Status);
+
+        var updateResult = await _fixture.ExecuteAsync(services =>
+            services.GetRequiredService<IUpdateShipmentStatusService>().UpdateAsync(
+                new UpdateShipmentStatusCommand(
+                    createResult.Value.ShipmentId,
+                    DemoShipperUserId,
+                    ShipmentStatus.PickingUp,
+                    "Shipper started pickup.")));
+        Assert.True(updateResult.IsSuccess, updateResult.Error.Description);
+
+        var trackingResult = await _fixture.ExecuteAsync(async services =>
+        {
+            var dbContext = services.GetRequiredService<MiniLogisticsDbContext>();
+            var apiClient = await dbContext.ApiClients.AsNoTracking().SingleAsync(client =>
+                client.Name == "Demo E-commerce Integration");
+            return await services.GetRequiredService<IPartnerShipmentQueryService>().GetAsync(
+                new PartnerGetShipmentCommand(
+                    apiClient.Id,
+                    apiClient.ShopId,
+                    createResult.Value.TrackingCode));
+        });
+
+        Assert.True(trackingResult.IsSuccess, trackingResult.Error.Description);
+        Assert.Equal(ShipmentStatus.PickingUp, trackingResult.Value.Status);
+        Assert.Equal(ShipmentStatus.PickingUp, trackingResult.Value.Timeline.Last().Status);
+        Assert.Contains(
+            trackingResult.Value.Timeline,
+            item => item.Status == ShipmentStatus.Assigned);
     }
 
     [Fact]

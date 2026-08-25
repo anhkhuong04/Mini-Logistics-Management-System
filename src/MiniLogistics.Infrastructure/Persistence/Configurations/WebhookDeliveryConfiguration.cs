@@ -48,6 +48,9 @@ public sealed class WebhookDeliveryConfiguration : IEntityTypeConfiguration<Webh
 
         builder.HasIndex(delivery => new { delivery.Status, delivery.NextAttemptAtUtc, delivery.LockedUntilUtc });
 
+        builder.HasIndex(delivery => new { delivery.ApiClientId, delivery.CreatedAtUtc, delivery.Id })
+            .IsDescending(false, true, true);
+
         builder.HasIndex(delivery => delivery.AggregateId);
 
         builder.HasOne<WebhookEndpoint>()
