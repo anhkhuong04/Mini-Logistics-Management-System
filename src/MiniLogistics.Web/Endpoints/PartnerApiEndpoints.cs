@@ -551,7 +551,7 @@ public static class PartnerApiEndpoints
             "PartnerApi.RateLimitExceeded" => StatusCodes.Status429TooManyRequests,
             "PartnerApi.RateLimitUnavailable" => StatusCodes.Status503ServiceUnavailable,
             "Application.NotFound" => StatusCodes.Status404NotFound,
-            "Application.Conflict" or "PartnerApi.IdempotencyConflict" => StatusCodes.Status409Conflict,
+            "Application.Conflict" or "Application.ConcurrencyConflict" or "PartnerApi.IdempotencyConflict" => StatusCodes.Status409Conflict,
             "Application.ValidationFailed" => StatusCodes.Status400BadRequest,
             var code when code.StartsWith("Shipment.", StringComparison.Ordinal) => StatusCodes.Status409Conflict,
             _ => StatusCodes.Status400BadRequest

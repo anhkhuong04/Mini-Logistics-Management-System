@@ -27,5 +27,5 @@ This repository is a .NET 10 modular monolith for shipment operations. Treat thi
 
 - Add or update tests for changed behavior and important failure/authorization paths.
 - Run the narrowest relevant tests first, then build/test the affected solution scope.
-- The current OpenAPI design-time issue requires `-p:OpenApiGenerateDocuments=false` for a reliable build/test; see `.agents/known-issues.md`.
+- OpenAPI generation uses a design-time composition without runtime hosted workers; use the standard build/test commands in `.agents/commands.md`.
 - Before handoff, inspect `git diff` and confirm no generated or unrelated files were changed.

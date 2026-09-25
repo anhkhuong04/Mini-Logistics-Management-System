@@ -222,6 +222,10 @@ public sealed class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
 
         builder.Property(shipment => shipment.UpdatedAtUtc);
 
+        builder.Property<byte[]>("RowVersion")
+            .IsRequired()
+            .IsRowVersion();
+
         builder.HasOne<Shop>()
             .WithMany()
             .HasForeignKey(shipment => shipment.ShopId)

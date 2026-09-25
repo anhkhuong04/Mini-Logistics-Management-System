@@ -59,6 +59,10 @@ public sealed class CodTransactionConfiguration : IEntityTypeConfiguration<CodTr
 
         builder.Property(codTransaction => codTransaction.UpdatedAtUtc);
 
+        builder.Property<byte[]>("RowVersion")
+            .IsRequired()
+            .IsRowVersion();
+
         builder.HasOne<Shipment>()
             .WithOne()
             .HasForeignKey<CodTransaction>(codTransaction => codTransaction.ShipmentId)

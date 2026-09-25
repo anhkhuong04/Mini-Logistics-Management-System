@@ -61,7 +61,9 @@ var partnerApiEnvironment = builder.Configuration["PartnerApi:Environment"] ?? "
 builder.Services.AddSingleton<IApiCredentialPolicy>(
     new EnvironmentApiCredentialPolicy(partnerApiEnvironment));
 builder.Services.AddApplication();
-builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddInfrastructure(
+    builder.Configuration,
+    registerHostedServices: !isOpenApiDocumentGeneration);
 var healthChecks = builder.Services
     .AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])

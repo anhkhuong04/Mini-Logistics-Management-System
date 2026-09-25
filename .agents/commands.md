@@ -12,11 +12,11 @@ Run commands from the repository root. Use the solution file, not the stray root
 
 ```powershell
 dotnet restore Mini-logistics-manegemant-system.slnx
-dotnet build Mini-logistics-manegemant-system.slnx -c Release -p:OpenApiGenerateDocuments=false
-dotnet test Mini-logistics-manegemant-system.slnx -c Release -p:OpenApiGenerateDocuments=false
+dotnet build Mini-logistics-manegemant-system.slnx -c Release
+dotnet test Mini-logistics-manegemant-system.slnx -c Release
 ```
 
-The OpenAPI property override is a current workaround, not the desired permanent state; see `known-issues.md`.
+OpenAPI document generation is enabled in the Web project. Its design-time composition omits runtime hosted workers; no property override is needed for normal build/test.
 
 Target one suite while iterating:
 
@@ -24,7 +24,7 @@ Target one suite while iterating:
 dotnet test test/MiniLogistics.Domain.Tests/MiniLogistics.Domain.Tests.csproj -c Release
 dotnet test test/MiniLogistics.Application.Tests/MiniLogistics.Application.Tests.csproj -c Release
 dotnet test test/MiniLogistics.Infrastructure.Tests/MiniLogistics.Infrastructure.Tests.csproj -c Release
-dotnet test test/MiniLogistics.Web.Tests/MiniLogistics.Web.Tests.csproj -c Release -p:OpenApiGenerateDocuments=false
+dotnet test test/MiniLogistics.Web.Tests/MiniLogistics.Web.Tests.csproj -c Release
 ```
 
 Use `--no-build` only after the same configuration has built successfully. Use `--filter FullyQualifiedName~...` for a narrow regression test.
@@ -34,9 +34,9 @@ Use `--no-build` only after the same configuration has built successfully. Use `
 The development connection is in `src/MiniLogistics.Web/appsettings.Development.json` and defaults to LocalDB.
 
 ```powershell
-dotnet run --project src/MiniLogistics.Web -p:OpenApiGenerateDocuments=false
-dotnet run --project src/MiniLogistics.Web -p:OpenApiGenerateDocuments=false -- --migrate
-dotnet run --project src/MiniLogistics.Web -p:OpenApiGenerateDocuments=false -- --migrate --seed
+dotnet run --project src/MiniLogistics.Web
+dotnet run --project src/MiniLogistics.Web -- --migrate
+dotnet run --project src/MiniLogistics.Web -- --migrate --seed
 ```
 
 Seeding is explicit. Do not add automatic production migration/seeding or commit real passwords/API keys. Seed credentials are controlled by `Seeding` configuration/environment values.
@@ -63,7 +63,7 @@ Review the generated migration, designer and `MiniLogisticsDbContextModelSnapsho
 ## Optional coverage
 
 ```powershell
-dotnet test Mini-logistics-manegemant-system.slnx -p:OpenApiGenerateDocuments=false --collect:"XPlat Code Coverage"
+dotnet test Mini-logistics-manegemant-system.slnx --collect:"XPlat Code Coverage"
 ```
 
 Do not treat coverage percentage as a substitute for invariant, authorization, transaction and concurrency tests.

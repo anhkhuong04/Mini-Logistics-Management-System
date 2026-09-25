@@ -460,9 +460,18 @@ public sealed class ShipmentRepository : IShipmentRepository
         await _dbContext.Shipments.AddAsync(shipment, cancellationToken);
     }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        return _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new ConcurrencyConflictException(
+                "The shipment was updated by another operation.",
+                exception);
+        }
     }
 
     private static int NormalizePageNumber(int pageNumber)

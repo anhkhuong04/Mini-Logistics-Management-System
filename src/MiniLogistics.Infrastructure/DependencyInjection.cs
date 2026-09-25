@@ -37,7 +37,8 @@ public static class DependencyInjection
 {
     public static IServiceCollection AddInfrastructure(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        bool registerHostedServices = true)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
@@ -166,10 +167,13 @@ public static class DependencyInjection
         .ConfigurePrimaryHttpMessageHandler(serviceProvider => WebhookHttpMessageHandler.Create(
             serviceProvider.GetRequiredService<IWebhookDnsResolver>(),
             serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<WebhookSecurityOptions>>()));
-        services.AddHostedService<OutboxWorker>();
-        services.AddHostedService<WebhookDeliveryWorker>();
-        services.AddHostedService<PartnerApiRetentionWorker>();
-        services.AddHostedService<ShipmentImportWorker>();
+        if (registerHostedServices)
+        {
+            services.AddHostedService<OutboxWorker>();
+            services.AddHostedService<WebhookDeliveryWorker>();
+            services.AddHostedService<PartnerApiRetentionWorker>();
+            services.AddHostedService<ShipmentImportWorker>();
+        }
 
         return services;
     }

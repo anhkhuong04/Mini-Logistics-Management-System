@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using MiniLogistics.Application.CashOnDelivery;
+using MiniLogistics.Application.Common;
 using MiniLogistics.Domain.CashOnDelivery;
 
 namespace MiniLogistics.Infrastructure.Persistence.Repositories;
@@ -68,8 +69,17 @@ public sealed class CodTransactionRepository : ICodTransactionRepository
         await _dbContext.CodTransactions.AddAsync(codTransaction, cancellationToken);
     }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        return _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateConcurrencyException exception)
+        {
+            throw new ConcurrencyConflictException(
+                "The COD transaction was updated by another operation.",
+                exception);
+        }
     }
 }

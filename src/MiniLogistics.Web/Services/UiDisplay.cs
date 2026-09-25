@@ -32,6 +32,7 @@ public static class UiDisplay
             "FeeRule.NoMatchingRule" => "Chưa có bảng phí active phù hợp với tuyến và cân tính phí của đơn.",
             "RouteClassification.ProvinceNotSupported" => $"Tỉnh/thành chưa được hỗ trợ để phân loại tuyến: {ExtractValueAfterColon(error.Description)}.",
             "Shop.Inactive" => "Shop đang bị khóa hoặc chưa active.",
+            "Application.ConcurrencyConflict" => "Dữ liệu vừa được thay đổi bởi thao tác khác. Vui lòng tải lại và thử lại.",
             _ => ToErrorMessage(error.Description)
         };
     }

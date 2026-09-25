@@ -10,6 +10,12 @@ public static class ApplicationErrors
     public static Error Conflict(string description) =>
         new("Application.Conflict", description);
 
+    public static Error ConcurrencyConflict(string description) =>
+        new("Application.ConcurrencyConflict", description);
+
+    public static Error RegistrationFailed(string description) =>
+        new("Application.RegistrationFailed", description);
+
     public static Error NotFound(string description) =>
         new("Application.NotFound", description);
 

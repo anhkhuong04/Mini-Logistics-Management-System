@@ -37,6 +37,8 @@ There is no `MiniLogistics.Shared` project. The root `Mini-logistics-manegemant-
 
 Application is organized by feature/use case rather than generic command/query folders. Follow the nearest feature's structure before inventing a new pattern.
 
+Application service interfaces registered by `AddApplication` resolve the implementation and scoped dependencies in an async child scope per call. Nested application calls in the same operation reuse that scope; the scope is disposed when the returned `Task` completes. Do not cache EF-backed results/services between calls, and keep passing cancellation tokens through the full operation.
+
 ## Repository map
 
 - `src/MiniLogistics.Domain/Shipments`: `Shipment` aggregate, assignment/history/proof, status and route types.

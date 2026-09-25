@@ -444,6 +444,7 @@ public sealed class PartnerApiContractTests
                 services.AddDbContext<MiniLogisticsDbContext>(options =>
                     options
                         .UseInMemoryDatabase(_databaseName)
+                        .AddInterceptors(new InMemoryRowVersionInterceptor())
                         .UseInternalServiceProvider(inMemoryProvider));
 
                 using var serviceProvider = services.BuildServiceProvider();

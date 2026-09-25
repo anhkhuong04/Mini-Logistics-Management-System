@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Antiforgery;
 using MiniLogistics.Application.Shops.RegisterShop;
 using MiniLogistics.Domain.Users;
 using MiniLogistics.Infrastructure.Identity;
@@ -11,9 +12,12 @@ public static class AuthenticationEndpoints
 {
     public static IEndpointRouteBuilder MapAuthenticationEndpoints(this IEndpointRouteBuilder endpoints)
     {
-        endpoints.MapPost("/auth/register-shop", RegisterShopAsync);
-        endpoints.MapPost("/auth/login", LoginAsync);
+        endpoints.MapPost("/auth/register-shop", RegisterShopAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute());
+        endpoints.MapPost("/auth/login", LoginAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute());
         endpoints.MapPost("/auth/logout", LogoutAsync)
+            .WithMetadata(new RequireAntiforgeryTokenAttribute())
             .RequireAuthorization();
 
         return endpoints;
@@ -26,6 +30,11 @@ public static class AuthenticationEndpoints
         SignInManager<ApplicationUser> signInManager,
         IDataProtectionProvider dataProtectionProvider)
     {
+        if (!HasValidAntiforgeryToken(httpContext))
+        {
+            return Results.Problem(statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var form = await httpContext.Request.ReadFormAsync(httpContext.RequestAborted);
         var command = new RegisterShopCommand(
             GetValue(form, "FullName"),
@@ -73,6 +82,11 @@ public static class AuthenticationEndpoints
         SignInManager<ApplicationUser> signInManager,
         UserManager<ApplicationUser> userManager)
     {
+        if (!HasValidAntiforgeryToken(httpContext))
+        {
+            return Results.Problem(statusCode: StatusCodes.Status400BadRequest);
+        }
+
         var form = await httpContext.Request.ReadFormAsync(httpContext.RequestAborted);
         var email = GetValue(form, "Email");
         var password = GetValue(form, "Password");
@@ -116,12 +130,20 @@ public static class AuthenticationEndpoints
         return Results.Redirect(GetPostLoginRedirectPath(roles));
     }
 
-    private static async Task<IResult> LogoutAsync(SignInManager<ApplicationUser> signInManager)
+    private static async Task<IResult> LogoutAsync(HttpContext httpContext, SignInManager<ApplicationUser> signInManager)
     {
+        if (!HasValidAntiforgeryToken(httpContext))
+        {
+            return Results.Problem(statusCode: StatusCodes.Status400BadRequest);
+        }
+
         await signInManager.SignOutAsync();
 
         return Results.Redirect("/login");
     }
+
+    private static bool HasValidAntiforgeryToken(HttpContext httpContext) =>
+        httpContext.Features.Get<IAntiforgeryValidationFeature>()?.IsValid == true;
 
     private static string GetValue(IFormCollection form, string key, string fallback = "")
     {
