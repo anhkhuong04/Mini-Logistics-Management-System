@@ -1,16 +1,23 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using MiniLogistics.Application.Common;
+using MiniLogistics.Application;
 using MiniLogistics.Application.CashOnDelivery;
 using MiniLogistics.Application.CashOnDelivery.GetCodSettlementCandidates;
 using MiniLogistics.Application.CashOnDelivery.MarkCodCollected;
 using MiniLogistics.Application.CashOnDelivery.MarkCodSettled;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.PartnerApi;
+using MiniLogistics.Application.Outbox;
 using MiniLogistics.Application.AdminAuditing;
+using MiniLogistics.Application.Fees;
+using MiniLogistics.Application.Routing;
 using MiniLogistics.Application.Shops.Notifications;
+using MiniLogistics.Application.Shops;
 using MiniLogistics.Application.Shipments.AssignmentSelection;
 using MiniLogistics.Application.Shipments.AutoAssignShipment;
 using MiniLogistics.Application.Shipments;
@@ -24,10 +31,13 @@ using MiniLogistics.Application.Shipments.GetPendingPickupShipments;
 using MiniLogistics.Application.Shipments.UpdateShipmentStatus;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Fees;
+using MiniLogistics.Domain.Outbox;
 using MiniLogistics.Domain.PartnerApi;
 using MiniLogistics.Domain.Shipments;
 using MiniLogistics.Infrastructure.Identity;
+using MiniLogistics.Infrastructure;
 using MiniLogistics.Infrastructure.Persistence;
+using MiniLogistics.Infrastructure.Persistence.Repositories;
 using Xunit;
 
 namespace MiniLogistics.Infrastructure.Tests;
@@ -184,6 +194,118 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
         }
     }
 
+    [Fact]
+    public async Task PartnerCreate_ConcurrentIdempotencyConflictsReplayOrReturn409WithoutDuplicateRows()
+    {
+        var raceApiClientId = Guid.Empty;
+        var previousCapacity = await _fixture.ExecuteAsync(async services =>
+        {
+            var shipper = (await services.GetRequiredService<IIdentityService>().GetActiveShippersAsync())
+                .Single(item => item.UserId == DemoShipperUserId);
+            return (shipper.IsAvailableForAssignment, shipper.MaxActiveShipments);
+        });
+
+        try
+        {
+            await _fixture.ExecuteAsync(async services =>
+            {
+                var result = await services.GetRequiredService<IIdentityService>().SetShipperCapacityAsync(
+                    DemoShipperUserId,
+                    isAvailableForAssignment: false,
+                    previousCapacity.MaxActiveShipments);
+                Assert.True(result.IsSuccess, result.Error.Description);
+            });
+
+            var (apiClientId, shopId) = await CreatePartnerRaceApiClientAsync();
+            raceApiClientId = apiClientId;
+
+            var identicalCommand = CreatePartnerRaceCommand(
+                apiClientId,
+                shopId,
+                externalOrderId: $"CI07-SAME-{Guid.NewGuid():N}",
+                idempotencyKey: $"ci07-same-{Guid.NewGuid():N}");
+            var identicalResults = await RunConcurrentPartnerCreatesAsync(
+                identicalCommand,
+                identicalCommand,
+                synchronizeIdempotencyCheck: true,
+                synchronizeExternalOrderCheck: true);
+
+            Assert.All(identicalResults, result => Assert.True(result.IsSuccess, result.IsSuccess ? "" : result.Error.Description));
+            Assert.Equal(1, identicalResults.Count(result => !result.Value.IsIdempotentReplay));
+            Assert.Equal(1, identicalResults.Count(result => result.Value.IsIdempotentReplay));
+            Assert.Single(identicalResults.Select(result => result.Value.Shipment.ShipmentId).Distinct());
+            Assert.Equal(identicalResults[0].Value.Shipment, identicalResults[1].Value.Shipment);
+            await AssertPartnerReferenceHasSingleCreationSideEffectAsync(apiClientId, identicalCommand.IdempotencyKey);
+
+            var conflictingCommand = CreatePartnerRaceCommand(
+                apiClientId,
+                shopId,
+                externalOrderId: $"CI07-DIFF-A-{Guid.NewGuid():N}",
+                idempotencyKey: $"ci07-diff-{Guid.NewGuid():N}");
+            var conflictingPayload = conflictingCommand with
+            {
+                ExternalOrderId = $"CI07-DIFF-B-{Guid.NewGuid():N}",
+                CodAmount = conflictingCommand.CodAmount + 1m
+            };
+            var conflictingResults = await RunConcurrentPartnerCreatesAsync(
+                conflictingCommand,
+                conflictingPayload,
+                synchronizeIdempotencyCheck: true,
+                synchronizeExternalOrderCheck: true);
+
+            Assert.Equal(1, conflictingResults.Count(result => result.IsSuccess && !result.Value.IsIdempotentReplay));
+            var idempotencyConflict = Assert.Single(conflictingResults, result => result.IsFailure);
+            Assert.Equal("PartnerApi.IdempotencyConflict", idempotencyConflict.Error.Code);
+            await AssertPartnerReferenceHasSingleCreationSideEffectAsync(apiClientId, conflictingCommand.IdempotencyKey);
+
+            var sameOrderFirst = CreatePartnerRaceCommand(
+                apiClientId,
+                shopId,
+                externalOrderId: $"CI07-ORDER-{Guid.NewGuid():N}",
+                idempotencyKey: $"ci07-order-a-{Guid.NewGuid():N}");
+            var sameOrderSecond = sameOrderFirst with
+            {
+                IdempotencyKey = $"ci07-order-b-{Guid.NewGuid():N}"
+            };
+            var externalOrderResults = await RunConcurrentPartnerCreatesAsync(
+                sameOrderFirst,
+                sameOrderSecond,
+                synchronizeIdempotencyCheck: false,
+                synchronizeExternalOrderCheck: true);
+
+            Assert.Equal(1, externalOrderResults.Count(result => result.IsSuccess && !result.Value.IsIdempotentReplay));
+            var externalOrderConflict = Assert.Single(externalOrderResults, result => result.IsFailure);
+            Assert.Equal("Application.Conflict", externalOrderConflict.Error.Code);
+            await AssertPartnerReferenceHasSingleCreationSideEffectAsync(
+                apiClientId,
+                externalOrderId: sameOrderFirst.ExternalOrderId);
+        }
+        finally
+        {
+            try
+            {
+                if (raceApiClientId != Guid.Empty)
+                {
+                    await CleanupPartnerRaceApiClientAsync(raceApiClientId);
+                }
+            }
+            finally
+            {
+                await _fixture.ExecuteAsync(async services =>
+                {
+                    var counts = await services.GetRequiredService<IShipmentReadRepository>()
+                        .GetActiveAssignmentCountsByShipperIdsAsync([DemoShipperUserId]);
+                    counts.TryGetValue(DemoShipperUserId, out var activeLoad);
+                    var result = await services.GetRequiredService<IIdentityService>().SetShipperCapacityAsync(
+                        DemoShipperUserId,
+                        previousCapacity.IsAvailableForAssignment,
+                        Math.Max(previousCapacity.MaxActiveShipments, activeLoad));
+                    Assert.True(result.IsSuccess, result.Error.Description);
+                });
+            }
+        }
+    }
+
     private Task<MiniLogistics.Domain.Common.Result<AutoAssignShipmentResult>> RunAutoAssignmentAsync(
         Guid shipmentId,
         AssignmentSelectionBarrier selectionBarrier)
@@ -201,6 +323,175 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
                 services.GetRequiredService<IAdminAuditService>(),
                 shopNotificationService: services.GetRequiredService<ShopNotificationService>());
             return await service.AutoAssignAsync(shipmentId);
+        });
+    }
+
+    private Task<(Guid ApiClientId, Guid ShopId)> CreatePartnerRaceApiClientAsync()
+    {
+        return _fixture.ExecuteAsync(async services =>
+        {
+            var dbContext = services.GetRequiredService<MiniLogisticsDbContext>();
+            var shopId = await dbContext.Shops
+                .Where(shop => shop.OwnerUserId == DemoShopUserId)
+                .Select(shop => shop.Id)
+                .SingleAsync();
+            var rawApiKey = $"ml_ci07_{Guid.NewGuid():N}";
+            var now = DateTimeOffset.UtcNow;
+            var apiClient = new ApiClient(
+                shopId,
+                $"CI-07 race client {Guid.NewGuid():N}",
+                ApiKeyHasher.GetPrefix(rawApiKey),
+                ApiKeyHasher.Hash(rawApiKey),
+                now);
+            dbContext.ApiClients.Add(apiClient);
+            dbContext.WebhookEndpoints.Add(new WebhookEndpoint(
+                apiClient.Id,
+                $"https://{apiClient.Id:N}.partner.example/webhooks",
+                "protected-ci07-test-secret",
+                now));
+            await dbContext.SaveChangesAsync();
+            return (apiClient.Id, shopId);
+        });
+    }
+
+    private Task CleanupPartnerRaceApiClientAsync(Guid apiClientId)
+    {
+        return _fixture.ExecuteAsync(async services =>
+        {
+            var dbContext = services.GetRequiredService<MiniLogisticsDbContext>();
+            var shipmentIds = await dbContext.ExternalShipmentReferences
+                .Where(reference => reference.ApiClientId == apiClientId)
+                .Select(reference => reference.ShipmentId)
+                .ToArrayAsync();
+
+            await dbContext.ExternalShipmentReferences
+                .Where(reference => reference.ApiClientId == apiClientId)
+                .ExecuteDeleteAsync();
+            await dbContext.OutboxMessages
+                .Where(message => shipmentIds.Contains(message.AggregateId))
+                .ExecuteDeleteAsync();
+            await dbContext.WebhookDeliveries
+                .Where(delivery => delivery.ApiClientId == apiClientId)
+                .ExecuteDeleteAsync();
+            await dbContext.CodTransactions
+                .Where(transaction => shipmentIds.Contains(transaction.ShipmentId))
+                .ExecuteDeleteAsync();
+            await dbContext.Shipments
+                .Where(shipment => shipmentIds.Contains(shipment.Id))
+                .ExecuteDeleteAsync();
+            await dbContext.WebhookEndpoints
+                .Where(endpoint => endpoint.ApiClientId == apiClientId)
+                .ExecuteDeleteAsync();
+            await dbContext.ApiClients
+                .Where(client => client.Id == apiClientId)
+                .ExecuteDeleteAsync();
+        });
+    }
+
+    private async Task<MiniLogistics.Domain.Common.Result<PartnerCreateShipmentResult>[]> RunConcurrentPartnerCreatesAsync(
+        PartnerCreateShipmentCommand firstCommand,
+        PartnerCreateShipmentCommand secondCommand,
+        bool synchronizeIdempotencyCheck,
+        bool synchronizeExternalOrderCheck)
+    {
+        await using var provider = CreatePartnerRaceServiceProvider(
+            synchronizeIdempotencyCheck,
+            synchronizeExternalOrderCheck);
+        return await Task.WhenAll(
+            ExecutePartnerCreateAsync(provider, firstCommand),
+            ExecutePartnerCreateAsync(provider, secondCommand));
+    }
+
+    private static async Task<MiniLogistics.Domain.Common.Result<PartnerCreateShipmentResult>> ExecutePartnerCreateAsync(
+        ServiceProvider provider,
+        PartnerCreateShipmentCommand command)
+    {
+        await using var scope = provider.CreateAsyncScope();
+        return await scope.ServiceProvider
+            .GetRequiredService<IPartnerCreateShipmentService>()
+            .CreateAsync(command);
+    }
+
+    private ServiceProvider CreatePartnerRaceServiceProvider(
+        bool synchronizeIdempotencyCheck,
+        bool synchronizeExternalOrderCheck)
+    {
+        var configuration = new ConfigurationManager();
+        configuration["ConnectionStrings:DefaultConnection"] = _fixture.ConnectionString;
+        var services = new ServiceCollection();
+        var barriers = new PartnerCreatePrecheckBarriers();
+        services.AddLogging();
+        services.AddApplication();
+        services.AddInfrastructure(configuration, registerHostedServices: false);
+        services.RemoveAll<IExternalShipmentReferenceRepository>();
+        services.AddSingleton(barriers);
+        services.AddScoped<IExternalShipmentReferenceRepository>(provider =>
+            new BarrierExternalShipmentReferenceRepository(
+                new ExternalShipmentReferenceRepository(provider.GetRequiredService<MiniLogisticsDbContext>()),
+                provider.GetRequiredService<PartnerCreatePrecheckBarriers>(),
+                synchronizeIdempotencyCheck,
+                synchronizeExternalOrderCheck));
+
+        return services.BuildServiceProvider(new ServiceProviderOptions
+        {
+            ValidateScopes = true,
+            ValidateOnBuild = false
+        });
+    }
+
+    private static PartnerCreateShipmentCommand CreatePartnerRaceCommand(
+        Guid apiClientId,
+        Guid shopId,
+        string externalOrderId,
+        string idempotencyKey,
+        decimal codAmount = 150_000m)
+    {
+        return new PartnerCreateShipmentCommand(
+            apiClientId,
+            shopId,
+            externalOrderId,
+            idempotencyKey,
+            SenderName: null,
+            SenderPhone: null,
+            ReceiverName: "Concurrent Partner Receiver",
+            ReceiverPhone: "0911111111",
+            PickupAddress: new ShipmentAddressDto("123 Nguyen Trai", "Phuong Ben Thanh", "Ho Chi Minh", "Vietnam"),
+            DeliveryAddress: new ShipmentAddressDto("9 Pho Hue", "Phuong Trang Tien", "Ha Noi", "Vietnam"),
+            WeightKg: 1.2m,
+            LengthCm: 30m,
+            WidthCm: 20m,
+            HeightCm: 15m,
+            GoodsValueAmount: 2_000_000m,
+            CodAmount: codAmount,
+            Currency: "VND",
+            Note: "Concurrent idempotency test.");
+    }
+
+    private Task AssertPartnerReferenceHasSingleCreationSideEffectAsync(
+        Guid apiClientId,
+        string? idempotencyKey = null,
+        string? externalOrderId = null)
+    {
+        return _fixture.ExecuteAsync(async services =>
+        {
+            var dbContext = services.GetRequiredService<MiniLogisticsDbContext>();
+            var references = await dbContext.ExternalShipmentReferences
+                .AsNoTracking()
+                .Where(reference => reference.ApiClientId == apiClientId
+                    && (idempotencyKey != null
+                        ? reference.IdempotencyKey == idempotencyKey
+                        : reference.ExternalOrderId == externalOrderId))
+                .ToListAsync();
+            var reference = Assert.Single(references);
+
+            Assert.Equal(1, await dbContext.Shipments.CountAsync(shipment => shipment.Id == reference.ShipmentId));
+            Assert.Equal(1, await dbContext.CodTransactions.CountAsync(cod => cod.ShipmentId == reference.ShipmentId));
+            var outboxMessages = await dbContext.OutboxMessages
+                .AsNoTracking()
+                .Where(message => message.AggregateId == reference.ShipmentId)
+                .ToListAsync();
+            Assert.Single(outboxMessages);
+            Assert.Equal(OutboxMessageTypes.WebhookShipmentCreated, outboxMessages[0].Type);
         });
     }
 
@@ -754,6 +1045,94 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
 
             return selection;
         }
+    }
+
+    private sealed class PartnerCreatePrecheckBarriers
+    {
+        private readonly RequestPrecheckBarrier _idempotencyKeyBarrier = new(2);
+        private readonly RequestPrecheckBarrier _externalOrderBarrier = new(2);
+
+        public Task WaitForIdempotencyKeyChecksAsync(CancellationToken cancellationToken) =>
+            _idempotencyKeyBarrier.SignalAndWaitAsync(cancellationToken);
+
+        public Task WaitForExternalOrderChecksAsync(CancellationToken cancellationToken) =>
+            _externalOrderBarrier.SignalAndWaitAsync(cancellationToken);
+    }
+
+    private sealed class RequestPrecheckBarrier(int participantCount)
+    {
+        private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _arrivedCount;
+
+        public async Task SignalAndWaitAsync(CancellationToken cancellationToken)
+        {
+            if (Interlocked.Increment(ref _arrivedCount) == participantCount)
+            {
+                _released.TrySetResult();
+            }
+
+            await _released.Task.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
+        }
+    }
+
+    private sealed class BarrierExternalShipmentReferenceRepository(
+        IExternalShipmentReferenceRepository inner,
+        PartnerCreatePrecheckBarriers barriers,
+        bool synchronizeIdempotencyCheck,
+        bool synchronizeExternalOrderCheck) : IExternalShipmentReferenceRepository
+    {
+        private int _hasWaitedForIdempotencyCheck;
+        private int _hasWaitedForExternalOrderCheck;
+
+        public async Task<ExternalShipmentReference?> GetByApiClientAndIdempotencyKeyAsync(
+            Guid apiClientId,
+            string idempotencyKey,
+            CancellationToken cancellationToken = default)
+        {
+            var reference = await inner.GetByApiClientAndIdempotencyKeyAsync(
+                apiClientId,
+                idempotencyKey,
+                cancellationToken);
+            if (synchronizeIdempotencyCheck && Interlocked.Exchange(ref _hasWaitedForIdempotencyCheck, 1) == 0)
+            {
+                await barriers.WaitForIdempotencyKeyChecksAsync(cancellationToken);
+            }
+
+            return reference;
+        }
+
+        public async Task<ExternalShipmentReference?> GetByApiClientAndExternalOrderIdAsync(
+            Guid apiClientId,
+            string externalOrderId,
+            CancellationToken cancellationToken = default)
+        {
+            var reference = await inner.GetByApiClientAndExternalOrderIdAsync(
+                apiClientId,
+                externalOrderId,
+                cancellationToken);
+            if (synchronizeExternalOrderCheck && Interlocked.Exchange(ref _hasWaitedForExternalOrderCheck, 1) == 0)
+            {
+                await barriers.WaitForExternalOrderChecksAsync(cancellationToken);
+            }
+
+            return reference;
+        }
+
+        public Task<ExternalShipmentReference?> GetByApiClientAndShipmentIdAsync(
+            Guid apiClientId,
+            Guid shipmentId,
+            CancellationToken cancellationToken = default) =>
+            inner.GetByApiClientAndShipmentIdAsync(apiClientId, shipmentId, cancellationToken);
+
+        public Task<ExternalShipmentReference?> GetByShipmentIdAsync(
+            Guid shipmentId,
+            CancellationToken cancellationToken = default) =>
+            inner.GetByShipmentIdAsync(shipmentId, cancellationToken);
+
+        public Task AddAsync(
+            ExternalShipmentReference reference,
+            CancellationToken cancellationToken = default) =>
+            inner.AddAsync(reference, cancellationToken);
     }
 
     private sealed record SeedCounts(

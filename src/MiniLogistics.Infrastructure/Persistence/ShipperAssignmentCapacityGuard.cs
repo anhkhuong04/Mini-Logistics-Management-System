@@ -34,13 +34,20 @@ public sealed class ShipperAssignmentCapacityGuard : IShipperAssignmentCapacityG
             return null;
         }
 
-        var transaction = await _transactionManager.BeginTransactionAsync(cancellationToken);
+        var ownsTransaction = _dbContext.Database.CurrentTransaction is null;
+        var transaction = ownsTransaction
+            ? await _transactionManager.BeginTransactionAsync(cancellationToken)
+            : null;
         try
         {
             var maximumActiveShipments = await TryLockShipperRowAsync(shipperId, cancellationToken);
             if (maximumActiveShipments is null or < 1)
             {
-                await transaction.DisposeAsync();
+                if (transaction is not null)
+                {
+                    await transaction.DisposeAsync();
+                }
+
                 return null;
             }
 
@@ -50,7 +57,11 @@ public sealed class ShipperAssignmentCapacityGuard : IShipperAssignmentCapacityG
             counts.TryGetValue(shipperId, out var activeCount);
             if (activeCount >= maximumActiveShipments.Value)
             {
-                await transaction.DisposeAsync();
+                if (transaction is not null)
+                {
+                    await transaction.DisposeAsync();
+                }
+
                 return null;
             }
 
@@ -58,7 +69,11 @@ public sealed class ShipperAssignmentCapacityGuard : IShipperAssignmentCapacityG
         }
         catch
         {
-            await transaction.DisposeAsync();
+            if (transaction is not null)
+            {
+                await transaction.DisposeAsync();
+            }
+
             throw;
         }
     }
@@ -97,11 +112,11 @@ public sealed class ShipperAssignmentCapacityGuard : IShipperAssignmentCapacityG
         }
     }
 
-    private sealed class TransactionLease(IApplicationDbTransaction transaction) : IShipperAssignmentCapacityLease
+    private sealed class TransactionLease(IApplicationDbTransaction? transaction) : IShipperAssignmentCapacityLease
     {
         public Task CommitAsync(CancellationToken cancellationToken = default) =>
-            transaction.CommitAsync(cancellationToken);
+            transaction?.CommitAsync(cancellationToken) ?? Task.CompletedTask;
 
-        public ValueTask DisposeAsync() => transaction.DisposeAsync();
+        public ValueTask DisposeAsync() => transaction?.DisposeAsync() ?? ValueTask.CompletedTask;
     }
 }

@@ -31,6 +31,7 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
     private readonly IExternalShipmentReferenceRepository _externalShipmentReferenceRepository;
     private readonly IAutoAssignShipmentService _autoAssignShipmentService;
     private readonly IWebhookEventPublisher _webhookEventPublisher;
+    private readonly IApplicationDbTransactionManager _transactionManager;
     private readonly TimeProvider _timeProvider;
 
     public PartnerCreateShipmentService(
@@ -43,6 +44,7 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
         IExternalShipmentReferenceRepository externalShipmentReferenceRepository,
         IAutoAssignShipmentService autoAssignShipmentService,
         TimeProvider timeProvider,
+        IApplicationDbTransactionManager transactionManager,
         IWebhookEventPublisher? webhookEventPublisher = null)
     {
         _validator = validator;
@@ -54,6 +56,7 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
         _externalShipmentReferenceRepository = externalShipmentReferenceRepository;
         _autoAssignShipmentService = autoAssignShipmentService;
         _timeProvider = timeProvider;
+        _transactionManager = transactionManager;
         _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
     }
 
@@ -74,20 +77,7 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
             cancellationToken);
         if (idempotentReference is not null)
         {
-            if (!string.Equals(idempotentReference.RequestHash, requestHash, StringComparison.Ordinal))
-            {
-                return Result<PartnerCreateShipmentResult>.Failure(PartnerApiErrors.IdempotencyConflict);
-            }
-
-            var snapshot = JsonSerializer.Deserialize<PartnerShipmentResponse>(
-                idempotentReference.ResponseSnapshotJson,
-                SnapshotJsonOptions);
-            if (snapshot is null)
-            {
-                return Result<PartnerCreateShipmentResult>.Failure(ApplicationErrors.Conflict("Stored idempotent response is invalid."));
-            }
-
-            return Result<PartnerCreateShipmentResult>.Success(new PartnerCreateShipmentResult(snapshot, true));
+            return CreateIdempotentReplayResult(idempotentReference, requestHash);
         }
 
         var existingExternalOrder = await _externalShipmentReferenceRepository.GetByApiClientAndExternalOrderIdAsync(
@@ -176,6 +166,7 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
             responseJson,
             now);
 
+        await using var transaction = await _transactionManager.BeginTransactionAsync(cancellationToken);
         await _shipmentRepository.AddAsync(shipment, cancellationToken);
         await _codTransactionRepository.AddAsync(codTransaction, cancellationToken);
         await _externalShipmentReferenceRepository.AddAsync(reference, cancellationToken);
@@ -184,7 +175,19 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
             reference,
             WebhookEventTypes.ShipmentCreated,
             cancellationToken);
-        await _shipmentRepository.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _shipmentRepository.SaveChangesAsync(cancellationToken);
+        }
+        catch (PartnerReferenceUniqueConstraintException exception)
+        {
+            await transaction.DisposeAsync();
+            return await ResolveUniqueConstraintConflictAsync(
+                command,
+                requestHash,
+                exception,
+                cancellationToken);
+        }
 
         await _autoAssignShipmentService.AutoAssignAsync(shipment.Id, cancellationToken);
 
@@ -197,7 +200,60 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
             await _shipmentRepository.SaveChangesAsync(cancellationToken);
         }
 
+        await transaction.CommitAsync(cancellationToken);
+
         return Result<PartnerCreateShipmentResult>.Success(new PartnerCreateShipmentResult(finalResponse, false));
+    }
+
+    private async Task<Result<PartnerCreateShipmentResult>> ResolveUniqueConstraintConflictAsync(
+        PartnerCreateShipmentCommand command,
+        string requestHash,
+        PartnerReferenceUniqueConstraintException conflict,
+        CancellationToken cancellationToken)
+    {
+        var idempotentReference = await _externalShipmentReferenceRepository.GetByApiClientAndIdempotencyKeyAsync(
+            command.ApiClientId,
+            command.IdempotencyKey,
+            cancellationToken);
+        if (idempotentReference is not null)
+        {
+            return CreateIdempotentReplayResult(idempotentReference, requestHash);
+        }
+
+        var existingExternalOrder = await _externalShipmentReferenceRepository.GetByApiClientAndExternalOrderIdAsync(
+            command.ApiClientId,
+            command.ExternalOrderId,
+            cancellationToken);
+        if (existingExternalOrder is not null)
+        {
+            return Result<PartnerCreateShipmentResult>.Failure(
+                ApplicationErrors.Conflict("External order already has a shipment."));
+        }
+
+        throw new InvalidOperationException(
+            $"Partner reference conflict {conflict.Constraint} was detected, but no winning reference could be reloaded.",
+            conflict);
+    }
+
+    private static Result<PartnerCreateShipmentResult> CreateIdempotentReplayResult(
+        ExternalShipmentReference reference,
+        string requestHash)
+    {
+        if (!string.Equals(reference.RequestHash, requestHash, StringComparison.Ordinal))
+        {
+            return Result<PartnerCreateShipmentResult>.Failure(PartnerApiErrors.IdempotencyConflict);
+        }
+
+        var snapshot = JsonSerializer.Deserialize<PartnerShipmentResponse>(
+            reference.ResponseSnapshotJson,
+            SnapshotJsonOptions);
+        if (snapshot is null)
+        {
+            return Result<PartnerCreateShipmentResult>.Failure(
+                ApplicationErrors.Conflict("Stored idempotent response is invalid."));
+        }
+
+        return Result<PartnerCreateShipmentResult>.Success(new PartnerCreateShipmentResult(snapshot, true));
     }
 
     private async Task<TrackingCode> GenerateUniqueTrackingCodeAsync(

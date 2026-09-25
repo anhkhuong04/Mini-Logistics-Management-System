@@ -1180,6 +1180,7 @@ public sealed class PartnerApiServiceTests
             referenceRepository,
             autoAssignShipmentService ?? new NoOpAutoAssignShipmentService(shipmentRepository),
             TestClock.Provider,
+            new StubApplicationDbTransactionManager(),
             webhookEventPublisher);
     }
 

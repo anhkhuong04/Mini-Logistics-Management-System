@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.SqlClient;
 using MiniLogistics.Application.Common;
+using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Shipments;
 using MiniLogistics.Domain.CashOnDelivery;
 using MiniLogistics.Domain.Shipments;
@@ -8,6 +10,9 @@ namespace MiniLogistics.Infrastructure.Persistence.Repositories;
 
 public sealed class ShipmentRepository : IShipmentRepository
 {
+    private const string IdempotencyKeyIndexName = "IX_ExternalShipmentReferences_ApiClientId_IdempotencyKey";
+    private const string ExternalOrderIdIndexName = "IX_ExternalShipmentReferences_ApiClientId_ExternalOrderId";
+
     private readonly MiniLogisticsDbContext _dbContext;
 
     public ShipmentRepository(MiniLogisticsDbContext dbContext)
@@ -466,12 +471,53 @@ public sealed class ShipmentRepository : IShipmentRepository
         {
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
+        catch (DbUpdateException exception) when (TryGetPartnerReferenceConflict(exception, out var conflict))
+        {
+            _dbContext.ChangeTracker.Clear();
+            throw new PartnerReferenceUniqueConstraintException(conflict, exception);
+        }
         catch (DbUpdateConcurrencyException exception)
         {
             throw new ConcurrencyConflictException(
                 "The shipment was updated by another operation.",
                 exception);
         }
+    }
+
+    private static bool TryGetPartnerReferenceConflict(
+        DbUpdateException exception,
+        out PartnerReferenceUniqueConstraint conflict)
+    {
+        for (Exception? current = exception.InnerException; current is not null; current = current.InnerException)
+        {
+            if (current is not SqlException sqlException)
+            {
+                continue;
+            }
+
+            foreach (SqlError sqlError in sqlException.Errors)
+            {
+                if (sqlError.Number is not (2601 or 2627))
+                {
+                    continue;
+                }
+
+                if (sqlError.Message.Contains(IdempotencyKeyIndexName, StringComparison.OrdinalIgnoreCase))
+                {
+                    conflict = PartnerReferenceUniqueConstraint.IdempotencyKey;
+                    return true;
+                }
+
+                if (sqlError.Message.Contains(ExternalOrderIdIndexName, StringComparison.OrdinalIgnoreCase))
+                {
+                    conflict = PartnerReferenceUniqueConstraint.ExternalOrderId;
+                    return true;
+                }
+            }
+        }
+
+        conflict = default;
+        return false;
     }
 
     private static int NormalizePageNumber(int pageNumber)
