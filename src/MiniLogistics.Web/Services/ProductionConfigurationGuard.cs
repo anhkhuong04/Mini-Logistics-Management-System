@@ -1,4 +1,5 @@
 using MiniLogistics.Infrastructure.PartnerApi;
+using MiniLogistics.Infrastructure.Persistence;
 
 namespace MiniLogistics.Web.Services;
 
@@ -40,6 +41,24 @@ public static class ProductionConfigurationGuard
         if (string.IsNullOrWhiteSpace(configuration.GetConnectionString("Redis")))
         {
             errors.Add("ConnectionStrings:Redis is required in production.");
+        }
+
+        var configurationCachePrefix = configuration["ConfigurationCache:KeyPrefix"];
+        if (string.IsNullOrWhiteSpace(configurationCachePrefix)
+            || string.Equals(
+                configurationCachePrefix,
+                "mini-logistics:development:configuration",
+                StringComparison.Ordinal))
+        {
+            errors.Add("ConfigurationCache:KeyPrefix must be set to an environment-specific shared Redis prefix in production.");
+        }
+
+        var configurationConsistencyWindowSeconds = configuration.GetValue<int?>(
+            "ConfigurationCache:ConsistencyWindowSeconds")
+            ?? ConfigurationCacheOptions.DefaultConsistencyWindowSeconds;
+        if (configurationConsistencyWindowSeconds is < 1 or > 300)
+        {
+            errors.Add("ConfigurationCache:ConsistencyWindowSeconds must be between 1 and 300.");
         }
 
         var dataProtection = configuration

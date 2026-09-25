@@ -152,6 +152,14 @@ public sealed class UpdateShipmentBeforePickupService : IUpdateShipmentBeforePic
             return Result<DraftShipmentResponse>.Failure(updateResult.Error);
         }
 
+        shipment.RecordAppliedConfiguration(
+            calculated.RouteClassification.PickupRouteRegionConfigId,
+            calculated.RouteClassification.PickupRouteRegionConfigVersion,
+            calculated.RouteClassification.DeliveryRouteRegionConfigId,
+            calculated.RouteClassification.DeliveryRouteRegionConfigVersion,
+            calculated.FeeQuote.FeeRuleId,
+            calculated.FeeQuote.FeeRuleVersion);
+
         if (shipment.Status == ShipmentStatus.PendingPickup)
         {
             var codTransaction = await _codTransactionRepository.GetTrackedByShipmentIdAsync(

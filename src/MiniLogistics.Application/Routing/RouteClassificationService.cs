@@ -19,21 +19,21 @@ public sealed class RouteClassificationService : IRouteClassificationService
         string deliveryProvince)
     {
         var provinceRegions = _configSource
-            .GetProvinceRegions()
+            .GetProvinceRegionSnapshot()
             .ToDictionary(
-                item => NormalizeProvinceName(item.Key),
-                item => item.Value,
+                item => NormalizeProvinceName(item.Province),
+                item => item,
                 StringComparer.OrdinalIgnoreCase);
         var pickupKey = NormalizeProvinceName(pickupProvince);
         var deliveryKey = NormalizeProvinceName(deliveryProvince);
 
-        if (!provinceRegions.TryGetValue(pickupKey, out var pickupRegion))
+        if (!provinceRegions.TryGetValue(pickupKey, out var pickupConfig))
         {
             return Result<RouteClassificationResult>.Failure(
                 RouteClassificationErrors.ProvinceNotSupported(pickupProvince));
         }
 
-        if (!provinceRegions.TryGetValue(deliveryKey, out var deliveryRegion))
+        if (!provinceRegions.TryGetValue(deliveryKey, out var deliveryConfig))
         {
             return Result<RouteClassificationResult>.Failure(
                 RouteClassificationErrors.ProvinceNotSupported(deliveryProvince));
@@ -41,14 +41,18 @@ public sealed class RouteClassificationService : IRouteClassificationService
 
         var routeType = pickupKey == deliveryKey
             ? RouteType.IntraProvince
-            : pickupRegion == deliveryRegion
+            : pickupConfig.Region == deliveryConfig.Region
                 ? RouteType.IntraRegion
                 : RouteType.InterRegion;
 
         return Result<RouteClassificationResult>.Success(new RouteClassificationResult(
             routeType,
-            pickupRegion,
-            deliveryRegion));
+            pickupConfig.Region,
+            deliveryConfig.Region,
+            pickupConfig.ConfigurationId,
+            pickupConfig.Version,
+            deliveryConfig.ConfigurationId,
+            deliveryConfig.Version));
     }
 
     private static string NormalizeProvinceName(string value)

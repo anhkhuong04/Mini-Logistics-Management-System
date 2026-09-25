@@ -28,6 +28,7 @@ public sealed class ProductionConfigurationGuardTests
         configuration["PartnerApi:Environment"] = "Sandbox";
         configuration["DataProtection:ApplicationName"] = "MiniLogistics";
         configuration["DataProtection:KeysPath"] = string.Empty;
+        configuration["ConfigurationCache:KeyPrefix"] = string.Empty;
         configuration["AllowedHosts"] = "*";
 
         var exception = Assert.Throws<InvalidOperationException>(() =>
@@ -37,6 +38,7 @@ public sealed class ProductionConfigurationGuardTests
                 "Memory"));
 
         Assert.Contains("PartnerApi:Environment", exception.Message, StringComparison.Ordinal);
+        Assert.Contains("ConfigurationCache:KeyPrefix", exception.Message, StringComparison.Ordinal);
         Assert.Contains("RateLimiting:Mode", exception.Message, StringComparison.Ordinal);
         Assert.Contains("DataProtection:ApplicationName", exception.Message, StringComparison.Ordinal);
         Assert.Contains("DataProtection:KeysPath", exception.Message, StringComparison.Ordinal);
@@ -51,6 +53,8 @@ public sealed class ProductionConfigurationGuardTests
         configuration["PartnerApi:Environment"] = "Live";
         configuration["ConnectionStrings:DefaultConnection"] = "Server=sql.internal;Database=MiniLogisticsProduction;User Id=app;Password=secret";
         configuration["ConnectionStrings:Redis"] = "redis.internal:6379";
+        configuration["ConfigurationCache:KeyPrefix"] = "mini-logistics:production:configuration";
+        configuration["ConfigurationCache:ConsistencyWindowSeconds"] = "15";
         configuration["DataProtection:ApplicationName"] = "MiniLogistics-Production";
         configuration["DataProtection:KeysPath"] = "/mnt/keys";
         configuration["DataProtection:CertificatePath"] = "/mnt/secrets/key-ring.pfx";

@@ -1,6 +1,7 @@
 using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.AdminHubs.CreateHub;
 using MiniLogistics.Application.AdminHubs.SetHubActiveStatus;
+using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.Shippers;
 using MiniLogistics.Domain.Common;
@@ -24,6 +25,8 @@ public sealed class AdminHubManagementTests
             CreateIdentityService(),
             new FakeHubRepository([existingHub]),
             TestClock.Provider,
+            new FakeTransactionManager(),
+            new FakeHubCacheInvalidator(),
             new FakeAdminAuditService());
 
         var result = await service.CreateAsync(new CreateHubCommand(
@@ -44,11 +47,14 @@ public sealed class AdminHubManagementTests
     public async Task CreateHub_WritesAuditLog()
     {
         var auditService = new FakeAdminAuditService();
+        var cacheInvalidator = new FakeHubCacheInvalidator();
         var service = new CreateHubService(
             new CreateHubCommandValidator(),
             CreateIdentityService(),
             new FakeHubRepository([]),
             TestClock.Provider,
+            new FakeTransactionManager(),
+            cacheInvalidator,
             auditService);
 
         var result = await service.CreateAsync(new CreateHubCommand(
@@ -67,6 +73,7 @@ public sealed class AdminHubManagementTests
         Assert.Equal(AdminAuditActions.HubCreated, auditEntry.Action);
         Assert.Equal(AdminAuditTargetTypes.Hub, auditEntry.TargetType);
         Assert.Equal(result.Value.HubId, auditEntry.TargetId);
+        Assert.Equal(1, cacheInvalidator.InvalidationCount);
     }
 
     [Fact]
@@ -83,6 +90,8 @@ public sealed class AdminHubManagementTests
             hubRepository,
             workingAreaRepository,
             TestClock.Provider,
+            new FakeTransactionManager(),
+            new FakeHubCacheInvalidator(),
             auditService);
 
         var result = await service.SetAsync(new SetHubActiveStatusCommand(
@@ -123,6 +132,30 @@ public sealed class AdminHubManagementTests
 
         public Task SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+            return Task.CompletedTask;
+        }
+    }
+
+    private sealed class FakeTransactionManager : IApplicationDbTransactionManager
+    {
+        public Task<IApplicationDbTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IApplicationDbTransaction>(new FakeTransaction());
+
+        private sealed class FakeTransaction : IApplicationDbTransaction
+        {
+            public Task CommitAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class FakeHubCacheInvalidator : IHubCacheInvalidator
+    {
+        public int InvalidationCount { get; private set; }
+
+        public Task InvalidateAsync(CancellationToken cancellationToken = default)
+        {
+            InvalidationCount++;
             return Task.CompletedTask;
         }
     }

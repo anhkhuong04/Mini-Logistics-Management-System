@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Localization;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using MiniLogistics.Application;
 using MiniLogistics.Application.Authorization;
 using MiniLogistics.Application.PartnerApi;
@@ -192,7 +193,7 @@ if (string.Equals(partnerRateLimitMode, "Redis", StringComparison.OrdinalIgnoreC
     var redisConfiguration = ConfigurationOptions.Parse(redisConnectionString);
     redisConfiguration.AbortOnConnectFail = false;
     redisConfiguration.ConnectRetry = 2;
-    builder.Services.AddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConfiguration));
+    builder.Services.TryAddSingleton<IConnectionMultiplexer>(_ => ConnectionMultiplexer.Connect(redisConfiguration));
     builder.Services.AddSingleton<IRedisRateLimitStore, RedisRateLimitStore>();
     builder.Services.AddSingleton<IPartnerApiRateLimiter, RedisPartnerApiRateLimiter>();
     healthChecks.AddCheck<RedisHealthCheck>("redis", tags: ["ready"]);

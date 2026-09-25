@@ -15,6 +15,15 @@ public sealed class RouteRegionConfigRepository : IRouteRegionConfigRepository
 
     public IReadOnlyDictionary<string, string> GetProvinceRegions()
     {
+        return GetProvinceRegionSnapshot()
+            .ToDictionary(
+                config => config.Province,
+                config => config.Region,
+                StringComparer.OrdinalIgnoreCase);
+    }
+
+    public IReadOnlyList<RouteRegionSourceEntry> GetProvinceRegionSnapshot()
+    {
         var activeConfigs = _dbContext.RouteRegionConfigs
             .AsNoTracking()
             .Where(config => config.IsActive)
@@ -23,15 +32,16 @@ public sealed class RouteRegionConfigRepository : IRouteRegionConfigRepository
 
         if (activeConfigs.Count == 0)
         {
-            return DefaultRouteRegionConfigSource.Instance.GetProvinceRegions();
+            return DefaultRouteRegionConfigSource.Instance.GetProvinceRegionSnapshot();
         }
 
         return activeConfigs
-            .GroupBy(config => config.Province, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(
-                group => group.Key,
-                group => group.OrderByDescending(config => config.Version).First().Region,
-                StringComparer.OrdinalIgnoreCase);
+            .Select(config => new RouteRegionSourceEntry(
+                config.Province,
+                config.Region,
+                config.Id,
+                config.Version))
+            .ToList();
     }
 
     public async Task<IReadOnlyList<RouteRegionConfig>> GetAllAsync(

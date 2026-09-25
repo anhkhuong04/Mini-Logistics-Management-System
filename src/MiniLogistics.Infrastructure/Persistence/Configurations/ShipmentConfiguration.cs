@@ -1,5 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
+using MiniLogistics.Domain.Fees;
+using MiniLogistics.Domain.Operations;
 using MiniLogistics.Domain.Shipments;
 using MiniLogistics.Domain.Shops;
 using MiniLogistics.Domain.ValueObjects;
@@ -208,6 +210,21 @@ public sealed class ShipmentConfiguration : IEntityTypeConfiguration<Shipment>
             .HasConversion<string>()
             .HasMaxLength(50)
             .IsRequired();
+
+        builder.HasOne<RouteRegionConfig>()
+            .WithMany()
+            .HasForeignKey(shipment => shipment.PickupRouteRegionConfigId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.HasOne<RouteRegionConfig>()
+            .WithMany()
+            .HasForeignKey(shipment => shipment.DeliveryRouteRegionConfigId)
+            .OnDelete(DeleteBehavior.NoAction);
+
+        builder.HasOne<FeeRule>()
+            .WithMany()
+            .HasForeignKey(shipment => shipment.AppliedFeeRuleId)
+            .OnDelete(DeleteBehavior.NoAction);
 
         builder.Property(shipment => shipment.Note)
             .HasMaxLength(500);

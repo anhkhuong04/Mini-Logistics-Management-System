@@ -147,7 +147,7 @@ public sealed class AdminSystemConfigurationService : IAdminSystemConfigurationS
                 cancellationToken);
             await _routeRegionConfigRepository.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
-            _routeCacheInvalidator.Invalidate();
+            await _routeCacheInvalidator.InvalidateAsync(CancellationToken.None);
 
             return Result<RouteRegionConfigResponse>.Success(ToResponse(config));
         }
@@ -232,7 +232,7 @@ public sealed class AdminSystemConfigurationService : IAdminSystemConfigurationS
                 cancellationToken);
             await _feeConfigurationRepository.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
-            _feeRuleCache.Invalidate();
+            await _feeRuleCache.InvalidateAsync(CancellationToken.None);
 
             return Result<FeeRuleConfigResponse>.Success(ToResponse(newRule));
         }

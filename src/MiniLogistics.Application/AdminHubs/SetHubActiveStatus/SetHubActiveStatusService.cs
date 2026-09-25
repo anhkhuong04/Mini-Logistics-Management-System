@@ -15,6 +15,8 @@ public sealed class SetHubActiveStatusService : ISetHubActiveStatusService
     private readonly IValidator<SetHubActiveStatusCommand> _validator;
     private readonly IIdentityService _identityService;
     private readonly IHubRepository _hubRepository;
+    private readonly IApplicationDbTransactionManager _transactionManager;
+    private readonly IHubCacheInvalidator _hubCacheInvalidator;
     private readonly IShipperWorkingAreaRepository _workingAreaRepository;
     private readonly IAdminAuditService _adminAuditService;
     private readonly TimeProvider _timeProvider;
@@ -25,11 +27,15 @@ public sealed class SetHubActiveStatusService : ISetHubActiveStatusService
         IHubRepository hubRepository,
         IShipperWorkingAreaRepository workingAreaRepository,
         TimeProvider timeProvider,
+        IApplicationDbTransactionManager transactionManager,
+        IHubCacheInvalidator hubCacheInvalidator,
         IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _hubRepository = hubRepository;
+        _transactionManager = transactionManager;
+        _hubCacheInvalidator = hubCacheInvalidator;
         _workingAreaRepository = workingAreaRepository;
         _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
@@ -55,6 +61,7 @@ public sealed class SetHubActiveStatusService : ISetHubActiveStatusService
             return Result<AdminHubResponse>.Failure(authorizationResult.Error);
         }
 
+        await using var transaction = await _transactionManager.BeginTransactionAsync(cancellationToken);
         var hub = await _hubRepository.GetByIdAsync(command.HubId, cancellationToken);
         if (hub is null)
         {
@@ -96,6 +103,8 @@ public sealed class SetHubActiveStatusService : ISetHubActiveStatusService
             cancellationToken);
         await _hubRepository.SaveChangesAsync(cancellationToken);
 
+        await transaction.CommitAsync(cancellationToken);
+        await _hubCacheInvalidator.InvalidateAsync(CancellationToken.None);
         return Result<AdminHubResponse>.Success(
             GetAdminHubsService.ToResponse(hub, activeWorkingAreaCount));
     }

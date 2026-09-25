@@ -154,7 +154,11 @@ public sealed class FeeRule : AuditableEntity
             request.ChargeableWeightKg,
             BaseWeightKg,
             ExtraWeightStepKg,
-            extraBlocks);
+            extraBlocks)
+        {
+            FeeRuleId = Id,
+            FeeRuleVersion = Version
+        };
     }
 
     public void Activate(DateTimeOffset updatedAtUtc)

@@ -38,6 +38,26 @@ public sealed class SystemConfigurationP3Tests
     }
 
     [Fact]
+    public void RouteClassification_CapturesVersionedRouteInputsFromOneSourceSnapshot()
+    {
+        var pickupConfigId = Guid.NewGuid();
+        var deliveryConfigId = Guid.NewGuid();
+        var service = new RouteClassificationService(new VersionedRouteRegionConfigSource(
+        [
+            new RouteRegionSourceEntry("Province A", "Region One", pickupConfigId, 7),
+            new RouteRegionSourceEntry("Province B", "Region Two", deliveryConfigId, 4)
+        ]));
+
+        var result = service.Classify("Province A", "Province B");
+
+        Assert.True(result.IsSuccess, result.Error.Description);
+        Assert.Equal(pickupConfigId, result.Value.PickupRouteRegionConfigId);
+        Assert.Equal(7, result.Value.PickupRouteRegionConfigVersion);
+        Assert.Equal(deliveryConfigId, result.Value.DeliveryRouteRegionConfigId);
+        Assert.Equal(4, result.Value.DeliveryRouteRegionConfigVersion);
+    }
+
+    [Fact]
     public async Task CreateFeeRuleVersion_DeactivatesOldRulesAndWritesAudit()
     {
         var oldRule = new FeeRule(
@@ -144,7 +164,11 @@ public sealed class SystemConfigurationP3Tests
     {
         public int InvalidationCount { get; private set; }
 
-        public void Invalidate() => InvalidationCount++;
+        public Task InvalidateAsync(CancellationToken cancellationToken = default)
+        {
+            InvalidationCount++;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class FakeFeeRuleCache : IFeeRuleCache
@@ -163,10 +187,11 @@ public sealed class SystemConfigurationP3Tests
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyCollection<FeeRule>>([]);
 
-        public void Invalidate()
+        public Task InvalidateAsync(CancellationToken cancellationToken = default)
         {
             InvalidationCount++;
             _timeline.Add("invalidate");
+            return Task.CompletedTask;
         }
     }
 
@@ -183,6 +208,21 @@ public sealed class SystemConfigurationP3Tests
         {
             return _provinceRegions;
         }
+    }
+
+    private sealed class VersionedRouteRegionConfigSource : IRouteRegionConfigSource
+    {
+        private readonly IReadOnlyList<RouteRegionSourceEntry> _entries;
+
+        public VersionedRouteRegionConfigSource(IReadOnlyList<RouteRegionSourceEntry> entries)
+        {
+            _entries = entries;
+        }
+
+        public IReadOnlyDictionary<string, string> GetProvinceRegions() => _entries
+            .ToDictionary(entry => entry.Province, entry => entry.Region);
+
+        public IReadOnlyList<RouteRegionSourceEntry> GetProvinceRegionSnapshot() => _entries;
     }
 
     private sealed class FakeIdentityService : IIdentityService

@@ -179,6 +179,13 @@ public sealed class CreateShipmentService : ICreateShipmentService
             now,
             command.Note,
             trackingCode);
+        shipment.RecordAppliedConfiguration(
+            routeClassificationResult.Value.PickupRouteRegionConfigId,
+            routeClassificationResult.Value.PickupRouteRegionConfigVersion,
+            routeClassificationResult.Value.DeliveryRouteRegionConfigId,
+            routeClassificationResult.Value.DeliveryRouteRegionConfigVersion,
+            shippingFeeResult.Value.FeeRuleId,
+            shippingFeeResult.Value.FeeRuleVersion);
         var codTransaction = CodTransaction.Create(shipment.Id, codAmount, now);
 
         await _shipmentRepository.AddAsync(shipment, cancellationToken);

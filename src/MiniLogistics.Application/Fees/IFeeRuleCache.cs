@@ -5,5 +5,5 @@ namespace MiniLogistics.Application.Fees;
 /// </summary>
 public interface IFeeRuleCache : IFeeRuleRepository
 {
-    void Invalidate();
+    Task InvalidateAsync(CancellationToken cancellationToken = default);
 }

@@ -117,6 +117,14 @@ public sealed class SubmitDraftShipmentService : ISubmitDraftShipmentService
             return Result<DraftShipmentResponse>.Failure(updateResult.Error);
         }
 
+        shipment.RecordAppliedConfiguration(
+            calculated.RouteClassification.PickupRouteRegionConfigId,
+            calculated.RouteClassification.PickupRouteRegionConfigVersion,
+            calculated.RouteClassification.DeliveryRouteRegionConfigId,
+            calculated.RouteClassification.DeliveryRouteRegionConfigVersion,
+            calculated.FeeQuote.FeeRuleId,
+            calculated.FeeQuote.FeeRuleVersion);
+
         var submitResult = shipment.SubmitDraft(command.UserId, now);
         if (submitResult.IsFailure)
         {

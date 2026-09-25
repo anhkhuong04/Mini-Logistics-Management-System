@@ -7,7 +7,7 @@ Mini Logistics is a logistics operations modular monolith. It supports Shop ship
 - Runtime: .NET 10, ASP.NET Core Blazor Web App with Interactive Server components.
 - Data: SQL Server/LocalDB, EF Core Code First, ASP.NET Core Identity.
 - Validation/testing: FluentValidation and xUnit.
-- Distributed production concerns: Redis partner rate limiting, persisted Data Protection keys, hosted outbox/webhook/import/retention workers.
+- Distributed production concerns: Redis partner rate limiting and configuration-cache generations, shared persisted Data Protection keys, hosted outbox/webhook/import/retention workers.
 - Logging uses `Microsoft.Extensions.Logging`; Serilog is not installed.
 
 ## Projects and dependency direction

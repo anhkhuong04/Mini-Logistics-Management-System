@@ -1,16 +1,27 @@
 namespace MiniLogistics.Application.Routing;
 
+public sealed record RouteRegionSourceEntry(
+    string Province,
+    string Region,
+    Guid? ConfigurationId = null,
+    int? Version = null);
+
 /// <summary>
 /// Defines read access to Route Region Config Source data.
 /// </summary>
 public interface IRouteRegionConfigSource
 {
     IReadOnlyDictionary<string, string> GetProvinceRegions();
+
+    IReadOnlyList<RouteRegionSourceEntry> GetProvinceRegionSnapshot() => GetProvinceRegions()
+        .Select(entry => new RouteRegionSourceEntry(entry.Key, entry.Value))
+        .ToList();
 }
 
 public sealed class DefaultRouteRegionConfigSource : IRouteRegionConfigSource
 {
     public static readonly DefaultRouteRegionConfigSource Instance = new();
+    public const int DefaultSourceVersion = 1;
 
     private static readonly IReadOnlyDictionary<string, string> ProvinceRegions = BuildProvinceRegions();
 
@@ -22,6 +33,14 @@ public sealed class DefaultRouteRegionConfigSource : IRouteRegionConfigSource
     {
         return ProvinceRegions;
     }
+
+    public IReadOnlyList<RouteRegionSourceEntry> GetProvinceRegionSnapshot() => ProvinceRegions
+        .Select(entry => new RouteRegionSourceEntry(
+            entry.Key,
+            entry.Value,
+            ConfigurationId: null,
+            Version: DefaultSourceVersion))
+        .ToList();
 
     private static IReadOnlyDictionary<string, string> BuildProvinceRegions()
     {

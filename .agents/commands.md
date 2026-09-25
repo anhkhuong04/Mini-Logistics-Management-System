@@ -7,6 +7,7 @@ Run commands from the repository root. Use the solution file, not the stray root
 - .NET 10 SDK.
 - SQL Server LocalDB for Infrastructure integration tests and the default development connection. These tests are Windows-specific today.
 - Redis and production-grade SQL/Data Protection configuration only when validating production mode.
+- In production, `ConfigurationCache:KeyPrefix` must be unique to the environment and shared by all nodes; `ConsistencyWindowSeconds` bounds local cache fallback staleness (default 15 seconds).
 
 ## Restore, build and test
 

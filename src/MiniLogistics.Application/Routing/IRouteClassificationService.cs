@@ -16,4 +16,8 @@ public interface IRouteClassificationService
 public sealed record RouteClassificationResult(
     RouteType RouteType,
     string PickupRegion,
-    string DeliveryRegion);
+    string DeliveryRegion,
+    Guid? PickupRouteRegionConfigId = null,
+    int? PickupRouteRegionConfigVersion = null,
+    Guid? DeliveryRouteRegionConfigId = null,
+    int? DeliveryRouteRegionConfigVersion = null);

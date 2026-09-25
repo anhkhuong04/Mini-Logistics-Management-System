@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography.X509Certificates;
+using StackExchange.Redis;
 using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.AdminCod;
 using MiniLogistics.Application.AdminDashboard;
@@ -50,6 +52,34 @@ public static class DependencyInjection
                 connectionString,
                 sqlOptions => sqlOptions.MigrationsAssembly(typeof(MiniLogisticsDbContext).Assembly.FullName));
         });
+        services.AddOptions<ConfigurationCacheOptions>()
+            .Bind(configuration.GetSection(ConfigurationCacheOptions.SectionName))
+            .Validate(options => !string.IsNullOrWhiteSpace(options.KeyPrefix),
+                "ConfigurationCache:KeyPrefix is required.")
+            .Validate(options => options.ConsistencyWindowSeconds is >= 1 and <= 300,
+                "ConfigurationCache:ConsistencyWindowSeconds must be between 1 and 300.")
+            .ValidateOnStart();
+
+        var configurationCacheUsesRedis = string.Equals(
+            configuration["PartnerApi:RateLimiting:Mode"],
+            "Redis",
+            StringComparison.OrdinalIgnoreCase);
+        if (configurationCacheUsesRedis)
+        {
+            var redisConnectionString = configuration.GetConnectionString("Redis")
+                ?? throw new InvalidOperationException(
+                    "Connection string 'Redis' is required when configuration caches use Redis.");
+            var redisConfiguration = ConfigurationOptions.Parse(redisConnectionString);
+            redisConfiguration.AbortOnConnectFail = false;
+            redisConfiguration.ConnectRetry = 2;
+            services.TryAddSingleton<IConnectionMultiplexer>(
+                _ => ConnectionMultiplexer.Connect(redisConfiguration));
+            services.AddSingleton<IConfigurationCacheVersionStore, RedisConfigurationCacheVersionStore>();
+        }
+        else
+        {
+            services.AddSingleton<IConfigurationCacheVersionStore, InMemoryConfigurationCacheVersionStore>();
+        }
         services.Configure<SeedingOptions>(
             configuration.GetSection(SeedingOptions.SectionName));
         services
@@ -123,6 +153,8 @@ public static class DependencyInjection
         services.AddScoped<IShopRepository, ShopRepository>();
         services.AddScoped<HubRepository>();
         services.AddScoped<IHubRepository, CachedHubRepository>();
+        services.AddScoped<IHubCacheInvalidator>(provider =>
+            (CachedHubRepository)provider.GetRequiredService<IHubRepository>());
         services.AddScoped<RouteRegionConfigRepository>();
         services.AddScoped<IRouteRegionConfigRepository, CachedRouteRegionConfigRepository>();
         services.AddScoped<IRouteRegionConfigSource>(provider => provider.GetRequiredService<IRouteRegionConfigRepository>());

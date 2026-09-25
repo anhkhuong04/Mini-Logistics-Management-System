@@ -8,7 +8,7 @@ Mini Logistics is a .NET 10 modular monolith for small-parcel shipment operation
 - Entity Framework Core with SQL Server
 - ASP.NET Core Identity and policy/application authorization
 - FluentValidation and xUnit
-- Redis for production Partner API rate limiting
+- Redis for production Partner API rate limiting and shared configuration-cache generations
 
 ## Quick start
 
@@ -21,6 +21,8 @@ dotnet run --project src/MiniLogistics.Web -p:OpenApiGenerateDocuments=false
 ```
 
 The HTTPS launch profile uses `https://localhost:7195`. LocalDB is configured in `src/MiniLogistics.Web/appsettings.Development.json`; use local environment/provider configuration for overrides and secrets.
+
+Production requires Redis plus an environment-specific `ConfigurationCache:KeyPrefix` shared by all web nodes. `ConfigurationCache:ConsistencyWindowSeconds` defaults to 15 seconds and bounds how long a local snapshot can remain when shared invalidation cannot be published.
 
 Demo data is opt-in and requires local credentials. See [Local development](docs/development/local-development.md#optional-demo-seed).
 

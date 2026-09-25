@@ -16,6 +16,8 @@ public sealed class UpdateHubService : IUpdateHubService
     private readonly IValidator<UpdateHubCommand> _validator;
     private readonly IIdentityService _identityService;
     private readonly IHubRepository _hubRepository;
+    private readonly IApplicationDbTransactionManager _transactionManager;
+    private readonly IHubCacheInvalidator _hubCacheInvalidator;
     private readonly IShipperWorkingAreaRepository _workingAreaRepository;
     private readonly IAdminAuditService _adminAuditService;
     private readonly TimeProvider _timeProvider;
@@ -26,11 +28,15 @@ public sealed class UpdateHubService : IUpdateHubService
         IHubRepository hubRepository,
         IShipperWorkingAreaRepository workingAreaRepository,
         TimeProvider timeProvider,
+        IApplicationDbTransactionManager transactionManager,
+        IHubCacheInvalidator hubCacheInvalidator,
         IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _hubRepository = hubRepository;
+        _transactionManager = transactionManager;
+        _hubCacheInvalidator = hubCacheInvalidator;
         _workingAreaRepository = workingAreaRepository;
         _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
@@ -56,6 +62,7 @@ public sealed class UpdateHubService : IUpdateHubService
             return Result<AdminHubResponse>.Failure(authorizationResult.Error);
         }
 
+        await using var transaction = await _transactionManager.BeginTransactionAsync(cancellationToken);
         var hub = await _hubRepository.GetByIdAsync(command.HubId, cancellationToken);
         if (hub is null)
         {
@@ -94,6 +101,8 @@ public sealed class UpdateHubService : IUpdateHubService
         var activeWorkingAreaCount = await _workingAreaRepository.CountActiveByHubIdAsync(
             hub.Id,
             cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+        await _hubCacheInvalidator.InvalidateAsync(CancellationToken.None);
         return Result<AdminHubResponse>.Success(
             GetAdminHubsService.ToResponse(hub, activeWorkingAreaCount));
     }

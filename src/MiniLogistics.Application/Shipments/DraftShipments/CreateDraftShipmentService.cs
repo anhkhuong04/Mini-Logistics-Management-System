@@ -128,6 +128,13 @@ public sealed class CreateDraftShipmentService : ICreateDraftShipmentService
             now,
             normalizedCommand.Note,
             trackingCode);
+        shipment.RecordAppliedConfiguration(
+            calculated.RouteClassification.PickupRouteRegionConfigId,
+            calculated.RouteClassification.PickupRouteRegionConfigVersion,
+            calculated.RouteClassification.DeliveryRouteRegionConfigId,
+            calculated.RouteClassification.DeliveryRouteRegionConfigVersion,
+            calculated.FeeQuote.FeeRuleId,
+            calculated.FeeQuote.FeeRuleVersion);
 
         await _shipmentRepository.AddAsync(shipment, cancellationToken);
         await _adminAuditService.RecordAsync(

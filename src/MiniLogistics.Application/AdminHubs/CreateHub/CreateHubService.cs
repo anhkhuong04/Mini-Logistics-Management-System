@@ -16,6 +16,8 @@ public sealed class CreateHubService : ICreateHubService
     private readonly IValidator<CreateHubCommand> _validator;
     private readonly IIdentityService _identityService;
     private readonly IHubRepository _hubRepository;
+    private readonly IApplicationDbTransactionManager _transactionManager;
+    private readonly IHubCacheInvalidator _hubCacheInvalidator;
     private readonly IAdminAuditService _adminAuditService;
     private readonly TimeProvider _timeProvider;
 
@@ -24,11 +26,15 @@ public sealed class CreateHubService : ICreateHubService
         IIdentityService identityService,
         IHubRepository hubRepository,
         TimeProvider timeProvider,
+        IApplicationDbTransactionManager transactionManager,
+        IHubCacheInvalidator hubCacheInvalidator,
         IAdminAuditService? adminAuditService = null)
     {
         _validator = validator;
         _identityService = identityService;
         _hubRepository = hubRepository;
+        _transactionManager = transactionManager;
+        _hubCacheInvalidator = hubCacheInvalidator;
         _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
@@ -69,17 +75,23 @@ public sealed class CreateHubService : ICreateHubService
             command.IsRegionalSortingHub,
             command.Country);
 
-        await _hubRepository.AddAsync(hub, cancellationToken);
-        await _adminAuditService.RecordAsync(
-            new AdminAuditEntry(
-                command.RequestedByUserId,
-                AdminAuditActions.HubCreated,
-                AdminAuditTargetTypes.Hub,
-                hub.Id,
-                NewValue: ToAuditValue(hub),
-                ActorRole: nameof(UserRole.Admin)),
-            cancellationToken);
-        await _hubRepository.SaveChangesAsync(cancellationToken);
+        await using (var transaction = await _transactionManager.BeginTransactionAsync(cancellationToken))
+        {
+            await _hubRepository.AddAsync(hub, cancellationToken);
+            await _adminAuditService.RecordAsync(
+                new AdminAuditEntry(
+                    command.RequestedByUserId,
+                    AdminAuditActions.HubCreated,
+                    AdminAuditTargetTypes.Hub,
+                    hub.Id,
+                    NewValue: ToAuditValue(hub),
+                    ActorRole: nameof(UserRole.Admin)),
+                cancellationToken);
+            await _hubRepository.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+
+        await _hubCacheInvalidator.InvalidateAsync(CancellationToken.None);
 
         return Result<AdminHubResponse>.Success(GetAdminHubsService.ToResponse(hub, 0));
     }

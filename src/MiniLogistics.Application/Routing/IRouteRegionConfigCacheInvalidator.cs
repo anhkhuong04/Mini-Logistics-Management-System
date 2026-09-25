@@ -5,5 +5,5 @@ namespace MiniLogistics.Application.Routing;
 /// </summary>
 public interface IRouteRegionConfigCacheInvalidator
 {
-    void Invalidate();
+    Task InvalidateAsync(CancellationToken cancellationToken = default);
 }

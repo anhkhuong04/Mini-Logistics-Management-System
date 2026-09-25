@@ -14,6 +14,10 @@ public sealed record ShippingFeeQuote(
     decimal ExtraWeightStepKg,
     int ExtraWeightBlocks)
 {
+    public Guid? FeeRuleId { get; init; }
+
+    public int? FeeRuleVersion { get; init; }
+
     public Money BaseFee => Breakdown.BaseFee;
 
     public Money ExtraWeightFee => Breakdown.ExtraWeightFee;

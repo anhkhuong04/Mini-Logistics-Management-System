@@ -152,6 +152,13 @@ public sealed class PartnerCreateShipmentService : IPartnerCreateShipmentService
             now,
             command.Note,
             trackingCode);
+        shipment.RecordAppliedConfiguration(
+            routeResult.Value.PickupRouteRegionConfigId,
+            routeResult.Value.PickupRouteRegionConfigVersion,
+            routeResult.Value.DeliveryRouteRegionConfigId,
+            routeResult.Value.DeliveryRouteRegionConfigVersion,
+            feeResult.Value.FeeRuleId,
+            feeResult.Value.FeeRuleVersion);
         var codTransaction = CodTransaction.Create(shipment.Id, codAmount, now);
 
         var response = ToResponse(shipment, command.ExternalOrderId);

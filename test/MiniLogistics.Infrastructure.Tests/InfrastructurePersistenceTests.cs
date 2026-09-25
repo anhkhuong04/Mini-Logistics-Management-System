@@ -766,6 +766,13 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
             Assert.Equal(createResult.Value.InsuranceFeeAmount, shipment.ShippingFeeBreakdown.InsuranceFee.Amount);
             Assert.Equal(createResult.Value.ReturnFeeAmount, shipment.ShippingFeeBreakdown.ReturnFee.Amount);
             Assert.Equal(createResult.Value.ShippingFeeAmount, shipment.ShippingFee.Amount);
+            Assert.NotNull(shipment.AppliedFeeRuleId);
+            Assert.True(shipment.AppliedFeeRuleVersion > 0);
+            Assert.True(shipment.PickupRouteRegionConfigVersion > 0);
+            Assert.True(shipment.DeliveryRouteRegionConfigVersion > 0);
+            var appliedFeeRule = await dbContext.FeeRules
+                .SingleAsync(rule => rule.Id == shipment.AppliedFeeRuleId);
+            Assert.Equal(shipment.AppliedFeeRuleVersion, appliedFeeRule.Version);
             Assert.Contains(shipment.Assignments, assignment =>
                 assignment.IsActive && assignment.ShipperId == DemoShipperUserId);
             Assert.Equal(CodStatus.PendingCollection, codTransaction.Status);

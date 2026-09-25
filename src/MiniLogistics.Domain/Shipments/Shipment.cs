@@ -112,6 +112,18 @@ public sealed class Shipment : AuditableEntity
 
     public RouteType RouteType { get; private set; }
 
+    public Guid? PickupRouteRegionConfigId { get; private set; }
+
+    public int? PickupRouteRegionConfigVersion { get; private set; }
+
+    public Guid? DeliveryRouteRegionConfigId { get; private set; }
+
+    public int? DeliveryRouteRegionConfigVersion { get; private set; }
+
+    public Guid? AppliedFeeRuleId { get; private set; }
+
+    public int? AppliedFeeRuleVersion { get; private set; }
+
     public string? Note { get; private set; }
 
     public ShipmentStatus Status { get; private set; }
@@ -119,6 +131,34 @@ public sealed class Shipment : AuditableEntity
     public IReadOnlyCollection<ShipmentAssignment> Assignments => _assignments.AsReadOnly();
 
     public IReadOnlyCollection<ShipmentStatusHistory> StatusHistory => _statusHistory.AsReadOnly();
+
+    public void RecordAppliedConfiguration(
+        Guid? pickupRouteRegionConfigId,
+        int? pickupRouteRegionConfigVersion,
+        Guid? deliveryRouteRegionConfigId,
+        int? deliveryRouteRegionConfigVersion,
+        Guid? feeRuleId,
+        int? feeRuleVersion)
+    {
+        ValidateConfigurationReference(pickupRouteRegionConfigId, pickupRouteRegionConfigVersion, "pickup route");
+        ValidateConfigurationReference(deliveryRouteRegionConfigId, deliveryRouteRegionConfigVersion, "delivery route");
+        ValidateConfigurationReference(feeRuleId, feeRuleVersion, "fee rule");
+
+        PickupRouteRegionConfigId = pickupRouteRegionConfigId;
+        PickupRouteRegionConfigVersion = pickupRouteRegionConfigVersion;
+        DeliveryRouteRegionConfigId = deliveryRouteRegionConfigId;
+        DeliveryRouteRegionConfigVersion = deliveryRouteRegionConfigVersion;
+        AppliedFeeRuleId = feeRuleId;
+        AppliedFeeRuleVersion = feeRuleVersion;
+    }
+
+    private static void ValidateConfigurationReference(Guid? id, int? version, string name)
+    {
+        if (id == Guid.Empty || (id.HasValue && version is null or <= 0))
+        {
+            throw new DomainException($"A valid identifier and version are required for the applied {name} configuration.");
+        }
+    }
 
     public static Shipment Create(
         Guid shopId,

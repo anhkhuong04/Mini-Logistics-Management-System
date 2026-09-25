@@ -103,7 +103,9 @@ internal static class DraftShipmentMapping
             goodsValue,
             codAmount,
             feeResult.Value.Breakdown,
-            routeClassificationResult.Value.RouteType));
+            routeClassificationResult.Value.RouteType,
+            routeClassificationResult.Value,
+            feeResult.Value));
     }
 
     public static DraftShipmentResponse ToResponse(
@@ -143,4 +145,6 @@ internal sealed record DraftShipmentCalculatedValues(
     Money GoodsValue,
     Money CodAmount,
     ShippingFeeBreakdown ShippingFeeBreakdown,
-    RouteType RouteType);
+    RouteType RouteType,
+    RouteClassificationResult RouteClassification,
+    ShippingFeeQuote FeeQuote);
