@@ -84,7 +84,13 @@ public sealed class FeeRuleConfiguration : IEntityTypeConfiguration<FeeRule>
 
         builder.Property(feeRule => feeRule.UpdatedAtUtc);
 
-        builder.HasIndex(feeRule => new { feeRule.RouteType, feeRule.IsActive });
+        builder.HasIndex(feeRule => new { feeRule.RouteType, feeRule.Version })
+            .IsUnique()
+            .HasDatabaseName("IX_FeeRules_RouteType_Version");
+        builder.HasIndex(feeRule => feeRule.RouteType)
+            .IsUnique()
+            .HasFilter("[IsActive] = 1")
+            .HasDatabaseName("UX_FeeRules_RouteType_Active");
 
         builder.HasData(
             CreateSeed(

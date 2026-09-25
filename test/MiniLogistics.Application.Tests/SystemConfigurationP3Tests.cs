@@ -1,5 +1,6 @@
 using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.AdminSystemConfiguration;
+using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Fees;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.Routing;
@@ -48,6 +49,10 @@ public sealed class SystemConfigurationP3Tests
             TestClock.UtcNow);
         var feeRepository = new FakeFeeConfigurationRepository([oldRule]);
         var auditService = new FakeAdminAuditService();
+        var timeline = new List<string>();
+        var transactionManager = new FakeApplicationDbTransactionManager(timeline);
+        var feeRuleCache = new FakeFeeRuleCache(timeline);
+        var routeCacheInvalidator = new FakeRouteCacheInvalidator();
         var service = new AdminSystemConfigurationService(
             new FakeIdentityService(_adminId),
             new FakeRouteRegionConfigRepository([]),
@@ -55,6 +60,10 @@ public sealed class SystemConfigurationP3Tests
             new UpsertRouteRegionConfigCommandValidator(),
             new CreateFeeRuleVersionCommandValidator(),
             TestClock.Provider,
+            transactionManager,
+            new SuccessfulConfigurationUpdateLock(),
+            routeCacheInvalidator,
+            feeRuleCache,
             auditService);
 
         var result = await service.CreateFeeRuleVersionAsync(new CreateFeeRuleVersionCommand(
@@ -81,6 +90,84 @@ public sealed class SystemConfigurationP3Tests
         Assert.Equal(AdminAuditActions.FeeRuleVersionCreated, auditEntry.Action);
         Assert.Equal(AdminAuditTargetTypes.FeeRule, auditEntry.TargetType);
         Assert.Equal("Peak season tariff.", auditEntry.Reason);
+        Assert.True(transactionManager.Committed);
+        Assert.Equal(1, feeRuleCache.InvalidationCount);
+        Assert.Equal(0, routeCacheInvalidator.InvalidationCount);
+        Assert.Equal(new[] { "commit", "invalidate" }, timeline);
+    }
+
+    private sealed class FakeApplicationDbTransactionManager : IApplicationDbTransactionManager
+    {
+        private readonly List<string> _timeline;
+
+        public FakeApplicationDbTransactionManager(List<string> timeline)
+        {
+            _timeline = timeline;
+        }
+
+        public bool Committed { get; private set; }
+
+        public Task<IApplicationDbTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult<IApplicationDbTransaction>(new FakeTransaction(this, _timeline));
+        }
+
+        private sealed class FakeTransaction : IApplicationDbTransaction
+        {
+            private readonly FakeApplicationDbTransactionManager _owner;
+            private readonly List<string> _timeline;
+
+            public FakeTransaction(FakeApplicationDbTransactionManager owner, List<string> timeline)
+            {
+                _owner = owner;
+                _timeline = timeline;
+            }
+
+            public Task CommitAsync(CancellationToken cancellationToken = default)
+            {
+                _owner.Committed = true;
+                _timeline.Add("commit");
+                return Task.CompletedTask;
+            }
+
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
+    }
+
+    private sealed class SuccessfulConfigurationUpdateLock : IConfigurationUpdateLock
+    {
+        public Task<bool> TryAcquireAsync(string resource, CancellationToken cancellationToken = default) =>
+            Task.FromResult(true);
+    }
+
+    private sealed class FakeRouteCacheInvalidator : IRouteRegionConfigCacheInvalidator
+    {
+        public int InvalidationCount { get; private set; }
+
+        public void Invalidate() => InvalidationCount++;
+    }
+
+    private sealed class FakeFeeRuleCache : IFeeRuleCache
+    {
+        private readonly List<string> _timeline;
+
+        public FakeFeeRuleCache(List<string> timeline)
+        {
+            _timeline = timeline;
+        }
+
+        public int InvalidationCount { get; private set; }
+
+        public Task<IReadOnlyCollection<FeeRule>> GetActiveRulesAsync(
+            RouteType routeType,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyCollection<FeeRule>>([]);
+
+        public void Invalidate()
+        {
+            InvalidationCount++;
+            _timeline.Add("invalidate");
+        }
     }
 
     private sealed class FakeRouteRegionConfigSource : IRouteRegionConfigSource

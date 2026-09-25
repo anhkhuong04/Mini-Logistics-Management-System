@@ -8,6 +8,7 @@ using MiniLogistics.Application.Routing;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Fees;
 using MiniLogistics.Domain.Operations;
+using MiniLogistics.Domain.Shipments;
 using MiniLogistics.Domain.Users;
 using MiniLogistics.Domain.ValueObjects;
 
@@ -20,8 +21,11 @@ public sealed class AdminSystemConfigurationService : IAdminSystemConfigurationS
     private readonly IFeeConfigurationRepository _feeConfigurationRepository;
     private readonly IValidator<UpsertRouteRegionConfigCommand> _routeValidator;
     private readonly IValidator<CreateFeeRuleVersionCommand> _feeValidator;
+    private readonly IApplicationDbTransactionManager _transactionManager;
+    private readonly IConfigurationUpdateLock _configurationUpdateLock;
+    private readonly IRouteRegionConfigCacheInvalidator _routeCacheInvalidator;
     private readonly IAdminAuditService _adminAuditService;
-    private readonly IFeeRuleCache? _feeRuleCache;
+    private readonly IFeeRuleCache _feeRuleCache;
     private readonly TimeProvider _timeProvider;
 
     public AdminSystemConfigurationService(
@@ -31,8 +35,11 @@ public sealed class AdminSystemConfigurationService : IAdminSystemConfigurationS
         IValidator<UpsertRouteRegionConfigCommand> routeValidator,
         IValidator<CreateFeeRuleVersionCommand> feeValidator,
         TimeProvider timeProvider,
-        IAdminAuditService? adminAuditService = null,
-        IFeeRuleCache? feeRuleCache = null)
+        IApplicationDbTransactionManager transactionManager,
+        IConfigurationUpdateLock configurationUpdateLock,
+        IRouteRegionConfigCacheInvalidator routeCacheInvalidator,
+        IFeeRuleCache feeRuleCache,
+        IAdminAuditService? adminAuditService = null)
     {
         _identityService = identityService;
         _routeRegionConfigRepository = routeRegionConfigRepository;
@@ -40,8 +47,11 @@ public sealed class AdminSystemConfigurationService : IAdminSystemConfigurationS
         _routeValidator = routeValidator;
         _feeValidator = feeValidator;
         _timeProvider = timeProvider;
-        _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
+        _transactionManager = transactionManager;
+        _configurationUpdateLock = configurationUpdateLock;
+        _routeCacheInvalidator = routeCacheInvalidator;
         _feeRuleCache = feeRuleCache;
+        _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
     }
 
     public async Task<Result<AdminSystemConfigurationResponse>> GetAsync(
@@ -95,34 +105,56 @@ public sealed class AdminSystemConfigurationService : IAdminSystemConfigurationS
             return Result<RouteRegionConfigResponse>.Failure(authorizationResult.Error);
         }
 
-        var oldConfigs = await _routeRegionConfigRepository.GetActiveByProvinceAsync(
-            command.Province,
-            cancellationToken);
-        var now = _timeProvider.GetUtcNow();
-        foreach (var oldConfig in oldConfigs)
+        try
         {
-            oldConfig.Deactivate(now);
+            await using var transaction = await _transactionManager.BeginTransactionAsync(cancellationToken);
+            if (!await _configurationUpdateLock.TryAcquireAsync(
+                    RouteLockResource(command.Province),
+                    cancellationToken))
+            {
+                return Result<RouteRegionConfigResponse>.Failure(ConfigurationConflictError());
+            }
+
+            var oldConfigs = await _routeRegionConfigRepository.GetActiveByProvinceAsync(
+                command.Province,
+                cancellationToken);
+            var now = _timeProvider.GetUtcNow();
+            foreach (var oldConfig in oldConfigs)
+            {
+                oldConfig.Deactivate(now);
+            }
+
+            if (oldConfigs.Count > 0)
+            {
+                await _routeRegionConfigRepository.SaveChangesAsync(cancellationToken);
+            }
+
+            var version = await _routeRegionConfigRepository.GetLatestVersionAsync(
+                command.Province,
+                cancellationToken) + 1;
+            var config = new RouteRegionConfig(command.Province, command.Region, now, version);
+            await _routeRegionConfigRepository.AddAsync(config, cancellationToken);
+            await _adminAuditService.RecordAsync(
+                new AdminAuditEntry(
+                    command.RequestedByUserId,
+                    AdminAuditActions.RouteRegionConfigChanged,
+                    AdminAuditTargetTypes.RouteRegionConfig,
+                    config.Id,
+                    OldValue: oldConfigs.Select(ToAuditValue).ToList(),
+                    NewValue: ToAuditValue(config),
+                    Reason: command.Reason,
+                    ActorRole: nameof(UserRole.Admin)),
+                cancellationToken);
+            await _routeRegionConfigRepository.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            _routeCacheInvalidator.Invalidate();
+
+            return Result<RouteRegionConfigResponse>.Success(ToResponse(config));
         }
-
-        var version = await _routeRegionConfigRepository.GetLatestVersionAsync(
-            command.Province,
-            cancellationToken) + 1;
-        var config = new RouteRegionConfig(command.Province, command.Region, now, version);
-        await _routeRegionConfigRepository.AddAsync(config, cancellationToken);
-        await _adminAuditService.RecordAsync(
-            new AdminAuditEntry(
-                command.RequestedByUserId,
-                AdminAuditActions.RouteRegionConfigChanged,
-                AdminAuditTargetTypes.RouteRegionConfig,
-                config.Id,
-                OldValue: oldConfigs.Select(ToAuditValue).ToList(),
-                NewValue: ToAuditValue(config),
-                Reason: command.Reason,
-                ActorRole: nameof(UserRole.Admin)),
-            cancellationToken);
-        await _routeRegionConfigRepository.SaveChangesAsync(cancellationToken);
-
-        return Result<RouteRegionConfigResponse>.Success(ToResponse(config));
+        catch (ConcurrencyConflictException)
+        {
+            return Result<RouteRegionConfigResponse>.Failure(ConfigurationConflictError());
+        }
     }
 
     public async Task<Result<FeeRuleConfigResponse>> CreateFeeRuleVersionAsync(
@@ -144,50 +176,79 @@ public sealed class AdminSystemConfigurationService : IAdminSystemConfigurationS
             return Result<FeeRuleConfigResponse>.Failure(authorizationResult.Error);
         }
 
-        var oldRules = await _feeConfigurationRepository.GetActiveRulesForUpdateAsync(
-            command.RouteType,
-            cancellationToken);
-        var now = _timeProvider.GetUtcNow();
-        foreach (var oldRule in oldRules)
+        try
         {
-            oldRule.Deactivate(now);
+            await using var transaction = await _transactionManager.BeginTransactionAsync(cancellationToken);
+            if (!await _configurationUpdateLock.TryAcquireAsync(
+                    FeeLockResource(command.RouteType),
+                    cancellationToken))
+            {
+                return Result<FeeRuleConfigResponse>.Failure(ConfigurationConflictError());
+            }
+
+            var oldRules = await _feeConfigurationRepository.GetActiveRulesForUpdateAsync(
+                command.RouteType,
+                cancellationToken);
+            var now = _timeProvider.GetUtcNow();
+            foreach (var oldRule in oldRules)
+            {
+                oldRule.Deactivate(now);
+            }
+
+            if (oldRules.Count > 0)
+            {
+                await _feeConfigurationRepository.SaveChangesAsync(cancellationToken);
+            }
+
+            var version = await _feeConfigurationRepository.GetLatestVersionAsync(
+                command.RouteType,
+                cancellationToken) + 1;
+            var newRule = new FeeRule(
+                command.RouteType,
+                command.BaseWeightKg,
+                new Money(command.BaseFeeAmount),
+                command.ExtraWeightStepKg,
+                new Money(command.ExtraStepFeeAmount),
+                now,
+                command.MinimumWeightKg,
+                command.MaximumWeightKg,
+                version,
+                command.InsuranceFreeThreshold,
+                command.InsuranceMaximumValue,
+                command.InsuranceRate,
+                command.ReturnFeeRate);
+
+            await _feeConfigurationRepository.AddAsync(newRule, cancellationToken);
+            await _adminAuditService.RecordAsync(
+                new AdminAuditEntry(
+                    command.RequestedByUserId,
+                    AdminAuditActions.FeeRuleVersionCreated,
+                    AdminAuditTargetTypes.FeeRule,
+                    newRule.Id,
+                    OldValue: oldRules.Select(ToAuditValue).ToList(),
+                    NewValue: ToAuditValue(newRule),
+                    Reason: command.Reason,
+                    ActorRole: nameof(UserRole.Admin)),
+                cancellationToken);
+            await _feeConfigurationRepository.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+            _feeRuleCache.Invalidate();
+
+            return Result<FeeRuleConfigResponse>.Success(ToResponse(newRule));
         }
-
-        var version = await _feeConfigurationRepository.GetLatestVersionAsync(
-            command.RouteType,
-            cancellationToken) + 1;
-        var newRule = new FeeRule(
-            command.RouteType,
-            command.BaseWeightKg,
-            new Money(command.BaseFeeAmount),
-            command.ExtraWeightStepKg,
-            new Money(command.ExtraStepFeeAmount),
-            now,
-            command.MinimumWeightKg,
-            command.MaximumWeightKg,
-            version,
-            command.InsuranceFreeThreshold,
-            command.InsuranceMaximumValue,
-            command.InsuranceRate,
-            command.ReturnFeeRate);
-
-        await _feeConfigurationRepository.AddAsync(newRule, cancellationToken);
-        await _adminAuditService.RecordAsync(
-            new AdminAuditEntry(
-                command.RequestedByUserId,
-                AdminAuditActions.FeeRuleVersionCreated,
-                AdminAuditTargetTypes.FeeRule,
-                newRule.Id,
-                OldValue: oldRules.Select(ToAuditValue).ToList(),
-                NewValue: ToAuditValue(newRule),
-                Reason: command.Reason,
-                ActorRole: nameof(UserRole.Admin)),
-            cancellationToken);
-        await _feeConfigurationRepository.SaveChangesAsync(cancellationToken);
-        _feeRuleCache?.Invalidate();
-
-        return Result<FeeRuleConfigResponse>.Success(ToResponse(newRule));
+        catch (ConcurrencyConflictException)
+        {
+            return Result<FeeRuleConfigResponse>.Failure(ConfigurationConflictError());
+        }
     }
+
+    private static string RouteLockResource(string province) =>
+        $"RouteRegion:{province.Trim().ToUpperInvariant()}";
+
+    private static string FeeLockResource(RouteType routeType) => $"FeeRule:{routeType}";
+
+    private static Error ConfigurationConflictError() => ApplicationErrors.ConcurrencyConflict(
+        "Configuration changed concurrently or is currently being updated. Reload and try again.");
 
     private static Error ToValidationError(FluentValidation.Results.ValidationResult validationResult)
     {

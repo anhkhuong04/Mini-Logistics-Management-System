@@ -81,8 +81,16 @@ public sealed class RouteRegionConfigRepository : IRouteRegionConfigRepository
         await _dbContext.RouteRegionConfigs.AddAsync(config, cancellationToken);
     }
 
-    public Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
-        return _dbContext.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException exception) when (ConfigurationIndexConflict.IsConflict(exception))
+        {
+            _dbContext.ChangeTracker.Clear();
+            throw ConfigurationIndexConflict.ToException(exception);
+        }
     }
 }

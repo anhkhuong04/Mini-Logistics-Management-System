@@ -5,7 +5,7 @@ using MiniLogistics.Infrastructure.Persistence.Repositories;
 
 namespace MiniLogistics.Infrastructure.Persistence;
 
-public sealed class CachedRouteRegionConfigRepository : IRouteRegionConfigRepository
+public sealed class CachedRouteRegionConfigRepository : IRouteRegionConfigRepository, IRouteRegionConfigCacheInvalidator
 {
     private const string ProvinceRegionsCacheKey = "route_region_configs_province_regions";
     private const string AllConfigsCacheKey = "route_region_configs_all";
@@ -65,17 +65,15 @@ public sealed class CachedRouteRegionConfigRepository : IRouteRegionConfigReposi
         RouteRegionConfig config,
         CancellationToken cancellationToken = default)
     {
-        Invalidate();
         await _repository.AddAsync(config, cancellationToken);
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         await _repository.SaveChangesAsync(cancellationToken);
-        Invalidate();
     }
 
-    private void Invalidate()
+    public void Invalidate()
     {
         _cache.Remove(ProvinceRegionsCacheKey);
         _cache.Remove(AllConfigsCacheKey);

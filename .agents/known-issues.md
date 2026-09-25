@@ -12,10 +12,12 @@ Verified against the repository on 2026-09-25. These are context for scoping and
 
 - **TASK-CI-06 — shipper capacity reservations.** Assignment paths lock the shipper's `AspNetUsers` row in the database transaction, read the current limit and active load under that lock, and commit assignment/outbox effects before releasing it. Automatic assignment allows three total attempts; manual assignment and reassignment reject a full shipper. See the focused SQL Server concurrency test.
 - **TASK-CI-07 — partner create idempotency.** Partner create now holds one database transaction through shipment/reference/outbox creation, auto-assignment and final response snapshot. The capacity guard joins that transaction. Only the two external-reference unique indexes are translated; a losing request rolls back, clears tracking and reloads the winner for replay/conflict. SQL Server integration tests cover identical payload, different payload and external-order races without duplicate shipment, reference or outbox rows.
+- **TASK-CI-08 — serialized route/fee configuration versions.** Admin writes take a transaction-owned SQL application lock per province or route type, deactivate old rows before inserting the next version, commit audit/configuration together, then invalidate local caches. Unique version and filtered unique active indexes enforce the invariant in SQL Server; concurrency and cache-refresh behavior is covered by LocalDB integration tests.
 
 Detailed evidence and remediation options are recorded in root `review-code.md` when that local report is available.
 
 ## Areas not to refactor opportunistically
+
 
 - The `Shipment` aggregate/state machine: large but cohesive and covered by domain tests.
 - Partner API authentication/scope/tenant/idempotency/error contracts.

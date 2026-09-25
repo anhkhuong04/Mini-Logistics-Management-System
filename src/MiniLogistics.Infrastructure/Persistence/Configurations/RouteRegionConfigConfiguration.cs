@@ -34,7 +34,12 @@ public sealed class RouteRegionConfigConfiguration : IEntityTypeConfiguration<Ro
 
         builder.Property(config => config.UpdatedAtUtc);
 
-        builder.HasIndex(config => new { config.Province, config.IsActive });
-        builder.HasIndex(config => new { config.Province, config.Version });
+        builder.HasIndex(config => new { config.Province, config.Version })
+            .IsUnique()
+            .HasDatabaseName("IX_RouteRegionConfigs_Province_Version");
+        builder.HasIndex(config => config.Province)
+            .IsUnique()
+            .HasFilter("[IsActive] = 1")
+            .HasDatabaseName("UX_RouteRegionConfigs_Province_Active");
     }
 }

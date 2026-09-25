@@ -126,6 +126,8 @@ public static class DependencyInjection
         services.AddScoped<RouteRegionConfigRepository>();
         services.AddScoped<IRouteRegionConfigRepository, CachedRouteRegionConfigRepository>();
         services.AddScoped<IRouteRegionConfigSource>(provider => provider.GetRequiredService<IRouteRegionConfigRepository>());
+        services.AddScoped<IRouteRegionConfigCacheInvalidator>(provider =>
+            (CachedRouteRegionConfigRepository)provider.GetRequiredService<IRouteRegionConfigRepository>());
         services.AddScoped<IShipperWorkingAreaRepository, ShipperWorkingAreaRepository>();
         services.AddScoped<ICodTransactionRepository, CodTransactionRepository>();
         services.AddScoped<IDeliveryProofRepository, DeliveryProofRepository>();
@@ -148,6 +150,7 @@ public static class DependencyInjection
         services.AddScoped<IShopStaffMembershipRepository, ShopStaffMembershipRepository>();
         services.AddScoped<IBannerRepository, BannerRepository>();
         services.AddScoped<IApplicationDbTransactionManager, ApplicationDbTransactionManager>();
+        services.AddScoped<MiniLogistics.Application.AdminSystemConfiguration.IConfigurationUpdateLock, ConfigurationUpdateLock>();
         services.AddScoped<IShipperAssignmentCapacityGuard, ShipperAssignmentCapacityGuard>();
         services.AddScoped<OutboxMessageRepository>();
         services.AddScoped<IOutboxMessageRepository>(provider => provider.GetRequiredService<OutboxMessageRepository>());
