@@ -288,7 +288,8 @@
 }
 
 .route-arrow {
-    fill: #94a3b8;
+    color: #94a3b8;
+    fill: none;
     height: 16px;
     margin: 0 0.35rem;
     vertical-align: middle;

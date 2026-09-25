@@ -15,9 +15,12 @@ publish/
 
 # Local tooling and agent artifacts
 .agent/
+.agents/devserver-ui-output/
+.agents/pkg-download/
 /*.md
 !/README.md
 !/task.md
+!/AGENTS.md
 
 # Logs
 *.log

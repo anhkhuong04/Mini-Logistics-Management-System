@@ -1,6 +1,11 @@
 .app-icon {
     display: block;
     flex: 0 0 auto;
+    fill: none !important;
     height: var(--app-icon-size);
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 2;
     width: var(--app-icon-size);
 }

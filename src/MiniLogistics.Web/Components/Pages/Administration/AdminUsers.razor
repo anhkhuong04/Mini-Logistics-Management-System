@@ -33,9 +33,7 @@
         </div>
 
         <button type="button" class="refresh-button" disabled="@IsLoading" @onclick="RefreshAsync">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-                <path d="M12 5a7 7 0 1 1-6.3 4H3.5A9 9 0 1 0 6 5.8V3H4v6h6V7H7.4A7 7 0 0 1 12 5Z" />
-            </svg>
+            <AppIcon Name="refresh" Size="18" />
             <span>Lam moi</span>
         </button>
     </header>
@@ -61,28 +59,28 @@
         <section class="summary-grid" aria-label="Tom tat nguoi dung">
             <article class="metric-card">
                 <span class="metric-icon blue" aria-hidden="true">
-                    <svg viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm0 2c-4.2 0-7 2.1-7 5v1h14v-1c0-2.9-2.8-5-7-5Z" /></svg>
+                    <AppIcon Name="user" Size="20" />
                 </span>
                 <span>Tong user</span>
                 <strong>@Users.Count.ToString("N0")</strong>
             </article>
             <article class="metric-card">
                 <span class="metric-icon green" aria-hidden="true">
-                    <svg viewBox="0 0 24 24"><path d="m9.5 16.2-4-4 1.4-1.4 2.6 2.6 7.6-7.6 1.4 1.4-9 9Z" /></svg>
+                    <AppIcon Name="circle-check" Size="20" />
                 </span>
                 <span>Dang hoat dong</span>
                 <strong>@Users.Count(user => user.IsActive).ToString("N0")</strong>
             </article>
             <article class="metric-card">
                 <span class="metric-icon amber" aria-hidden="true">
-                    <svg viewBox="0 0 24 24"><path d="M3 6h11v9h1.4l2-3H21v6h-2a3 3 0 0 1-6 0H9a3 3 0 0 1-6 0H2V8a2 2 0 0 1 1-2Zm2 2v7.8A3 3 0 0 1 8.8 17H13V8H5Zm10 2v5h.6l2-3H19v-2h-4Z" /></svg>
+                    <AppIcon Name="truck" Size="20" />
                 </span>
                 <span>Shipper active</span>
                 <strong>@Users.Count(user => IsRole(user, UserRole.Shipper) && user.IsActive).ToString("N0")</strong>
             </article>
             <article class="metric-card">
                 <span class="metric-icon slate" aria-hidden="true">
-                    <svg viewBox="0 0 24 24"><path d="M5 4h14v4H5V4Zm0 6h9v4H5v-4Zm0 6h14v4H5v-4Zm11-6h3v4h-3v-4Z" /></svg>
+                    <AppIcon Name="list-checks" Size="20" />
                 </span>
                 <span>Operator</span>
                 <strong>@Users.Count(user => IsRole(user, UserRole.Operator)).ToString("N0")</strong>
@@ -128,9 +126,7 @@
 
                 <div class="form-actions">
                     <button type="submit" class="primary-button" disabled="@IsCreating">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" />
-                        </svg>
+                        <AppIcon Name="plus" Size="18" />
                         @(IsCreating ? "Dang tao..." : "Tao tai khoan")
                     </button>
                 </div>
@@ -200,9 +196,7 @@
                             </label>
 
                             <button type="submit" class="primary-button" disabled="@IsSavingCapacity">
-                                <svg viewBox="0 0 24 24" aria-hidden="true">
-                                    <path d="M5 4h12l2 2v14H5V4Zm2 2v12h10V7.2L15.8 6H7Zm2 1h5v4H9V7Zm0 8h6v2H9v-2Z" />
-                                </svg>
+                                <AppIcon Name="save" Size="18" />
                                 @(IsSavingCapacity ? "Dang luu..." : "Luu capacity")
                             </button>
                         </form>
@@ -227,9 +221,7 @@
 
                     <div class="form-actions">
                         <button type="button" class="primary-button" disabled="@IsSavingWorkingAreas" @onclick="SaveWorkingAreasAsync">
-                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="M5 4h12l2 2v14H5V4Zm2 2v12h10V7.2L15.8 6H7Zm2 1h5v4H9V7Zm0 8h6v2H9v-2Z" />
-                            </svg>
+                            <AppIcon Name="save" Size="18" />
                             @(IsSavingWorkingAreas ? "Dang luu..." : "Luu khu vuc")
                         </button>
                     </div>
@@ -248,9 +240,7 @@
 
             <div class="table-toolbar">
                 <label class="search-field" for="admin-user-search">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M10.5 4a6.5 6.5 0 0 1 5.1 10.5l4 4-1.4 1.4-4-4A6.5 6.5 0 1 1 10.5 4Zm0 2a4.5 4.5 0 1 0 0 9 4.5 4.5 0 0 0 0-9Z" />
-                    </svg>
+                    <AppIcon Name="search" Size="18" />
                     <input id="admin-user-search" placeholder="Tim theo ten, email, sdt" @bind="SearchText" @bind:event="oninput" />
                 </label>
 

@@ -20,7 +20,7 @@
             <div class="nav-dropdown">
                 <button class="nav-dropdown-trigger" type="button" aria-haspopup="menu" aria-expanded="false">
                     Hỗ trợ
-                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 5 5-5 1.4 1.4L12 16.8l-6.4-6.4L7 9Z" /></svg>
+                    <AppIcon Name="chevron-down" Size="18" />
                 </button>
                 <div class="nav-dropdown-panel" role="menu">
                     <a href="/contact" role="menuitem">Thông tin liên hệ</a>
@@ -31,11 +31,7 @@
 
         <div class="header-actions">
             <a class="header-icon-btn" href="/download-app" title="Tải ứng dụng" aria-label="Tải ứng dụng">
-                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                    <polyline points="7 10 12 15 17 10"></polyline>
-                    <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
+                <AppIcon Name="download" Size="20" />
             </a>
             <AuthorizeView Context="authContext">
                 <Authorized>
@@ -43,7 +39,7 @@
                         <button class="user-menu-trigger" type="button" aria-haspopup="menu" aria-controls="home-user-menu">
                             <img src="/images/landing/lak-logo.svg" alt="" />
                             <span>@(authContext.User.Identity?.Name ?? "Tài khoản")</span>
-                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 9 5 5 5-5 1.4 1.4L12 16.8l-6.4-6.4L7 9Z" /></svg>
+                            <AppIcon Name="chevron-down" Size="18" />
                         </button>
                         <div class="user-menu-panel" id="home-user-menu" role="menu">
                             <a href="@GetWorkspaceUrl(authContext.User)" role="menuitem">Dashboard</a>
@@ -125,7 +121,7 @@
                     <span>Tạo đơn lấy hàng hoặc gửi hàng</span>
                 </span>
                 <span class="action-card-arrow" aria-hidden="true">
-                    <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6-1.4-1.4 4.6-4.6-4.6-4.6L9 6Z" /></svg>
+                    <AppIcon Name="chevron-right" Size="18" />
                 </span>
             </a>
             <button type="button" class="action-card">
@@ -134,7 +130,7 @@
                     <span>Ước tính phí vận chuyển</span>
                 </span>
                 <span class="action-card-arrow" aria-hidden="true">
-                    <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6-1.4-1.4 4.6-4.6-4.6-4.6L9 6Z" /></svg>
+                    <AppIcon Name="chevron-right" Size="18" />
                 </span>
             </button>
             <button type="button" class="action-card">
@@ -143,7 +139,7 @@
                     <span>Gửi hàng tại các điểm dịch vụ</span>
                 </span>
                 <span class="action-card-arrow" aria-hidden="true">
-                    <svg viewBox="0 0 24 24"><path d="m9 6 6 6-6 6-1.4-1.4 4.6-4.6-4.6-4.6L9 6Z" /></svg>
+                    <AppIcon Name="chevron-right" Size="18" />
                 </span>
             </button>
         </div>

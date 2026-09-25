@@ -128,7 +128,7 @@
                                 <td colspan="@(CanViewCod ? 9 : 8)">
                                     <div class="empty-state">
                                         <span>
-                                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" /></svg>
+                                            <AppIcon Name="package" Size="18" />
                                         </span>
                                         <strong>Chưa có đơn hàng để hiển thị</strong>
                                         <p>Tạo vận đơn đầu tiên để dashboard tự động cập nhật số liệu.</p>
@@ -162,9 +162,7 @@
                                     <td>@FormatDate(shipment.CreatedAtUtc)</td>
                                     <td>
                                         <a class="icon-link" href="@(BuildShopLink($"/shipments/{shipment.ShipmentId}"))" aria-label="Xem chi tiet">
-                                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                <path d="m9 6 6 6-6 6-1.4-1.4 4.6-4.6-4.6-4.6L9 6Z" />
-                                            </svg>
+                                            <AppIcon Name="chevron-right" Size="18" />
                                         </a>
                                     </td>
                                 </tr>

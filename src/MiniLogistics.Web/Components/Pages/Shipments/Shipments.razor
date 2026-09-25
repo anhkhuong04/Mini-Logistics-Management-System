@@ -41,9 +41,7 @@
             @if (CanManageShipments)
             {
                 <a class="btn btn-primary action-button" href="@(BuildShopLink("/shipments/create"))">
-                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                        <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5Z" />
-                    </svg>
+                    <AppIcon Name="plus" Size="18" />
                     <span>Tạo đơn hàng</span>
                 </a>
             }
@@ -78,9 +76,7 @@
     {
         <section class="content-card state-card" aria-live="polite">
             <span class="state-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-8-8V2Z" />
-                </svg>
+                <AppIcon Name="refresh" Size="20" />
             </span>
             <strong>Đang tải danh sách đơn hàng</strong>
         </section>
@@ -89,9 +85,7 @@
     {
         <section class="content-card state-card">
             <span class="state-icon">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9Zm2 1.2v6.6l5 2.8v-6.6L6 8.7Zm7 9.4 5-2.8V8.7l-5 2.8v6.6Zm-6-11L12 10l5-2.9-5-2.8-5 2.8Z" />
-                </svg>
+                <AppIcon Name="package" Size="20" />
             </span>
             <strong>Chưa có đơn hàng</strong>
             <p>Tạo vận đơn đầu tiên để bắt đầu theo dõi giao hàng.</p>
@@ -221,17 +215,13 @@
                                     @if (CanManageShipments && CanEditShipment(shipment.Status))
                                     {
                                         <a class="icon-link" href="@(BuildShopLink($"/shipments/create?shipmentId={shipment.ShipmentId:D}"))" aria-label="Sua don">
-                                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                <path d="M5 17.2V20h2.8L18.6 9.2l-2.8-2.8L5 17.2ZM20.7 7.1a1 1 0 0 0 0-1.4l-2.4-2.4a1 1 0 0 0-1.4 0l-1.4 1.4 3.8 3.8 1.4-1.4Z" />
-                                            </svg>
+                                            <AppIcon Name="pencil" Size="18" />
                                         </a>
                                     }
                                     @if (CanViewFullPii && shipment.Status != ShipmentStatus.Draft)
                                     {
                                         <a class="icon-link" href="@BuildLabelLink(shipment.ShipmentId)" aria-label="Tai label">
-                                            <svg viewBox="0 0 24 24" aria-hidden="true">
-                                                <path d="M6 2h9l5 5v15H6V2Zm8 2H8v16h10V8h-4V4ZM9 12h8v2H9v-2Zm0 4h8v2H9v-2Z" />
-                                            </svg>
+                                            <AppIcon Name="file-text" Size="18" />
                                         </a>
                                     }
                                 </td>
@@ -247,9 +237,7 @@
                                 <td>@FormatDate(shipment.CreatedAtUtc)</td>
                                 <td>
                                     <a class="icon-link" href="@(BuildShopLink($"/shipments/{shipment.ShipmentId}"))" aria-label="Xem chi tiết">
-                                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                                            <path d="m9 6 6 6-6 6-1.4-1.4 4.6-4.6-4.6-4.6L9 6Z" />
-                                        </svg>
+                                        <AppIcon Name="chevron-right" Size="18" />
                                     </a>
                                 </td>
                             </tr>

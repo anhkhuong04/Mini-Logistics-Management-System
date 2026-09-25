@@ -15,17 +15,13 @@
     <main class="app-main">
         <header class="app-topbar">
             <button class="menu-button" type="button" aria-label="@L["OpenNavigation"]" aria-expanded="@IsNavigationOpen" @onclick="ToggleNavigation">
-                <svg viewBox="0 0 24 24" aria-hidden="true">
-                    <path d="M4 6h16v2H4V6Zm0 5h16v2H4v-2Zm0 5h16v2H4v-2Z" />
-                </svg>
+                <AppIcon Name="menu" Size="20" />
             </button>
 
             <div class="topbar-actions">
                 <details class="language-selector">
                     <summary class="icon-button language-button" aria-label="@L["Language"]" title="@L["Language"]">
-                        <svg viewBox="0 0 24 24" aria-hidden="true">
-                            <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm6.9 9h-3a15.7 15.7 0 0 0-1.4-5A8 8 0 0 1 18.9 11ZM12 4c.9 1.1 1.7 3.5 1.9 7h-3.8c.2-3.5 1-5.9 1.9-7ZM9.5 6a15.7 15.7 0 0 0-1.4 5h-3A8 8 0 0 1 9.5 6ZM5.1 13h3a15.7 15.7 0 0 0 1.4 5 8 8 0 0 1-4.4-5Zm6.9 7c-.9-1.1-1.7-3.5-1.9-7h3.8c-.2 3.5-1 5.9-1.9 7Zm2.5-2a15.7 15.7 0 0 0 1.4-5h3a8 8 0 0 1-4.4 5Z" />
-                        </svg>
+                        <AppIcon Name="globe" Size="20" />
                         <span class="language-code">@CurrentLanguageCode</span>
                     </summary>
                     <div class="language-menu" role="menu" aria-label="@L["Language"]">
@@ -47,26 +43,20 @@
                         <AuthorizeView Roles="Shop" Context="shopNotificationsContext">
                             <Authorized>
                                 <a class="icon-button" href="/shop/notifications" aria-label="@L["Notifications"]">
-                                    <svg viewBox="0 0 24 24" aria-hidden="true">
-                                        <path d="M12 22a2.8 2.8 0 0 0 2.7-2h-5.4A2.8 2.8 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5-6.7V3a2 2 0 0 0-4 0v1.3A7 7 0 0 0 5 11v5l-2 2v1h18v-1l-2-2Zm-2 1H7v-6a5 5 0 0 1 10 0v6Z" />
-                                    </svg>
+                                    <AppIcon Name="bell" Size="20" />
                                 </a>
                             </Authorized>
                         </AuthorizeView>
 
                         <div class="account-chip">
                             <span class="account-avatar" aria-hidden="true">
-                                <svg viewBox="0 0 24 24">
-                                    <path d="M4 10h16v10H4V10Zm2 2v6h4v-6H6Zm6 0v6h6v-6h-6ZM5 8l2-4h10l2 4H5Zm3.2-2-.5 1h8.6l-.5-1H8.2Z" />
-                                </svg>
+                                <AppIcon Name="store" Size="20" />
                             </span>
                             <span class="account-text">
                                 <strong>@(layoutContext.User.Identity?.Name ?? L["Account"])</strong>
                                 <small>@GetRoleLabel(layoutContext.User)</small>
                             </span>
-                            <svg class="account-chevron" viewBox="0 0 24 24" aria-hidden="true">
-                                <path d="m7 9 5 5 5-5 1.4 1.4L12 16.8l-6.4-6.4L7 9Z" />
-                            </svg>
+                            <AppIcon Name="chevron-down" Size="18" Class="account-chevron" />
                         </div>
                     </Authorized>
                     <NotAuthorized>
@@ -119,7 +109,8 @@
 }
 
 <div id="blazor-error-ui" data-nosnippet>
+    <AppIcon Name="triangle-alert" Size="16" />
     @L["UnhandledError"]
     <a href="." class="reload">@L["Reload"]</a>
-    <span class="dismiss">x</span>
+    <span class="dismiss"><AppIcon Name="x" Size="16" /></span>
 </div>
