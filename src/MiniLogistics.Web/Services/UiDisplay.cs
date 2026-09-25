@@ -33,6 +33,7 @@ public static class UiDisplay
             "RouteClassification.ProvinceNotSupported" => $"Tỉnh/thành chưa được hỗ trợ để phân loại tuyến: {ExtractValueAfterColon(error.Description)}.",
             "Shop.Inactive" => "Shop đang bị khóa hoặc chưa active.",
             "Application.ConcurrencyConflict" => "Dữ liệu vừa được thay đổi bởi thao tác khác. Vui lòng tải lại và thử lại.",
+            "Application.CapacityReached" => "Shipper đã đạt giới hạn số đơn đang hoạt động.",
             _ => ToErrorMessage(error.Description)
         };
     }

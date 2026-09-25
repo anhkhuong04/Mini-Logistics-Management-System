@@ -140,6 +140,7 @@ public sealed class AdminAuditActionTests
             CreateIdentityService(),
             shipmentRepository,
             TestClock.Provider,
+            new StubShipperAssignmentCapacityGuard(),
             adminAuditService: auditService);
 
         var result = await service.ReassignAsync(new ReassignShipmentCommand(
@@ -160,6 +161,36 @@ public sealed class AdminAuditActionTests
         Assert.Equal(AdminAuditTargetTypes.Shipment, auditEntry.TargetType);
         Assert.Equal(shipment.Id, auditEntry.TargetId);
         Assert.Equal("Shipper unavailable.", auditEntry.Reason);
+    }
+
+    [Fact]
+    public async Task ReassignShipment_WhenNewShipperIsAtCapacity_DoesNotChangeAssignmentOrWriteAudit()
+    {
+        var shipment = CreateAssignedShipment();
+        var auditService = new FakeAdminAuditService();
+        var shipmentRepository = new FakeShipmentRepository([shipment]);
+        var capacityGuard = new StubShipperAssignmentCapacityGuard((_, _) => false);
+        var service = new ReassignShipmentService(
+            new ReassignShipmentCommandValidator(),
+            CreateIdentityService(),
+            shipmentRepository,
+            TestClock.Provider,
+            capacityGuard,
+            adminAuditService: auditService);
+
+        var result = await service.ReassignAsync(new ReassignShipmentCommand(
+            shipment.Id,
+            _alternateShipperId,
+            _operatorId,
+            "Target shipper is full."));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Application.CapacityReached", result.Error.Code);
+        Assert.Equal(1, capacityGuard.AcquireCount);
+        Assert.Equal(0, capacityGuard.CommitCount);
+        Assert.Equal(0, shipmentRepository.SaveChangesCount);
+        Assert.Empty(auditService.Entries);
+        Assert.Single(shipment.Assignments, assignment => assignment.IsActive && assignment.ShipperId == _shipperId);
     }
 
     [Fact]
@@ -421,7 +452,18 @@ public sealed class AdminAuditActionTests
         public Task<IReadOnlyList<ActiveShipperResponse>> GetActiveShippersAsync(
             CancellationToken cancellationToken = default)
         {
-            throw new NotSupportedException();
+            IReadOnlyList<ActiveShipperResponse> response = _users.Values
+                .Where(user => user.IsActive && user.Roles.Contains(nameof(UserRole.Shipper)))
+                .Select(user => new ActiveShipperResponse(
+                    user.UserId,
+                    "Audit User",
+                    "audit@example.test",
+                    null,
+                    true,
+                    30))
+                .ToList();
+
+            return Task.FromResult(response);
         }
 
         public Task<IReadOnlyList<IdentityUserSummaryResponse>> GetUsersByIdsAsync(

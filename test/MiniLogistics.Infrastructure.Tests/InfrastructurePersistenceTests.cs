@@ -9,6 +9,11 @@ using MiniLogistics.Application.CashOnDelivery.MarkCodCollected;
 using MiniLogistics.Application.CashOnDelivery.MarkCodSettled;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.PartnerApi;
+using MiniLogistics.Application.AdminAuditing;
+using MiniLogistics.Application.Shops.Notifications;
+using MiniLogistics.Application.Shipments.AssignmentSelection;
+using MiniLogistics.Application.Shipments.AutoAssignShipment;
+using MiniLogistics.Application.Shipments;
 using MiniLogistics.Application.Shops.Reports;
 using MiniLogistics.Application.Shipments.AssignShipperToShipment;
 using MiniLogistics.Application.Shipments.CancelShipmentForCurrentShop;
@@ -75,6 +80,127 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
             Assert.Equal(ApiKeyHasher.GetPrefix(_fixture.DemoPartnerApiKey), apiClient.ApiKeyPrefix);
             Assert.Equal(ApiKeyHasher.Hash(_fixture.DemoPartnerApiKey), apiClient.ApiKeyHash);
             Assert.NotEqual(_fixture.DemoPartnerApiKey, apiClient.ApiKeyHash);
+        });
+    }
+
+    [Fact]
+    public async Task AutoAssignment_ConcurrentReservationsDoNotExceedShipperCapacityOrDuplicateSideEffects()
+    {
+        var previousCapacity = await _fixture.ExecuteAsync(async services =>
+        {
+            var identityService = services.GetRequiredService<IIdentityService>();
+            var shipper = (await identityService.GetActiveShippersAsync())
+                .Single(item => item.UserId == DemoShipperUserId);
+            var counts = await services.GetRequiredService<IShipmentReadRepository>()
+                .GetActiveAssignmentCountsByShipperIdsAsync([DemoShipperUserId]);
+            counts.TryGetValue(DemoShipperUserId, out var activeLoad);
+            return (IsAvailable: shipper.IsAvailableForAssignment,
+                Maximum: shipper.MaxActiveShipments,
+                ActiveLoad: activeLoad);
+        });
+
+        try
+        {
+            await _fixture.ExecuteAsync(async services =>
+            {
+                var identityService = services.GetRequiredService<IIdentityService>();
+                var availabilityResult = await identityService.SetShipperCapacityAsync(
+                    DemoShipperUserId,
+                    isAvailableForAssignment: false,
+                    maxActiveShipments: previousCapacity.Maximum);
+                Assert.True(availabilityResult.IsSuccess, availabilityResult.Error.Description);
+            });
+
+            var firstShipment = await CreateShipmentAsync("Concurrent reservation A", codAmount: 0m);
+            var secondShipment = await CreateShipmentAsync("Concurrent reservation B", codAmount: 0m);
+            Assert.True(firstShipment.IsSuccess, firstShipment.Error.Description);
+            Assert.True(secondShipment.IsSuccess, secondShipment.Error.Description);
+            Assert.Equal(ShipmentStatus.PendingPickup, firstShipment.Value.Status);
+            Assert.Equal(ShipmentStatus.PendingPickup, secondShipment.Value.Status);
+
+            await _fixture.ExecuteAsync(async services =>
+            {
+                var identityService = services.GetRequiredService<IIdentityService>();
+                var availabilityResult = await identityService.SetShipperCapacityAsync(
+                    DemoShipperUserId,
+                    isAvailableForAssignment: true,
+                    maxActiveShipments: previousCapacity.ActiveLoad + 1);
+                Assert.True(availabilityResult.IsSuccess, availabilityResult.Error.Description);
+            });
+
+            var shipmentIds = new[] { firstShipment.Value.ShipmentId, secondShipment.Value.ShipmentId };
+            var outboxCountBefore = await _fixture.ExecuteAsync(services =>
+                services.GetRequiredService<MiniLogisticsDbContext>().OutboxMessages
+                    .CountAsync(message => shipmentIds.Contains(message.AggregateId)));
+            var selectionBarrier = new AssignmentSelectionBarrier(2);
+
+            var assignments = await Task.WhenAll(
+                RunAutoAssignmentAsync(shipmentIds[0], selectionBarrier),
+                RunAutoAssignmentAsync(shipmentIds[1], selectionBarrier));
+
+            Assert.Equal(1, assignments.Count(result =>
+                result.IsSuccess && result.Value.Status == AutoAssignShipmentStatus.Assigned));
+            Assert.Equal(1, assignments.Count(result =>
+                result.IsSuccess && result.Value.Status == AutoAssignShipmentStatus.NoEligibleShipper));
+
+            await _fixture.ExecuteAsync(async services =>
+            {
+                var dbContext = services.GetRequiredService<MiniLogisticsDbContext>();
+                var shipments = await dbContext.Shipments
+                    .Include(shipment => shipment.Assignments)
+                    .Include(shipment => shipment.StatusHistory)
+                    .Where(shipment => shipmentIds.Contains(shipment.Id))
+                    .ToListAsync();
+
+                Assert.Equal(2, shipments.Count);
+                Assert.Equal(1, shipments.Count(shipment => shipment.Status == ShipmentStatus.Assigned));
+                Assert.Equal(1, shipments.Count(shipment => shipment.Status == ShipmentStatus.PendingPickup));
+                Assert.Single(
+                    shipments.SelectMany(shipment => shipment.Assignments),
+                    assignment => assignment.IsActive && assignment.ShipperId == DemoShipperUserId);
+                Assert.Equal(1, shipments.Count(shipment => shipment.StatusHistory.Count == 2));
+                Assert.Equal(1, shipments.Count(shipment => shipment.StatusHistory.Count == 1));
+
+                var outboxCountAfter = await dbContext.OutboxMessages
+                    .CountAsync(message => shipmentIds.Contains(message.AggregateId));
+                Assert.Equal(outboxCountBefore + 1, outboxCountAfter);
+            });
+        }
+        finally
+        {
+            await _fixture.ExecuteAsync(async services =>
+            {
+                var counts = await services.GetRequiredService<IShipmentReadRepository>()
+                    .GetActiveAssignmentCountsByShipperIdsAsync([DemoShipperUserId]);
+                counts.TryGetValue(DemoShipperUserId, out var activeLoad);
+                var restoreMaximum = Math.Max(previousCapacity.Maximum, activeLoad);
+                var identityService = services.GetRequiredService<IIdentityService>();
+                var restoreResult = await identityService.SetShipperCapacityAsync(
+                    DemoShipperUserId,
+                    previousCapacity.IsAvailable,
+                    restoreMaximum);
+                Assert.True(restoreResult.IsSuccess, restoreResult.Error.Description);
+            });
+        }
+    }
+
+    private Task<MiniLogistics.Domain.Common.Result<AutoAssignShipmentResult>> RunAutoAssignmentAsync(
+        Guid shipmentId,
+        AssignmentSelectionBarrier selectionBarrier)
+    {
+        return _fixture.ExecuteAsync(async services =>
+        {
+            var service = new AutoAssignShipmentService(
+                services.GetRequiredService<IShipmentRepository>(),
+                new FirstSelectionBarrierSelector(
+                    services.GetRequiredService<IShipmentAssignmentSelector>(),
+                    selectionBarrier),
+                services.GetRequiredService<TimeProvider>(),
+                services.GetRequiredService<IShipperAssignmentCapacityGuard>(),
+                services.GetRequiredService<IWebhookEventPublisher>(),
+                services.GetRequiredService<IAdminAuditService>(),
+                shopNotificationService: services.GetRequiredService<ShopNotificationService>());
+            return await service.AutoAssignAsync(shipmentId);
         });
     }
 
@@ -592,6 +718,42 @@ public sealed class InfrastructurePersistenceTests : IClassFixture<LocalDbIntegr
                 await dbContext.ShipperWorkingAreas.CountAsync(),
                 await dbContext.FeeRules.CountAsync());
         });
+    }
+
+    private sealed class AssignmentSelectionBarrier(int participantCount)
+    {
+        private readonly TaskCompletionSource _released = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int _arrivedCount;
+
+        public async Task WaitForAllAsync(CancellationToken cancellationToken)
+        {
+            if (Interlocked.Increment(ref _arrivedCount) == participantCount)
+            {
+                _released.TrySetResult();
+            }
+
+            await _released.Task.WaitAsync(TimeSpan.FromSeconds(30), cancellationToken);
+        }
+    }
+
+    private sealed class FirstSelectionBarrierSelector(
+        IShipmentAssignmentSelector inner,
+        AssignmentSelectionBarrier barrier) : IShipmentAssignmentSelector
+    {
+        private int _hasWaited;
+
+        public async Task<ShipmentAssignmentSelectionResult> SelectAsync(
+            Shipment shipment,
+            CancellationToken cancellationToken = default)
+        {
+            var selection = await inner.SelectAsync(shipment, cancellationToken);
+            if (Interlocked.Exchange(ref _hasWaited, 1) == 0)
+            {
+                await barrier.WaitForAllAsync(cancellationToken);
+            }
+
+            return selection;
+        }
     }
 
     private sealed record SeedCounts(

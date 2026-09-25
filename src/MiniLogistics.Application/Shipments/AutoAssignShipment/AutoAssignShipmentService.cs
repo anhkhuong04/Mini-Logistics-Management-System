@@ -11,8 +11,11 @@ namespace MiniLogistics.Application.Shipments.AutoAssignShipment;
 
 public sealed class AutoAssignShipmentService : IAutoAssignShipmentService
 {
+    private const int CapacityReservationAttempts = 3;
+
     private readonly IShipmentRepository _shipmentRepository;
     private readonly IShipmentAssignmentSelector _assignmentSelector;
+    private readonly IShipperAssignmentCapacityGuard _assignmentCapacityGuard;
     private readonly IWebhookEventPublisher _webhookEventPublisher;
     private readonly IAdminAuditService _adminAuditService;
     private readonly TimeProvider _timeProvider;
@@ -23,6 +26,7 @@ public sealed class AutoAssignShipmentService : IAutoAssignShipmentService
         IShipmentRepository shipmentRepository,
         IShipmentAssignmentSelector assignmentSelector,
         TimeProvider timeProvider,
+        IShipperAssignmentCapacityGuard assignmentCapacityGuard,
         IWebhookEventPublisher? webhookEventPublisher = null,
         IAdminAuditService? adminAuditService = null,
         ILogger<AutoAssignShipmentService>? logger = null,
@@ -30,6 +34,7 @@ public sealed class AutoAssignShipmentService : IAutoAssignShipmentService
     {
         _shipmentRepository = shipmentRepository;
         _assignmentSelector = assignmentSelector;
+        _assignmentCapacityGuard = assignmentCapacityGuard;
         _timeProvider = timeProvider;
         _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
@@ -76,73 +81,93 @@ public sealed class AutoAssignShipmentService : IAutoAssignShipmentService
                     $"Shipment status is {shipment.Status}; only PendingPickup shipments can be auto assigned."));
         }
 
-        var selection = await _assignmentSelector.SelectAsync(shipment, cancellationToken);
-        if (selection.Status == ShipmentAssignmentSelectionStatus.NoEligibleShipper
-            || selection.ShipperId is null)
+        for (var attempt = 0; attempt < CapacityReservationAttempts; attempt++)
         {
-            _logger?.LogWarning(
-                "Auto-assignment found no eligible shipper for shipment {ShipmentId}: {Reason}",
-                shipment.Id,
-                selection.Reason);
-            return Result<AutoAssignShipmentResult>.Success(
-                AutoAssignShipmentResult.NoEligibleShipper(shipment, selection.Reason));
-        }
-
-        var assignResult = shipment.AssignShipper(
-            selection.ShipperId.Value,
-            SystemActorIds.AutoAssignment,
-            _timeProvider.GetUtcNow(),
-            $"Auto assigned. {selection.Reason}");
-        if (assignResult.IsFailure)
-        {
-            _logger?.LogWarning(
-                "Auto-assignment failed for shipment {ShipmentId} with error {ErrorCode}: {ErrorDescription}",
-                shipment.Id,
-                assignResult.Error.Code,
-                assignResult.Error.Description);
-            return Result<AutoAssignShipmentResult>.Failure(assignResult.Error);
-        }
-
-        await _webhookEventPublisher.PublishShipmentAsync(
-            shipment,
-            WebhookEventTypes.ShipmentStatusChanged,
-            cancellationToken);
-        await _shopNotificationService.QueueShipmentEventAsync(
-            shipment,
-            ShopNotificationEventTypes.Assigned,
-            cancellationToken);
-        if (requestedByUserId.HasValue)
-        {
-            await _adminAuditService.RecordAsync(
-                new AdminAuditEntry(
-                    requestedByUserId.Value,
-                    AdminAuditActions.ShipmentAutoAssignmentRetried,
-                    AdminAuditTargetTypes.Shipment,
+            var selection = await _assignmentSelector.SelectAsync(shipment, cancellationToken);
+            if (selection.Status == ShipmentAssignmentSelectionStatus.NoEligibleShipper
+                || selection.ShipperId is null)
+            {
+                _logger?.LogWarning(
+                    "Auto-assignment found no eligible shipper for shipment {ShipmentId}: {Reason}",
                     shipment.Id,
-                    OldValue: new
-                    {
-                        Status = ShipmentStatus.PendingPickup.ToString()
-                    },
-                    NewValue: new
-                    {
-                        Status = shipment.Status.ToString(),
-                        AssignedShipperId = selection.ShipperId.Value
-                    },
-                    Reason: selection.Reason),
+                    selection.Reason);
+                return Result<AutoAssignShipmentResult>.Success(
+                    AutoAssignShipmentResult.NoEligibleShipper(shipment, selection.Reason));
+            }
+
+            await using var capacityLease = await _assignmentCapacityGuard.TryAcquireAsync(
+                selection.ShipperId.Value,
                 cancellationToken);
+            if (capacityLease is null)
+            {
+                continue;
+            }
+
+            var assignResult = shipment.AssignShipper(
+                selection.ShipperId.Value,
+                SystemActorIds.AutoAssignment,
+                _timeProvider.GetUtcNow(),
+                $"Auto assigned. {selection.Reason}");
+            if (assignResult.IsFailure)
+            {
+                _logger?.LogWarning(
+                    "Auto-assignment failed for shipment {ShipmentId} with error {ErrorCode}: {ErrorDescription}",
+                    shipment.Id,
+                    assignResult.Error.Code,
+                    assignResult.Error.Description);
+                return Result<AutoAssignShipmentResult>.Failure(assignResult.Error);
+            }
+
+            await _webhookEventPublisher.PublishShipmentAsync(
+                shipment,
+                WebhookEventTypes.ShipmentStatusChanged,
+                cancellationToken);
+            await _shopNotificationService.QueueShipmentEventAsync(
+                shipment,
+                ShopNotificationEventTypes.Assigned,
+                cancellationToken);
+            if (requestedByUserId.HasValue)
+            {
+                await _adminAuditService.RecordAsync(
+                    new AdminAuditEntry(
+                        requestedByUserId.Value,
+                        AdminAuditActions.ShipmentAutoAssignmentRetried,
+                        AdminAuditTargetTypes.Shipment,
+                        shipment.Id,
+                        OldValue: new
+                        {
+                            Status = ShipmentStatus.PendingPickup.ToString()
+                        },
+                        NewValue: new
+                        {
+                            Status = shipment.Status.ToString(),
+                            AssignedShipperId = selection.ShipperId.Value
+                        },
+                        Reason: selection.Reason),
+                    cancellationToken);
+            }
+
+            await _shipmentRepository.SaveChangesAsync(cancellationToken);
+            await capacityLease.CommitAsync(cancellationToken);
+
+            _logger?.LogInformation(
+                "Auto-assigned shipment {ShipmentId} to shipper {ShipperId}",
+                shipment.Id,
+                selection.ShipperId.Value);
+
+            return Result<AutoAssignShipmentResult>.Success(
+                AutoAssignShipmentResult.Assigned(
+                    shipment,
+                    selection.ShipperId.Value,
+                    selection.Reason));
         }
 
-        await _shipmentRepository.SaveChangesAsync(cancellationToken);
-
-        _logger?.LogInformation(
-            "Auto-assigned shipment {ShipmentId} to shipper {ShipperId}",
+        const string capacityChangedReason = "Shipper capacity changed during assignment; retry the operation.";
+        _logger?.LogWarning(
+            "Auto-assignment could not reserve capacity for shipment {ShipmentId} after {AttemptCount} attempts",
             shipment.Id,
-            selection.ShipperId.Value);
-
+            CapacityReservationAttempts);
         return Result<AutoAssignShipmentResult>.Success(
-            AutoAssignShipmentResult.Assigned(
-                shipment,
-                selection.ShipperId.Value,
-                selection.Reason));
+            AutoAssignShipmentResult.NoEligibleShipper(shipment, capacityChangedReason));
     }
 }

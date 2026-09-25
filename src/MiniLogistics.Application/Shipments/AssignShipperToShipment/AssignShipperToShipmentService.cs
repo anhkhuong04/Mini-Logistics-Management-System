@@ -5,6 +5,7 @@ using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Application.Shops.Notifications;
+using MiniLogistics.Application.Shipments.AssignmentSelection;
 using MiniLogistics.Domain.Common;
 using MiniLogistics.Domain.Users;
 
@@ -15,6 +16,7 @@ public sealed class AssignShipperToShipmentService : IAssignShipperToShipmentSer
     private readonly IValidator<AssignShipperCommand> _validator;
     private readonly IIdentityService _identityService;
     private readonly IShipmentRepository _shipmentRepository;
+    private readonly IShipperAssignmentCapacityGuard _assignmentCapacityGuard;
     private readonly IWebhookEventPublisher _webhookEventPublisher;
     private readonly IAdminAuditService _adminAuditService;
     private readonly IOperationAuthorizationService _operationAuthorizationService;
@@ -26,6 +28,7 @@ public sealed class AssignShipperToShipmentService : IAssignShipperToShipmentSer
         IIdentityService identityService,
         IShipmentRepository shipmentRepository,
         TimeProvider timeProvider,
+        IShipperAssignmentCapacityGuard assignmentCapacityGuard,
         IWebhookEventPublisher? webhookEventPublisher = null,
         IAdminAuditService? adminAuditService = null,
         IOperationAuthorizationService? operationAuthorizationService = null,
@@ -34,6 +37,7 @@ public sealed class AssignShipperToShipmentService : IAssignShipperToShipmentSer
         _validator = validator;
         _identityService = identityService;
         _shipmentRepository = shipmentRepository;
+        _assignmentCapacityGuard = assignmentCapacityGuard;
         _timeProvider = timeProvider;
         _webhookEventPublisher = webhookEventPublisher ?? NullWebhookEventPublisher.Instance;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
@@ -79,6 +83,15 @@ public sealed class AssignShipperToShipmentService : IAssignShipperToShipmentSer
             return Result.Failure(ApplicationErrors.NotFound("Shipment was not found."));
         }
 
+        await using var capacityLease = await _assignmentCapacityGuard.TryAcquireAsync(
+            command.ShipperId,
+            cancellationToken);
+        if (capacityLease is null)
+        {
+            return Result.Failure(ApplicationErrors.CapacityReached(
+                "Selected shipper has reached the maximum number of active shipments."));
+        }
+
         var assignResult = shipment.AssignShipper(
             command.ShipperId,
             command.AssignedByUserId,
@@ -117,6 +130,7 @@ public sealed class AssignShipperToShipmentService : IAssignShipperToShipmentSer
                 Reason: command.Note),
             cancellationToken);
         await _shipmentRepository.SaveChangesAsync(cancellationToken);
+        await capacityLease.CommitAsync(cancellationToken);
 
         return Result.Success();
     }

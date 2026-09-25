@@ -4,11 +4,14 @@ Verified against the repository on 2026-09-25. These are context for scoping and
 
 ## Current issues
 
-1. **Assignment capacity is not reserved atomically.** Concurrent auto-assignment requests can both observe the final shipper slot as available. The assignment uniqueness constraint is per shipment and does not protect aggregate shipper capacity; see `review-code.md` TASK-CI-06.
-2. **Partner idempotency has concurrent-request gaps.** Re-check unique-key and transaction behavior before changing partner shipment creation; see `review-code.md` TASK-CI-07.
-3. **Some distributed-looking state is process-local/non-atomic.** Fee/route/hub caches invalidate only the current process. Public tracking and Shop UI limiters use non-atomic distributed-cache get/set and are configured with memory cache. Multi-instance behavior is not equivalent to partner Redis rate limiting.
-4. **Verified public tracking is not wired through the UI.** The application service supports phone-last-four verification, but the public component currently calls it without that value.
-5. **Documentation drifts.** README progress/test counts and some historic reports may lag current code. Use source/tests/migrations and this context hierarchy rather than copying old counts or schema descriptions.
+1. **Partner idempotency has concurrent-request gaps.** Re-check unique-key and transaction behavior before changing partner shipment creation; see `review-code.md` TASK-CI-07.
+2. **Some distributed-looking state is process-local/non-atomic.** Fee/route/hub caches invalidate only the current process. Public tracking and Shop UI limiters use non-atomic distributed-cache get/set and are configured with memory cache. Multi-instance behavior is not equivalent to partner Redis rate limiting.
+3. **Verified public tracking is not wired through the UI.** The application service supports phone-last-four verification, but the public component currently calls it without that value.
+4. **Documentation drifts.** README progress/test counts and some historic reports may lag current code. Use source/tests/migrations and this context hierarchy rather than copying old counts or schema descriptions.
+
+## Resolved in this branch
+
+- **TASK-CI-06 — shipper capacity reservations.** Assignment paths lock the shipper's `AspNetUsers` row in the database transaction, read the current limit and active load under that lock, and commit assignment/outbox effects before releasing it. Automatic assignment allows three total attempts; manual assignment and reassignment reject a full shipper. See the focused SQL Server concurrency test.
 
 Detailed evidence and remediation options are recorded in root `review-code.md` when that local report is available.
 

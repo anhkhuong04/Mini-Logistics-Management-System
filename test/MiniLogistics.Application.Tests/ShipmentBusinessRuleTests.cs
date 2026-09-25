@@ -334,6 +334,7 @@ public sealed class ShipmentBusinessRuleTests
             shipmentRepository,
             selector,
             TestClock.Provider,
+            new StubShipperAssignmentCapacityGuard(),
             publisher);
 
         var result = await service.AutoAssignAsync(targetShipment.Id);
@@ -349,6 +350,66 @@ public sealed class ShipmentBusinessRuleTests
     }
 
     [Fact]
+    public async Task AutoAssignShipment_WhenReservationIsLost_RetriesSelectionAndUsesAnotherShipper()
+    {
+        var shipment = CreateShipment(_shopUserId);
+        var shipmentRepository = new FakeShipmentRepository([shipment]);
+        var publisher = new FakeWebhookEventPublisher();
+        var capacityGuard = new StubShipperAssignmentCapacityGuard((_, shipperId) => shipperId == _otherShipperId);
+        var selector = new SequenceShipmentAssignmentSelector(
+            ShipmentAssignmentSelectionResult.Selected(
+                _shipperId, Guid.NewGuid(), null, null, 0, "First shipper."),
+            ShipmentAssignmentSelectionResult.Selected(
+                _otherShipperId, Guid.NewGuid(), null, null, 0, "Alternative shipper."));
+        var service = new AutoAssignShipmentService(
+            shipmentRepository,
+            selector,
+            TestClock.Provider,
+            capacityGuard,
+            publisher);
+
+        var result = await service.AutoAssignAsync(shipment.Id);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(AutoAssignShipmentStatus.Assigned, result.Value.Status);
+        Assert.Equal(_otherShipperId, result.Value.ShipperId);
+        Assert.Equal(2, capacityGuard.AcquireCount);
+        Assert.Equal(1, capacityGuard.CommitCount);
+        Assert.Equal(1, shipmentRepository.SaveChangesCount);
+        Assert.Equal(1, publisher.PublishCount);
+        Assert.Contains(shipment.Assignments, assignment => assignment.IsActive && assignment.ShipperId == _otherShipperId);
+    }
+
+    [Fact]
+    public async Task AutoAssignShipment_WhenCapacityCannotBeReserved_RetriesAreBoundedAndHaveNoSideEffects()
+    {
+        var shipment = CreateShipment(_shopUserId);
+        var shipmentRepository = new FakeShipmentRepository([shipment]);
+        var publisher = new FakeWebhookEventPublisher();
+        var capacityGuard = new StubShipperAssignmentCapacityGuard((_, _) => false);
+        var selector = new SequenceShipmentAssignmentSelector(
+            ShipmentAssignmentSelectionResult.Selected(
+                _shipperId, Guid.NewGuid(), null, null, 0, "Capacity race."));
+        var service = new AutoAssignShipmentService(
+            shipmentRepository,
+            selector,
+            TestClock.Provider,
+            capacityGuard,
+            publisher);
+
+        var result = await service.AutoAssignAsync(shipment.Id);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(AutoAssignShipmentStatus.NoEligibleShipper, result.Value.Status);
+        Assert.Equal(3, capacityGuard.AcquireCount);
+        Assert.Equal(0, capacityGuard.CommitCount);
+        Assert.Equal(0, shipmentRepository.SaveChangesCount);
+        Assert.Equal(0, publisher.PublishCount);
+        Assert.Equal(ShipmentStatus.PendingPickup, shipment.Status);
+        Assert.Empty(shipment.Assignments);
+    }
+
+    [Fact]
     public async Task AutoAssignShipment_DeliveredCodShipment_CanStillBeCollectedByAssignedShipper()
     {
         var targetShipment = CreateShipment(_shopUserId, codAmount: 100_000m);
@@ -361,7 +422,11 @@ public sealed class ShipmentBusinessRuleTests
                 new ShipperWorkingArea(_shipperId, hub.Id, "Ho Chi Minh", TestClock.UtcNow)
             ]),
             shipmentRepository);
-        var autoAssignService = new AutoAssignShipmentService(shipmentRepository, selector, TestClock.Provider);
+        var autoAssignService = new AutoAssignShipmentService(
+            shipmentRepository,
+            selector,
+            TestClock.Provider,
+            new StubShipperAssignmentCapacityGuard());
 
         var autoAssignResult = await autoAssignService.AutoAssignAsync(targetShipment.Id);
         MoveShipmentToStatus(targetShipment, ShipmentStatus.Delivered);
@@ -457,11 +522,15 @@ public sealed class ShipmentBusinessRuleTests
         Assert.DoesNotContain(shippersResult.Value, shipper => shipper.UserId == managedShipperId);
 
         var shipment = CreateShipment(_shopUserId);
+        var capacityGuard = new StubShipperAssignmentCapacityGuard((_, _) => false);
+        var publisher = new FakeWebhookEventPublisher();
         var assignService = new AssignShipperToShipmentService(
             new AssignShipperCommandValidator(),
             identityService,
             new FakeShipmentRepository([shipment]),
-            TestClock.Provider);
+            TestClock.Provider,
+            capacityGuard,
+            publisher);
 
         var assignResult = await assignService.AssignAsync(new AssignShipperCommand(
             shipment.Id,
@@ -471,6 +540,40 @@ public sealed class ShipmentBusinessRuleTests
 
         Assert.True(assignResult.IsFailure);
         Assert.Equal("Application.Forbidden", assignResult.Error.Code);
+        Assert.Equal(0, capacityGuard.AcquireCount);
+        Assert.Equal(0, publisher.PublishCount);
+    }
+
+    [Fact]
+    public async Task AssignShipperToShipment_WhenShipperIsAtCapacity_ReturnsCapacityErrorWithoutSideEffects()
+    {
+        var identityService = CreateIdentityService();
+        var shipment = CreateShipment(_shopUserId);
+        var shipmentRepository = new FakeShipmentRepository([shipment]);
+        var capacityGuard = new StubShipperAssignmentCapacityGuard((_, _) => false);
+        var publisher = new FakeWebhookEventPublisher();
+        var service = new AssignShipperToShipmentService(
+            new AssignShipperCommandValidator(),
+            identityService,
+            shipmentRepository,
+            TestClock.Provider,
+            capacityGuard,
+            publisher);
+
+        var result = await service.AssignAsync(new AssignShipperCommand(
+            shipment.Id,
+            _shipperId,
+            _adminId,
+            "Manual assignment should respect shipper capacity."));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal("Application.CapacityReached", result.Error.Code);
+        Assert.Equal(1, capacityGuard.AcquireCount);
+        Assert.Equal(0, capacityGuard.CommitCount);
+        Assert.Equal(0, shipmentRepository.SaveChangesCount);
+        Assert.Equal(0, publisher.PublishCount);
+        Assert.Equal(ShipmentStatus.PendingPickup, shipment.Status);
+        Assert.Empty(shipment.Assignments);
     }
 
     [Fact]
@@ -1603,7 +1706,8 @@ public sealed class ShipmentBusinessRuleTests
             new AssignShipperCommandValidator(),
             CreateIdentityService(),
             shipmentRepository,
-            TestClock.Provider);
+            TestClock.Provider,
+            new StubShipperAssignmentCapacityGuard());
     }
 
     private UpdateShipmentStatusService CreateUpdateStatusService(IReadOnlyList<Shipment> shipments)
@@ -1694,7 +1798,8 @@ public sealed class ShipmentBusinessRuleTests
                 new FakeHubRepository(hubs),
                 new FakeShipperWorkingAreaRepository(workingAreas),
                 shipmentRepository),
-            TestClock.Provider);
+            TestClock.Provider,
+            new StubShipperAssignmentCapacityGuard());
     }
 
     private static ShippingFeeService CreateShippingFeeService()
@@ -1996,6 +2101,21 @@ public sealed class ShipmentBusinessRuleTests
     private static string FormatFakeUserEmail(Guid userId)
     {
         return $"{userId:N}@example.test";
+    }
+
+    private sealed class SequenceShipmentAssignmentSelector(
+        params ShipmentAssignmentSelectionResult[] selections) : IShipmentAssignmentSelector
+    {
+        private int _selectionCount;
+
+        public Task<ShipmentAssignmentSelectionResult> SelectAsync(
+            Shipment shipment,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var index = Math.Min(Interlocked.Increment(ref _selectionCount) - 1, selections.Length - 1);
+            return Task.FromResult(selections[index]);
+        }
     }
 
     private sealed class FakeIdentityService : IIdentityService

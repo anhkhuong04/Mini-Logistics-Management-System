@@ -13,6 +13,9 @@ public static class ApplicationErrors
     public static Error ConcurrencyConflict(string description) =>
         new("Application.ConcurrencyConflict", description);
 
+    public static Error CapacityReached(string description) =>
+        new("Application.CapacityReached", description);
+
     public static Error RegistrationFailed(string description) =>
         new("Application.RegistrationFailed", description);
 
