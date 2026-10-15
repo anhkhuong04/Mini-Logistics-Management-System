@@ -1,3 +1,5 @@
+> **Báo cáo lịch sử 2026-08-02.** Giữ để tra cứu task/evidence đã ghi nhận; không dùng số test hoặc kết luận này để xác nhận release hiện tại. Checklist duy trì tại [Operations](../operations.md).
+
 # Bao Cao Thuc Hien Partner API Production Readiness
 
 Ngay cap nhat: 2026-08-02

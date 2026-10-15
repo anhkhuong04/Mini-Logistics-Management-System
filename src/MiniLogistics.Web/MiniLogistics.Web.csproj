@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
     <OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
-    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)\..\..\docs</OpenApiDocumentsDirectory>
+    <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)\..\..\docs\Service</OpenApiDocumentsDirectory>
     <OpenApiGenerateDocumentsOptions>--file-name partner-api --document-name v1</OpenApiGenerateDocumentsOptions>
   </PropertyGroup>
 

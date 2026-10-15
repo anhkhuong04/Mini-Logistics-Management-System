@@ -2,8 +2,10 @@
 @inject IStringLocalizer<SharedResource> L
 @inject NavigationManager NavigationManager
 
-<div class="app-shell">
-    <aside class="sidebar @(IsNavigationOpen ? "is-open" : null)" aria-label="@L["MainNavigation"]">
+<a class="skip-link" href="#main-content">@L["SkipToContent"]</a>
+<div class="app-shell" @onkeydown="HandleNavigationKeyDown">
+    <aside id="main-sidebar" class="sidebar @(IsNavigationOpen ? "is-open" : null)" aria-label="@L["MainNavigation"]">
+        <button type="button" class="mobile-navigation-close" @ref="NavigationCloseButton" aria-label="@L["CloseNavigation"]" @onclick="CloseNavigation"><AppIcon Name="x" Size="20" /></button>
         <NavMenu OnNavigate="CloseNavigation" />
     </aside>
 
@@ -14,7 +16,7 @@
 
     <main class="app-main">
         <header class="app-topbar">
-            <button class="menu-button" type="button" aria-label="@L["OpenNavigation"]" aria-expanded="@IsNavigationOpen" @onclick="ToggleNavigation">
+            <button class="menu-button" type="button" @ref="MenuButton" aria-label="@L["OpenNavigation"]" aria-controls="main-sidebar" aria-expanded="@IsNavigationOpen" @onclick="ToggleNavigation">
                 <AppIcon Name="menu" Size="20" />
             </button>
 
@@ -50,13 +52,12 @@
 
                         <div class="account-chip">
                             <span class="account-avatar" aria-hidden="true">
-                                <AppIcon Name="store" Size="20" />
+                                <AppIcon Name="@(layoutContext.User.IsInRole("Shop") ? "store" : "user")" Size="20" />
                             </span>
                             <span class="account-text">
                                 <strong>@(layoutContext.User.Identity?.Name ?? L["Account"])</strong>
                                 <small>@GetRoleLabel(layoutContext.User)</small>
                             </span>
-                            <AppIcon Name="chevron-down" Size="18" Class="account-chevron" />
                         </div>
                     </Authorized>
                     <NotAuthorized>
@@ -66,7 +67,7 @@
             </div>
         </header>
 
-        <article class="app-content">
+        <article id="main-content" class="app-content" tabindex="-1">
             @Body
         </article>
     </main>
@@ -75,9 +76,35 @@
 @code {
     private bool IsNavigationOpen { get; set; }
 
-    private void ToggleNavigation() => IsNavigationOpen = !IsNavigationOpen;
+    private ElementReference MenuButton;
+    private ElementReference NavigationCloseButton;
+    private bool FocusNavigation;
+    private bool FocusMenu;
 
-    private void CloseNavigation() => IsNavigationOpen = false;
+    private void ToggleNavigation()
+    {
+        IsNavigationOpen = !IsNavigationOpen;
+        FocusNavigation = IsNavigationOpen;
+        FocusMenu = !IsNavigationOpen;
+    }
+
+    private void CloseNavigation()
+    {
+        if (!IsNavigationOpen) return;
+        IsNavigationOpen = false;
+        FocusMenu = true;
+    }
+
+    private void HandleNavigationKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Escape") CloseNavigation();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (FocusNavigation) { FocusNavigation = false; await NavigationCloseButton.FocusAsync(); }
+        if (FocusMenu) { FocusMenu = false; await MenuButton.FocusAsync(); }
+    }
 
     private string CurrentLanguageCode => System.Globalization.CultureInfo.CurrentUICulture.TwoLetterISOLanguageName.ToUpperInvariant();
 

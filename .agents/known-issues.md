@@ -15,7 +15,7 @@ Verified against the repository on 2026-09-25. These are context for scoping and
 - **TASK-CI-08 — serialized route/fee configuration versions.** Admin writes take a transaction-owned SQL application lock per province or route type, deactivate old rows before inserting the next version, commit audit/configuration together, then invalidate local caches. Unique version and filtered unique active indexes enforce the invariant in SQL Server; concurrency and cache-refresh behavior is covered by LocalDB integration tests.
 - **TASK-CI-09 — cross-instance configuration cache consistency.** Production route/fee/hub caches check shared Redis generation keys and keep only short-lived local snapshots; Redis outages fall back directly to SQL, while failed post-commit invalidation is logged and bounded by `ConfigurationCache:ConsistencyWindowSeconds`. New shipments persist route configuration and fee rule identifiers/versions. The two-provider Redis integration test runs when `MINILOGISTICS_TEST_REDIS` is configured.
 
-Detailed evidence and remediation options are recorded in root `review-code.md` when that local report is available.
+Detailed evidence and remediation options are recorded in [historical review](../docs/Backend/history/review-code.md); re-check findings against current code before using them.
 
 ## Areas not to refactor opportunistically
 
@@ -34,5 +34,5 @@ Changes in these areas require an explicit task, end-to-end tracing and focused 
 
 - Target deployment topology and whether multiple web/worker instances are required.
 - Production SLOs, throughput/data-volume assumptions, retention/legal requirements and observability backend.
-- Whether the stray root `.csproj` should be deleted and whether all progress-report Markdown files remain authoritative.
+- Whether the stray root `.csproj` should be deleted and the retention policy for historical reports under `docs/Backend/history` and `docs/Service/history`.
 - The desired public-tracking verification UX.

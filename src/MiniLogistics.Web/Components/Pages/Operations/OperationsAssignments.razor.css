@@ -14,24 +14,24 @@
 }
 
 .eyebrow {
-    color: #0b63f6;
+    color: var(--ui-primary);
     font-size: 0.78rem;
-    font-weight: 900;
+    font-weight: 600;
     letter-spacing: 0.12em;
     margin: 0 0 0.35rem;
     text-transform: uppercase;
 }
 
 .page-heading h1 {
-    color: #071b4d;
-    font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
+    color: var(--ui-text-strong);
+    font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif;
     font-size: clamp(1.45rem, 2vw, 2rem);
-    font-weight: 900;
+    font-weight: 600;
     margin: 0 0 0.35rem;
 }
 
 .page-heading p:last-child {
-    color: #64748b;
+    color: var(--ui-muted);
     margin: 0;
 }
 
@@ -44,7 +44,7 @@
     border-radius: 10px;
     cursor: pointer;
     display: inline-flex;
-    font-weight: 800;
+    font-weight: 600;
     justify-content: center;
     min-height: 42px;
 }
@@ -52,7 +52,7 @@
 .refresh-button {
     background: #fff;
     border: 1px solid #d9e5f3;
-    color: #0b63f6;
+    color: var(--ui-primary);
     gap: 0.5rem;
     padding: 0 1rem;
 }
@@ -128,7 +128,7 @@
 .sla-toggle span {
     color: #334155;
     font-size: 0.78rem;
-    font-weight: 900;
+    font-weight: 600;
     text-transform: uppercase;
 }
 
@@ -137,7 +137,7 @@
     background: #fff;
     border: 1px solid #d7e4f2;
     border-radius: 10px;
-    color: #071b4d;
+    color: var(--ui-text-strong);
     min-height: 40px;
     padding: 0 0.75rem;
 }
@@ -164,9 +164,9 @@
 
 .bulk-toolbar span,
 .pagination-bar span {
-    color: #64748b;
+    color: var(--ui-muted);
     font-size: 0.82rem;
-    font-weight: 900;
+    font-weight: 600;
 }
 
 .section-heading {
@@ -177,9 +177,9 @@
 }
 
 .section-heading h2 {
-    color: #071b4d;
+    color: var(--ui-text-strong);
     font-size: 1.15rem;
-    font-weight: 900;
+    font-weight: 600;
     margin: 0;
 }
 
@@ -188,7 +188,7 @@
     border-radius: 999px;
     color: #334155;
     font-size: 0.82rem;
-    font-weight: 900;
+    font-weight: 600;
     padding: 0.45rem 0.7rem;
     white-space: nowrap;
 }
@@ -209,16 +209,16 @@
 }
 
 .summary-strip span {
-    color: #64748b;
+    color: var(--ui-muted);
     font-size: 0.82rem;
-    font-weight: 800;
+    font-weight: 600;
     text-transform: uppercase;
 }
 
 .summary-strip strong {
-    color: #071b4d;
+    color: var(--ui-text-strong);
     font-size: 1.35rem;
-    font-weight: 900;
+    font-weight: 600;
 }
 
 .table-shell {
@@ -245,9 +245,9 @@
 
 .assignments-table th {
     background: #f6f9fe;
-    color: #64748b;
+    color: var(--ui-muted);
     font-size: 0.76rem;
-    font-weight: 900;
+    font-weight: 600;
     padding: 0.85rem;
     text-align: left;
     text-transform: uppercase;
@@ -255,7 +255,7 @@
 
 .assignments-table td {
     border-bottom: 1px solid #eef4fb;
-    color: #071b4d;
+    color: var(--ui-text-strong);
     font-size: 0.92rem;
     padding: 1rem 0.85rem;
     vertical-align: top;
@@ -271,13 +271,13 @@
 }
 
 .assignments-table td small {
-    color: #64748b;
+    color: var(--ui-muted);
     margin-top: 0.25rem;
 }
 
 .tracking-code {
-    color: #0b63f6;
-    font-weight: 900;
+    color: var(--ui-primary);
+    font-weight: 600;
     white-space: nowrap;
 }
 
@@ -300,7 +300,7 @@
     background: #fff;
     border: 1px solid #d7e4f2;
     border-radius: 10px;
-    color: #071b4d;
+    color: var(--ui-text-strong);
     min-height: 42px;
     min-width: 14rem;
     padding: 0 0.75rem;
@@ -317,7 +317,7 @@
 .assign-button,
 .retry-button,
 .settlement-button {
-    background: #0b63f6;
+    background: var(--ui-primary);
     color: #fff;
     padding: 0 1rem;
     white-space: nowrap;
@@ -326,7 +326,7 @@
 .retry-button {
     background: #fff;
     border: 1px solid #d7e4f2;
-    color: #0b63f6;
+    color: var(--ui-primary);
 }
 
 .assignment-actions {
@@ -339,7 +339,7 @@
     border-radius: 999px;
     display: inline-flex;
     font-size: 0.74rem;
-    font-weight: 900;
+    font-weight: 600;
     line-height: 1;
     padding: 0.42rem 0.6rem;
     white-space: nowrap;
@@ -347,7 +347,7 @@
 
 .fallback-pill.info {
     background: #eaf4ff;
-    color: #0b63f6;
+    color: var(--ui-primary);
 }
 
 .fallback-pill.warning {
@@ -358,10 +358,10 @@
 .fallback-reason,
 .shipper-meta,
 .sla-badge {
-    color: #64748b;
+    color: var(--ui-muted);
     display: block;
     font-size: 0.78rem;
-    font-weight: 800;
+    font-weight: 600;
     line-height: 1.45;
     margin-top: 0.45rem;
     max-width: 18rem;
@@ -383,7 +383,7 @@
     border: 0;
     border-radius: 10px;
     cursor: pointer;
-    font-weight: 900;
+    font-weight: 600;
     min-height: 40px;
 }
 
@@ -393,7 +393,7 @@
     border-radius: 10px;
     color: #fff;
     cursor: pointer;
-    font-weight: 900;
+    font-weight: 600;
     min-height: 40px;
     padding: 0 1rem;
     white-space: nowrap;
@@ -431,7 +431,7 @@
 .assignment-management-title {
     color: #334155;
     font-size: 0.76rem;
-    font-weight: 900;
+    font-weight: 600;
     text-transform: uppercase;
 }
 
@@ -447,7 +447,7 @@
     background: #fff;
     border: 1px solid #d7e4f2;
     border-radius: 10px;
-    color: #071b4d;
+    color: var(--ui-text-strong);
 }
 
 .operations-status-form select,
@@ -465,12 +465,12 @@
 
 .operations-status-form button,
 .reassign-button {
-    background: #0b63f6;
-    border: 1px solid #0b63f6;
+    background: var(--ui-primary);
+    border: 1px solid var(--ui-primary);
     border-radius: 10px;
     color: #fff;
     cursor: pointer;
-    font-weight: 900;
+    font-weight: 600;
     min-height: 40px;
     padding: 0 1rem;
 }
@@ -481,7 +481,7 @@
     border-radius: 10px;
     color: #b91c1c;
     cursor: pointer;
-    font-weight: 900;
+    font-weight: 600;
     min-height: 40px;
     padding: 0 1rem;
 }
@@ -500,7 +500,7 @@
     border-radius: 999px;
     display: inline-flex;
     font-size: 0.78rem;
-    font-weight: 900;
+    font-weight: 600;
     line-height: 1;
     padding: 0.48rem 0.65rem;
     white-space: nowrap;
@@ -514,7 +514,7 @@
 
 .status-pill.info {
     background: #eaf4ff;
-    color: #0b63f6;
+    color: var(--ui-primary);
 }
 
 .status-pill.success,
@@ -530,12 +530,12 @@
 
 .cod-pill.neutral {
     background: #eef4fb;
-    color: #64748b;
+    color: var(--ui-muted);
 }
 
 .row-message {
     font-size: 0.78rem;
-    font-weight: 800;
+    font-weight: 600;
     margin: 0.45rem 0 0;
     max-width: 16rem;
 }
@@ -553,9 +553,9 @@
 }
 
 .field-hint {
-    color: #64748b;
+    color: var(--ui-muted);
     font-size: 0.76rem;
-    font-weight: 800;
+    font-weight: 600;
 }
 
 .field-hint.danger {
@@ -576,7 +576,7 @@
 }
 
 .state-card p {
-    color: #64748b;
+    color: var(--ui-muted);
     margin: 0;
 }
 
@@ -584,7 +584,7 @@
     align-items: center;
     background: #eaf4ff;
     border-radius: 999px;
-    color: #0b63f6;
+    color: var(--ui-primary);
     display: inline-flex;
     height: 56px;
     justify-content: center;
@@ -677,10 +677,10 @@
     }
 
     .assignments-table td::before {
-        color: #64748b;
+        color: var(--ui-muted);
         content: "";
         font-size: 0.72rem;
-        font-weight: 900;
+        font-weight: 600;
         text-transform: uppercase;
     }
 

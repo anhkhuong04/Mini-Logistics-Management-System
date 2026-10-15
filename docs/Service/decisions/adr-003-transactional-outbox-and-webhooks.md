@@ -46,4 +46,4 @@ Trade-offs:
 - Test lease reclaim and multi-worker behavior against SQL Server, not only in-memory fakes.
 - Preserve event ID, signing contract, destination policy, and outbox atomicity when changing integration flows.
 
-See the [production runbook](../operations/partner-api-production-runbook.md) and [threat model](../security/partner-api-threat-model.md).
+See the [production runbook](../operations.md) and [threat model](../security.md).

@@ -96,7 +96,7 @@ seeding, or disabled retention.
 
 ## Related Documents
 
-- [Threat model](../security/partner-api-threat-model.md)
-- [Production runbook](../operations/partner-api-production-runbook.md)
+- [Threat model](../security.md)
+- [Production runbook](../operations.md)
 - [Partner API contract](../partner-api.md)
 - [OpenAPI document](../partner-api.openapi.json)

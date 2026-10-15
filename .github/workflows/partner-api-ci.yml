@@ -33,7 +33,7 @@ jobs:
       - name: Reject OpenAPI drift
         shell: pwsh
         run: |
-          git diff --exit-code -- docs/partner-api.openapi.json
+          git diff --exit-code -- docs/Service/partner-api.openapi.json
           if ($LASTEXITCODE -ne 0) {
             throw "Generated OpenAPI differs from the committed artifact. Review and commit the contract change."
           }
@@ -45,13 +45,19 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           $baseline = Join-Path $env:RUNNER_TEMP 'partner-api.baseline.json'
-          git cat-file -e "${env:BASE_SHA}:docs/partner-api.openapi.json"
+          $baselinePath = 'docs/Service/partner-api.openapi.json'
+          git cat-file -e "${env:BASE_SHA}:$baselinePath"
+          if ($LASTEXITCODE -ne 0) {
+            # Compare with the previous location during the documentation move.
+            $baselinePath = 'docs/partner-api.openapi.json'
+            git cat-file -e "${env:BASE_SHA}:$baselinePath"
+          }
           if ($LASTEXITCODE -ne 0) {
             Write-Host 'The base branch has no Partner OpenAPI artifact; compatibility starts after this initial publication.'
             exit 0
           }
-          git show "${env:BASE_SHA}:docs/partner-api.openapi.json" | Set-Content -LiteralPath $baseline -Encoding utf8
-          ./scripts/Test-OpenApiCompatibility.ps1 -Baseline $baseline -Candidate docs/partner-api.openapi.json
+          git show "${env:BASE_SHA}:$baselinePath" | Set-Content -LiteralPath $baseline -Encoding utf8
+          ./scripts/Test-OpenApiCompatibility.ps1 -Baseline $baseline -Candidate docs/Service/partner-api.openapi.json
 
       - name: Dependency vulnerability check
         shell: pwsh

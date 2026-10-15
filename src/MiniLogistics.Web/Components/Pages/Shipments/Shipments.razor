@@ -19,51 +19,35 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 
-<PageTitle>Shipments</PageTitle>
+<PageTitle>Đơn hàng - MiniLogistics</PageTitle>
 
 <div class="shipments-page">
-    <div class="page-heading">
-        <div>
-            <h1>Danh sách đơn hàng</h1>
-            <p>Theo dõi các vận đơn thuộc shop đang đăng nhập.</p>
-        </div>
-
-        <div class="heading-actions">
+    <UiPageHeader Title="Đơn hàng" Description="Theo dõi, tìm kiếm và quản lý vận đơn của cửa hàng." Icon="package">
+        <Actions>
             @if (CanManageShipments)
             {
-                <button type="button" class="btn btn-outline-secondary action-button" @onclick="ToggleImportPanel">
-                    Import CSV
-                </button>
+                <button type="button" class="ui-button ui-button--secondary" @onclick="ToggleImportPanel"><AppIcon Name="upload" Size="18" /> Nhập CSV</button>
+                <a class="ui-button ui-button--primary" href="@(BuildShopLink("/shipments/create"))"><AppIcon Name="plus" Size="18" /> Tạo đơn hàng</a>
             }
-            <a class="btn btn-outline-secondary action-button" href="@CsvTemplateDataUri" download="shipment-import-template.csv">
-                Template CSV
-            </a>
-            @if (CanManageShipments)
-            {
-                <a class="btn btn-primary action-button" href="@(BuildShopLink("/shipments/create"))">
-                    <AppIcon Name="plus" Size="18" />
-                    <span>Tạo đơn hàng</span>
-                </a>
-            }
-        </div>
-    </div>
+        </Actions>
+    </UiPageHeader>
 
     @if (ShopContext is not null)
     {
         <section class="shop-context-bar" aria-label="Shop context">
             <label for="shipments-shop-context">
-                Shop dang chon
+                Cửa hàng
                 <select id="shipments-shop-context" value="@SelectedShopId" @onchange="OnShopChanged">
                     @foreach (var shop in ShopContext.Shops)
                     {
                         <option value="@shop.ShopId">
-                            @shop.Name@(shop.IsActive ? string.Empty : " (Inactive)")
+                            @shop.Name@(shop.IsActive ? string.Empty : " (Tạm ngưng)")
                         </option>
                     }
                 </select>
             </label>
             <span class="shop-context-status @(SelectedShop?.IsActive == true ? "active" : "inactive")">
-                @(SelectedShop?.IsActive == true ? "Active" : "Inactive")
+                @(SelectedShop?.IsActive == true ? "Đang hoạt động" : "Tạm ngưng")
             </span>
         </section>
     }
@@ -100,51 +84,54 @@
         <section class="content-card shipment-list-card">
             <div class="shipment-list-toolbar">
                 <label>
-                    Search
-                    <input type="search" @bind="ShipmentSearchText" placeholder="Tracking code" />
+                    Tìm vận đơn
+                    <input type="search" @bind="ShipmentSearchText" placeholder="Nhập mã vận đơn" />
                 </label>
                 <label>
-                    Status
+                    Trạng thái
                     <select @bind="SelectedStatusFilter">
-                        <option value="">All statuses</option>
+                        <option value="">Tất cả trạng thái</option>
                         @foreach (var status in ShipmentStatusFilters)
                         {
                             <option value="@status.ToString()">@FormatStatus(status)</option>
                         }
                     </select>
                 </label>
+                <details class="advanced-filters">
+                    <summary>Bộ lọc nâng cao@(HasAdvancedShipmentFilters ? " · Đang áp dụng" : "")</summary>
+                    <div class="advanced-filter-fields">
                 @if (CanViewFullPii)
                 {
                     <label>
-                        Receiver name
-                        <input type="search" @bind="ReceiverNameSearchText" placeholder="Receiver name" />
+                        Người nhận
+                        <input type="search" @bind="ReceiverNameSearchText" placeholder="Tên người nhận" />
                     </label>
                     <label>
-                        Receiver phone
-                        <input type="search" @bind="ReceiverPhoneSearchText" placeholder="Receiver phone" />
+                        Số điện thoại
+                        <input type="search" @bind="ReceiverPhoneSearchText" placeholder="Số điện thoại người nhận" />
                     </label>
                 }
                 <label>
-                    From date
+                    Từ ngày (UTC)
                     <input type="date" value="@FromDateInput" @onchange="args => FromDateInput = args.Value?.ToString() ?? string.Empty" />
                 </label>
                 <label>
-                    To date
+                    Đến ngày (UTC)
                     <input type="date" value="@ToDateInput" @onchange="args => ToDateInput = args.Value?.ToString() ?? string.Empty" />
                 </label>
                 @if (CanViewCod)
                 {
                     <label>
-                        Min COD
+                        COD tối thiểu
                         <input type="number" min="0" step="1000" @bind="MinCodAmountText" placeholder="0" />
                     </label>
                     <label>
-                        Max COD
+                        COD tối đa
                         <input type="number" min="0" step="1000" @bind="MaxCodAmountText" placeholder="0" />
                     </label>
                 }
                 <label>
-                    Sort by
+                    Sắp xếp theo
                     <select @bind="SelectedSortBy">
                         @foreach (var sortBy in AvailableSortByFilters)
                         {
@@ -153,7 +140,7 @@
                     </select>
                 </label>
                 <label>
-                    Direction
+                    Thứ tự
                     <select @bind="SelectedSortDirection">
                         @foreach (var sortDirection in SortDirectionFilters)
                         {
@@ -161,17 +148,19 @@
                         }
                     </select>
                 </label>
+                    </div>
+                </details>
                 <div class="shipment-list-actions">
                     <button type="button" class="btn btn-outline-secondary" @onclick="ApplyShipmentFiltersAsync" disabled="@IsLoadingShipments">
-                        Filter
+                        Áp dụng
                     </button>
                     <button type="button" class="btn btn-outline-secondary" @onclick="ClearShipmentFiltersAsync" disabled="@(!HasActiveShipmentFilters || IsLoadingShipments)">
-                        Reset
+                        Xóa bộ lọc
                     </button>
                     @if (CanExportData)
                     {
                         <a class="btn btn-outline-secondary" href="@BuildExportLink()">
-                            Export CSV
+                            Xuất CSV
                         </a>
                     }
                 </div>
@@ -179,13 +168,13 @@
 
             @if (IsLoadingShipments)
             {
-                <div class="table-empty-state" aria-live="polite">Loading shipments...</div>
+                <div class="table-empty-state" aria-live="polite">Đang tải đơn hàng...</div>
             }
             else if (ShipmentItems.Count == 0)
             {
                 <div class="table-empty-state">
-                    <strong>No matching shipments</strong>
-                    <p>Adjust the tracking code or status filter.</p>
+                    <strong>Không có đơn phù hợp</strong>
+                    <p>Thử thay đổi mã vận đơn hoặc bộ lọc trạng thái.</p>
                 </div>
             }
             else
@@ -194,13 +183,13 @@
                 <table class="shipments-table">
                     <thead>
                         <tr>
-                            <th>Tracking code</th>
-                            <th>Receiver</th>
-                            <th>Route type</th>
-                            <th>Chargeable weight</th>
-                            <th>Shipping fee</th>
-                            <th>Status</th>
-                            <th>Created date</th>
+                            <th>Mã vận đơn</th>
+                            <th>Người nhận</th>
+                            <th>Tuyến giao</th>
+                            <th>Cân tính phí</th>
+                            <th>Phí vận chuyển</th>
+                            <th>Trạng thái</th>
+                            <th>Ngày tạo</th>
                             <th aria-label="Actions"></th>
                         </tr>
                     </thead>
@@ -265,8 +254,9 @@
         <section class="content-card import-panel">
             <div class="import-header">
                 <div>
-                    <h2>Import CSV</h2>
-                    <p>Upload CSV UTF-8, preview lỗi theo từng dòng, rồi confirm để tạo đơn cho các dòng hợp lệ.</p>
+                    <h2>Nhập đơn hàng từ CSV</h2>
+                    <p>Tải file CSV UTF-8, kiểm tra lỗi rồi xác nhận các dòng hợp lệ.</p>
+                    <a class="ui-button ui-button--secondary ui-button--compact" href="@CsvTemplateDataUri" download="shipment-import-template.csv"><AppIcon Name="download" Size="16" /> Tải mẫu CSV</a>
                 </div>
                 <span class="import-limit">Tối đa @ShipmentImportService.MaxImportRows.ToString("N0") dòng</span>
             </div>
@@ -463,6 +453,15 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
     [SupplyParameterFromQuery(Name = "shopId")]
     public Guid? ShopId { get; set; }
 
+    [SupplyParameterFromQuery(Name = "status")]
+    public string? StatusQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "fromUtc")]
+    public DateTime? FromUtcQuery { get; set; }
+
+    [SupplyParameterFromQuery(Name = "toUtc")]
+    public DateTime? ToUtcQuery { get; set; }
+
     private GetShopContextResponse? ShopContext { get; set; }
 
     private Guid SelectedShopId { get; set; }
@@ -542,9 +541,19 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
         || SelectedSortBy != ShopShipmentSortBy.CreatedAt.ToString()
         || SelectedSortDirection != SortDirection.Descending.ToString();
 
+    private bool HasAdvancedShipmentFilters =>
+        !string.IsNullOrWhiteSpace(ReceiverNameSearchText)
+        || !string.IsNullOrWhiteSpace(ReceiverPhoneSearchText)
+        || !string.IsNullOrWhiteSpace(FromDateInput)
+        || !string.IsNullOrWhiteSpace(ToDateInput)
+        || !string.IsNullOrWhiteSpace(MinCodAmountText)
+        || !string.IsNullOrWhiteSpace(MaxCodAmountText)
+        || SelectedSortBy != ShopShipmentSortBy.CreatedAt.ToString()
+        || SelectedSortDirection != SortDirection.Descending.ToString();
+
     private string ShipmentPageSummary => ShipmentTotalCount == 0
-        ? "0 shipments"
-        : $"Page {ShipmentPageNumber:N0} of {ShipmentTotalPages:N0} - {ShipmentTotalCount:N0} shipments";
+        ? "Chưa có đơn hàng"
+        : $"Trang {ShipmentPageNumber:N0}/{ShipmentTotalPages:N0} · {ShipmentTotalCount:N0} đơn";
 
     private static readonly ShipmentStatus[] ShipmentStatusFilters =
     [
@@ -620,6 +629,11 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
         IsLoading = true;
         ErrorMessage = null;
         ResetShipmentResults();
+        SelectedStatusFilter = Enum.TryParse<ShipmentStatus>(StatusQuery, out var queryStatus) && Enum.IsDefined(queryStatus)
+            ? queryStatus.ToString() : string.Empty;
+        FromDateInput = DashboardPresentation.NormalizeUtcQuery(FromUtcQuery)?.UtcDateTime.ToString("yyyy-MM-dd") ?? string.Empty;
+        ToDateInput = DashboardPresentation.NormalizeUtcQuery(ToUtcQuery)?.UtcDateTime.ToString("yyyy-MM-dd") ?? string.Empty;
+        ShipmentPageNumber = 1;
 
         var userId = await GetCurrentUserIdAsync();
         if (userId is null)
@@ -1078,7 +1092,7 @@ DEMO-1001,Nguyen Van A,0911111111,9 Le Loi,Ben Nghe,Ho Chi Minh,Vietnam,1.2,20,1
             ShipmentStatus.DeliveryFailed => "Giao thất bại",
             ShipmentStatus.Returned => "Đã hoàn",
             ShipmentStatus.Cancelled => "Đã hủy",
-            ShipmentStatus.Draft => "Draft",
+            ShipmentStatus.Draft => "Bản nháp",
             _ => status.ToString()
         };
     }

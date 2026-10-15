@@ -18,15 +18,15 @@
 }
 
 .page-heading h1 {
-    color: #071b4d;
-    font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
+    color: var(--ui-text-strong);
+    font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif;
     font-size: 2rem;
-    font-weight: 800;
+    font-weight: 600;
     margin: 0 0 0.35rem;
 }
 
 .page-heading p {
-    color: #64748b;
+    color: var(--ui-muted);
     margin: 0;
 }
 
@@ -71,9 +71,9 @@
 }
 
 .shipment-list-toolbar label {
-    color: #071b4d;
+    color: var(--ui-text-strong);
     display: grid;
-    font-weight: 800;
+    font-weight: 600;
     gap: 0.4rem;
 }
 
@@ -95,7 +95,7 @@
 
 .table-empty-state {
     align-items: center;
-    color: #071b4d;
+    color: var(--ui-text-strong);
     display: grid;
     gap: 0.5rem;
     justify-items: center;
@@ -104,13 +104,13 @@
 }
 
 .table-empty-state p {
-    color: #64748b;
+    color: var(--ui-muted);
     margin: 0;
 }
 
 .pagination-bar {
     align-items: center;
-    color: #64748b;
+    color: var(--ui-muted);
     display: flex;
     gap: 0.75rem;
     justify-content: space-between;
@@ -133,9 +133,9 @@
 
 .shipments-table th {
     border-bottom: 1px solid #e5eef8;
-    color: #64748b;
+    color: var(--ui-muted);
     font-size: 0.78rem;
-    font-weight: 800;
+    font-weight: 600;
     padding: 0 0.85rem 0.85rem;
     text-align: left;
     text-transform: uppercase;
@@ -143,7 +143,7 @@
 
 .shipments-table td {
     border-bottom: 1px solid #eef4fb;
-    color: #071b4d;
+    color: var(--ui-text-strong);
     font-size: 0.92rem;
     padding: 1rem 0.85rem;
     vertical-align: middle;
@@ -159,8 +159,8 @@
 }
 
 .tracking-link {
-    color: #0b63f6;
-    font-weight: 800;
+    color: var(--ui-primary);
+    font-weight: 600;
     text-decoration: none;
 }
 
@@ -172,7 +172,7 @@
     border-radius: 999px;
     display: inline-flex;
     font-size: 0.78rem;
-    font-weight: 800;
+    font-weight: 600;
     line-height: 1;
     padding: 0.45rem 0.65rem;
     white-space: nowrap;
@@ -185,7 +185,7 @@
 
 .status-pill.info {
     background: #eaf4ff;
-    color: #0b63f6;
+    color: var(--ui-primary);
 }
 
 .status-pill.success {
@@ -201,7 +201,7 @@
 .icon-link {
     border: 1px solid #d7e4f2;
     border-radius: 10px;
-    color: #071b4d;
+    color: var(--ui-text-strong);
     height: 36px;
     width: 36px;
 }
@@ -222,14 +222,14 @@
 }
 
 .state-card p {
-    color: #64748b;
+    color: var(--ui-muted);
     margin: 0 0 0.35rem;
 }
 
 .state-icon {
     background: #eaf4ff;
     border-radius: 999px;
-    color: #0b63f6;
+    color: var(--ui-primary);
     height: 52px;
     width: 52px;
 }
@@ -257,14 +257,14 @@
 }
 
 .import-header h2 {
-    color: #071b4d;
+    color: var(--ui-text-strong);
     font-size: 1.2rem;
-    font-weight: 800;
+    font-weight: 600;
     margin: 0 0 0.35rem;
 }
 
 .import-header p {
-    color: #64748b;
+    color: var(--ui-muted);
     margin: 0;
 }
 
@@ -273,14 +273,14 @@
     border-radius: 999px;
     color: #41547c;
     font-size: 0.8rem;
-    font-weight: 800;
+    font-weight: 600;
     padding: 0.45rem 0.7rem;
 }
 
 .import-upload-row label {
-    color: #071b4d;
+    color: var(--ui-text-strong);
     display: grid;
-    font-weight: 800;
+    font-weight: 600;
     gap: 0.45rem;
     min-width: min(100%, 22rem);
 }
@@ -296,7 +296,7 @@
     border: 1px solid #bfdbfe;
     border-radius: 8px;
     color: #1d4ed8;
-    font-weight: 800;
+    font-weight: 600;
     padding: 0.85rem 1rem;
 }
 
@@ -316,16 +316,16 @@
 }
 
 .import-summary-grid span {
-    color: #64748b;
+    color: var(--ui-muted);
     font-size: 0.78rem;
-    font-weight: 800;
+    font-weight: 600;
     text-transform: uppercase;
 }
 
 .import-summary-grid strong {
-    color: #071b4d;
+    color: var(--ui-text-strong);
     font-size: 1.35rem;
-    font-weight: 900;
+    font-weight: 600;
 }
 
 .import-table-shell {
@@ -337,7 +337,7 @@
 }
 
 .import-table small {
-    color: #64748b;
+    color: var(--ui-muted);
     display: block;
     margin-top: 0.25rem;
 }
@@ -382,3 +382,13 @@
         justify-content: stretch;
     }
 }
+
+.advanced-filters { grid-column: 1 / -1; }
+.advanced-filters summary { color: var(--ui-primary-hover); font-size: .875rem; font-weight: 500; padding-block: .75rem; cursor: pointer; min-height: 44px; }
+.advanced-filter-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 1rem; padding-block: .5rem 1rem; }
+.advanced-filter-fields label { display: grid; gap: .375rem; font-size: .8125rem; font-weight: 500; }
+.advanced-filter-fields input, .advanced-filter-fields select { border: 1px solid var(--ui-input-border); border-radius: var(--ui-radius-sm); min-height: 44px; padding: .5rem .75rem; width: 100%; }
+.shipment-list-toolbar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.shipment-list-actions { grid-column: 1 / -1; }
+.csv-template-link { font-size: .875rem; justify-self: end; }
+@media (max-width: 600px) { .shipment-list-toolbar { grid-template-columns: 1fr; } }

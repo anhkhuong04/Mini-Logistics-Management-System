@@ -13,196 +13,145 @@
 @inject AuthenticationStateProvider AuthenticationStateProvider
 @inject NavigationManager NavigationManager
 
-<PageTitle>Shop Dashboard - MiniLogistics</PageTitle>
+<PageTitle>Tổng quan cửa hàng - MiniLogistics</PageTitle>
 
-<div class="dashboard-page">
-    <UiPageHeader Eyebrow="Tổng quan cửa hàng"
-                  Title="@ShopDisplayName"
-                  Description="Theo dõi đơn hàng, hiệu suất giao nhận và dòng tiền theo khoảng thời gian đã chọn."
-                  Icon="store">
+<div class="dashboard-page" aria-busy="@IsLoading">
+    <UiPageHeader Title="@ShopDisplayName" Description="Tổng quan đơn hàng và tiền thu hộ." Icon="layout-dashboard">
         <Actions>
-            @if (CanManageShipments)
+            <button type="button" class="ui-button ui-button--secondary" disabled="@IsLoading" @onclick="OnParametersSetAsync">
+                <AppIcon Name="refresh" Size="18" /> Làm mới
+            </button>
+            @if (CanManageShipments && SelectedShop?.IsActive == true)
             {
                 <a class="ui-button ui-button--primary" href="@(BuildShopLink("/shipments/create"))">
-                    <AppIcon Name="plus" Size="18" />
-                    <span>Tạo đơn mới</span>
+                    <AppIcon Name="plus" Size="18" /> Tạo đơn hàng
                 </a>
             }
-            <a class="ui-button ui-button--secondary" href="/tracking">
-                <AppIcon Name="search" Size="18" />
-                <span>Tra cứu</span>
-            </a>
-            <a class="ui-button ui-button--secondary" href="@(BuildShopLink("/shipments"))">
-                <AppIcon Name="package" Size="18" />
-                <span>Danh sách đơn</span>
-            </a>
         </Actions>
     </UiPageHeader>
 
     @if (ShopContext is not null)
     {
-        <section class="shop-context-bar" aria-label="Shop context">
-            <label for="dashboard-shop-context">
-                Shop đang chọn
-                <select id="dashboard-shop-context" value="@SelectedShopId" @onchange="OnShopChanged">
-                    @foreach (var shop in ShopContext.Shops)
-                    {
-                        <option value="@shop.ShopId">
-                            @shop.Name@(shop.IsActive ? string.Empty : " (Inactive)")
-                        </option>
-                    }
-                </select>
-            </label>
-            <span class="shop-context-status @(SelectedShop?.IsActive == true ? "active" : "inactive")">
-                @(SelectedShop?.IsActive == true ? "Active" : "Inactive")
-            </span>
-        </section>
-
-        <section class="dashboard-filter-bar" aria-label="Dashboard filters">
-            <label>
-                Từ ngày
-                <input type="date" value="@FromDateInput" @onchange="args => FromDateInput = args.Value?.ToString() ?? string.Empty" />
-            </label>
-            <label>
-                Đến ngày
-                <input type="date" value="@ToDateInput" @onchange="args => ToDateInput = args.Value?.ToString() ?? string.Empty" />
-            </label>
-            <button type="button" class="secondary-action compact" @onclick="ApplyDateRangeAsync" disabled="@IsLoading">
-                Áp dụng
-            </button>
-            <button type="button" class="secondary-action compact" @onclick="ClearDateRangeAsync" disabled="@(!HasDateRange || IsLoading)">
-                Đặt lại
-            </button>
-            @if (CanViewCod)
+        <section class="dashboard-toolbar" aria-label="Bộ lọc tổng quan">
+            @if (ShopContext.Shops.Count > 1)
             {
-                <a class="secondary-action compact" href="@(BuildShopLink("/shop/cod-report"))">
-                    Báo cáo COD
-                </a>
+                <label class="field shop-picker" for="dashboard-shop-context">Cửa hàng
+                    <select id="dashboard-shop-context" value="@SelectedShopId" @onchange="OnShopChanged" disabled="@IsLoading">
+                        @foreach (var shop in ShopContext.Shops)
+                        {
+                            <option value="@shop.ShopId">@shop.Name@(shop.IsActive ? "" : " (Tạm ngưng)")</option>
+                        }
+                    </select>
+                </label>
             }
+            <div class="date-presets" aria-label="Chọn nhanh khoảng ngày">
+                <button type="button" aria-pressed="@(!HasDateRange)" disabled="@IsLoading" @onclick="ClearDateRangeAsync">Tất cả</button>
+                <button type="button" aria-pressed="@IsPresetApplied(7)" disabled="@IsLoading" @onclick="() => ApplyPresetAsync(7)">7 ngày</button>
+                <button type="button" aria-pressed="@IsPresetApplied(30)" disabled="@IsLoading" @onclick="() => ApplyPresetAsync(30)">30 ngày</button>
+            </div>
+            <div class="date-fields">
+                <label class="field" for="dashboard-from">Từ ngày (UTC)
+                    <input id="dashboard-from" type="date" value="@FromDateInput" @onchange="args => FromDateInput = args.Value?.ToString() ?? string.Empty" disabled="@IsLoading" />
+                </label>
+                <label class="field" for="dashboard-to">Đến ngày (UTC)
+                    <input id="dashboard-to" type="date" value="@ToDateInput" @onchange="args => ToDateInput = args.Value?.ToString() ?? string.Empty" disabled="@IsLoading" />
+                </label>
+                <button type="button" class="ui-button ui-button--secondary" @onclick="ApplyDateRangeAsync" disabled="@(IsLoading || DateRangeError is not null)">Áp dụng</button>
+            </div>
         </section>
+        @if (DateRangeError is not null)
+        {
+            <p class="filter-error" role="alert">@DateRangeError</p>
+        }
+        @if (SelectedShop?.IsActive == false)
+        {
+            <UiAlert Message="Cửa hàng đang tạm ngưng. Bạn vẫn có thể xem dữ liệu đã lưu." Tone="warning" />
+        }
     }
 
     <UiAlert Message="@ErrorMessage" Tone="danger" />
-
     @if (IsLoading)
     {
-        <UiLoadingState Title="Đang tải dashboard" Description="Đang tổng hợp đơn hàng và KPI mới nhất của shop." />
+        <UiLoadingState Title="Đang tải tổng quan" Description="Đang cập nhật đơn hàng và tiền thu hộ." />
     }
-    else
+    else if (DashboardKpi is not null)
     {
-        <section class="stats-grid" aria-label="Shop statistics">
+        <p class="dataset-period">@AppliedRangeLabel</p>
+        <section class="stats-grid" aria-label="Tóm tắt đơn hàng">
             @foreach (var card in StatisticCards)
             {
-                <UiMetricCard Label="@card.Label" Value="@card.Value" Note="@card.Note" Icon="@card.Icon" Tone="@card.Tone" />
+                <UiMetricCard Label="@card.Label" Value="@card.Value" Note="@card.Note" Icon="@card.Icon" Tone="@card.Tone" Href="@card.Href" />
             }
         </section>
 
-        <section class="dashboard-card latest-orders">
-            <div class="card-header">
-                <h2>Đơn hàng mới nhất</h2>
-                <a class="card-link" href="@(BuildShopLink("/shipments"))">Xem tất cả</a>
-            </div>
+        <section class="overview-grid">
+            <article class="dashboard-card">
+                <div class="card-heading"><h2>Tiến độ giao nhận</h2></div>
+                <UiShipmentDistribution Counts="@DashboardKpi.CountByStatus" />
+            </article>
+            <article class="dashboard-card">
+                <div class="card-heading">
+                    <h2>@(CanViewCod ? "Phí và tiền thu hộ" : "Phí vận chuyển")</h2>
+                    @if (CanViewCod) { <a href="@(BuildShopLink("/shop/cod-report"))">Báo cáo COD</a> }
+                </div>
+                <dl class="money-list">
+                    @if (CanViewCod)
+                    {
+                        <div><dt>COD chờ thu</dt><dd>@FormatMoney(DashboardKpi.PendingCodAmount, DashboardKpi.Currency)</dd></div>
+                        <div><dt>COD đã thu</dt><dd>@FormatMoney(DashboardKpi.CollectedCodAmount, DashboardKpi.Currency)</dd></div>
+                    }
+                    <div><dt>Phí vận chuyển</dt><dd>@FormatMoney(DashboardKpi.TotalShippingFee, DashboardKpi.Currency)</dd></div>
+                </dl>
+                <p class="money-note">Theo ngày tạo đơn trong khoảng đã chọn.</p>
+            </article>
+        </section>
 
-            <div class="table-wrap">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Tracking</th>
-                            <th>Người nhận</th>
-                            <th>Tuyến</th>
-                            <th>Cân tính phí</th>
-                            <th>Trạng thái</th>
-                            @if (CanViewCod)
-                            {
-                                <th>COD</th>
-                            }
-                            <th>Phí vận chuyển</th>
-                            <th>Ngày tạo</th>
-                            <th>Thao tác</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (LatestShipments.Count == 0)
-                        {
-                            <tr>
-                                <td colspan="@(CanViewCod ? 9 : 8)">
-                                    <div class="empty-state">
-                                        <span>
-                                            <AppIcon Name="package" Size="18" />
-                                        </span>
-                                        <strong>Chưa có đơn hàng để hiển thị</strong>
-                                        <p>Tạo vận đơn đầu tiên để dashboard tự động cập nhật số liệu.</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                        else
-                        {
+        <section class="dashboard-card">
+            <div class="card-heading">
+                <h2>Đơn hàng mới nhất</h2>
+                <a href="@ShipmentListLink">Xem tất cả <AppIcon Name="arrow-right" Size="16" /></a>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(LatestErrorMessage))
+            {
+                <UiAlert Message="@LatestErrorMessage" Tone="danger" />
+            }
+            else if (LatestShipments.Count == 0)
+            {
+                <div class="empty-state">
+                    <AppIcon Name="package" Size="32" />
+                    <strong>@(HasDateRange ? "Không có đơn trong khoảng đã chọn" : "Chưa có đơn hàng")</strong>
+                    <p>@(HasDateRange ? "Thử chọn khoảng ngày khác để xem đơn hàng." : "Tạo đơn đầu tiên để bắt đầu theo dõi giao nhận.")</p>
+                    @if (!HasDateRange && CanManageShipments && SelectedShop?.IsActive == true)
+                    {
+                        <a class="ui-button ui-button--primary" href="@(BuildShopLink("/shipments/create"))">Tạo đơn đầu tiên</a>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="table-wrap" role="region" aria-label="Đơn hàng mới nhất" tabindex="0">
+                    <table>
+                        <caption class="visually-hidden">Năm đơn hàng mới nhất trong khoảng thời gian đã chọn</caption>
+                        <thead><tr>
+                            <th scope="col">Mã vận đơn</th><th scope="col">Người nhận</th><th scope="col">Trạng thái</th>
+                            @if (CanViewCod) { <th scope="col" class="numeric">COD</th> }
+                            <th scope="col" class="numeric">Phí vận chuyển</th>
+                        </tr></thead>
+                        <tbody>
                             @foreach (var shipment in LatestShipments)
                             {
                                 <tr>
-                                    <td>
-                                        <a class="tracking-link" href="@(BuildShopLink($"/shipments/{shipment.ShipmentId}"))">
-                                            @shipment.TrackingCode
-                                        </a>
-                                    </td>
-                                    <td>@shipment.ReceiverName</td>
-                                    <td>@FormatRouteType(shipment.RouteType)</td>
-                                    <td>@shipment.ChargeableWeightKg.ToString("N3") kg</td>
-                                    <td>
-                                        <span class="status-pill @GetStatusClass(shipment.Status)">
-                                            @FormatStatus(shipment.Status)
-                                        </span>
-                                    </td>
-                                    @if (CanViewCod)
-                                    {
-                                        <td>@FormatMoney(shipment.CodAmount, shipment.Currency)</td>
-                                    }
-                                    <td>@FormatMoney(shipment.ShippingFeeAmount, shipment.Currency)</td>
-                                    <td>@FormatDate(shipment.CreatedAtUtc)</td>
-                                    <td>
-                                        <a class="icon-link" href="@(BuildShopLink($"/shipments/{shipment.ShipmentId}"))" aria-label="Xem chi tiet">
-                                            <AppIcon Name="chevron-right" Size="18" />
-                                        </a>
-                                    </td>
+                                    <td><a class="tracking-link" href="@(BuildShopLink($"/shipments/{shipment.ShipmentId}"))">@shipment.TrackingCode</a><small>@FormatDate(shipment.CreatedAtUtc)</small></td>
+                                    <td>@shipment.ReceiverName<small>@FormatRouteType(shipment.RouteType)</small></td>
+                                    <td><span class="status-pill @GetStatusClass(shipment.Status)">@FormatStatus(shipment.Status)</span></td>
+                                    @if (CanViewCod) { <td class="numeric">@FormatMoney(shipment.CodAmount, shipment.Currency)</td> }
+                                    <td class="numeric">@FormatMoney(shipment.ShippingFeeAmount, shipment.Currency)</td>
                                 </tr>
                             }
-                        }
-                    </tbody>
-                </table>
-            </div>
-
-            <a class="view-all" href="@(BuildShopLink(LatestShipments.Count == 0 && CanManageShipments ? "/shipments/create" : "/shipments"))">
-                @(LatestShipments.Count == 0 && CanManageShipments ? "Tạo đơn hàng đầu tiên" : "Mở danh sách đơn hàng")
-            </a>
-        </section>
-
-        <section class="dashboard-bottom">
-            <article class="dashboard-card status-card">
-                <div class="card-header">
-                    <h2>Đơn hàng theo trạng thái</h2>
-                    <a class="card-link" href="@(BuildShopLink("/shipments"))">Xem chi tiết</a>
+                        </tbody>
+                    </table>
                 </div>
-
-                <div class="status-content">
-                    <div class="donut-empty">
-                        <strong>@(DashboardKpi?.TotalShipments ?? 0)</strong>
-                        <span>Tổng đơn</span>
-                    </div>
-
-                    <div class="status-list">
-                        @foreach (var status in StatusRows)
-                        {
-                            <div class="status-row">
-                                <span class="status-dot @status.ClassName"></span>
-                                <p>@status.Label</p>
-                                <div class="status-bar"><span style="@($"width: {status.Percentage:N0}%")"></span></div>
-                                <strong>@status.Count</strong>
-                            </div>
-                        }
-                    </div>
-                </div>
-            </article>
+            }
         </section>
     }
 </div>
@@ -217,18 +166,9 @@
     [SupplyParameterFromQuery(Name = "toUtc")]
     public DateTime? ToUtcQuery { get; set; }
 
-    private DateTimeOffset? FromUtc => FromUtcQuery.HasValue ? new DateTimeOffset(DateTime.SpecifyKind(FromUtcQuery.Value, DateTimeKind.Utc)) : null;
+    private DateTimeOffset? FromUtc => DashboardPresentation.NormalizeUtcQuery(FromUtcQuery);
 
-    private DateTimeOffset? ToUtc => ToUtcQuery.HasValue ? new DateTimeOffset(DateTime.SpecifyKind(ToUtcQuery.Value, DateTimeKind.Utc)) : null;
-
-    private static readonly ShipmentStatus[] ActiveShipmentStatuses =
-    [
-        ShipmentStatus.Assigned,
-        ShipmentStatus.PickingUp,
-        ShipmentStatus.PickedUp,
-        ShipmentStatus.InTransit,
-        ShipmentStatus.Delivering
-    ];
+    private DateTimeOffset? ToUtc => DashboardPresentation.NormalizeUtcQuery(ToUtcQuery);
 
     private string ShopDisplayName { get; set; } = "Shop";
 
@@ -253,7 +193,15 @@
 
     private IReadOnlyList<DashboardCard> StatisticCards { get; set; } = [];
 
-    private IReadOnlyList<StatusRow> StatusRows { get; set; } = [];
+    private string? LatestErrorMessage { get; set; }
+
+    private string? DateRangeError => DashboardPresentation.DateRangeError(FromDateInput, ToDateInput);
+
+    private string AppliedRangeLabel => FromUtc is null && ToUtc is null
+        ? "Toàn bộ đơn hàng"
+        : $"Đơn tạo từ {FromUtc?.ToString("dd/MM/yyyy") ?? "đầu kỳ"} đến {ToUtc?.ToString("dd/MM/yyyy") ?? "hiện tại"} (UTC)";
+
+    private string ShipmentListLink => DashboardPresentation.ShipmentListUrl(SelectedShopId, FromUtc, ToUtc);
 
     private string FromDateInput { get; set; } = string.Empty;
 
@@ -266,6 +214,9 @@
     {
         IsLoading = true;
         ErrorMessage = null;
+        LatestErrorMessage = null;
+        ShopContext = null;
+        StatisticCards = [];
         DashboardKpi = null;
         LatestShipments = [];
         FromDateInput = FormatDateInput(FromUtc);
@@ -317,7 +268,7 @@
                 PageSize: 5));
         if (latestResult.IsFailure)
         {
-            ErrorMessage = UiDisplay.ToErrorMessage(latestResult.Error);
+            LatestErrorMessage = UiDisplay.ToErrorMessage(latestResult.Error);
             IsLoading = false;
             BuildDashboardModel();
             return;
@@ -338,12 +289,29 @@
 
     private Task ApplyDateRangeAsync()
     {
+        if (DateRangeError is not null) return Task.CompletedTask;
         NavigationManager.NavigateTo(BuildDashboardLink(
             SelectedShopId,
             ParseDateInput(FromDateInput, endOfDay: false),
             ParseDateInput(ToDateInput, endOfDay: true)));
 
         return Task.CompletedTask;
+    }
+
+    private Task ApplyPresetAsync(int days)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        FromDateInput = today.AddDays(1 - days).ToString("yyyy-MM-dd");
+        ToDateInput = today.ToString("yyyy-MM-dd");
+        return ApplyDateRangeAsync();
+    }
+
+    private bool IsPresetApplied(int days)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        return FromUtc.HasValue && ToUtc.HasValue
+            && DateOnly.FromDateTime(FromUtc.Value.UtcDateTime) == today.AddDays(1 - days)
+            && DateOnly.FromDateTime(ToUtc.Value.UtcDateTime) == today;
     }
 
     private Task ClearDateRangeAsync()
@@ -377,68 +345,18 @@
 
     private void BuildDashboardModel()
     {
-        var kpi = DashboardKpi;
-        var totalShipments = kpi?.TotalShipments ?? 0;
-        var activeShipments = CountByStatuses(ActiveShipmentStatuses);
-        var deliveredShipments = kpi?.DeliveredShipments ?? 0;
-        var failedShipments = kpi?.DeliveryFailedShipments ?? 0;
-        var pendingCodAmount = kpi?.PendingCodAmount ?? 0m;
-        var shippingFeeAmount = kpi?.TotalShippingFee ?? 0m;
-        var currency = kpi?.Currency ?? "VND";
-
-        var statisticCards = new List<DashboardCard>
-        {
-            new("Tổng đơn hàng", totalShipments.ToString("N0"), "Theo bộ lọc hiện tại", "package", "primary"),
-            new("Đang vận chuyển", activeShipments.ToString("N0"), "Đơn chưa hoàn tất", "truck", "warning"),
-            new("Giao thành công", deliveredShipments.ToString("N0"), $"Tỷ lệ {FormatPercentage(kpi?.DeliveredRate ?? 0m)}", "check", "success"),
-            new("Giao thất bại", failedShipments.ToString("N0"), $"Tỷ lệ {FormatPercentage(kpi?.DeliveryFailedRate ?? 0m)}", "alert", "danger")
-        };
-        if (CanViewCod)
-        {
-            statisticCards.Add(new("COD cần thu", FormatMoney(pendingCodAmount, currency), "Theo đơn đang chờ thu", "wallet", "warning"));
-        }
-        statisticCards.Add(new("Tổng phí vận chuyển", FormatMoney(shippingFeeAmount, currency), "Tổng hợp theo kỳ", "wallet", "primary"));
-        StatisticCards = statisticCards;
-
-        StatusRows =
+        if (DashboardKpi is not { } kpi) { StatisticCards = []; return; }
+        StatisticCards =
         [
-            CreateStatusRow(ShipmentStatus.Draft, "Draft", "slate", totalShipments),
-            CreateStatusRow(ShipmentStatus.PendingPickup, "Chờ lấy hàng", "blue", totalShipments),
-            CreateStatusRow(ShipmentStatus.Assigned, "Đã phân công", "amber", totalShipments),
-            CreateStatusRow(ShipmentStatus.PickingUp, "Đang lấy hàng", "amber", totalShipments),
-            CreateStatusRow(ShipmentStatus.PickedUp, "Đã lấy hàng", "amber", totalShipments),
-            CreateStatusRow(ShipmentStatus.InTransit, "Đang vận chuyển", "purple", totalShipments),
-            CreateStatusRow(ShipmentStatus.Delivering, "Đang giao", "teal", totalShipments),
-            CreateStatusRow(ShipmentStatus.Delivered, "Đã giao", "green", totalShipments),
-            CreateStatusRow(ShipmentStatus.DeliveryFailed, "Giao thất bại", "red", totalShipments),
-            CreateStatusRow(ShipmentStatus.Returned, "Đã hoàn", "slate", totalShipments),
-            CreateStatusRow(ShipmentStatus.Cancelled, "Đã hủy", "slate", totalShipments)
+            new("Tổng đơn hàng", kpi.TotalShipments.ToString("N0"), "Trong khoảng đã chọn", "package", "primary", ShipmentListLink),
+            new("Chờ lấy hàng", kpi.CountByStatus.GetValueOrDefault(ShipmentStatus.PendingPickup).ToString("N0"), "Đơn đang chờ xử lý", "clock", "warning", StatusLink(ShipmentStatus.PendingPickup)),
+            new("Giao thành công", kpi.DeliveredShipments.ToString("N0"), $"{kpi.DeliveredRate:N1}% đơn không nháp", "circle-check", "success", StatusLink(ShipmentStatus.Delivered)),
+            new("Giao thất bại", kpi.DeliveryFailedShipments.ToString("N0"), "Cần theo dõi giao lại", "triangle-alert", "danger", StatusLink(ShipmentStatus.DeliveryFailed))
         ];
     }
 
-    private int CountByStatus(ShipmentStatus status)
-    {
-        return DashboardKpi?.CountByStatus.GetValueOrDefault(status) ?? 0;
-    }
-
-    private int CountByStatuses(IReadOnlyCollection<ShipmentStatus> statuses)
-    {
-        return statuses.Sum(CountByStatus);
-    }
-
-    private StatusRow CreateStatusRow(
-        ShipmentStatus status,
-        string label,
-        string className,
-        int totalShipments)
-    {
-        var count = CountByStatus(status);
-        var percentage = totalShipments == 0
-            ? 0
-            : (decimal)count / totalShipments * 100;
-
-        return new StatusRow(label, className, count, percentage);
-    }
+    private string StatusLink(ShipmentStatus status) =>
+        DashboardPresentation.ShipmentListUrl(SelectedShopId, FromUtc, ToUtc, status);
 
     private static string FormatDate(DateTimeOffset value)
     {
@@ -448,11 +366,6 @@
     private static string FormatMoney(decimal amount, string currency)
     {
         return $"{amount.ToString("N0")} {currency}";
-    }
-
-    private static string FormatPercentage(decimal value)
-    {
-        return $"{value:N2}%";
     }
 
     private static string FormatRouteType(RouteType routeType)
@@ -480,7 +393,7 @@
             ShipmentStatus.DeliveryFailed => "Giao thất bại",
             ShipmentStatus.Returned => "Đã hoàn",
             ShipmentStatus.Cancelled => "Đã hủy",
-            ShipmentStatus.Draft => "Draft",
+            ShipmentStatus.Draft => "Bản nháp",
             _ => status.ToString()
         };
     }
@@ -530,8 +443,6 @@
         return $"{url}{separator}{Uri.EscapeDataString(name)}={Uri.EscapeDataString(value)}";
     }
 
-    private sealed record DashboardCard(string Label, string Value, string Note, string Icon, string Tone);
-
-    private sealed record StatusRow(string Label, string ClassName, int Count, decimal Percentage);
+    private sealed record DashboardCard(string Label, string Value, string Note, string Icon, string Tone, string Href);
 
 }

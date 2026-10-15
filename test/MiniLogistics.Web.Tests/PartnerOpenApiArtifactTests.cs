@@ -10,7 +10,7 @@ public sealed class PartnerOpenApiArtifactTests
     public void GeneratedDocument_ContainsVersionedPartnerContractAndSecurityMetadata()
     {
         var repositoryRoot = FindRepositoryRoot();
-        var documentPath = Path.Combine(repositoryRoot, "docs", "partner-api.openapi.json");
+        var documentPath = Path.Combine(repositoryRoot, "docs", "Service", "partner-api.openapi.json");
         using var document = JsonDocument.Parse(File.ReadAllText(documentPath));
         var root = document.RootElement;
         var paths = root.GetProperty("paths");
@@ -57,7 +57,7 @@ public sealed class PartnerOpenApiArtifactTests
     {
         var repositoryRoot = FindRepositoryRoot();
         using var openApi = JsonDocument.Parse(File.ReadAllText(
-            Path.Combine(repositoryRoot, "docs", "partner-api.openapi.json")));
+            Path.Combine(repositoryRoot, "docs", "Service", "partner-api.openapi.json")));
         using var postman = JsonDocument.Parse(File.ReadAllText(
             Path.Combine(repositoryRoot, "postman", "partner-api.postman_collection.json")));
 
@@ -83,23 +83,19 @@ public sealed class PartnerOpenApiArtifactTests
     }
 
     [Fact]
-    public void PartnerDocumentation_RelativeLinksResolveToRepositoryFiles()
+    public void DeveloperDocumentation_RelativeLinksResolveToRepositoryFiles()
     {
         var repositoryRoot = FindRepositoryRoot();
-        var documents = new[]
-        {
-            "docs/partner-api.md",
-            "docs/third-party-shipment-integration-guide.md",
-            "docs/partner-api-changelog.md",
-            "docs/partner-api-production-readiness-report.md",
-            "docs/architecture/adr-001-partner-api-production-contract.md",
-            "docs/security/partner-api-threat-model.md",
-            "docs/operations/partner-api-production-runbook.md"
-        };
+        var documents = Directory.EnumerateFiles(
+                Path.Combine(repositoryRoot, "docs"), "*.md", SearchOption.AllDirectories)
+            .Where(path => !Path.GetRelativePath(repositoryRoot, path)
+                .Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                .Contains("history", StringComparer.Ordinal))
+            .Append(Path.Combine(repositoryRoot, "README.md"));
 
-        foreach (var relativeDocument in documents)
+        foreach (var documentPath in documents)
         {
-            var documentPath = Path.Combine(repositoryRoot, relativeDocument);
+            var relativeDocument = Path.GetRelativePath(repositoryRoot, documentPath);
             var directory = Path.GetDirectoryName(documentPath)!;
             foreach (Match match in Regex.Matches(File.ReadAllText(documentPath), @"\[[^\]]+\]\(([^)#]+)"))
             {
@@ -119,12 +115,12 @@ public sealed class PartnerOpenApiArtifactTests
     private static string FindRepositoryRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
-        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "task.md")))
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Mini-logistics-manegemant-system.slnx")))
         {
             directory = directory.Parent;
         }
 
         return directory?.FullName
-            ?? throw new DirectoryNotFoundException("Repository root containing task.md was not found.");
+            ?? throw new DirectoryNotFoundException("Repository root containing Mini-logistics-manegemant-system.slnx was not found.");
     }
 }

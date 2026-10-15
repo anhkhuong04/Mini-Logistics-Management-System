@@ -12,6 +12,8 @@
   <data name="CloseNavigation" xml:space="preserve"><value>Close navigation</value></data>
   <data name="Notifications" xml:space="preserve"><value>Notifications</value></data>
   <data name="Account" xml:space="preserve"><value>Account</value></data>
+  <data name="SkipToContent" xml:space="preserve"><value>Skip to content</value></data>
+  <data name="Nav_ShopManagement" xml:space="preserve"><value>Shop management</value></data>
   <data name="Administrator" xml:space="preserve"><value>Administrator</value></data>
   <data name="Operator" xml:space="preserve"><value>Operator</value></data>
   <data name="Shipper" xml:space="preserve"><value>Shipper</value></data>

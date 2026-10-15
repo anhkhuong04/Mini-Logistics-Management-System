@@ -10,7 +10,11 @@
     --ui-primary-soft: #eaf5ff;
     --ui-text: #17384e;
     --ui-text-strong: #102f44;
-    --ui-muted: #63788b;
+    --ui-muted: #546b7b;
+    --ui-input-border: #7b8f9a;
+    --ui-success-soft: #edf8f3;
+    --ui-warning-soft: #fff7e6;
+    --ui-danger-soft: #fff1ef;
     --ui-border: #dbe8f2;
     --ui-surface: #ffffff;
     --ui-canvas: #f7faff;
@@ -18,9 +22,9 @@
     --ui-danger-hover: #8f1d15;
     --ui-success: #087a55;
     --ui-warning: #a15c07;
-    --ui-radius-sm: 10px;
-    --ui-radius: 14px;
-    --ui-radius-lg: 20px;
+    --ui-radius-sm: 8px;
+    --ui-radius: 12px;
+    --ui-radius-lg: 16px;
     --ui-shadow: 0 8px 24px rgba(18, 52, 77, 0.055);
     --ui-shadow-md: 0 16px 38px rgba(18, 52, 77, 0.1);
     --ui-shadow-lg: 0 22px 55px rgba(18, 52, 77, 0.18);
@@ -58,11 +62,11 @@ body {
     display: inline-flex;
     font: inherit;
     font-size: 0.9rem;
-    font-weight: 700;
+    font-weight: 600;
     gap: 0.45rem;
     justify-content: center;
     line-height: 1.2;
-    min-height: 2.6rem;
+    min-height: 2.75rem;
     padding: 0.6rem 0.95rem;
     text-decoration: none;
     transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease, color 160ms ease, transform 160ms ease;
@@ -80,9 +84,7 @@ body {
 
 .ui-button:hover:not(:disabled),
 .ui-button:focus-visible:not(:disabled) {
-    box-shadow: 0 8px 18px rgba(18, 52, 77, 0.12);
-    outline: 0;
-    transform: translateY(-1px);
+    box-shadow: none;
 }
 
 .ui-button:disabled {
@@ -811,3 +813,10 @@ h1:focus {
         padding: 24px 20px;
     }
 }
+
+.ui-button:focus-visible { outline: 3px solid var(--ui-primary); outline-offset: 3px; }
+.app-shell input:focus-visible, .app-shell select:focus-visible, .app-shell textarea:focus-visible { outline: 2px solid var(--ui-primary); outline-offset: 2px; }
+.app-shell .btn { border-radius: var(--ui-radius-sm); font-size: .875rem; font-weight: 600; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: .5rem; }
+.app-shell .btn-primary { background: var(--ui-primary); border-color: var(--ui-primary); }
+.app-shell .btn-primary:hover { background: var(--ui-primary-hover); border-color: var(--ui-primary-hover); }
+@media (prefers-reduced-motion: reduce) { .app-shell *, .app-shell *::before, .app-shell *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; } }

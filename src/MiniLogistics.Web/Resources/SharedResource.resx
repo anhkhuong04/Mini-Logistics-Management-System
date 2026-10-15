@@ -12,6 +12,8 @@
   <data name="CloseNavigation" xml:space="preserve"><value>Đóng điều hướng</value></data>
   <data name="Notifications" xml:space="preserve"><value>Thông báo</value></data>
   <data name="Account" xml:space="preserve"><value>Tài khoản</value></data>
+  <data name="SkipToContent" xml:space="preserve"><value>Đến nội dung chính</value></data>
+  <data name="Nav_ShopManagement" xml:space="preserve"><value>Quản lý cửa hàng</value></data>
   <data name="Administrator" xml:space="preserve"><value>Quản trị viên</value></data>
   <data name="Operator" xml:space="preserve"><value>Điều phối</value></data>
   <data name="Shipper" xml:space="preserve"><value>Shipper</value></data>

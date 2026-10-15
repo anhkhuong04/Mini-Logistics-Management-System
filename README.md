@@ -1,62 +1,27 @@
 # Mini Logistics Management System
 
-Mini Logistics is a .NET 10 modular monolith for small-parcel shipment operations. It covers shop shipment creation/import, dispatch and shipper workflows, tracking, cash-on-delivery (COD), administration, and a scoped Partner API with signed webhooks.
+Hệ thống quản lý vận đơn .NET 10 modular monolith: Shop tạo/import đơn, điều phối và giao hàng, COD nội bộ, tracking công khai, quản trị và Partner API/webhook.
 
-## Technology
+UI dùng Blazor Interactive Server; dữ liệu dùng EF Core/SQL Server và Identity; validation/test dùng FluentValidation/xUnit. Redis hỗ trợ quota Partner và cache cấu hình khi chạy production.
 
-- ASP.NET Core and Blazor Web App (Interactive Server)
-- Entity Framework Core with SQL Server
-- ASP.NET Core Identity and policy/application authorization
-- FluentValidation and xUnit
-- Redis for production Partner API rate limiting and shared configuration-cache generations
+## Bắt đầu
 
-## Quick start
-
-Prerequisites: .NET 10 SDK and SQL Server LocalDB (or another local SQL Server).
+Đọc [Documentation guide](docs/README.md), sau đó [Development](docs/Backend/development.md) để cấu hình SQL, migration/seed và chạy local. Yêu cầu .NET 10 SDK; Infrastructure tests cần Windows LocalDB.
 
 ```powershell
 dotnet restore Mini-logistics-manegemant-system.slnx
-dotnet run --project src/MiniLogistics.Web -p:OpenApiGenerateDocuments=false -- --migrate
-dotnet run --project src/MiniLogistics.Web -p:OpenApiGenerateDocuments=false
+dotnet build Mini-logistics-manegemant-system.slnx -c Release
+dotnet test Mini-logistics-manegemant-system.slnx -c Release
 ```
 
-The HTTPS launch profile uses `https://localhost:7195`. LocalDB is configured in `src/MiniLogistics.Web/appsettings.Development.json`; use local environment/provider configuration for overrides and secrets.
+## Tài liệu developer
 
-Production requires Redis plus an environment-specific `ConfigurationCache:KeyPrefix` shared by all web nodes. `ConfigurationCache:ConsistencyWindowSeconds` defaults to 15 seconds and bounds how long a local snapshot can remain when shared invalidation cannot be published.
+| Nhóm | Nội dung |
+| --- | --- |
+| [Backend](docs/Backend/README.md) | Kiến trúc, nghiệp vụ, dữ liệu, setup và kiểm tra |
+| [Frontend](docs/Frontend/README.md) | Blazor, màn hình, state, form, UI và localization |
+| [Service](docs/Service/README.md) | Partner API, webhook, external dependency và vận hành |
 
-Demo data is opt-in and requires local credentials. See [Local development](docs/development/local-development.md#optional-demo-seed).
+`src/` chứa bốn project; `test/` chứa unit/integration/web/manual/load tests; `postman/` chứa API collection; `scripts/` chứa compatibility helper; `deploy/` chứa production configuration example.
 
-## Validate
-
-```powershell
-dotnet build Mini-logistics-manegemant-system.slnx -c Release -p:OpenApiGenerateDocuments=false
-dotnet test Mini-logistics-manegemant-system.slnx -c Release -p:OpenApiGenerateDocuments=false
-```
-
-The OpenAPI property is a documented workaround for a design-time host issue. Infrastructure integration tests currently require Windows SQL Server LocalDB.
-
-## Documentation
-
-- [Documentation guide](docs/README.md)
-- [Product overview](docs/product/overview.md)
-- [Domain model and rules](docs/domain/model-and-rules.md)
-- [Architecture overview](docs/architecture/overview.md)
-- [Data model and persistence guarantees](docs/database/data-model.md)
-- [Partner API reference](docs/partner-api.md) and [integration guide](docs/third-party-shipment-integration-guide.md)
-- [Local development](docs/development/local-development.md)
-
-Coding agents should begin with [AGENTS.md](AGENTS.md). It contains operational instructions and links to the focused `.agents` guidance; it is not product documentation.
-
-## Repository layout
-
-```text
-src/      Domain, Application, Infrastructure, and Web projects
-test/     Domain, Application, Infrastructure, and Web test projects
-docs/     Product, domain, architecture, data, integration, and operations knowledge
-postman/  Partner API collection and environment
-scripts/  Contract, compatibility, load, and operational validation helpers
-```
-
-## License
-
-This project is for educational and portfolio purposes.
+Agent bắt đầu tại [AGENTS.md](AGENTS.md). Tài liệu trong `.agents/` phục vụ quy trình agent. Dự án dùng cho học tập và portfolio.

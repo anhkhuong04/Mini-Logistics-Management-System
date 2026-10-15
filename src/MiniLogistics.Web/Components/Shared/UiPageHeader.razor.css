@@ -1,66 +1,9 @@
-.ui-page-header {
-    align-items: center;
-    display: flex;
-    gap: 1.5rem;
-    justify-content: space-between;
-    min-width: 0;
-}
-
-.ui-page-header__identity {
-    align-items: flex-start;
-    display: flex;
-    gap: 1rem;
-    min-width: 0;
-}
-
-.ui-page-header__icon {
-    align-items: center;
-    background: linear-gradient(145deg, var(--ui-primary-soft), #fff);
-    border: 1px solid color-mix(in srgb, var(--ui-primary) 22%, white);
-    border-radius: 14px;
-    color: var(--ui-primary);
-    display: inline-flex;
-    flex: 0 0 auto;
-    height: 3rem;
-    justify-content: center;
-    width: 3rem;
-}
-
-.ui-page-header__eyebrow {
-    color: var(--ui-primary);
-    font-size: .72rem;
-    font-weight: 800;
-    letter-spacing: .09em;
-    margin: 0 0 .35rem;
-    text-transform: uppercase;
-}
-
-h1 {
-    color: var(--ui-text-strong);
-    font-size: clamp(1.7rem, 3vw, 2.35rem);
-    font-weight: 750;
-    letter-spacing: -.035em;
-    line-height: 1.12;
-    margin: 0;
-}
-
-.ui-page-header__description {
-    color: var(--ui-muted);
-    line-height: 1.6;
-    margin: .5rem 0 0;
-    max-width: 52rem;
-}
-
-.ui-page-header__actions {
-    align-items: center;
-    display: flex;
-    flex: 0 0 auto;
-    flex-wrap: wrap;
-    gap: .65rem;
-}
-
-@media (max-width: 720px) {
-    .ui-page-header { align-items: stretch; flex-direction: column; }
-    .ui-page-header__actions { width: 100%; }
-    .ui-page-header__actions ::deep > * { flex: 1 1 auto; }
-}
+.ui-page-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; min-width: 0; }
+.ui-page-header__identity { display: flex; align-items: center; gap: .875rem; min-width: 0; }
+.ui-page-header__identity > div { min-width: 0; }
+.ui-page-header__icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; color: var(--ui-primary); background: var(--ui-primary-soft); border-radius: var(--ui-radius-sm); width: 2.75rem; height: 2.75rem; }
+.ui-page-header__eyebrow { color: var(--ui-muted); font-size: .75rem; font-weight: 500; margin: 0 0 .25rem; }
+h1 { color: var(--ui-text-strong); font-size: clamp(1.375rem, 2vw, 1.75rem); font-weight: 600; letter-spacing: -.025em; line-height: 1.35; margin: 0; overflow-wrap: anywhere; }
+.ui-page-header__description { color: var(--ui-muted); font-size: .875rem; line-height: 1.6; margin: .3rem 0 0; max-width: 44rem; }
+.ui-page-header__actions { display: flex; align-items: center; flex-wrap: wrap; gap: .625rem; }
+@media (max-width: 720px) { .ui-page-header { align-items: stretch; flex-direction: column; } .ui-page-header__actions { width: 100%; } }

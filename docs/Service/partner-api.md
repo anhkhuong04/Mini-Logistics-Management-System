@@ -31,7 +31,7 @@ The API client and its shop must both be active and the key must not be expired.
 | `GET /shipments/{trackingCode}` | `TrackShipment` | 120/minute |
 | `POST /shipments/{trackingCode}/cancel` | `CancelShipment` | 30/minute |
 
-Quota is shared across replicas. `429` includes `Retry-After` in seconds. During a
+In Production/Redis mode, quota is shared across replicas. Development Memory mode is process-local. `429` includes `Retry-After` in seconds. During a
 rate-store outage, create/cancel return `503 PartnerApi.RateLimitUnavailable`; quote
 and tracking follow the availability-first fail-open policy. Limits can differ by
 environment.
@@ -128,7 +128,7 @@ returns `409 PartnerApi.IdempotencyConflict`. `externalOrderId` is unique per AP
 client. Omitted sender/pickup fields use the shop profile.
 
 The full quote/create/cancel schemas and enum constraints are in OpenAPI. The Postman
-collection is at `postman/partner-api.postman_collection.json`.
+collection is at [partner-api.postman_collection.json](../../postman/partner-api.postman_collection.json).
 
 ## Error Contract
 
@@ -222,4 +222,4 @@ protected secret snapshot.
 - Backend examples: [`examples/partner-api-node.mjs`](examples/partner-api-node.mjs)
   and [`examples/PartnerApiExample.cs`](examples/PartnerApiExample.cs).
 - Shop implementation guide:
-  [`third-party-shipment-integration-guide.md`](third-party-shipment-integration-guide.md).
+  [`integration-guide.md`](integration-guide.md).

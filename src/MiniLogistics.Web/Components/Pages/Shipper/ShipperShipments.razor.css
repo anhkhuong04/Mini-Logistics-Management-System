@@ -14,24 +14,24 @@
 }
 
 .eyebrow {
-    color: #0b63f6;
+    color: var(--ui-primary);
     font-size: 0.78rem;
-    font-weight: 900;
+    font-weight: 600;
     letter-spacing: 0.12em;
     margin: 0 0 0.35rem;
     text-transform: uppercase;
 }
 
 .page-heading h1 {
-    color: #071b4d;
-    font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
+    color: var(--ui-text-strong);
+    font-family: 'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif;
     font-size: clamp(1.45rem, 2vw, 2rem);
-    font-weight: 900;
+    font-weight: 600;
     margin: 0 0 0.35rem;
 }
 
 .page-heading p:last-child {
-    color: #64748b;
+    color: var(--ui-muted);
     margin: 0;
 }
 
@@ -40,10 +40,10 @@
     background: #fff;
     border: 1px solid #d9e5f3;
     border-radius: 10px;
-    color: #0b63f6;
+    color: var(--ui-primary);
     cursor: pointer;
     display: inline-flex;
-    font-weight: 800;
+    font-weight: 600;
     gap: 0.5rem;
     justify-content: center;
     min-height: 42px;
@@ -117,20 +117,20 @@
     border-radius: 10px;
     color: #334b7a;
     cursor: pointer;
-    font-weight: 900;
+    font-weight: 600;
     min-height: 38px;
     padding: 0 0.85rem;
 }
 
 .profile-main h2 {
-    color: #071b4d;
+    color: var(--ui-text-strong);
     font-size: 1.2rem;
-    font-weight: 900;
+    font-weight: 600;
     margin: 0;
 }
 
 .profile-main p {
-    color: #64748b;
+    color: var(--ui-muted);
     margin: 0.35rem 0 0;
 }
 
@@ -140,7 +140,7 @@
     border-radius: 999px;
     display: inline-flex;
     font-size: 0.78rem;
-    font-weight: 900;
+    font-weight: 600;
     line-height: 1;
     padding: 0.48rem 0.65rem;
     white-space: nowrap;
@@ -160,7 +160,7 @@
 .capacity-badge.neutral,
 .empty-area {
     background: #eef4fb;
-    color: #64748b;
+    color: var(--ui-muted);
 }
 
 .area-strip {
@@ -171,7 +171,7 @@
 
 .area-pill {
     background: #eaf4ff;
-    color: #0b63f6;
+    color: var(--ui-primary);
 }
 
 .workspace-filters {
@@ -195,7 +195,7 @@
 .filter-actions button {
     border-radius: 10px;
     cursor: pointer;
-    font-weight: 900;
+    font-weight: 600;
     min-height: 40px;
     padding: 0 0.85rem;
 }
@@ -207,8 +207,8 @@
 }
 
 .stage-tabs button.active {
-    background: #0b63f6;
-    border-color: #0b63f6;
+    background: var(--ui-primary);
+    border-color: var(--ui-primary);
     color: #fff;
 }
 
@@ -219,9 +219,9 @@
 }
 
 .filter-row span {
-    color: #64748b;
+    color: var(--ui-muted);
     font-size: 0.78rem;
-    font-weight: 900;
+    font-weight: 600;
     text-transform: uppercase;
 }
 
@@ -230,15 +230,15 @@
     background: #fff;
     border: 1px solid #d7e4f2;
     border-radius: 10px;
-    color: #071b4d;
+    color: var(--ui-text-strong);
     min-height: 42px;
     padding: 0 0.75rem;
 }
 
 .filter-actions button,
 .pager button {
-    background: #0b63f6;
-    border: 1px solid #0b63f6;
+    background: var(--ui-primary);
+    border: 1px solid var(--ui-primary);
     color: #fff;
 }
 
@@ -262,20 +262,20 @@
 .cod-action-card span {
     color: #15803d;
     font-size: 0.78rem;
-    font-weight: 900;
+    font-weight: 600;
     text-transform: uppercase;
 }
 
 .cod-action-card strong {
-    color: #071b4d;
+    color: var(--ui-text-strong);
     display: block;
     font-size: 1.15rem;
-    font-weight: 900;
+    font-weight: 600;
     margin-top: 0.25rem;
 }
 
 .cod-action-card p {
-    color: #64748b;
+    color: var(--ui-muted);
     margin: 0.25rem 0 0;
 }
 
@@ -284,7 +284,7 @@
     border: 1px solid #16a34a;
     border-radius: 10px;
     color: #fff;
-    font-weight: 900;
+    font-weight: 600;
     min-height: 42px;
     padding: 0 1rem;
     white-space: nowrap;
@@ -295,7 +295,7 @@
     display: grid;
     flex: 1 1 9rem;
     font-size: 0.78rem;
-    font-weight: 900;
+    font-weight: 600;
     gap: 0.35rem;
     text-transform: uppercase;
 }
@@ -304,7 +304,7 @@
     background: #fff;
     border: 1px solid #d7e4f2;
     border-radius: 10px;
-    color: #071b4d;
+    color: var(--ui-text-strong);
     min-height: 40px;
     padding: 0 0.65rem;
 }
@@ -320,7 +320,7 @@
 }
 
 .state-card p {
-    color: #64748b;
+    color: var(--ui-muted);
     margin: 0;
 }
 
@@ -328,7 +328,7 @@
     align-items: center;
     background: #eaf4ff;
     border-radius: 999px;
-    color: #0b63f6;
+    color: var(--ui-primary);
     display: inline-flex;
     height: 56px;
     justify-content: center;
@@ -357,16 +357,16 @@
 .money-strip span,
 .route-label,
 .status-form label {
-    color: #64748b;
+    color: var(--ui-muted);
     font-size: 0.78rem;
-    font-weight: 900;
+    font-weight: 600;
     text-transform: uppercase;
 }
 
 .stats-grid strong {
-    color: #071b4d;
+    color: var(--ui-text-strong);
     font-size: 1.35rem;
-    font-weight: 900;
+    font-weight: 600;
 }
 
 .shipment-grid {
@@ -389,24 +389,24 @@
 }
 
 .tracking-code {
-    color: #0b63f6;
+    color: var(--ui-primary);
     display: inline-block;
     font-size: 0.9rem;
-    font-weight: 900;
+    font-weight: 600;
     margin-bottom: 0.35rem;
 }
 
 .shipment-card h2 {
-    color: #071b4d;
+    color: var(--ui-text-strong);
     font-size: 1.25rem;
-    font-weight: 900;
+    font-weight: 600;
     margin: 0 0 0.25rem;
     overflow-wrap: anywhere;
 }
 
 .shipment-card-header p,
 .route-grid p {
-    color: #64748b;
+    color: var(--ui-muted);
     margin: 0;
     overflow-wrap: anywhere;
 }
@@ -415,7 +415,7 @@
     border-radius: 999px;
     display: inline-flex;
     font-size: 0.82rem;
-    font-weight: 900;
+    font-weight: 600;
     line-height: 1;
     padding: 0.55rem 0.75rem;
     white-space: nowrap;
@@ -428,7 +428,7 @@
 
 .status-pill.info {
     background: #eaf4ff;
-    color: #0b63f6;
+    color: var(--ui-primary);
 }
 
 .status-pill.success {
@@ -458,7 +458,7 @@
 }
 
 .route-grid strong {
-    color: #071b4d;
+    color: var(--ui-text-strong);
     display: block;
     margin: 0.35rem 0 0.25rem;
     overflow-wrap: anywhere;
@@ -476,8 +476,8 @@
 }
 
 .money-strip strong {
-    color: #071b4d;
-    font-weight: 900;
+    color: var(--ui-text-strong);
+    font-weight: 600;
 }
 
 .money-strip small {
@@ -488,7 +488,7 @@
     border-radius: 999px;
     display: inline-flex;
     font-size: 0.74rem;
-    font-weight: 900;
+    font-weight: 600;
     line-height: 1;
     padding: 0.4rem 0.55rem;
 }
@@ -505,7 +505,7 @@
 
 .cod-pill.neutral {
     background: #eef4fb;
-    color: #64748b;
+    color: var(--ui-muted);
 }
 
 .status-form {
@@ -524,7 +524,7 @@
     background: #fff;
     border: 1px solid #d7e4f2;
     border-radius: 10px;
-    color: #071b4d;
+    color: var(--ui-text-strong);
 }
 
 .status-form select {
@@ -542,36 +542,36 @@
 
 .status-form select:focus,
 .status-form textarea:focus {
-    border-color: #0b63f6;
+    border-color: var(--ui-primary);
     box-shadow: 0 0 0 0.18rem rgba(11, 99, 246, 0.12);
     outline: 0;
 }
 
 .status-form button {
-    background: #0b63f6;
-    border: 1px solid #0b63f6;
+    background: var(--ui-primary);
+    border: 1px solid var(--ui-primary);
     border-radius: 10px;
     color: #fff;
-    font-weight: 900;
+    font-weight: 600;
     min-height: 42px;
     padding: 0 1rem;
 }
 
 .terminal-note {
-    color: #64748b;
-    font-weight: 800;
+    color: var(--ui-muted);
+    font-weight: 600;
 }
 
 .row-message {
     font-size: 0.82rem;
-    font-weight: 900;
+    font-weight: 600;
     margin: 0;
 }
 
 .field-hint {
-    color: #64748b;
+    color: var(--ui-muted);
     font-size: 0.78rem;
-    font-weight: 800;
+    font-weight: 600;
     margin: -0.25rem 0 0;
 }
 
@@ -596,13 +596,13 @@
 
 .pager span {
     color: #334b7a;
-    font-weight: 900;
+    font-weight: 600;
 }
 
 .timeline-section h3 {
-    color: #071b4d;
+    color: var(--ui-text-strong);
     font-size: 1rem;
-    font-weight: 900;
+    font-weight: 600;
     margin: 0 0 1rem;
 }
 
@@ -621,7 +621,7 @@
 }
 
 .timeline-dot {
-    background: #0b63f6;
+    background: var(--ui-primary);
     border: 4px solid #eaf4ff;
     border-radius: 999px;
     height: 18px;
@@ -630,13 +630,13 @@
 }
 
 .timeline strong {
-    color: #071b4d;
+    color: var(--ui-text-strong);
     display: block;
-    font-weight: 900;
+    font-weight: 600;
 }
 
 .timeline time {
-    color: #64748b;
+    color: var(--ui-muted);
     display: block;
     font-size: 0.82rem;
     margin-top: 0.15rem;
@@ -652,7 +652,7 @@
 }
 
 .timeline p {
-    color: #64748b;
+    color: var(--ui-muted);
     margin: 0.25rem 0 0;
 }
 

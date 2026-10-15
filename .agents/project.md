@@ -49,7 +49,7 @@ Application service interfaces registered by `AddApplication` resolve the implem
 - `src/MiniLogistics.Web/Components`: role-oriented Blazor UI.
 - `src/MiniLogistics.Web/Endpoints`: browser auth, partner API, localization and Shop file downloads.
 - `test`: unit, application, SQL LocalDB integration, web contract, load and manual tests.
-- `docs` and `postman`: partner-facing contracts and examples; keep them aligned with API changes.
+- `docs/Backend`, `docs/Frontend`, and `docs/Service`: developer documentation grouped by responsibility; `docs/README.md` is the human entry point. Partner contracts, generated OpenAPI, and examples live in `docs/Service`; keep them aligned with `postman` when APIs change.
 
 ## Roles and authorization model
 

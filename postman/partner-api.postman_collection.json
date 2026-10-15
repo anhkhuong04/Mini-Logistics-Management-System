@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "MiniLogistics Partner API",
-    "description": "Partner API v1 collection maintained against docs/partner-api.openapi.json. Use only from a shop backend.",
+    "description": "Partner API v1 collection maintained against docs/Service/partner-api.openapi.json. Use only from a shop backend.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
