@@ -58,8 +58,7 @@ public sealed class AdminDashboardMetricsRepository : IAdminDashboardMetricsRepo
         var overCapacity = activeShippers.Count(shipper =>
             activeLoads.GetValueOrDefault(shipper.ShipperId) > shipper.MaxActiveShipments);
 
-        var codRows = await CreateCodRowsQuery(province)
-            .Where(row => row.ShipmentCreatedAtUtc >= fromUtc && row.ShipmentCreatedAtUtc <= toUtc)
+        var codRows = await CreateCodRowsQuery(fromUtc, toUtc, province)
             .ToListAsync(cancellationToken);
         var pendingCollectionRows = codRows
             .Where(row => row.ShipmentStatus == ShipmentStatus.Delivered && row.CodStatus == CodStatus.PendingCollection)
@@ -126,26 +125,32 @@ public sealed class AdminDashboardMetricsRepository : IAdminDashboardMetricsRepo
         return query;
     }
 
-    private IQueryable<CodDashboardRow> CreateCodRowsQuery(string? province)
+    private IQueryable<CodDashboardRow> CreateCodRowsQuery(
+        DateTimeOffset fromUtc,
+        DateTimeOffset toUtc,
+        string? province)
     {
-        var query =
-            from cod in _dbContext.CodTransactions.AsNoTracking()
-            join shipment in _dbContext.Shipments.AsNoTracking()
-                on cod.ShipmentId equals shipment.Id
-            where shipment.Status != ShipmentStatus.Draft
-            select new CodDashboardRow(
-                shipment.CreatedAtUtc,
-                shipment.PickupAddress.Province,
-                shipment.Status,
-                cod.Status,
-                cod.Amount);
+        var query = _dbContext.CodTransactions
+            .AsNoTracking()
+            .Join(
+                _dbContext.Shipments.AsNoTracking(),
+                cod => cod.ShipmentId,
+                shipment => shipment.Id,
+                (cod, shipment) => new { Cod = cod, Shipment = shipment })
+            .Where(row => row.Shipment.Status != ShipmentStatus.Draft)
+            .Where(row => row.Shipment.CreatedAtUtc >= fromUtc && row.Shipment.CreatedAtUtc <= toUtc);
 
         if (!string.IsNullOrWhiteSpace(province))
         {
-            query = query.Where(row => row.Province == province);
+            query = query.Where(row => row.Shipment.PickupAddress.Province == province);
         }
 
-        return query;
+        return query.Select(row => new CodDashboardRow(
+            row.Shipment.CreatedAtUtc,
+            row.Shipment.PickupAddress.Province,
+            row.Shipment.Status,
+            row.Cod.Status,
+            row.Cod.Amount));
     }
 
     private sealed record CodDashboardRow(
