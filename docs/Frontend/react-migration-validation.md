@@ -157,14 +157,21 @@ Check bàn giao đạt trên30 Markdown hiện hành và3 heading anchors nội 
 - Sau đồng bộ copy navigation/context vi/en: Vitest29/29 và build/lint đạt; real-cookie browser fixture chạy lại pass. Publish artifact được cập nhật và shell/mobile-auth15/15 pass, không còn thay đổi renderer nào chưa build. Kiểm tra cuối giữ15/15 user fingerprints, Partner artifact không drift và không có broken local file links trong13 Markdown thay đổi.
 - Bài kiểm tra reference data nằm cùng BrowserAuthenticationTests; browser Shop context contracts được đặt cạnh endpoint thay vì tách file chỉ chứa record. Không thêm package, migration hay user fixture vào runtime sản phẩm.
 
-## Cách ghi evidence cho task tiếp theo
-
 ## 25/10/2026 — T03.01 Shop read API
 
 - HTTP regression RED11/11 trước endpoint → GREEN12 read tests; auth dùng cookie Identity thật, actor lấy principal. Read API gọi SearchAsync có phân trang (spy ném lỗi nếu gọi full-list GetAsync), bind đầy đủ filter/sort/date/COD, không query DbContext trong endpoint.
 - Test owner/staff/cross-Shop/not-found/inactive-history, PII/COD masking, enum/range/page invalid và cuối ngày UTC7 fractional digits. Existing Application/SQL policies giữ nguyên, không thay Domain/schema/repository.
 - Caught defaults AsParameters về0 khi query paging vắng: adapter dùng nullable params và fallback1/25. Caught dashboard dictionary enum key serialization500; thêm named key converter, regression RED→GREEN. Contract + read targeted39/39 pass.
 - Browser schema/types sinh từ endpoint metadata; Partner OpenAPI không đổi. `@ant-design/icons`6.3.4 đã có từ Phase 1, dùng tiếp cho Phase 3, không thêm thư viện trùng hoặc hard-code SVG/emoji.
+
+## Cách ghi evidence cho task tiếp theo
+
+## 25/10/2026 — T03.02 React shipment list/detail
+
+- URL filter/UTC/decimal validation và page behavior tests RED vì chưa có module → GREEN6/6. Search/filter/sort/paging gọi typed paged API; key có user/Shop/filter, không giữ previous-tenant data. Legacy numeric status map theo enum0–10; giữ UTC7 fractional digits, reject invalid date/range/enum/page/decimal trước fetch.
+- List/detail dùng Table/Descriptions/Timeline/StatusTag, hiển thị DTO snapshots/masking. Không dựng assignment/proof hoặc mutation giả; chưa có API mutation Phase 4. Browser Back và link về danh sách giữ filter/query.
+- Browser real-cookie fixture mở rộng5 scenarios (3 auth/context +2 list/detail): owner search→detail→back/reload/invalid URL, limited staff masked/no COD,390px không tràn trang. Fix decorative icon accessible names bằng aria-hidden để label search đúng.
+- Navigation/action icons dùng @ant-design/icons6.3.4 đã pin. Không thêm package trùng, không vẽ SVG path hoặc emoji để làm icon. Typecheck/lint/build pass; AntD chunk hiện912.15kB, ghi warning thật, không đổi threshold.
 
 ## Cách ghi evidence cho task tiếp theo
 

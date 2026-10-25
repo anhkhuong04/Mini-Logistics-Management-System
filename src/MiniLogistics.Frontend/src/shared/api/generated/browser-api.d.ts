@@ -364,7 +364,7 @@ export interface components {
             settledCodAmount: string;
             currency: string;
             countByStatus: {
-                [key: string]: number | string;
+                [key: string]: number;
             };
         };
         /** @enum {null|string} */

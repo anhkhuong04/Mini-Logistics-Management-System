@@ -32,11 +32,13 @@ export function AppLayout({ children, navigation, sessionTools }: { children: Re
   }
   const defaultNavigation: NavigationItem[] = [{ key: 'home', label: t('home'), to: routePaths.home, icon: <HomeOutlined /> }];
   const items = (navigation ?? defaultNavigation)
-    .map(item => ({ key: item.to, icon: item.icon, label: item.document ? <a href={item.to}>{item.label}</a> : <Link to={item.to} onClick={() => {
+    .map(item => ({ key: item.key, icon: item.icon, label: item.document ? <a href={item.to}>{item.label}</a> : <Link to={item.to} onClick={() => {
       navigated.current = true;
       setOpen(false);
     }}>{item.label}</Link> }));
-  const menu = <Menu mode="inline" aria-label={t('navigation')} selectedKeys={[pathname]} items={items} />;
+  const currentPath = pathname.startsWith('/shipments/') ? '/shipments' : pathname;
+  const selectedKey = (navigation ?? defaultNavigation).find(item => item.to.split('?')[0] === currentPath)?.key;
+  const menu = <Menu mode="inline" aria-label={t('navigation')} selectedKeys={selectedKey ? [selectedKey] : []} items={items} />;
   return <Layout className={styles.shell}>
     <a className="skip-link" href="#main-content">{t('skip')}</a>
     <Layout.Header className={styles.header}>

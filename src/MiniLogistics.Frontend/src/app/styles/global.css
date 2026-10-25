@@ -26,6 +26,18 @@ main:focus, h1:focus { outline: none; }
 .auth-panel form { margin-top: 16px; }
 .session-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .shop-context { margin-bottom: 24px; padding: 16px; background: white; border: 1px solid var(--ui-border); border-radius: 12px; }
+.filter-panel { background: white; border: 1px solid var(--ui-border); border-radius: 12px; padding: 16px; margin-bottom: 24px; }
+.filter-primary, .filter-grid { display: grid; gap: 16px; align-items: end; grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); }
+.filter-primary { margin-bottom: 16px; }
+.filter-primary .ant-form-item { margin-bottom: 0; }
+.filter-grid .ant-form-item { margin-bottom: 4px; }
+.data-table-region { max-width: 100%; min-width: 0; overflow-x: auto; border: 1px solid var(--ui-border); border-radius: 12px; background: white; }
+.detail-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.detail-grid .ant-descriptions-item-content { overflow-wrap: anywhere; }
+.history-card { grid-column: 1 / -1; }
+.filter-panel .ant-btn { min-height: 44px; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+@media (max-width: 767px) { .detail-grid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }

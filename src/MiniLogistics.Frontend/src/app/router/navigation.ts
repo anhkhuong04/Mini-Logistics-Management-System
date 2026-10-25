@@ -1,9 +1,14 @@
 import type { Session } from '../../shared/auth/SessionContext';
 import type { ShopContext } from '../../features/shop-context/ShopContext';
 import type { NavigationItem } from '../layouts/AppLayout';
+import { createElement } from 'react';
+import { HomeOutlined, DashboardOutlined, InboxOutlined, TruckOutlined, SettingOutlined, BellOutlined, UserOutlined, TeamOutlined, AuditOutlined, ApiOutlined, WalletOutlined } from '@ant-design/icons';
+const navigationIcons = { home: HomeOutlined, operations: TruckOutlined, shipper: TruckOutlined, admin: SettingOutlined, integrations: ApiOutlined,
+  dashboard: DashboardOutlined, shipments: InboxOutlined, notifications: BellOutlined, profile: UserOutlined, cod: WalletOutlined,
+  audit: AuditOutlined, 'shop-integrations': ApiOutlined, staff: TeamOutlined };
 export function navigationFor(session: Session | null, context: ShopContext | null, locale = 'vi-VN'): NavigationItem[] {
   const links: NavigationItem[] = [{ key: 'home', label: 'Trang chính', to: '/' }];
-  const add = (key: string, label: string, to: string) => links.push({ key, label, to, document: true });
+  const add = (key: string, label: string, to: string) => links.push({ key, label, to, document: key !== 'shipments' });
   if (session?.operationPermissions.includes('operations.shipment.view')) add('operations', 'Điều phối', '/operations/assignments');
   if (session?.roles.includes('Shipper')) add('shipper', 'Công việc giao hàng', '/shipper/shipments');
   if (session?.roles.includes('Admin')) add('admin', 'Quản trị', '/admin');
@@ -25,5 +30,6 @@ export function navigationFor(session: Session | null, context: ShopContext | nu
   const english: Record<string, string> = { home: 'Home', operations: 'Operations', shipper: 'Delivery workspace', admin: 'Administration',
     integrations: 'Integrations', dashboard: 'Shop overview', shipments: 'Shipments', notifications: 'Notifications', profile: 'Shop profile',
     cod: 'COD report', audit: 'Shop audit', 'shop-integrations': 'Shop integrations', staff: 'Shop staff' };
-  return locale === 'en-US' ? links.map(item => ({ ...item, label: english[item.key] ?? item.label })) : links;
+  return links.map(item => ({ ...item, label: locale === 'en-US' ? english[item.key] ?? item.label : item.label,
+    icon: createElement(navigationIcons[item.key as keyof typeof navigationIcons], { 'aria-hidden': true }) }));
 }

@@ -46,6 +46,7 @@ public sealed class BrowserRealBrowserTests
                 new Address("Private test address", "Ward", "Province", "Vietnam"), DateTimeOffset.UtcNow);
             var first = New("Browser Shop A"); var second = New("Browser Shop B");
             db.Shops.AddRange(first, second);
+            db.Shipments.Add(BrowserShopShipmentReadTests.NewShipment(first.Id, owner, "ML-BROWSER-001"));
             db.ShopStaffMemberships.Add(new ShopStaffMembership(first.Id, staff, owner, ShopStaffRole.Viewer,
                 ShopPermission.ViewShipments, DateTimeOffset.UtcNow));
             await db.SaveChangesAsync();
@@ -59,6 +60,7 @@ public sealed class BrowserRealBrowserTests
             StandardErrorEncoding = System.Text.Encoding.UTF8, UseShellExecute = false, CreateNoWindow = true };
         start.ArgumentList.Add("node_modules/@playwright/test/cli.js"); start.ArgumentList.Add("test");
         start.ArgumentList.Add("e2e/auth.spec.ts"); start.ArgumentList.Add("e2e/shop-context.spec.ts");
+        start.ArgumentList.Add("e2e/shop-shipments.spec.ts");
         start.Environment["MINILOGISTICS_E2E_BASE_URL"] = address + "/app/";
         start.Environment["MINILOGISTICS_E2E_IDENTITY_FIXTURE"] = "1";
         start.Environment["MINILOGISTICS_E2E_PASSWORD"] = BrowserIdentityFactory.Password;

@@ -9,6 +9,11 @@ public sealed class BrowserApiOpenApiTransformer : IOpenApiSchemaTransformer
     public Task TransformAsync(OpenApiSchema schema, OpenApiSchemaTransformerContext context, CancellationToken cancellationToken)
     {
         var type = Nullable.GetUnderlyingType(context.JsonTypeInfo.Type) ?? context.JsonTypeInfo.Type;
+        if (type.IsGenericType && type.GetGenericArguments() is [var keyType, var valueType] && keyType.IsEnum && valueType == typeof(int))
+        {
+            // Browser response dictionary values are JSON integers, not numeric request strings.
+            schema.AdditionalProperties = new OpenApiSchema { Type = JsonSchemaType.Integer, Format = "int32" };
+        }
         if (type == typeof(decimal))
         {
             schema.Type = JsonSchemaType.String | (Nullable.GetUnderlyingType(context.JsonTypeInfo.Type) is null ? 0 : JsonSchemaType.Null);
