@@ -89,6 +89,16 @@ Fingerprint sau build/test:834 source/test/script/partner-artifact paths giữ n
 
 Check bàn giao đạt trên30 Markdown hiện hành và3 heading anchors nội bộ;12 phase/40 task IDs hợp lệ, chỉ13 checklist thuộc Phase 0 được đánh dấu hoàn tất. Inventory đủ93 bindings;27 version pins khớp metadata; staff update dùng UserId và toolchain không còn lỗi tiếng Việt. `git diff --check` exit0; chưa có frontend project hoặc generated browser artifact.
 
+## 25/10/2026 — T01.01 frontend scaffold
+
+- Prerequisite documents đã được commit riêng `a083e92`; Operations/manual deletions và script local không nằm trong commit đó.
+- Node24.22.1 portable tải từ nodejs.org, đối chiếu SHASUMS256 trước khi giải nén vào `.agent/toolchains` bị ignore; npm11.19.1 đi kèm. Không đổi global Node/PATH.
+- Scaffold strict TypeScript với27 direct pins, npm package-lock, scripts, Vitest/RTL/Playwright và frontend CI. npm install và npm ci đều exit0,330 packages, audit0 vulnerabilities tại thời điểm chạy.
+- TDD harness: test mở/đóng support dialog ban đầu fail vì chưa có App, sau implementation đạt1/1. jsdom tắt motion trong test provider để kiểm tra state thay vì chờ animation CSS; browser test vẫn dùng motion thật.
+- Sau npm ci: typecheck/lint/Vitest1 test/build đều exit0. Chromium entry flow1/1 pass. Build lúc scaffold có chunk565.74kB (gzip184.53kB), cảnh báo >500kB được ghi nhận để xử lý khi tổ chức shell ở T01.03, không nâng warning threshold để che.
+- `api:generate` kiểm tra schema thật và exit1 có thông báo T02.01 khi schema chưa có; không sinh placeholder contract. Generated assets/dependencies/browser state được git-ignore đúng.
+- T01.02 hosting tests đã được viết và chạy RED riêng (15 fail/1 pass), chưa có production hosting change trong commit scaffold; file test đó được giữ ngoài commit T01.01.
+
 ## Cách ghi evidence cho task tiếp theo
 
 Mỗi task ghi: ngày/task ID, working tree hoặc commit được kiểm chứng, môi trường/dependency, command chính xác, exit code/kết quả, scenario/actor/Shop, failure/skip/blocker và artifact an toàn nếu có. Test mock, render server, HTTP test và browser test phải được phân biệt.

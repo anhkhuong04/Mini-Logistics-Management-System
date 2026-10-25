@@ -42,3 +42,14 @@ packages/
 
 # ASP.NET generated static web assets cache
 *.StaticWebAssets.xml
+
+# Frontend dependencies, builds and local test state
+node_modules/
+dist/
+playwright-report/
+test-results/
+.auth/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo

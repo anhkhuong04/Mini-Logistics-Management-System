@@ -1,6 +1,8 @@
 # Phát triển local
 
-Các lệnh dưới đây dành cho runtime .NET/Blazor hiện tại. React + TypeScript + Ant Design là hướng đã chọn; chưa có frontend project hoặc npm scripts. Theo dõi [migration contract/status](../Frontend/react-migration-contracts.md); bổ sung Node/npm/dev proxy và browser contract generation khi task tương ứng đã được triển khai, khóa phiên bản và kiểm chứng.
+Các lệnh .NET dưới đây dành cho runtime backend/Blazor hiện tại. Scaffold React/TypeScript/Ant Design nằm ở `src/MiniLogistics.Frontend`, dùng Node 24.22.1/npm 11.19.1 theo [toolchain](../Frontend/react-migration-toolchain.md). Xem [migration status](../Frontend/react-migration-contracts.md) để biết phạm vi hosting/API đã có.
+
+Frontend: chạy `npm --prefix src/MiniLogistics.Frontend ci`, sau đó `run dev`; validation dùng `run typecheck`, `run lint`, `test`, `run build`. `run test:e2e` dùng Playwright Chromium đã cài. Lệnh `api:generate` chỉ dùng được sau khi browser OpenAPI thật được sinh ở T02.01.
 
 Chạy lệnh từ repository root. Dùng `Mini-logistics-manegemant-system.slnx`, không dùng file `.csproj` lạc ở root.
 

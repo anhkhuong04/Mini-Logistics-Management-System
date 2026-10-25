@@ -2,7 +2,7 @@
 
 - Ngày: 25/10/2026.
 - Trạng thái quyết định: **Accepted** cho React + TypeScript + Ant Design theo lựa chọn của người dùng.
-- Trạng thái triển khai: Phase 0 đã có inventory/baseline/contract/pins; **chưa scaffold hoặc đổi runtime**, UI vẫn là Blazor.
+- Trạng thái triển khai: Phase 0 đã có inventory/baseline/contract/pins; T01.01 có React scaffold/toolchain/CI, các trang nghiệp vụ vẫn là Blazor.
 - Phạm vi: lựa chọn frontend; chi tiết hosting/auth/toolchain đã được người thực hiện chốt theo kế hoạch trong T00.02 và được ghi bên dưới.
 
 ## Bối cảnh

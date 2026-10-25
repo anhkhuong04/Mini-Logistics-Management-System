@@ -1,6 +1,6 @@
 # React + TypeScript + Ant Design Frontend Refactor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0 (T00.01–T00.02) đã hoàn tất phân tích/baseline/thiết kế ngày 25/10/2026; xem evidence và giới hạn Redis/Node trong validation log. Phase 1 trở đi chưa thực hiện; chưa scaffold React.
+> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0 và T01.01 đã hoàn tất; T01.02–03 đang triển khai. Xem validation log/ledger cho evidence; các trang nghiệp vụ và Phase 2 chưa thay đổi.
 
 **Goal:** Thay toàn bộ frontend Blazor bằng React + TypeScript + Ant Design, giữ tương đương chức năng, quyền truy cập và các hợp đồng nghiệp vụ/tích hợp hiện tại.
 
@@ -292,11 +292,11 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** npm scripts `dev`, `typecheck`, `lint`, `test`, `build`, `api:generate`, `test:e2e`; `test` dùng `vitest run`, `build` typecheck rồi Vite build.
 
-- [ ] Scaffold template React TS theo version matrix; strict TS, commit npm lockfile và `save-exact=true`; Node/npm được pin trong CI.
-- [ ] Cài package đúng trách nhiệm: router, Query, AntD/icons/Day.js; dev dependencies test, jsdom, Testing Library/user-event/jest-dom, Playwright, `openapi-typescript`, lint/types và Vite React plugin. Không thêm Axios/form/store/chart library.
-- [ ] Thêm test harness render provider, browser mocks cần cho AntD (matchMedia/ResizeObserver); kiểm tra một interaction thực để biết harness chạy.
-- [ ] Bổ sung ignore cho node_modules/dist/test-results/playwright-report/.auth và env local; giữ `.env.example` không chứa credential nếu cần.
-- [ ] CI frontend ban đầu chạy `npm ci`, typecheck/lint/test/build; chưa yêu cầu E2E backend ở task scaffold.
+- [x] Scaffold React TS theo version matrix; strict TS, npm lockfile và `save-exact=true`; Node/npm pin trong CI. Runtime portable đã kiểm chứng, không đổi Node global.
+- [x] Cài đúng27 direct package pins của Phase 0; không thêm library ngoài scope. npm install/ci audit0 vulnerabilities tại lần chạy.
+- [x] Test harness matchMedia/ResizeObserver/AntD providers; interaction mở/đóng hỗ trợ và link contact đã qua Vitest cùng Chromium.
+- [x] Ignore node_modules/dist/test-results/playwright-report/.auth/env local/tsbuildinfo; không cần `.env.example` khi scaffold chưa có cấu hình môi trường riêng.
+- [x] CI frontend npm ci/typecheck/lint/test/build đã khai báo; chạy các lệnh tương ứng local bằng runtime pins đạt. `api:generate` vẫn chặn có chủ đích cho đến T02.01.
 
 **Verify:** các script trên exit 0 từ checkout sạch; artifact chỉ ở dist, không bị theo dõi trong Git. `api:generate` được hoàn thiện khi có schema ở T02.01, không dùng schema giả làm chuẩn.
 

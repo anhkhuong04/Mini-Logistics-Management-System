@@ -4,9 +4,20 @@ Run commands from the repository root. Use the solution file, not the stray root
 
 ## Frontend migration command status
 
-React + TypeScript + Ant Design is the selected target, but `src/MiniLogistics.Frontend`, its package scripts and browser OpenAPI artifact do not exist yet. The npm examples in [the plan, section 7](../refactorfe.md#7-lệnh-validation-chuẩn-khi-bắt-đầu-thực-thi) are future validation commands, not currently supported commands.
+T01.01 has created `src/MiniLogistics.Frontend` with a pinned npm lockfile and frontend CI. Use Node 24.22.1 and npm 11.19.1 from the [toolchain pins](../docs/Frontend/react-migration-toolchain.md). The system Node may differ; use your version manager or a matching portable runtime without committing it.
 
-Keep using the .NET commands below for the current application. T00.02 has locked [toolchain pins](../docs/Frontend/react-migration-toolchain.md); local Node/npm need upgrading to that target before T01.01 installation. T01.01 must create and verify scripts before adding supported frontend commands here. Add browser contract generation checks with T02.01 and publish/cutover instructions with T11.04–05. Actual baseline results and the Redis test skip are in the [validation log](../docs/Frontend/react-migration-validation.md); version/peer checks are not frontend runtime tests.
+Run from repository root:
+
+```powershell
+npm --prefix src/MiniLogistics.Frontend ci
+npm --prefix src/MiniLogistics.Frontend run typecheck
+npm --prefix src/MiniLogistics.Frontend run lint
+npm --prefix src/MiniLogistics.Frontend test
+npm --prefix src/MiniLogistics.Frontend run build
+npm --prefix src/MiniLogistics.Frontend run dev
+```
+
+For browser tests, install the pinned Playwright browser first (`npx playwright install chromium` from the frontend directory), then run `npm --prefix src/MiniLogistics.Frontend run test:e2e`. Browser binaries/test state must remain ignored. `api:generate` intentionally exits with a clear error until T02.01 creates the real browser OpenAPI; do not add a placeholder schema to make it pass. The .NET commands below still run the current application; hosted SPA integration is verified separately in T01.02. Evidence belongs in the [validation log](../docs/Frontend/react-migration-validation.md).
 
 ## Prerequisites
 

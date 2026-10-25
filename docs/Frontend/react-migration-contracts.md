@@ -7,12 +7,12 @@ Ngày đối chiếu: 25/10/2026. Tài liệu này sở hữu quyết định co
 | Nội dung | Hiện có trong source | Đích hoặc đề xuất |
 | --- | --- | --- |
 | Frontend | Blazor Interactive Server trong MiniLogistics.Web | React + TypeScript + Ant Design đã được chọn; [ADR-004](decisions/adr-004-react-typescript-ant-design.md) |
-| Project layout | Bốn project .NET | `src/MiniLogistics.Frontend` dự kiến; chưa scaffold |
+| Project layout | Bốn project .NET và scaffold `src/MiniLogistics.Frontend` (T01.01) | HTTP hosting/API và business pages theo các task tiếp theo |
 | UI transport | Component gọi Application service trực tiếp | Browser HTTP adapters gọi Application; thiết kế chốt Phase 0, chưa có API nội bộ đầy đủ |
 | Auth | Identity cookie, `/auth/*` form + antiforgery + redirect | JSON session/CSRF auth ở Phase 2; giữ form cũ trong coexist |
 | API/contract | Partner `/api/v1/partner` và file/culture/auth endpoints hiện có | Browser `/api/v1/app`, public `/api/v1/public`, OpenAPI/types riêng đã chốt thiết kế, chưa triển khai |
 | Hosting | Web host Blazor, API và workers | Cùng origin/coexist `/app` rồi root cutover; chưa có SPA options/fallback |
-| Toolchain | .NET/xUnit và CI partner hiện có | Exact pins đã khóa; Node local cần nâng trước Phase 1; chưa có npm scripts/project |
+| Toolchain | .NET/xUnit/CI partner; React/Vite/Vitest/Playwright scaffold, npm lockfile và frontend CI | Node/npm target đã dùng dạng portable để kiểm chứng; chưa thay Node global |
 
 Lựa chọn React/TypeScript/Ant Design không làm thay đổi backend modular monolith. Các lựa chọn hỗ trợ dưới đây do người thực hiện chốt trong T00.02 theo phạm vi người dùng yêu cầu; không ghi chúng thành lựa chọn người dùng đã phát biểu. Chỉ cập nhật cột hiện trạng khi có source và evidence.
 

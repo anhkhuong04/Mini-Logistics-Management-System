@@ -2,7 +2,7 @@
 
 ## Trạng thái migration
 
-Đã chọn **React + TypeScript + Ant Design**; phần dưới mô tả **Blazor đang tồn tại**, không phải yêu cầu dùng Blazor cho frontend mới. Chưa scaffold React hoặc đổi route/runtime. Xem [kế hoạch](../../refactorfe.md), [phạm vi và trạng thái](react-migration-contracts.md), [ADR-004](decisions/adr-004-react-typescript-ant-design.md) và [validation log](react-migration-validation.md).
+Đã chọn **React + TypeScript + Ant Design**; phần dưới mô tả **Blazor đang tồn tại**, không phải yêu cầu dùng Blazor cho frontend mới. T01.01 đã có scaffold, lockfile, test harness và frontend CI; chưa thay trang nghiệp vụ. Xem [kế hoạch](../../refactorfe.md), [phạm vi và trạng thái](react-migration-contracts.md), [ADR-004](decisions/adr-004-react-typescript-ant-design.md) và [validation log](react-migration-validation.md).
 
 Frontend mới theo feature, gọi HTTP browser API rồi đến Application use case; backend và business invariants được giữ. Vite/cùng origin/Identity cookie/coexist `/app` đã chốt thiết kế ở Phase 0, chưa phải tính năng đã chạy. Xem [inventory](react-migration-inventory.md) và [toolchain pins](react-migration-toolchain.md). Hướng dẫn React/Ant Design và browser security nằm tại [engineering standards](../../.agents/standards.md); lệnh chạy chỉ bổ sung sau khi scaffold/script đã được kiểm chứng.
 

@@ -1,6 +1,6 @@
 # Frontend migration — toolchain pins Phase 0
 
-Ngày chốt: 25/10/2026. Đây là exact pins để T01.01 tạo package.json/lockfile; chưa có frontend project và chưa cài dependency vào sản phẩm. [Contract/status](react-migration-contracts.md) và [plan](../../refactorfe.md) xác định phạm vi.
+Ngày chốt: 25/10/2026. T01.01 đã dùng exact pins này để tạo frontend package.json/lockfile và cài dependency; Node/npm target chạy portable, không thay runtime global. [Contract/status](react-migration-contracts.md) và [plan](../../refactorfe.md) xác định phạm vi. Các kết quả dry-run Phase 0 dưới đây là lịch sử; validation thực thi được ghi riêng trong validation log.
 
 ## Runtime đích và môi trường hiện tại
 
