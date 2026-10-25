@@ -873,6 +873,561 @@
           }
         ]
       }
+    },
+    "/api/v1/app/shops/{shopId}/shipments": {
+      "get": {
+        "tags": [
+          "MiniLogistics.Web"
+        ],
+        "operationId": "BrowserShopShipments",
+        "parameters": [
+          {
+            "name": "shopId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "trackingCode",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "receiverName",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "receiverPhone",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "minCodAmount",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "maxCodAmount",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortBy",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortDirection",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
+          },
+          {
+            "name": "fromUtc",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "toUtc",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResponseOfShipmentListItemResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Locked",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "IdentityCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/api/v1/app/shops/{shopId}/shipments/{shipmentId}": {
+      "get": {
+        "tags": [
+          "MiniLogistics.Web"
+        ],
+        "operationId": "BrowserShopShipmentDetail",
+        "parameters": [
+          {
+            "name": "shopId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "shipmentId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShipmentDetailResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Locked",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "IdentityCookie": [ ]
+          }
+        ]
+      }
+    },
+    "/api/v1/app/shops/{shopId}/dashboard": {
+      "get": {
+        "tags": [
+          "MiniLogistics.Web"
+        ],
+        "operationId": "BrowserShopDashboard",
+        "parameters": [
+          {
+            "name": "shopId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "fromUtc",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "toUtc",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShopDashboardKpiResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Conflict",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "423": {
+            "description": "Locked",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "IdentityCookie": [ ]
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -1092,6 +1647,77 @@
           }
         }
       },
+      "FailureReasonCode": {
+        "enum": [
+          "ReceiverUnavailable",
+          "WrongAddress",
+          "ReceiverRejected",
+          "CannotContactReceiver",
+          "DamagedParcel",
+          "PaymentIssue",
+          "WeatherOrAccessIssue",
+          "Other"
+        ],
+        "type": [
+          "null",
+          "string"
+        ]
+      },
+      "PagedResponseOfShipmentListItemResponse": {
+        "required": [
+          "items",
+          "pageNumber",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShipmentListItemResponse"
+            },
+            "description": "The records contained in the requested page."
+          },
+          "pageNumber": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The one-based page number returned to the caller.",
+            "format": "int32"
+          },
+          "pageSize": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The bounded page size used by the application service.",
+            "format": "int32"
+          },
+          "totalCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The total number of records that match the query before paging.",
+            "format": "int32"
+          },
+          "totalPages": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Gets the number of pages implied by int PagedResponse&lt;T&gt;.TotalCount and int PagedResponse&lt;T&gt;.PageSize.",
+            "format": "int32"
+          }
+        },
+        "description": "Represents an application response page that can be returned to UI or API callers."
+      },
       "ProvinceOption": {
         "required": [
           "name",
@@ -1150,6 +1776,429 @@
           "country": {
             "type": "string",
             "default": "Vietnam"
+          }
+        }
+      },
+      "RouteType": {
+        "enum": [
+          "IntraProvince",
+          "IntraRegion",
+          "InterRegion"
+        ],
+        "type": "string",
+        "description": "Defines the supported Route Type values in the domain model."
+      },
+      "ShipmentAddressResponse": {
+        "required": [
+          "street",
+          "ward",
+          "province",
+          "country",
+          "fullAddress"
+        ],
+        "type": "object",
+        "properties": {
+          "street": {
+            "type": "string"
+          },
+          "ward": {
+            "type": "string"
+          },
+          "province": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "fullAddress": {
+            "type": "string"
+          }
+        }
+      },
+      "ShipmentDetailResponse": {
+        "required": [
+          "shipmentId",
+          "trackingCode",
+          "senderName",
+          "senderPhone",
+          "receiverName",
+          "receiverPhone",
+          "pickupAddress",
+          "deliveryAddress",
+          "weightKg",
+          "parcelLengthCm",
+          "parcelWidthCm",
+          "parcelHeightCm",
+          "volumetricWeightKg",
+          "chargeableWeightKg",
+          "goodsValueAmount",
+          "codAmount",
+          "baseFeeAmount",
+          "extraWeightFeeAmount",
+          "insuranceFeeAmount",
+          "returnFeeAmount",
+          "shippingFeeAmount",
+          "currency",
+          "routeType",
+          "note",
+          "status",
+          "createdAtUtc",
+          "trackingHistory"
+        ],
+        "type": "object",
+        "properties": {
+          "shipmentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "trackingCode": {
+            "type": "string"
+          },
+          "senderName": {
+            "type": "string"
+          },
+          "senderPhone": {
+            "type": "string"
+          },
+          "receiverName": {
+            "type": "string"
+          },
+          "receiverPhone": {
+            "type": "string"
+          },
+          "pickupAddress": {
+            "$ref": "#/components/schemas/ShipmentAddressResponse"
+          },
+          "deliveryAddress": {
+            "$ref": "#/components/schemas/ShipmentAddressResponse"
+          },
+          "weightKg": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "parcelLengthCm": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "parcelWidthCm": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "parcelHeightCm": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "volumetricWeightKg": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "chargeableWeightKg": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "goodsValueAmount": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "codAmount": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "baseFeeAmount": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "extraWeightFeeAmount": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "insuranceFeeAmount": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "returnFeeAmount": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "shippingFeeAmount": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "routeType": {
+            "$ref": "#/components/schemas/RouteType"
+          },
+          "note": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/ShipmentStatus"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "trackingHistory": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShipmentStatusHistoryResponse"
+            }
+          }
+        }
+      },
+      "ShipmentListItemResponse": {
+        "required": [
+          "shipmentId",
+          "trackingCode",
+          "receiverName",
+          "routeType",
+          "weightKg",
+          "chargeableWeightKg",
+          "codAmount",
+          "shippingFeeAmount",
+          "currency",
+          "status",
+          "createdAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "shipmentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "trackingCode": {
+            "type": "string"
+          },
+          "receiverName": {
+            "type": "string"
+          },
+          "routeType": {
+            "$ref": "#/components/schemas/RouteType"
+          },
+          "weightKg": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "chargeableWeightKg": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "codAmount": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "shippingFeeAmount": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/ShipmentStatus"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ShipmentStatus": {
+        "enum": [
+          "Draft",
+          "PendingPickup",
+          "Assigned",
+          "PickingUp",
+          "PickedUp",
+          "InTransit",
+          "Delivering",
+          "Delivered",
+          "DeliveryFailed",
+          "Returned",
+          "Cancelled"
+        ],
+        "type": "string",
+        "description": "Defines the supported Shipment Status values in the domain model."
+      },
+      "ShipmentStatusHistoryResponse": {
+        "required": [
+          "status",
+          "note",
+          "changedAtUtc",
+          "changedByUserId",
+          "changedByDisplayName",
+          "changedByEmail",
+          "changedByUserFound"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/ShipmentStatus"
+          },
+          "note": {
+            "type": "string"
+          },
+          "changedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "changedByUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "changedByDisplayName": {
+            "type": "string"
+          },
+          "changedByEmail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "changedByUserFound": {
+            "type": "boolean"
+          },
+          "failureReasonCode": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/FailureReasonCode"
+              }
+            ]
+          },
+          "latitude": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "longitude": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gpsAccuracyMeters": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "gpsCapturedAtUtc": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "ShopDashboardKpiResponse": {
+        "required": [
+          "shopId",
+          "totalShipments",
+          "deliveredShipments",
+          "returnedShipments",
+          "deliveryFailedShipments",
+          "deliveredRate",
+          "returnedRate",
+          "deliveryFailedRate",
+          "totalShippingFee",
+          "pendingCodAmount",
+          "collectedCodAmount",
+          "settledCodAmount",
+          "currency",
+          "countByStatus"
+        ],
+        "type": "object",
+        "properties": {
+          "shopId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "totalShipments": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "deliveredShipments": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "returnedShipments": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "deliveryFailedShipments": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "deliveredRate": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "returnedRate": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "deliveryFailedRate": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "totalShippingFee": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "pendingCodAmount": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "collectedCodAmount": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "settledCodAmount": {
+            "pattern": "^-?[0-9]+(?:\\.[0-9]+)?$",
+            "type": "string"
+          },
+          "currency": {
+            "type": "string"
+          },
+          "countByStatus": {
+            "type": "object",
+            "additionalProperties": {
+              "pattern": "^-?(?:0|[1-9]\\d*)$",
+              "type": [
+                "integer",
+                "string"
+              ],
+              "format": "int32"
+            }
           }
         }
       },

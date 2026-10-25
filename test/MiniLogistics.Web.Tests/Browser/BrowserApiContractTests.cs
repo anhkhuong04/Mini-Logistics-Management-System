@@ -10,6 +10,12 @@ namespace MiniLogistics.Web.Tests.Browser;
 
 public sealed class BrowserApiContractTests
 {
+    [Fact]
+    public void BrowserEnums_KeepNamedDictionaryKeysForDashboardCounts()
+    {
+        var text = JsonSerializer.Serialize(new Dictionary<ShipmentStatus, int> { [ShipmentStatus.Delivered] = 3 }, BrowserApiJsonOptions.Value);
+        Assert.Equal("{\"Delivered\":3}", text);
+    }
     [Theory]
     [InlineData("DeliveryAddress.Province", "deliveryAddress.province")]
     [InlineData("Rows[0].ReceiverPhone", "rows[0].receiverPhone")]

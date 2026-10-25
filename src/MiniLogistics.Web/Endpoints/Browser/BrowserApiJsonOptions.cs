@@ -63,6 +63,17 @@ public static class BrowserApiJsonOptions
     }
     private sealed class StrictEnumConverter<T> : JsonConverter<T> where T : struct, Enum
     {
+        public override T ReadAsPropertyName(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
+        {
+            var name = reader.GetString();
+            if (!Enum.GetNames<T>().Contains(name, StringComparer.Ordinal) || !Enum.TryParse<T>(name, out var value)) throw new JsonException();
+            return value;
+        }
+        public override void WriteAsPropertyName(Utf8JsonWriter writer, T value, JsonSerializerOptions options)
+        {
+            if (!Enum.IsDefined(value)) throw new JsonException();
+            writer.WritePropertyName(value.ToString());
+        }
         public override T Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
         {
             if (reader.TokenType != JsonTokenType.String) throw new JsonException();

@@ -116,6 +116,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/app/shops/{shopId}/shipments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["BrowserShopShipments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/app/shops/{shopId}/shipments/{shipmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["BrowserShopShipmentDetail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/app/shops/{shopId}/dashboard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["BrowserShopDashboard"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -173,6 +221,33 @@ export interface components {
             staffRole: null | components["schemas"]["ShopStaffRole"];
             permissions: string[];
         };
+        /** @enum {null|string} */
+        FailureReasonCode: "ReceiverUnavailable" | "WrongAddress" | "ReceiverRejected" | "CannotContactReceiver" | "DamagedParcel" | "PaymentIssue" | "WeatherOrAccessIssue" | "Other" | null;
+        /** @description Represents an application response page that can be returned to UI or API callers. */
+        PagedResponseOfShipmentListItemResponse: {
+            /** @description The records contained in the requested page. */
+            items: components["schemas"]["ShipmentListItemResponse"][];
+            /**
+             * Format: int32
+             * @description The one-based page number returned to the caller.
+             */
+            pageNumber: number | string;
+            /**
+             * Format: int32
+             * @description The bounded page size used by the application service.
+             */
+            pageSize: number | string;
+            /**
+             * Format: int32
+             * @description The total number of records that match the query before paging.
+             */
+            totalCount: number | string;
+            /**
+             * Format: int32
+             * @description Gets the number of pages implied by int PagedResponse&lt;T&gt;.TotalCount and int PagedResponse&lt;T&gt;.PageSize.
+             */
+            totalPages?: number | string;
+        };
         ProvinceOption: {
             name: string;
             wards: components["schemas"]["WardOption"][];
@@ -188,6 +263,109 @@ export interface components {
             province: string;
             /** @default Vietnam */
             country: string;
+        };
+        /**
+         * @description Defines the supported Route Type values in the domain model.
+         * @enum {string}
+         */
+        RouteType: "IntraProvince" | "IntraRegion" | "InterRegion";
+        ShipmentAddressResponse: {
+            street: string;
+            ward: string;
+            province: string;
+            country: string;
+            fullAddress: string;
+        };
+        ShipmentDetailResponse: {
+            /** Format: uuid */
+            shipmentId: string;
+            trackingCode: string;
+            senderName: string;
+            senderPhone: string;
+            receiverName: string;
+            receiverPhone: string;
+            pickupAddress: components["schemas"]["ShipmentAddressResponse"];
+            deliveryAddress: components["schemas"]["ShipmentAddressResponse"];
+            weightKg: string;
+            parcelLengthCm: string;
+            parcelWidthCm: string;
+            parcelHeightCm: string;
+            volumetricWeightKg: string;
+            chargeableWeightKg: string;
+            goodsValueAmount: string;
+            codAmount: string;
+            baseFeeAmount: string;
+            extraWeightFeeAmount: string;
+            insuranceFeeAmount: string;
+            returnFeeAmount: string;
+            shippingFeeAmount: string;
+            currency: string;
+            routeType: components["schemas"]["RouteType"];
+            note: null | string;
+            status: components["schemas"]["ShipmentStatus"];
+            /** Format: date-time */
+            createdAtUtc: string;
+            trackingHistory: components["schemas"]["ShipmentStatusHistoryResponse"][];
+        };
+        ShipmentListItemResponse: {
+            /** Format: uuid */
+            shipmentId: string;
+            trackingCode: string;
+            receiverName: string;
+            routeType: components["schemas"]["RouteType"];
+            weightKg: string;
+            chargeableWeightKg: string;
+            codAmount: string;
+            shippingFeeAmount: string;
+            currency: string;
+            status: components["schemas"]["ShipmentStatus"];
+            /** Format: date-time */
+            createdAtUtc: string;
+        };
+        /**
+         * @description Defines the supported Shipment Status values in the domain model.
+         * @enum {string}
+         */
+        ShipmentStatus: "Draft" | "PendingPickup" | "Assigned" | "PickingUp" | "PickedUp" | "InTransit" | "Delivering" | "Delivered" | "DeliveryFailed" | "Returned" | "Cancelled";
+        ShipmentStatusHistoryResponse: {
+            status: components["schemas"]["ShipmentStatus"];
+            note: string;
+            /** Format: date-time */
+            changedAtUtc: string;
+            /** Format: uuid */
+            changedByUserId: string;
+            changedByDisplayName: string;
+            changedByEmail: null | string;
+            changedByUserFound: boolean;
+            failureReasonCode?: null | components["schemas"]["FailureReasonCode"];
+            latitude?: null | string;
+            longitude?: null | string;
+            gpsAccuracyMeters?: null | string;
+            /** Format: date-time */
+            gpsCapturedAtUtc?: null | string;
+        };
+        ShopDashboardKpiResponse: {
+            /** Format: uuid */
+            shopId: string;
+            /** Format: int32 */
+            totalShipments: number | string;
+            /** Format: int32 */
+            deliveredShipments: number | string;
+            /** Format: int32 */
+            returnedShipments: number | string;
+            /** Format: int32 */
+            deliveryFailedShipments: number | string;
+            deliveredRate: string;
+            returnedRate: string;
+            deliveryFailedRate: string;
+            totalShippingFee: string;
+            pendingCodAmount: string;
+            collectedCodAmount: string;
+            settledCodAmount: string;
+            currency: string;
+            countByStatus: {
+                [key: string]: number | string;
+            };
         };
         /** @enum {null|string} */
         ShopStaffRole: "Manager" | "Operator" | "Analyst" | "Viewer" | "Custom" | null;
@@ -848,6 +1026,386 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BrowserShopContext"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Locked */
+            423: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+        };
+    };
+    BrowserShopShipments: {
+        parameters: {
+            query?: {
+                status?: string;
+                trackingCode?: string;
+                receiverName?: string;
+                receiverPhone?: string;
+                minCodAmount?: string;
+                maxCodAmount?: string;
+                sortBy?: string;
+                sortDirection?: string;
+                pageNumber?: number | string;
+                pageSize?: number | string;
+                fromUtc?: string;
+                toUtc?: string;
+            };
+            header?: never;
+            path: {
+                shopId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedResponseOfShipmentListItemResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Locked */
+            423: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+        };
+    };
+    BrowserShopShipmentDetail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                shopId: string;
+                shipmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShipmentDetailResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Locked */
+            423: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+        };
+    };
+    BrowserShopDashboard: {
+        parameters: {
+            query?: {
+                fromUtc?: string;
+                toUtc?: string;
+            };
+            header?: never;
+            path: {
+                shopId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShopDashboardKpiResponse"];
                 };
             };
             /** @description Bad Request */

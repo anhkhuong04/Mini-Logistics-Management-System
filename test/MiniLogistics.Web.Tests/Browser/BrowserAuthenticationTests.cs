@@ -130,7 +130,7 @@ public sealed class BrowserAuthenticationTests
     }
 }
 
-public sealed class BrowserIdentityFactory(bool enableFrontend = false) : WebApplicationFactory<Program>
+public sealed class BrowserIdentityFactory(bool enableFrontend = false, Action<IServiceCollection>? configureServices = null) : WebApplicationFactory<Program>
 {
     public static string Password { get; } = $"BrowserTest!{Guid.NewGuid():N}";
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -151,6 +151,7 @@ public sealed class BrowserIdentityFactory(bool enableFrontend = false) : WebApp
             services.AddDbContext<MiniLogisticsDbContext>(options => options.UseInMemoryDatabase(database)
                 .ConfigureWarnings(warnings => warnings.Ignore(InMemoryEventId.TransactionIgnoredWarning))
                 .AddInterceptors(new InMemoryRowVersionInterceptor()).UseInternalServiceProvider(provider));
+            configureServices?.Invoke(services);
         });
     }
     public HttpClient Client() => CreateClient(new WebApplicationFactoryClientOptions {

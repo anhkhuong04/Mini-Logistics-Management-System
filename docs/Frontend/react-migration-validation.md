@@ -159,6 +159,15 @@ Check bàn giao đạt trên30 Markdown hiện hành và3 heading anchors nội 
 
 ## Cách ghi evidence cho task tiếp theo
 
+## 25/10/2026 — T03.01 Shop read API
+
+- HTTP regression RED11/11 trước endpoint → GREEN12 read tests; auth dùng cookie Identity thật, actor lấy principal. Read API gọi SearchAsync có phân trang (spy ném lỗi nếu gọi full-list GetAsync), bind đầy đủ filter/sort/date/COD, không query DbContext trong endpoint.
+- Test owner/staff/cross-Shop/not-found/inactive-history, PII/COD masking, enum/range/page invalid và cuối ngày UTC7 fractional digits. Existing Application/SQL policies giữ nguyên, không thay Domain/schema/repository.
+- Caught defaults AsParameters về0 khi query paging vắng: adapter dùng nullable params và fallback1/25. Caught dashboard dictionary enum key serialization500; thêm named key converter, regression RED→GREEN. Contract + read targeted39/39 pass.
+- Browser schema/types sinh từ endpoint metadata; Partner OpenAPI không đổi. `@ant-design/icons`6.3.4 đã có từ Phase 1, dùng tiếp cho Phase 3, không thêm thư viện trùng hoặc hard-code SVG/emoji.
+
+## Cách ghi evidence cho task tiếp theo
+
 Mỗi task ghi: ngày/task ID, working tree hoặc commit được kiểm chứng, môi trường/dependency, command chính xác, exit code/kết quả, scenario/actor/Shop, failure/skip/blocker và artifact an toàn nếu có. Test mock, render server, HTTP test và browser test phải được phân biệt.
 
 Không ghi credential, API key, raw PII, auth storage state hoặc local connection string. Không lấy manual report mô phỏng đã xóa làm bằng chứng; scenario mới nằm trong plan/inventory và được ghi kết quả ở đây khi thực sự chạy.
