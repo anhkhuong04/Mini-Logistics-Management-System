@@ -53,6 +53,7 @@ public static class BrowserApiEndpoints
         group.MapBrowserOperationsReads();
         group.MapBrowserOperationsAssignments();
         group.MapBrowserOperationsActions();
+        group.MapBrowserShipper();
         endpoints.MapBrowserReferenceData();
         return group;
     }

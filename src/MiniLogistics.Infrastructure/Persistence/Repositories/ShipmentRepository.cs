@@ -339,7 +339,9 @@ public sealed class ShipmentRepository : IShipmentRepository
             var codStatus = criteria.CodStatus.Value;
             query = codStatus == CodStatus.NotRequired
                 ? query.Where(shipment => !_dbContext.CodTransactions.Any(codTransaction =>
-                    codTransaction.ShipmentId == shipment.Id))
+                    codTransaction.ShipmentId == shipment.Id)
+                    || _dbContext.CodTransactions.Any(codTransaction =>
+                        codTransaction.ShipmentId == shipment.Id && codTransaction.Status == CodStatus.NotRequired))
                 : query.Where(shipment => _dbContext.CodTransactions.Any(codTransaction =>
                     codTransaction.ShipmentId == shipment.Id
                     && codTransaction.Status == codStatus));

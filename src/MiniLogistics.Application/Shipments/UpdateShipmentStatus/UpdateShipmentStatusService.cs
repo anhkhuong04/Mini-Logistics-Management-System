@@ -66,6 +66,7 @@ public sealed class UpdateShipmentStatusService : IUpdateShipmentStatusService
         var authorizationResult = await ValidateUpdatePermissionAsync(
             command.ChangedByUserId,
             shipment,
+            command.RequireActiveShipperAssignment,
             cancellationToken);
 
         if (authorizationResult.IsFailure)
@@ -181,6 +182,7 @@ public sealed class UpdateShipmentStatusService : IUpdateShipmentStatusService
     private async Task<Result> ValidateUpdatePermissionAsync(
         Guid changedByUserId,
         Shipment shipment,
+        bool requireActiveShipperAssignment,
         CancellationToken cancellationToken)
     {
         var operationPermission = await _operationAuthorizationService.EnsurePermissionAsync(
@@ -191,7 +193,7 @@ public sealed class UpdateShipmentStatusService : IUpdateShipmentStatusService
             "Only Admin, Operator or assigned Shipper can update shipment status.",
             cancellationToken);
 
-        if (operationPermission.IsSuccess)
+        if (operationPermission.IsSuccess && !requireActiveShipperAssignment)
         {
             return Result.Success();
         }

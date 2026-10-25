@@ -8,4 +8,5 @@ public sealed record UpdateShipmentStatusCommand(
     ShipmentStatus NewStatus,
     string? Note,
     FailureReasonCode? FailureReasonCode = null,
-    GpsCoordinateDto? GpsCoordinate = null);
+    GpsCoordinateDto? GpsCoordinate = null,
+    bool RequireActiveShipperAssignment = false);

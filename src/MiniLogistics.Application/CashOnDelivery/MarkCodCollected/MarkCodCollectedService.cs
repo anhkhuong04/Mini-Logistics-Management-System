@@ -66,6 +66,7 @@ public sealed class MarkCodCollectedService : IMarkCodCollectedService
         var authorizationResult = await ValidateCollectionPermissionAsync(
             command.CollectedByUserId,
             shipment,
+            command.RequireActiveShipperAssignment,
             cancellationToken);
 
         if (authorizationResult.IsFailure)
@@ -162,6 +163,7 @@ public sealed class MarkCodCollectedService : IMarkCodCollectedService
     private async Task<Result> ValidateCollectionPermissionAsync(
         Guid collectedByUserId,
         Shipment shipment,
+        bool requireActiveShipperAssignment,
         CancellationToken cancellationToken)
     {
         var operationPermission = await _operationAuthorizationService.EnsurePermissionAsync(
@@ -172,7 +174,7 @@ public sealed class MarkCodCollectedService : IMarkCodCollectedService
             "Only Admin, Operator or assigned Shipper can confirm COD collection.",
             cancellationToken);
 
-        if (operationPermission.IsSuccess)
+        if (operationPermission.IsSuccess && !requireActiveShipperAssignment)
         {
             return Result.Success();
         }

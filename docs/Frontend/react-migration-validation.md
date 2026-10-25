@@ -1,5 +1,9 @@
 # Frontend migration — validation log
 
+## 25/10/2026 — Phase 7 backend checkpoint (T07.01)
+
+Shipper /me read/mutation adapters đã nối Application; self profile không enumerate active shippers, shared status/COD buộc active-assignment policy kể cả mixed roles. Không đổi schema, Partner hoặc outbox orchestration. Browser tests bắt đầu RED vì chưa có endpoint; SQL NotRequired RED vì query bỏ explicit zero-COD transaction. Sau sửa, SQL regression1/1 pass, Application160/160 pass, Browser Shipper/Operations30/30 pass; test former/inactive assignment bổ sung được ghi ở checkpoint tiếp theo. React mobile và cross-role lifecycle chưa hoàn tất tại checkpoint này.
+
 ## 25/10/2026 — Phase 6 hoàn tất: Operations workspace
 
 **Phạm vi:** T06.01–04. API Operations đọc/phân công/auto/bulk/đổi/hủy/status/COD gọi Application với actor principal; giữ capacity transactions, ba auto attempts, outbox/audit. React `/app/operations/assignments` và alias `/app/operations/assignment`, navigation/login/returnUrl đều nối React. Blazor cũ và15 file user baseline giữ nguyên. Không đổi schema DB, Partner, proof hoặc Phase 7.

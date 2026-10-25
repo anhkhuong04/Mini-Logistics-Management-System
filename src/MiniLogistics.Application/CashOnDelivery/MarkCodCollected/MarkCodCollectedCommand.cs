@@ -4,4 +4,5 @@ public sealed record MarkCodCollectedCommand(
     Guid ShipmentId,
     Guid CollectedByUserId,
     decimal? CollectedAmount = null,
-    string? Note = null);
+    string? Note = null,
+    bool RequireActiveShipperAssignment = false);

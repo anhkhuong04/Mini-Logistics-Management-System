@@ -1,6 +1,6 @@
 # React + TypeScript + Ant Design Frontend Refactor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–6 đã hoàn tất; Phase 7 chưa bắt đầu. Xem validation log cho evidence; auth/context/dashboard/shipment read/form/actions/import/download/Operations/COD chạy React dưới `/app`, renderer chưa chuyển vẫn chạy Blazor.
+> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–6 đã hoàn tất; Phase 7 đang triển khai. Xem validation log cho evidence; auth/context/dashboard/shipment read/form/actions/import/download/Operations/COD chạy React dưới `/app`, renderer chưa chuyển vẫn chạy Blazor.
 
 **Goal:** Thay toàn bộ frontend Blazor bằng React + TypeScript + Ant Design, giữ tương đương chức năng, quyền truy cập và các hợp đồng nghiệp vụ/tích hợp hiện tại.
 
@@ -566,9 +566,9 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** GET `/api/v1/app/shipper/me/workspace`, `/profile`, `/working-areas`, `/cod-summary`; PUT `/availability`; POST `/shipments/{id}/status`, `/cod/collect` dưới `/shipper/me`. Profile là focused self read thay vì gọi lookup toàn bộ active shipper từ browser.
 
-- [ ] Actor luôn lấy claims; không nhận `shipperUserId` để tự chọn workspace người khác. Không expose danh sách mọi shipper chỉ để lấy profile bản thân.
-- [ ] Test assignment ngoài quyền, user inactive, unassigned shipment, invalid status/note/failure reason và COD chưa delivered.
-- [ ] DTO giữ stage/filter/page/availability/capacity UI thực sự dùng; quyền và active assignment kiểm tra lại trong Application.
+- [x] Actor luôn lấy claims; không nhận `shipperUserId` để tự chọn workspace người khác. Không expose danh sách mọi shipper chỉ để lấy profile bản thân.
+- [x] Test assignment ngoài quyền, user inactive, unassigned shipment, invalid status/note/failure reason và COD chưa delivered.
+- [x] DTO giữ stage/filter/page/availability/capacity UI thực sự dùng; quyền và active assignment kiểm tra lại trong Application.
 
 **Verify:** browser shipper + Application shipper/status/COD cases, người A không đọc/cập nhật shipment của B.
 
