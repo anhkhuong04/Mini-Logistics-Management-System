@@ -5,6 +5,9 @@ import viVN from 'antd/locale/vi_VN';
 import 'antd/dist/reset.css';
 import { App } from './app/App';
 
+const runtimeConfigUrl = '/frontend-config.js';
+await import(/* @vite-ignore */ runtimeConfigUrl);
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ConfigProvider locale={viVN}><AntApp><App /></AntApp></ConfigProvider>

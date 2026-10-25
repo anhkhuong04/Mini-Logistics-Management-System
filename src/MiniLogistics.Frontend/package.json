@@ -10,6 +10,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "dev:cert": "node scripts/prepare-dev-https.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
     "test": "vitest run",

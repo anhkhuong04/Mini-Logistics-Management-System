@@ -8,6 +8,8 @@
     <OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
     <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)\..\..\docs\Service</OpenApiDocumentsDirectory>
     <OpenApiGenerateDocumentsOptions>--file-name partner-api --document-name v1</OpenApiGenerateDocumentsOptions>
+    <PublishBrowserSpa Condition="'$(PublishBrowserSpa)' == ''">false</PublishBrowserSpa>
+    <FrontendDistPath Condition="'$(FrontendDistPath)' == ''">$(MSBuildProjectDirectory)\..\MiniLogistics.Frontend\dist</FrontendDistPath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -38,6 +40,19 @@
     <Move SourceFiles="$(OpenApiDocumentsDirectory)\partner-api.json"
           DestinationFiles="$(OpenApiDocumentsDirectory)\partner-api.openapi.json"
           Condition="Exists('$(OpenApiDocumentsDirectory)\partner-api.json')" />
+  </Target>
+
+  <Target Name="IncludeBrowserSpaForPublish" BeforeTargets="ComputeFilesToPublish" Condition="'$(PublishBrowserSpa)' == 'true'">
+    <Error Condition="!Exists('$(FrontendDistPath)\index.html')"
+           Text="React bundle is missing. Run the frontend build before publishing with PublishBrowserSpa=true." />
+    <ItemGroup>
+      <_BrowserSpaFile Include="$(FrontendDistPath)\**\*" />
+      <ResolvedFileToPublish Include="@(_BrowserSpaFile)">
+        <RelativePath>frontend\%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+        <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      </ResolvedFileToPublish>
+    </ItemGroup>
   </Target>
 
 </Project>

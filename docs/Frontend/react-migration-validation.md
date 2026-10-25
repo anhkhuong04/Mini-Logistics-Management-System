@@ -99,6 +99,15 @@ Check bàn giao đạt trên30 Markdown hiện hành và3 heading anchors nội 
 - `api:generate` kiểm tra schema thật và exit1 có thông báo T02.01 khi schema chưa có; không sinh placeholder contract. Generated assets/dependencies/browser state được git-ignore đúng.
 - T01.02 hosting tests đã được viết và chạy RED riêng (15 fail/1 pass), chưa có production hosting change trong commit scaffold; file test đó được giữ ngoài commit T01.01.
 
+## 25/10/2026 — T01.02 coexist hosting
+
+- Web hosting suite RED15 fail/1 pass → GREEN16/16; thêm regression môi trường BrowserTests không đăng ký Infrastructure workers. Full Web suite77/77 pass sau khi sửa timing cấu hình factory (connection setting phải có trước top-level DI).
+- Chromium HTTPS dev proxy3/3 pass: refresh deep link, runtime config chỉ2 public paths, support keyboard interaction, API/auth/file/missing asset không trả SPA HTML, FAQ vẫn Blazor. Regression missing asset qua Vite ban đầu trả200 đã RED→GREEN bằng proxy đúng asset prefix.
+- Frontend typecheck/lint/build exit0 sau cấu hình HTTPS/runtime config. Bundle-size warning còn là đầu việc tổ chức shell T01.03.
+- `dotnet publish ... -p:PublishBrowserSpa=true` exit0, artifact có `frontend` riêng; process chạy từ output bằng BrowserTests và Chromium3/3 pass, không dựa vào source factory. Publish bật SPA với FrontendDistPath thiếu index fail đúng thông báo `React bundle is missing`.
+- Không sửa worker lifecycle bình thường: BrowserTests là môi trường riêng cho UI smoke, không có Infrastructure hosted workers và không migrate/seed. Không suy ra browser auth/data workflows đã hoàn tất; thuộc Phase 2+.
+- Runtime defaults Enabled=false/ServeAtRoot=false; root mode bị reject để giữ coexist. Cert/key, logs và publish output đều ignore, không commit.
+
 ## Cách ghi evidence cho task tiếp theo
 
 Mỗi task ghi: ngày/task ID, working tree hoặc commit được kiểm chứng, môi trường/dependency, command chính xác, exit code/kết quả, scenario/actor/Shop, failure/skip/blocker và artifact an toàn nếu có. Test mock, render server, HTTP test và browser test phải được phân biệt.

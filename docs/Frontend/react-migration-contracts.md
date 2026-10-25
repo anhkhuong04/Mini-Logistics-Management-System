@@ -11,7 +11,7 @@ Ngày đối chiếu: 25/10/2026. Tài liệu này sở hữu quyết định co
 | UI transport | Component gọi Application service trực tiếp | Browser HTTP adapters gọi Application; thiết kế chốt Phase 0, chưa có API nội bộ đầy đủ |
 | Auth | Identity cookie, `/auth/*` form + antiforgery + redirect | JSON session/CSRF auth ở Phase 2; giữ form cũ trong coexist |
 | API/contract | Partner `/api/v1/partner` và file/culture/auth endpoints hiện có | Browser `/api/v1/app`, public `/api/v1/public`, OpenAPI/types riêng đã chốt thiết kế, chưa triển khai |
-| Hosting | Web host Blazor, API và workers | Cùng origin/coexist `/app` rồi root cutover; chưa có SPA options/fallback |
+| Hosting | T01.02: opt-in `/app`, runtime config và `/frontend-assets`; HTTPS Vite proxy, conditional publish | Root cutover còn ở Phase 11; mặc định SPA tắt, route Blazor giữ nguyên |
 | Toolchain | .NET/xUnit/CI partner; React/Vite/Vitest/Playwright scaffold, npm lockfile và frontend CI | Node/npm target đã dùng dạng portable để kiểm chứng; chưa thay Node global |
 
 Lựa chọn React/TypeScript/Ant Design không làm thay đổi backend modular monolith. Các lựa chọn hỗ trợ dưới đây do người thực hiện chốt trong T00.02 theo phạm vi người dùng yêu cầu; không ghi chúng thành lựa chọn người dùng đã phát biểu. Chỉ cập nhật cột hiện trạng khi có source và evidence.

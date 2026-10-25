@@ -14,7 +14,7 @@ Mini Logistics is a logistics operations modular monolith. It supports Shop ship
 
 The user has selected React + TypeScript + Ant Design to replace Blazor. T01.01 has created the frontend scaffold/toolchain/CI; business pages still use the four .NET projects and Blazor runtime below. See [migration contract/status](../docs/Frontend/react-migration-contracts.md) for readiness and [the plan](../refactorfe.md) for task details.
 
-`src/MiniLogistics.Frontend` contains the React scaffold. HTTP browser adapters and business features remain later tasks; hosting integration is T01.02. Frontend code will call HTTP endpoints; Application remains the owner of authorization/orchestration and Domain remains the owner of invariants. Web remains the .NET composition root. Do not delete Blazor components, application operation scopes or background workers during coexistence.
+`src/MiniLogistics.Frontend` contains the React scaffold. T01.02 provides opt-in `/app` hosting, strict HTTPS Vite proxy and conditional publish; see commands for enablement. HTTP browser adapters and business features remain later tasks. Frontend code will call HTTP endpoints; Application remains the owner of authorization/orchestration and Domain remains the owner of invariants. Web remains the .NET composition root. Do not delete Blazor components or application operation scopes during coexistence. Runtime workers remain enabled normally; only OpenAPI generation and the isolated `BrowserTests` environment omit Infrastructure hosted services.
 
 ## Projects and dependency direction
 

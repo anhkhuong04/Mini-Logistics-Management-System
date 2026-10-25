@@ -4,6 +4,12 @@ Các lệnh .NET dưới đây dành cho runtime backend/Blazor hiện tại. Sc
 
 Frontend: chạy `npm --prefix src/MiniLogistics.Frontend ci`, sau đó `run dev`; validation dùng `run typecheck`, `run lint`, `test`, `run build`. `run test:e2e` dùng Playwright Chromium đã cài. Lệnh `api:generate` chỉ dùng được sau khi browser OpenAPI thật được sinh ở T02.01.
 
+T01.02 đã có hosting coexist, mặc định tắt. Xuất dev certificate bằng `npm --prefix src/MiniLogistics.Frontend run dev:cert` (file chỉ ở `.agent/https` bị ignore); trust certificate trên máy bằng `dotnet dev-certs https --trust` nếu cần. Bật `$env:BrowserSpa__Enabled = 'true'`, chạy Web với HTTPS profile bên dưới và Vite ở terminal khác, truy cập `https://localhost:5173/app/`. Vite xác thực TLS khi proxy đến backend7195; override bằng `MINILOGISTICS_BACKEND_URL`, `MINILOGISTICS_HTTPS_CERT`/`MINILOGISTICS_HTTPS_KEY` nếu cần. Các URL Blazor cũ vẫn được proxy tới Web.
+
+Sau `run build`, publish cùng bundle bằng `dotnet publish src/MiniLogistics.Web/MiniLogistics.Web.csproj -c Release -p:PublishBrowserSpa=true -o <output>`; dist được copy tới `<output>/frontend`, thiếu index.html làm publish fail. Bật `BrowserSpa__Enabled=true` tại runtime; `BrowserSpa__DistPath` chỉ cần override khi bundle ở nơi khác. Không bật `ServeAtRoot` trước Phase 11. Build/test/publish mặc định không cần Node hoặc dist.
+
+Playwright yêu cầu `dev:cert`, Web Release build và Chromium đã cài; tự chạy HTTPS backend/Vite trong environment `BrowserTests`, bỏ Infrastructure hosted workers để kiểm tra shell/routing mà không truy cập database. Đây không phải môi trường xác thực nghiệp vụ/session. Để kiểm tra published process đã chạy riêng, đặt `MINILOGISTICS_E2E_BASE_URL=https://localhost:<port>/app/`; Playwright khi đó không tự mở server. Chỉ browser test bỏ kiểm tra certificate local; proxy vẫn kiểm tra TLS.
+
 Chạy lệnh từ repository root. Dùng `Mini-logistics-manegemant-system.slnx`, không dùng file `.csproj` lạc ở root.
 
 ## Điều kiện và cấu hình

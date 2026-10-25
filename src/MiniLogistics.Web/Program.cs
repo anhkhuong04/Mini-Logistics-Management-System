@@ -64,7 +64,7 @@ builder.Services.AddSingleton<IApiCredentialPolicy>(
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(
     builder.Configuration,
-    registerHostedServices: !isOpenApiDocumentGeneration);
+    registerHostedServices: !isOpenApiDocumentGeneration && !builder.Environment.IsEnvironment("BrowserTests"));
 var healthChecks = builder.Services
     .AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])
@@ -210,6 +210,7 @@ else
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
+builder.Services.AddBrowserSpa(builder.Configuration, builder.Environment);
 
 var app = builder.Build();
 
@@ -292,8 +293,11 @@ if (!app.Environment.IsDevelopment())
 app.UseWhen(
     context => context.Request.Path.StartsWithSegments("/api"),
     apiApp => apiApp.UseExceptionHandler());
-app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
+app.UseWhen(
+    context => !BrowserSpaHostingExtensions.ShouldSkipStatusCodePage(context.Request.Path),
+    uiApp => uiApp.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true));
 app.UseHttpsRedirection();
+app.UseBrowserSpaAssets();
 
 app.UseRouting();
 app.UseRateLimiter();
@@ -303,6 +307,7 @@ app.UseAuthorization();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.MapBrowserSpa();
 app.MapLocalizationEndpoints();
 app.MapAuthenticationEndpoints();
 app.MapShopShipmentFileEndpoints();

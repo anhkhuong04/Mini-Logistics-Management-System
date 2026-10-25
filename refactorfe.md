@@ -306,11 +306,11 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** `AddBrowserSpa(...)`, `MapBrowserSpa(...)`; router basename lấy runtime config giới hạn `{ basePath, assetBasePath }`, không chứa secret.
 
-- [ ] Viết test bật/tắt SPA: `/app/dashboard` refresh trả HTML React; `/dashboard` vẫn Blazor; `/api/...`, `/auth/...`, `/shop/files/...`, `/culture/set`, health, unknown `.js` không nhận index HTML.
-- [ ] Configure Vite dev HTTPS và proxy backend cho API/auth/culture/file; dùng trusted dev certificate, không tắt kiểm tra certificate cho production.
-- [ ] Build assets vào dist với prefix `/frontend-assets`; copy vào publish artifact thông qua target có điều kiện, không commit/copy đè lên `wwwroot` source. Test bằng published process, không chỉ factory từ source tree.
-- [ ] SPA fallback chỉ dưới `/app` khi root mode tắt; missing asset trả 404. Phân nhánh status-code re-execute hiện tại để browser API không bị `/not-found` Razor biến thành HTML.
-- [ ] Khi SPA disabled hoặc chưa có dist, backend build/test/OpenAPI vẫn chạy; publish có bật SPA mà thiếu dist phải fail rõ ràng.
+- [x] Test bật/tắt SPA, deep link/legacy, reserved paths/missing asset đạt; full Web77/77 pass.
+- [x] Vite HTTPS proxy dùng dev certificate, TLS verification bật; Chromium dev3/3 pass.
+- [x] Assets prefix `/frontend-assets`, conditional publish vào `frontend` riêng; published process Chromium3/3 pass.
+- [x] Fallback chỉ `/app`, root mode bị reject; reserved paths bỏ status-code HTML re-execute, missing asset404.
+- [x] Backend build/test/OpenAPI không cần dist; missing bundle trả503 khi request SPA, publish bật SPA thiếu bundle fail rõ. BrowserTests environment riêng bỏ Infrastructure workers cho smoke, runtime bình thường giữ nguyên.
 
 **Verify:** Web hosting test + Playwright coexist pass; .NET build vẫn sinh Partner OpenAPI bằng design-time host không có worker.
 
