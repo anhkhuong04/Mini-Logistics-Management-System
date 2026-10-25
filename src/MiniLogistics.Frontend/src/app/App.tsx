@@ -19,6 +19,7 @@ import { ShipmentListPage } from '../features/shipments/ShipmentListPage';
 import { ShipmentDetailPage } from '../features/shipments/ShipmentDetailPage';
 import { ShopDashboardPage } from '../features/dashboard/ShopDashboardPage';
 import { ShipmentFormPage } from '../features/shipments/ShipmentFormPage';
+import { OperationsPage } from '../features/operations/OperationsPage';
 
 function Welcome() {
   const { t } = useI18n();
@@ -79,7 +80,8 @@ function AppContent() {
     <Route path="/shop/cod-report" element={<RequireSession roles={['Shop']}><LegacyFeatureRoute shopPermission="ViewCod" /></RequireSession>} />
     <Route path="/shop/audit" element={<RequireSession roles={['Shop']}><LegacyFeatureRoute shopPermission="ViewAudit" /></RequireSession>} />
     <Route path="/shop/staff" element={<RequireSession roles={['Shop']}><LegacyFeatureRoute ownerOnly /></RequireSession>} />
-    <Route path="/operations/*" element={<RequireSession roles={['Admin', 'Operator']}><LegacyFeatureRoute /></RequireSession>} />
+    <Route path={routePaths.operations} element={<RequireSession roles={['Admin', 'Operator']}><OperationsPage /></RequireSession>} />
+    <Route path={routePaths.operationsAlias} element={<RequireSession roles={['Admin', 'Operator']}><OperationsPage /></RequireSession>} />
     <Route path="/shipper/*" element={<RequireSession roles={['Shipper']}><LegacyFeatureRoute /></RequireSession>} />
     <Route path="/admin/*" element={<RequireSession roles={['Admin']}><LegacyFeatureRoute /></RequireSession>} />
     <Route path="/partner/integrations" element={<RequireSession roles={['Admin', 'Shop', 'IntegrationAdmin']}><LegacyFeatureRoute /></RequireSession>} />

@@ -1,5 +1,26 @@
 # Frontend migration — validation log
 
+## 25/10/2026 — Phase 6 hoàn tất: Operations workspace
+
+**Phạm vi:** T06.01–04. API Operations đọc/phân công/auto/bulk/đổi/hủy/status/COD gọi Application với actor principal; giữ capacity transactions, ba auto attempts, outbox/audit. React `/app/operations/assignments` và alias `/app/operations/assignment`, navigation/login/returnUrl đều nối React. Blazor cũ và15 file user baseline giữ nguyên. Không đổi schema DB, Partner, proof hoặc Phase 7.
+
+**Parity và review:** đọc COD settlement giữ Admin/CodSettle như UI đang chạy, thay đề xuất CodViewPending rộng hơn trong inventory ban đầu. History identity/GPS và collector identity có AuditView; shipper lookup bỏ email, dùng aggregate capacity count. COD projection có SQL count/order/page và thông tin liên hệ/người thu tương đương UI cũ. Advanced filters thu gọn; trạng thái/note/reason, cảnh báo vùng/tải, bulk từng kết quả, pending theo row, selection/dialog theo scope và keyboard/focus được kiểm chứng. Giữ currency decimal strings, ngày Operations theo server IANA/DST rồi gửi UTC, không dùng browser timezone.
+
+Một review độc lập chỉ đọc toàn bộ Phase 6 phát hiện4 Important,0 Critical: refresh cũ mở khóa lỗi mới; InputNumber clear thành null; option NotRequired mới không khớp query legacy; date filter đổi semantics server-local. Đã sửa một lượt RED→GREEN với12 Operations tests: generation lỗi theo shipment; normalize cả min/max; bỏ option ngoài phạm vi legacy thay vì sửa business query; dùng utc/timezone plugin của dayjs đã pin, test UTC+7/DST/7 ticks. Đã sửa reference tài liệu đến test capacity reservation thật, không thêm package hoặc refactor ngoài phạm vi.
+
+**Kết quả đã chạy:**
+
+- `dotnet test Mini-logistics-manegemant-system.slnx -c Release` với `MINILOGISTICS_BROWSER_E2E=1`, không grep: **432 pass,0 fail,1 Redis skip** — Domain22, Application160, Infrastructure79, Web171. Lượt green này trước các sửa UI từ review; backend không đổi sau đó. Sau fix đã chạy lại fixture đủ **15/15 Chromium Identity/Application scenarios** trên bundle cuối, gồm Operator mobile lifecycle và Admin settlement/alias. Browser fixture dùng InMemory capacity adapter; SQL locking được chứng minh riêng.
+- Targeted Application Operations/COD/permission:33 pass. SQL concurrency/settlement ban đầu6 pass; targeted `InfrastructurePersistenceTests.AutoAssignment_ConcurrentReservationsDoNotExceedShipperCapacityOrDuplicateSideEffects` và `OperationsSettlementReadRepositoryTests` sau review:2/2 pass.
+- Frontend cuối **82/82 tests trong24 files**, typecheck/build/lint exit0. Bulk mixed outcomes, stale/unknown replay, lỗi đọc lại, refresh chồng request, clear numeric bound, server-day/DST, nhãn form riêng đều có regression. Không tăng timeout toàn suite hoặc bỏ test isolation.
+- Publish SPA exit0; smoke trên artifact published **15/15 pass**,15 Identity/data scenarios được skip trong smoke vì đã chạy tại fixture riêng. HTTPS dev smoke và schema determinism ghi ở checkpoint handoff bên dưới.
+
+Các failure trong quá trình triển khai đã được giữ bằng regression: Ops login còn redirect Blazor; Tab thoát browser chrome/Escape mất focus; trùng ID bộ lọc và modal; row bulk thông báo chung. Test logout cũ được đồng bộ bằng response204+cookie absence trước điều hướng; status E2E dùng bàn phím và assert selection trước khi POST để tránh click accessibility-only virtual option. Không thay production auth flow để chữa test.
+
+Giới hạn giữ nguyên: Redis integration chưa có biến cấu hình; browser InMemory không chứng minh SQL locking; AntD chunk989.54kB/gzip314.88kB còn cảnh báo >500kB. Lookup active shippers hiện có chưa có paging riêng; list shipment/COD vẫn page trong SQL. Root cutover/deploy và Phase 7 chưa thực hiện.
+
+**Checkpoint handoff Phase 6:** HTTPS dev smoke15/15 pass,15 data cases skip có chủ đích (fixture riêng15/15). Lượt dev đầu có3 navigation timeout30s trong lúc tải module; trace có106 network events, các module/source trả200 và một số request3–5s. Chạy lại giữ nguyên timeout/retries,15/15 pass; đây là giới hạn cold-start/dev đã quan sát, không phải bằng chứng lỗi artifact published. Schema/types lặp lại sau publish+build+generate không drift: browser OpenAPI SHA256 `18ACC267A3A15E4470D3B1E504BF4EDFFA5EA942A9EBCED96943AD8DB0D32DD6`, generated TS `60F4F4710DE43E4093D3E871CD07C6E7546ED08CE0787D4983B99F1DECA1C459`. Partner OpenAPI không đổi. Không push/merge/deploy; checklist Phase 6 hoàn tất, Phase 7 chưa bắt đầu.
+
 ## 25/10/2026 — Phase 6 backend checkpoint (T06.01–03)
 
 - Thêm actor-authorized Operations read/action entry points, browser read/assignment/status/COD endpoints; giữ capacity transaction/ba auto attempts, system actor và audit requester đúng use case. Không đổi schema, Partner hoặc proof.

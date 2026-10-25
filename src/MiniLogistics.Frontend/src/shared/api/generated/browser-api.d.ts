@@ -719,6 +719,10 @@ export interface components {
             collectedAtUtc: null | string;
             /** Format: uuid */
             collectedByUserId: null | string;
+            receiverPhone: string;
+            codStatus: components["schemas"]["CodStatus"];
+            collectedByName: null | string;
+            collectedByEmail: null | string;
         };
         OperationsShipperResponse: {
             /** Format: uuid */

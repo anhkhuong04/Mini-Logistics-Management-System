@@ -24,8 +24,11 @@ test('registration signs in with a real cookie, reload keeps session, logout cle
   const cookie = (await context.cookies()).find(item => item.name === '.AspNetCore.Identity.Application');
   expect(cookie?.httpOnly).toBe(true);
   expect(cookie?.secure).toBe(true);
+  const logout = page.waitForResponse(response => response.request().method() === 'POST' && new URL(response.url()).pathname === '/api/v1/app/auth/logout');
   await page.getByRole('button', { name: 'Đăng xuất', exact: true }).click();
+  expect((await logout).status()).toBe(204);
   await expect(page.getByRole('button', { name: 'Đăng xuất', exact: true })).toHaveCount(0);
+  expect((await context.cookies()).some(item => item.name === '.AspNetCore.Identity.Application')).toBe(false);
   await page.goto('./dashboard');
   await expect(page).toHaveURL(/\/app\/login\?/);
   await expect(page.getByRole('heading', { level: 1, name: 'Đăng nhập' })).toBeVisible();

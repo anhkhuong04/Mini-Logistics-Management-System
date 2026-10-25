@@ -55,6 +55,10 @@ public sealed class OperationsReadService(IOperationAuthorizationService authori
         if (access.IsFailure) return Result<PagedResponse<OperationsCodCandidateResponse>>.Failure(access.Error);
         if (pageNumber < 1 || pageSize is < 1 or > 100 || (long)(pageNumber - 1) * pageSize > int.MaxValue)
             return Result<PagedResponse<OperationsCodCandidateResponse>>.Failure(Common.ApplicationErrors.ValidationFailed("Invalid page."));
-        return Result<PagedResponse<OperationsCodCandidateResponse>>.Success(await settlements.SearchAsync(pageNumber, pageSize, cancellationToken));
+        var page = await settlements.SearchAsync(pageNumber, pageSize, cancellationToken);
+        var audit = await Authorize(actor, OperationPermissions.AuditView, cancellationToken);
+        return Result<PagedResponse<OperationsCodCandidateResponse>>.Success(audit.IsSuccess ? page : page with {
+            Items = page.Items.Select(item => item with { CollectedByUserId = null, CollectedByName = null, CollectedByEmail = null }).ToList()
+        });
     }
 }

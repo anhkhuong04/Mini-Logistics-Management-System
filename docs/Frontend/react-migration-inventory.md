@@ -1,6 +1,6 @@
 # Frontend migration — inventory route/action và binding contract
 
-Đối chiếu baseline ngày 25/10/2026. Inventory bao gồm 28 routed page files/30 route declarations, 93 binding gọi service và các browser form/file/local action. Phase 1–5 đã triển khai auth/reference/Shop context, dashboard, shipment read/quote/mutation, CSV import và file downloads; nghiệp vụ Phase 6+ vẫn là **đặc tả adapter tương lai**. Trạng thái/evidence theo [migration contracts](react-migration-contracts.md) và [validation log](react-migration-validation.md), không suy ra endpoint đã có chỉ từ bảng. Shop adapters có prefix `/api/v1/app`; A049–A066, A074/A076 đã có, file routes giữ `/shop/files`, renderer tương ứng chạy dưới `/app`, URL Blazor cũ được giữ.
+Đối chiếu baseline ngày 25/10/2026. Inventory bao gồm 28 routed page files/30 route declarations, 93 binding gọi service và các browser form/file/local action. Phase 1–6 đã triển khai auth/reference/Shop context, dashboard, shipment read/quote/mutation, CSV import và file downloads; nghiệp vụ Phase 7+ vẫn là **đặc tả adapter tương lai**. Trạng thái/evidence theo [migration contracts](react-migration-contracts.md) và [validation log](react-migration-validation.md), không suy ra endpoint đã có chỉ từ bảng. Shop adapters có prefix `/api/v1/app`; A049–A066, A074/A076 đã có, file routes giữ `/shop/files`, renderer tương ứng chạy dưới `/app`, URL Blazor cũ được giữ.
 
 ## Quy ước đọc
 
@@ -168,7 +168,7 @@
 
 **Source:** [OperationsAssignments.razor](../../src/MiniLogistics.Web/Components/Pages/Operations/OperationsAssignments.razor). **Routes:** `/operations/assignments`, `/operations/assignment`.
 
-**React page:** `operations/OperationsPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `operations/OperationsPage.tsx` (đã triển khai T06.04, dưới `features/`), cùng hai alias dưới `/app`; xem validation log cho evidence.
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
@@ -178,10 +178,10 @@
 | A036 | `AutoAssignShipmentService.AutoAssignAsync` | `POST /operations/shipments/{shipmentId}/auto-assign` | AssignmentRetryAuto; actor-aware entry required | T06.02 / `BrowserOperationsAssignmentTests` |
 | A037 | `BulkRetryAutoAssignmentService.RetryAsync` | `POST /operations/assignments/bulk-retry` | AssignmentBulkRetryAuto | T06.02 / `BrowserOperationsAssignmentTests` |
 | A038 | `CancelShipmentAssignmentService.CancelAsync` | `POST /operations/shipments/{shipmentId}/cancel-assignment` | AssignmentCancel | T06.02 / `BrowserOperationsAssignmentTests` |
-| A039 | `GetActiveShippersService.GetAsync` | `GET /operations/shippers` | Admin/Operator: ShipmentView; add actor guard | T06.01 / `BrowserOperationsReadTests` |
-| A040 | `GetCodSettlementCandidatesService.GetAsync` | `GET /operations/cod/settlement-candidates` | Admin/Operator: CodViewPending; add actor guard | T06.01 / `BrowserOperationsReadTests` |
-| A041 | `GetOperationsShipmentsService.SearchAsync` | `GET /operations/shipments` | Admin/Operator: ShipmentView; add actor guard | T06.01 / `BrowserOperationsReadTests` |
-| A042 | `GetPendingPickupShipmentsService.SearchAsync` | `GET /operations/pending-pickups` | Admin/Operator: ShipmentView; add actor guard | T06.01 / `BrowserOperationsReadTests` |
+| A039 | `OperationsReadService.ShippersAsync` → `GetActiveShippersService.GetAsync` | `GET /operations/shippers` | Admin/Operator: ShipmentView; actor guard + aggregate load, no email | T06.01 / `BrowserOperationsReadTests` |
+| A040 | `OperationsReadService.SettlementAsync` → focused SQL projection | `GET /operations/cod/settlement-candidates` | Admin: CodSettle, tương đương current UI; thay đề xuất CodViewPending ở Phase 0 | T06.01 / `BrowserOperationsReadTests`, `OperationsSettlementReadRepositoryTests` |
+| A041 | `OperationsReadService.ShipmentsAsync` → `GetOperationsShipmentsService.SearchAsync` | `GET /operations/shipments` | Admin/Operator: ShipmentView; AuditView để đọc actor identity/GPS | T06.01 / `BrowserOperationsReadTests` |
+| A042 | `OperationsReadService.PendingAsync` → `GetPendingPickupShipmentsService.SearchAsync` | `GET /operations/pending-pickups` | Admin/Operator: ShipmentView; actor guard | T06.01 / `BrowserOperationsReadTests` |
 | A043 | `MarkCodCollectedService.MarkCollectedAsync` | `POST /operations/shipments/{shipmentId}/cod/collect` | CodCollect; delivered/pending | T06.03 / `BrowserOperationsActionTests` |
 | A044 | `MarkCodSettledService.MarkSettledAsync` | `POST /operations/shipments/{shipmentId}/cod/settle` | Admin/CodSettle; collected | T06.03 / `BrowserOperationsActionTests` |
 | A045 | `ReassignShipmentService.ReassignAsync` | `POST /operations/shipments/{shipmentId}/reassign` | AssignmentReassign | T06.02 / `BrowserOperationsAssignmentTests` |

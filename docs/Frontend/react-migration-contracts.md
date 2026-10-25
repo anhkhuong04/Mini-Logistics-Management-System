@@ -1,16 +1,16 @@
 # Frontend migration — phạm vi, contract readiness và trạng thái
 
-Ngày đối chiếu: 25/10/2026. Tài liệu này sở hữu quyết định contract/readiness; [refactorfe.md](../../refactorfe.md) sở hữu thứ tự task và tiêu chí nghiệm thu. [Inventory](react-migration-inventory.md) sở hữu route/action, service/field bindings và adapter đích; [toolchain](react-migration-toolchain.md) sở hữu exact version pins. Phase 1–5 đã triển khai browser HTTP/auth/reference/Shop context, Shop dashboard/read/quote/mutation, CSV import và cookie downloads; nghiệp vụ Phase 6+ vẫn là thiết kế.
+Ngày đối chiếu: 25/10/2026. Tài liệu này sở hữu quyết định contract/readiness; [refactorfe.md](../../refactorfe.md) sở hữu thứ tự task và tiêu chí nghiệm thu. [Inventory](react-migration-inventory.md) sở hữu route/action, service/field bindings và adapter đích; [toolchain](react-migration-toolchain.md) sở hữu exact version pins. Phase 1–6 đã triển khai browser HTTP/auth/reference/Shop context, Shop dashboard/read/quote/mutation, CSV import và cookie downloads; nghiệp vụ Phase 7+ vẫn là thiết kế.
 
 ## Hiện trạng so với đích
 
 | Nội dung | Hiện có trong source | Đích hoặc đề xuất |
 | --- | --- | --- |
 | Frontend | Blazor Interactive Server trong MiniLogistics.Web | React + TypeScript + Ant Design đã được chọn; [ADR-004](decisions/adr-004-react-typescript-ant-design.md) |
-| Project layout | Bốn project .NET và React foundation/auth/context/dashboard/shipments/shipment-import `src/MiniLogistics.Frontend` | Feature còn lại theo Phase 6+ |
-| UI transport | JSON auth/reference/Shop read/quote/command adapters gọi Identity/Application; Blazor cũ giữ nguyên | Browser HTTP nghiệp vụ còn lại theo phase tương ứng |
+| Project layout | Bốn project .NET và React foundation/auth/context/dashboard/shipments/shipment-import/operations `src/MiniLogistics.Frontend` | Feature còn lại theo Phase 7+ |
+| UI transport | JSON auth/reference/Shop/Operations read/command adapters gọi Identity/Application; Blazor cũ giữ nguyên | Browser HTTP nghiệp vụ còn lại theo phase tương ứng |
 | Auth | Identity cookie, JSON `/api/v1/app/auth/*`, React login/register/session; form `/auth/*` cũ giữ nguyên | Cùng cookie trong coexist; use-case authorization vẫn là nguồn quyền |
-| API/contract | Partner giữ nguyên; browser auth/context/reference/Shop read/quote/command/import có OpenAPI3.1.1 và generated TS types riêng; file routes cũ dùng cookie | Endpoint Operations/COD/admin/integration còn ở Phase 6+ |
+| API/contract | Partner giữ nguyên; browser auth/context/reference/Shop/Operations/COD có OpenAPI3.1.1 và generated TS types riêng; file routes cũ dùng cookie | Endpoint Shipper/admin/integration còn ở Phase 7+ |
 | Hosting | T01.02: opt-in `/app`, runtime config và `/frontend-assets`; HTTPS Vite proxy, conditional publish | Root cutover còn ở Phase 11; mặc định SPA tắt, route Blazor giữ nguyên |
 | Toolchain | .NET/xUnit/CI partner; React/Vite/Vitest/Playwright scaffold, npm lockfile và frontend CI | Node/npm target đã dùng dạng portable để kiểm chứng; chưa thay Node global |
 | Shell | AntD theme/layout, vi/en, Router basename runtime, navigation từ Session/Shop permission; unknown route NotFound | Feature chưa migrate dùng document navigation sang Blazor; root cutover Phase 11 |
@@ -52,13 +52,15 @@ Baseline đã đọc cả Operations chưa commit; HEAD không đại diện đ�
 
 ## Contract browser đã chốt để triển khai
 
-### Phase 6 — Operations (đang kiểm chứng UI)
+### Phase 6 — Operations
 
-Backend đã có GET `/api/v1/app/operations/shipments`, `/pending-pickups`, `/shippers`, `/cod/settlement-candidates`; assignment/auto/reassign/cancel/bulk-retry và status/COD collect/settle gọi Application, actor lấy principal. `IOperationsReadService` kiểm ShipmentView trước truy vấn; history actor identity/GPS chỉ phát hành khi có AuditView. Shipper lookup bỏ email, thêm activeShipmentCount từ aggregate repository, không đếm từ trang hiện tại. Hai list vận đơn giữ filter/page/order SQL hiện có; COD dùng focused SQL projection với count/order/page. Shipper là lookup active hiện có, chưa thêm search/paging riêng.
+Ngày trong bộ lọc Operations giữ semantics calendar day của server Blazor: đổi từ `session.serverTimeZoneId` sang UTC theo offset của từng ngày (có DST), giữ7 ticks cuối ngày trong URL/API. Dùng plugin utc/timezone của dayjs đã pin, không thêm dependency. Xóa bound COD bỏ parameter, không gửi string `null`. Danh mục COD UI giữ PendingCollection/Collected/Settled như legacy; không thêm NotRequired khi query cũ chưa khớp explicit zero-COD transaction. Refresh chụp generation lỗi theo shipment và chỉ mở khóa generation đã đọc lại, không xóa lỗi phát sinh trong lúc chờ request khác.
+
+Backend đã có GET `/api/v1/app/operations/shipments`, `/pending-pickups`, `/shippers`, `/cod/settlement-candidates`; assignment/auto/reassign/cancel/bulk-retry và status/COD collect/settle gọi Application, actor lấy principal. `IOperationsReadService` kiểm ShipmentView trước truy vấn; history actor identity/GPS và collector identity chỉ phát hành khi có AuditView. Shipper lookup bỏ email, thêm activeShipmentCount từ aggregate repository, không đếm từ trang hiện tại. Hai list vận đơn giữ filter/page/order SQL hiện có; COD dùng focused SQL projection với count/order/page. Shipper là lookup active hiện có, chưa thêm search/paging riêng.
 
 Quyết định tương đương UI hiện tại: settlement candidates cần **CodSettle** (Admin), Operator vẫn thu COD nhưng không đọc workspace đối soát hoặc settle. Inventory Phase 0 từng đề xuất CodViewPending cho cả Admin/Operator; source working tree chỉ tải khu vực này cho Admin. Giữ giới hạn đang chạy, không mở rộng truy cập tài chính trong migration. Raw internal read signatures vẫn dùng cho Blazor/internal, không expose trực tiếp qua HTTP. `OperationsActionService` kiểm quyền Operations trước auto-assign/status/collect/settle, vì shared use case còn phục vụ system/Shipper. Manual auto-assign truyền requestedByUserId để ghi audit; capacity locking/ba attempt/outbox giữ nguyên.
 
-Browser request giữ decimal string cho COD/GPS; no actor trong contract. Bulk tối đa50 ID hợp lệ/duy nhất, trả từng row và partial outcomes. Conflicting assignment/status/COD trả409, không tự retry mutation. Không thêm proof endpoint/UI. React workspace và E2E đang được hoàn thiện; task hoàn tất chỉ khi có evidence trong validation log.
+Browser request giữ decimal string cho COD/GPS; no actor trong contract. Bulk tối đa50 ID hợp lệ/duy nhất, trả từng row và partial outcomes. Conflicting assignment/status/COD trả409, không tự retry mutation. Không thêm proof endpoint/UI. React workspace có3 khu vực, filter/page theo URL, advanced filter thu gọn, dialog cảnh báo/confirmation, row pending và kết quả từng đơn. Unknown/409 khóa đến refresh thành công; đổi user/quyền hủy request và xóa state, filter/page clear selection/dialog. Tab/Escape/focus-return được kiểm chứng Chromium; login/returnUrl và hai alias chuyển về React. Tiến độ full baseline/publish/review được ghi trong validation log.
 
 ### Phase 3 đã triển khai
 

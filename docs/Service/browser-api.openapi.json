@@ -5954,7 +5954,11 @@
           "codAmount",
           "currency",
           "collectedAtUtc",
-          "collectedByUserId"
+          "collectedByUserId",
+          "receiverPhone",
+          "codStatus",
+          "collectedByName",
+          "collectedByEmail"
         ],
         "type": "object",
         "properties": {
@@ -5988,6 +5992,24 @@
               "string"
             ],
             "format": "uuid"
+          },
+          "receiverPhone": {
+            "type": "string"
+          },
+          "codStatus": {
+            "$ref": "#/components/schemas/CodStatus"
+          },
+          "collectedByName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "collectedByEmail": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },

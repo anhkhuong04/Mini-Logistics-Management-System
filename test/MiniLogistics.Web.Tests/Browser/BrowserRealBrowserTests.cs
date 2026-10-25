@@ -11,6 +11,9 @@ using MiniLogistics.Domain.Fees;
 using MiniLogistics.Domain.Shipments;
 using MiniLogistics.Web.Services;
 using MiniLogistics.Infrastructure.Persistence;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using MiniLogistics.Application.Shipments.AssignmentSelection;
+using MiniLogistics.Domain.CashOnDelivery;
 using Xunit;
 
 namespace MiniLogistics.Web.Tests.Browser;
@@ -36,13 +39,22 @@ public sealed class BrowserRealBrowserTests
         // Windows Schannel needs a persisted key handle; do not write the PFX or its key to disk.
         using var certificate = X509CertificateLoader.LoadPkcs12(pemCertificate.Export(X509ContentType.Pfx), null);
         await using var factory = new BrowserIdentityFactory(enableFrontend: true,
-            configureServices: services => services.AddHostedService<ShipmentImportWorker>());
+            configureServices: services => {
+                services.AddHostedService<ShipmentImportWorker>();
+                services.RemoveAll<IShipperAssignmentCapacityGuard>();
+                services.AddScoped<IShipperAssignmentCapacityGuard, BrowserOperationsCapacityGuard>();
+            });
         factory.UseKestrel(options => options.Listen(IPAddress.Loopback, 0, listen => listen.UseHttps(certificate)));
         using var client = factory.Client();
         var owner = await factory.AddUser("browser-owner@example.test", "Shop");
         var staff = await factory.AddUser("browser-staff@example.test", "Shop");
         var mutationOwner = await factory.AddUser("browser-mutation-owner@example.test", "Shop");
         await factory.AddUser("browser-other@example.test", "Shop");
+        var operationsActor = await factory.AddUser("browser-operator@example.test", "Operator");
+        var adminActor = await factory.AddUser("browser-admin@example.test", "Admin");
+        var driverA = await factory.AddUser("browser-driver-a@example.test", "Shipper");
+        var driverB = await factory.AddUser("browser-driver-b@example.test", "Shipper");
+        var operationsOwner = await factory.AddUser("browser-operations-shop@example.test", "Shop");
         await factory.EnsureRole("Shop");
         using (var scope = factory.Services.CreateScope())
         {
@@ -55,6 +67,20 @@ public sealed class BrowserRealBrowserTests
             db.Shops.Add(New("Browser Mutation Shop", mutationOwner));
             db.FeeRules.Add(new FeeRule(RouteType.IntraProvince, 1, new Money(25000), 0.5m, new Money(5000), DateTimeOffset.UtcNow));
             db.Shipments.Add(BrowserShopShipmentReadTests.NewShipment(first.Id, owner, "ML-BROWSER-001"));
+            (await db.Users.FindAsync(driverA))!.FullName = "Driver A";
+            (await db.Users.FindAsync(driverB))!.FullName = "Driver B";
+            var operationsShop = New("Browser Operations Shop", operationsOwner); db.Shops.Add(operationsShop);
+            var opsPending = BrowserShopShipmentReadTests.NewShipment(operationsShop.Id, operationsOwner, "ML-OPS-PENDING");
+            db.Shipments.Add(opsPending);
+            db.CodTransactions.Add(CodTransaction.Create(opsPending.Id, opsPending.CodAmount, DateTimeOffset.UtcNow));
+            var settlement = BrowserShopShipmentReadTests.NewShipment(operationsShop.Id, operationsOwner, "ML-OPS-SETTLE");
+            Assert.True(settlement.AssignShipper(driverA, operationsActor, DateTimeOffset.UtcNow, "seed").IsSuccess);
+            foreach (var status in new[] { ShipmentStatus.PickingUp, ShipmentStatus.PickedUp, ShipmentStatus.InTransit, ShipmentStatus.Delivering, ShipmentStatus.Delivered })
+                Assert.True(settlement.UpdateStatus(status, operationsActor, DateTimeOffset.UtcNow, "seed").IsSuccess);
+            var settledCod = CodTransaction.Create(settlement.Id, settlement.CodAmount, DateTimeOffset.UtcNow);
+            Assert.True(settledCod.MarkCollected(ShipmentStatus.Delivered, adminActor, DateTimeOffset.UtcNow).IsSuccess);
+            Assert.True(settlement.CompleteCodCollection(DateTimeOffset.UtcNow).IsSuccess);
+            db.Shipments.Add(settlement); db.CodTransactions.Add(settledCod);
             db.ShopStaffMemberships.Add(new ShopStaffMembership(first.Id, staff, owner, ShopStaffRole.Viewer,
                 ShopPermission.ViewShipments, DateTimeOffset.UtcNow));
             await db.SaveChangesAsync();
@@ -73,6 +99,11 @@ public sealed class BrowserRealBrowserTests
         start.ArgumentList.Add("e2e/shipment-lifecycle-shop.spec.ts");
         start.ArgumentList.Add("e2e/shipment-import.spec.ts");
         start.ArgumentList.Add("e2e/downloads.spec.ts");
+        start.ArgumentList.Add("e2e/operations.spec.ts");
+        if (Environment.GetEnvironmentVariable("MINILOGISTICS_E2E_GREP") is { Length: > 0 } grep)
+        {
+            start.ArgumentList.Add("--grep"); start.ArgumentList.Add(grep);
+        }
         start.Environment["MINILOGISTICS_E2E_BASE_URL"] = address + "/app/";
         start.Environment["MINILOGISTICS_E2E_IDENTITY_FIXTURE"] = "1";
         start.Environment["MINILOGISTICS_E2E_PASSWORD"] = BrowserIdentityFactory.Password;

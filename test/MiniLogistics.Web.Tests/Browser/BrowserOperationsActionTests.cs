@@ -61,6 +61,9 @@ public sealed class BrowserOperationsActionTests
         using var admin = factory.Client(); await BrowserShopShipmentReadTests.Login(admin, "lifecycle-admin@example.test"); await BrowserIdentityFactory.Csrf(admin);
         var candidates = await admin.GetFromJsonAsync<System.Text.Json.JsonElement>("/api/v1/app/operations/cod/settlement-candidates?pageSize=1");
         Assert.Equal("9007199254740993.01", candidates.GetProperty("items")[0].GetProperty("codAmount").GetString());
+        Assert.Equal("Test User", candidates.GetProperty("items")[0].GetProperty("collectedByName").GetString());
+        Assert.Equal("lifecycle-operator@example.test", candidates.GetProperty("items")[0].GetProperty("collectedByEmail").GetString());
+        Assert.Equal("0901234567", candidates.GetProperty("items")[0].GetProperty("receiverPhone").GetString());
         Assert.Equal(HttpStatusCode.NoContent, (await admin.PostAsJsonAsync(path + "/cod/settle", new { })).StatusCode);
         Assert.Equal(HttpStatusCode.Conflict, (await admin.PostAsJsonAsync(path + "/cod/settle", new { })).StatusCode);
         using var verify = factory.Services.CreateScope(); var state = verify.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();

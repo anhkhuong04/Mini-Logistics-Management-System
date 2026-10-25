@@ -1,6 +1,6 @@
 # React + TypeScript + Ant Design Frontend Refactor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–5 đã hoàn tất; Phase 6 đang triển khai/kiểm chứng. Xem validation log cho evidence; auth/context/dashboard/shipment read/form/actions/import/download chạy React dưới `/app`, renderer chưa chuyển vẫn chạy Blazor.
+> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–6 đã hoàn tất; Phase 7 chưa bắt đầu. Xem validation log cho evidence; auth/context/dashboard/shipment read/form/actions/import/download/Operations/COD chạy React dưới `/app`, renderer chưa chuyển vẫn chạy Blazor.
 
 **Goal:** Thay toàn bộ frontend Blazor bằng React + TypeScript + Ant Design, giữ tương đương chức năng, quyền truy cập và các hợp đồng nghiệp vụ/tích hợp hiện tại.
 
@@ -531,7 +531,7 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 - [x] Giữ capacity guard/transaction/auto retry tối đa ba attempt bên server; browser không thêm loop auto-retry.
 - [x] Bulk result giữ kết quả từng shipment, partial failure có thể review; không hiển thị mọi row success khi chỉ một phần thành công.
 
-**Verify:** Browser assignment + OperationsP2Tests; chạy `ConcurrencyAndRegistrationTransactionTests` cho capacity khi adapter thay đường gọi, giữ SQL locking behavior.
+**Verify:** Browser assignment + OperationsP2Tests; chạy `InfrastructurePersistenceTests.AutoAssignment_ConcurrentReservationsDoNotExceedShipperCapacityOrDuplicateSideEffects` cho capacity và `ConcurrencyAndRegistrationTransactionTests` cho rowversion/transaction khi adapter thay đường gọi, giữ SQL locking behavior.
 
 ### T06.03 — Status và COD API cho Operations
 
@@ -551,10 +551,10 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** dùng T06.01–03; đối chiếu toàn bộ component Operations đang có, OperationsAssignmentUiModels và OperationsDisplay.
 
-- [ ] Port filter/summary/list/selection/row messages, capacity/area warning; không ghi đè sửa đổi UI chưa commit khi đọc baseline.
-- [ ] Dialog giữ selected shipment, lý do và confirmation; clear selection không còn hợp lệ sau reload/filter/Shop scope thay đổi.
-- [ ] Action status/COD theo permission và trạng thái, refresh đúng query sau mutation; row pending không khóa vô cớ toàn workspace.
-- [ ] Test bulk partial failure, stale capacity, 409 reload, keyboard modal/focus-return, mobile table controls.
+- [x] Port filter/summary/list/selection/row messages, capacity/area warning; không ghi đè sửa đổi UI chưa commit khi đọc baseline.
+- [x] Dialog giữ selected shipment, lý do và confirmation; clear selection không còn hợp lệ sau reload/filter/Shop scope thay đổi.
+- [x] Action status/COD theo permission và trạng thái, refresh đúng query sau mutation; row pending không khóa vô cớ toàn workspace.
+- [x] Test bulk partial failure, stale capacity, 409 reload, keyboard modal/focus-return, mobile table controls.
 
 **Verify:** Vitest behavior port từ OperationsAssignmentUiModelsTests và E2E Admin/Operator đầy đủ; alias `/operations/assignment` được giữ trong route map.
 

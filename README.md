@@ -6,7 +6,9 @@ UI dùng Blazor Interactive Server; dữ liệu dùng EF Core/SQL Server và Ide
 
 ## Chuyển đổi frontend
 
-Đã chọn **React + TypeScript + Ant Design** làm frontend đích. Phase 1–5 có hosting opt-in `/app`, theme/layout, JSON Identity/CSRF, đăng nhập/đăng ký, Shop context theo quyền, dashboard, shipment read/mutation, CSV import có preview/edit/batch polling và tải export/label qua cookie. Quote và phí tính trên server. Icon dùng `@ant-design/icons`. Các chức năng chưa chuyển tiếp tục mở Blazor; URL cũ vẫn hoạt động trong coexist. Lệnh HTTPS dev, test và publish ở [Development](docs/Backend/development.md); xem [kế hoạch refactor](refactorfe.md) và [trạng thái migration](docs/Frontend/react-migration-contracts.md).
+Phase 6 bổ sung Operations tại `/app/operations/assignments` và alias `/app/operations/assignment`: phân công/đổi/hủy, bulk retry từng kết quả, cập nhật trạng thái, thu COD và đối soát Admin. API kiểm quyền trong Application; giữ capacity SQL, audit/outbox và URL Blazor cũ.
+
+Đã chọn **React + TypeScript + Ant Design** làm frontend đích. Phase 1–6 có hosting opt-in `/app`, theme/layout, JSON Identity/CSRF, đăng nhập/đăng ký, Shop context theo quyền, dashboard, shipment read/mutation, CSV import có preview/edit/batch polling và tải export/label qua cookie. Quote và phí tính trên server. Icon dùng `@ant-design/icons`. Các chức năng chưa chuyển tiếp tục mở Blazor; URL cũ vẫn hoạt động trong coexist. Lệnh HTTPS dev, test và publish ở [Development](docs/Backend/development.md); xem [kế hoạch refactor](refactorfe.md) và [trạng thái migration](docs/Frontend/react-migration-contracts.md).
 
 ## Bắt đầu
 

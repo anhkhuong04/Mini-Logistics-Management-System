@@ -42,7 +42,9 @@ describe('authentication pages', () => {
     for (const path of ['https://bad.test', '//bad.test', '/\\bad.test', '/app/login', '/app/unknown', '/%2f%2fbad.test'])
       expect(safeReturnUrl(path)).toBeNull();
     expect(safeReturnUrl('/shipments?shopId=abc')).toBe('/app/shipments?shopId=abc');
-    expect(postLoginPath(['Shop', 'Shipper', 'Operator'])).toBe('/operations/assignments');
+    expect(postLoginPath(['Shop', 'Shipper', 'Operator'])).toBe('/app/operations/assignments');
+    expect(safeReturnUrl('/operations/assignments?view=operations')).toBe('/app/operations/assignments?view=operations');
+    expect(safeReturnUrl('/app/operations/assignment?view=cod')).toBe('/app/operations/assignment?view=cod');
     expect(postLoginPath(['IntegrationAdmin'])).toBe('/partner/integrations');
   });
 });
