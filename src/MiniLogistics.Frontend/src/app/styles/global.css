@@ -38,6 +38,24 @@ main:focus, h1:focus { outline: none; }
 .filter-panel .ant-btn { min-height: 44px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
 @media (max-width: 767px) { .detail-grid { grid-template-columns: 1fr; } }
+.metric-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin: 24px 0; }
+.metric-grid > a { text-decoration: none; color: inherit; }
+.metric-grid > a:hover .ant-card { border-color: var(--ui-primary); }
+.metric-grid .ant-statistic-title > span { display: inline-flex; align-items: center; gap: 8px; }
+.metric-grid .anticon { color: var(--ui-primary); }
+.dashboard-overview { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+.dashboard-overview > * { min-width: 0; }
+.distribution-list { list-style: none; margin: 0; padding: 0; }
+.distribution-list li { margin-bottom: 16px; }
+.distribution-list li > div:first-child { display: flex; justify-content: space-between; gap: 16px; }
+.money-list { margin: 0 0 24px; }
+.money-list > div { display: flex; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--ui-border); flex-wrap: wrap; }
+.money-list dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.date-presets { margin-bottom: 16px; }
+.cell-note { display: block; color: var(--ui-muted); font-size: 12px; margin-top: 4px; }
+@media (max-width: 1199px) { .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 767px) { .dashboard-overview { grid-template-columns: 1fr; } }
+@media (max-width: 575px) { .metric-grid { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }

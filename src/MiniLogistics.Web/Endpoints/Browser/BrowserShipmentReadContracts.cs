@@ -38,7 +38,7 @@ public sealed class BrowserShipmentReadQuery : BrowserDateRangeQuery
     {
         var dates = Dates(); var min = Parse<decimal>(MinCodAmount); var max = Parse<decimal>(MaxCodAmount);
         var page = PageNumber ?? 1; var size = PageSize ?? 25;
-        if (page < 1 || size is < 1 or > 100 || min < 0 || max < 0 || min > max
+        if (page < 1 || size is < 1 or > 100 || (long)(page - 1) * size > int.MaxValue || min < 0 || max < 0 || min > max
             || TrackingCode?.Length > 100 || ReceiverName?.Length > 100 || ReceiverPhone?.Length > 100) throw new JsonException();
         return new GetShipmentsForCurrentShopQuery(actor, shop, Parse<ShipmentStatus>(Status), TrackingCode?.Trim(),
             ReceiverName?.Trim(), ReceiverPhone?.Trim(), dates.From, dates.To, min, max,

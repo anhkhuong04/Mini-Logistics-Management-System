@@ -30,6 +30,12 @@ describe('shipment reading', () => {
     renderWithProviders(shopUi(<ShipmentListPage />), { session, path: '/shipments?pageSize=100000' });
     expect(screen.getByRole('alert')).toBeInTheDocument(); expect(fetch).not.toHaveBeenCalled();
   });
+  it.each(['invalid-id', '00000000-0000-0000-0000-000000000000', '------------------------------------'])('rejects invalid detail ID %s without an endless loader or request', async invalidId => {
+    const fetch = vi.fn(); vi.stubGlobal('fetch', fetch);
+    renderWithProviders(shopUi(<Routes><Route path="/shipments/:id" element={<ShipmentDetailPage />} /></Routes>), { session, path: `/shipments/${invalidId}?shopId=${shopId}` });
+    expect(screen.getByText('Không tìm thấy vận đơn')).toBeInTheDocument();
+    expect(fetch).not.toHaveBeenCalled();
+  });
   it('renders a scoped not-found response without fabricated detail sections', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ code: 'Application.NotFound', title: 'Missing' }, { status: 404 })));
     renderWithProviders(shopUi(<Routes><Route path="/shipments/:id" element={<ShipmentDetailPage />} /></Routes>), { session, path: `/shipments/${id}?shopId=${shopId}` });

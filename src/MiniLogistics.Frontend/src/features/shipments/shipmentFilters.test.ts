@@ -9,7 +9,7 @@ describe('shipment URL contracts', () => {
     expect(new URLSearchParams(url.split('?')[1]).get('shopId')).toBe('shop-a');
   });
   it('rejects invalid enum date range paging and lossy decimal inputs', () => {
-    for (const query of ['status=999', 'pageSize=101', 'pageNumber=0', 'fromUtc=2026-02-30T00:00:00Z',
+    for (const query of ['status=999', 'pageSize=101', 'pageNumber=0', 'pageNumber=2147483647&pageSize=100', 'pageNumber=2147483648&pageSize=1', 'fromUtc=2026-02-30T00:00:00Z',
       'fromUtc=2026-10-02T00:00:00Z&toUtc=2026-10-01T00:00:00Z', 'minCodAmount=1e2', 'minCodAmount=3.01&maxCodAmount=3.00'])
       expect(() => readShipmentFilters(new URLSearchParams(query)), query).toThrow();
   });

@@ -61,6 +61,7 @@ public sealed class BrowserRealBrowserTests
         start.ArgumentList.Add("node_modules/@playwright/test/cli.js"); start.ArgumentList.Add("test");
         start.ArgumentList.Add("e2e/auth.spec.ts"); start.ArgumentList.Add("e2e/shop-context.spec.ts");
         start.ArgumentList.Add("e2e/shop-shipments.spec.ts");
+        start.ArgumentList.Add("e2e/dashboard.spec.ts");
         start.Environment["MINILOGISTICS_E2E_BASE_URL"] = address + "/app/";
         start.Environment["MINILOGISTICS_E2E_IDENTITY_FIXTURE"] = "1";
         start.Environment["MINILOGISTICS_E2E_PASSWORD"] = BrowserIdentityFactory.Password;

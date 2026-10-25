@@ -95,6 +95,7 @@ public sealed class BrowserShopShipmentReadTests
     [InlineData("status=999")]
     [InlineData("status=Something")]
     [InlineData("pageNumber=0")]
+    [InlineData("pageNumber=2147483647&pageSize=100")]
     [InlineData("pageSize=101")]
     [InlineData("sortBy=123")]
     [InlineData("fromUtc=2026-02-30T00:00:00Z")]

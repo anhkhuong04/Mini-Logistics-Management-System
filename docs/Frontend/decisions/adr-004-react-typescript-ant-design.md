@@ -2,7 +2,7 @@
 
 - Ngày: 25/10/2026.
 - Trạng thái quyết định: **Accepted** cho React + TypeScript + Ant Design theo lựa chọn của người dùng.
-- Trạng thái triển khai: Phase 0 có inventory/baseline/contract/pins; Phase 1–2 có hosting opt-in `/app`, theme/layouts/locale, browser auth/CSRF/session/Shop context và typed transport. Các renderer/API nghiệp vụ Phase 3+ chờ chuyển; Blazor được giữ trong coexist.
+- Trạng thái triển khai: Phase 0 có inventory/baseline/contract/pins; Phase 1–3 có hosting opt-in `/app`, theme/layouts/locale, browser auth/CSRF/session/Shop context, typed transport, Shop dashboard và shipment list/detail. Mutation/API còn lại theo Phase 4+; Blazor được giữ trong coexist. Icon dùng thư viện `@ant-design/icons` đã pin.
 - Phạm vi: lựa chọn frontend; chi tiết hosting/auth/toolchain đã được người thực hiện chốt theo kế hoạch trong T00.02 và được ghi bên dưới.
 
 ## Bối cảnh

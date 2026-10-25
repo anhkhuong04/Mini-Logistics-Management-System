@@ -1,6 +1,6 @@
 # React + TypeScript + Ant Design Frontend Refactor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–2 đã hoàn tất; Phase 3 chưa bắt đầu. Xem validation log cho evidence; renderer nghiệp vụ vẫn chạy Blazor cho đến task chuyển tương ứng.
+> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–3 đã hoàn tất; Phase 4 chưa bắt đầu. Xem validation log cho evidence; dashboard và shipment read chạy React dưới `/app`, renderer chưa chuyển vẫn chạy Blazor.
 
 **Goal:** Thay toàn bộ frontend Blazor bằng React + TypeScript + Ant Design, giữ tương đương chức năng, quyền truy cập và các hợp đồng nghiệp vụ/tích hợp hiện tại.
 
@@ -18,6 +18,7 @@
 - Giữ Partner API `/api/v1/partner`, API key/scope, idempotency `201/200`, outbox atomicity, audit, webhook signing/SSRF và PII masking.
 - Chỉ bổ sung package có vai trò nêu trong kế hoạch; không thêm mediator, generic repository, backend service boundary hoặc frontend state store trùng trách nhiệm.
 - Giữ design intent sea-blue, Be Vietnam Pro, KPI thật, error/empty riêng, drill-down và responsive/accessibility từ dashboard review. Ant Design thay primitive/form/table, không mặc định kéo theo thiết kế lại nghiệp vụ.
+- Icon giao diện dùng `@ant-design/icons`6.3.4 đã pin; không hardcode SVG path/emoji/Unicode làm icon. Decorative icon dùng aria-hidden, control chỉ icon phải có accessible name.
 - Production dùng chung origin. Development dùng Vite HTTPS proxy đến .NET; browser không cần biết backend URL qua biến chứa secret.
 - Không commit secret, password, API key, storage state Playwright, `node_modules`, `dist`, browser download, log hoặc build output. OpenAPI/types là contract artifact có chủ đích, sinh bằng tooling và review.
 - Chỉ build/test solution `Mini-logistics-manegemant-system.slnx` hoặc project cụ thể; không dùng `.csproj` lạc ở root.
@@ -394,10 +395,10 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** `GET /api/v1/app/shops/{shopId}/dashboard`, `/shipments`, `/shipments/{shipmentId}` dưới cùng Shop; gọi IGetShopDashboardKpiService, IGetShipmentsForCurrentShopService và IGetShipmentDetailForCurrentShopService với actor từ claims.
 
-- [ ] Test owner/staff, cross-Shop, masked PII/COD, inactive Shop vẫn xem lịch sử, shipment not found; không trả EF entity hoặc field nội bộ.
-- [ ] Bind đầy đủ status/tracking/receiver/date/COD/sort/page theo query hiện tại; server validation và permission cho PII filter, không lọc toàn bộ ở React.
-- [ ] Regression UTC cuối ngày, invalid range/status/page size, total count/page một-based; giữ các giới hạn chuẩn hóa hiện tại của Application.
-- [ ] Sinh browser OpenAPI/types và verify Partner artifact không đổi.
+- [x] Test owner/staff, cross-Shop, masked PII/COD, inactive Shop vẫn xem lịch sử, shipment not found; không trả EF entity hoặc field nội bộ.
+- [x] Bind đầy đủ status/tracking/receiver/date/COD/sort/page theo query hiện tại; server validation và permission cho PII filter, không lọc toàn bộ ở React.
+- [x] Regression UTC cuối ngày, invalid range/status/page size, total count/page một-based; giữ các giới hạn chuẩn hóa hiện tại của Application.
+- [x] Sinh browser OpenAPI/types và verify Partner artifact không đổi.
 
 **Verify:** Browser read tests + ShopStaffPermissionTests/ShopProductionHardeningTests liên quan; kiểm tra request thật gọi paged service, không default full-list method.
 
@@ -407,10 +408,10 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** list query key theo user/Shop/filter/page; router `/shipments`, `/shipments/:id` qua routePaths; filters giữ tên query hiện có.
 
-- [ ] Table server pagination/filter/sort; search chính và advanced filters; back/forward/reload giữ Shop/status/date/page; invalid URL input hiện lỗi an toàn.
-- [ ] Detail hiển thị snapshot phí/địa chỉ/history đúng ShipmentDetailResponse được phép, không tự suy luận dữ liệu bị masking. DTO hiện không có assignment/proof; không tạo section giả hoặc mở rộng scope để lấp chỗ trống này.
-- [ ] Error/empty/loading tách biệt; 403/404 khác nhau theo contract; nút mutation chưa có API thì không giả thành công hoặc sửa state local.
-- [ ] Kiểm tra keyboard/focus/table horizontal scroll và mobile; link từ Blazor dashboard query cũ sang React giữ ý nghĩa filter.
+- [x] Table server pagination/filter/sort; search chính và advanced filters; back/forward/reload giữ Shop/status/date/page; invalid URL input hiện lỗi an toàn.
+- [x] Detail hiển thị snapshot phí/địa chỉ/history đúng ShipmentDetailResponse được phép, không tự suy luận dữ liệu bị masking. DTO hiện không có assignment/proof; không tạo section giả hoặc mở rộng scope để lấp chỗ trống này.
+- [x] Error/empty/loading tách biệt; 403/404 khác nhau theo contract; nút mutation chưa có API thì không giả thành công hoặc sửa state local.
+- [x] Kiểm tra keyboard/focus/table horizontal scroll và mobile; link từ Blazor dashboard query cũ sang React giữ ý nghĩa filter.
 
 **Verify:** component tests + E2E list/search/detail/back/reload dưới owner và staff hạn chế.
 
@@ -420,9 +421,9 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** dashboard gọi T03.01 và build shipment URL bằng routePaths/filters của T03.02, không tự tạo format query thứ hai.
 
-- [ ] Port các tình huống test: KPI lỗi không render 0, latest lỗi không giả empty, staff không quyền COD, inactive Shop, chỉ một Shop không có selector thừa.
-- [ ] Phân bố đếm mỗi trạng thái đúng một lần, loại nhóm 0, empty không vẽ chart; không dựng dữ liệu tăng trưởng giả.
-- [ ] KPI drill-down truyền đúng Shop/status/UTC date; giữ panel tài chính và bảng latest gọn theo dashboard review.
+- [x] Port các tình huống test: KPI lỗi không render 0, latest lỗi không giả empty, staff không quyền COD, inactive Shop, chỉ một Shop không có selector thừa.
+- [x] Phân bố đếm mỗi trạng thái đúng một lần, loại nhóm 0, empty không vẽ chart; không dựng dữ liệu tăng trưởng giả.
+- [x] KPI drill-down truyền đúng Shop/status/UTC date; giữ panel tài chính và bảng latest gọn theo dashboard review.
 
 **Verify:** Vitest parity với tình huống HtmlRenderer cũ; E2E KPI → list có request filter đúng, không chỉ assert URL. Giữ Blazor tests đến khi cutover.
 

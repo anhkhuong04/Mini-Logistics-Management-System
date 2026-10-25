@@ -41,7 +41,7 @@ describe('authentication pages', () => {
   it('rejects external or malformed returns and preserves role redirect priority', () => {
     for (const path of ['https://bad.test', '//bad.test', '/\\bad.test', '/app/login', '/app/unknown', '/%2f%2fbad.test'])
       expect(safeReturnUrl(path)).toBeNull();
-    expect(safeReturnUrl('/shipments?shopId=abc')).toBe('/shipments?shopId=abc');
+    expect(safeReturnUrl('/shipments?shopId=abc')).toBe('/app/shipments?shopId=abc');
     expect(postLoginPath(['Shop', 'Shipper', 'Operator'])).toBe('/operations/assignments');
     expect(postLoginPath(['IntegrationAdmin'])).toBe('/partner/integrations');
   });

@@ -164,14 +164,25 @@ Check bàn giao đạt trên30 Markdown hiện hành và3 heading anchors nội 
 - Caught defaults AsParameters về0 khi query paging vắng: adapter dùng nullable params và fallback1/25. Caught dashboard dictionary enum key serialization500; thêm named key converter, regression RED→GREEN. Contract + read targeted39/39 pass.
 - Browser schema/types sinh từ endpoint metadata; Partner OpenAPI không đổi. `@ant-design/icons`6.3.4 đã có từ Phase 1, dùng tiếp cho Phase 3, không thêm thư viện trùng hoặc hard-code SVG/emoji.
 
-## Cách ghi evidence cho task tiếp theo
-
 ## 25/10/2026 — T03.02 React shipment list/detail
 
 - URL filter/UTC/decimal validation và page behavior tests RED vì chưa có module → GREEN6/6. Search/filter/sort/paging gọi typed paged API; key có user/Shop/filter, không giữ previous-tenant data. Legacy numeric status map theo enum0–10; giữ UTC7 fractional digits, reject invalid date/range/enum/page/decimal trước fetch.
 - List/detail dùng Table/Descriptions/Timeline/StatusTag, hiển thị DTO snapshots/masking. Không dựng assignment/proof hoặc mutation giả; chưa có API mutation Phase 4. Browser Back và link về danh sách giữ filter/query.
 - Browser real-cookie fixture mở rộng5 scenarios (3 auth/context +2 list/detail): owner search→detail→back/reload/invalid URL, limited staff masked/no COD,390px không tràn trang. Fix decorative icon accessible names bằng aria-hidden để label search đúng.
 - Navigation/action icons dùng @ant-design/icons6.3.4 đã pin. Không thêm package trùng, không vẽ SVG path hoặc emoji để làm icon. Typecheck/lint/build pass; AntD chunk hiện912.15kB, ghi warning thật, không đổi threshold.
+
+## 25/10/2026 — T03.03 dashboard và bàn giao Phase 3
+
+- Các commit task trước: `3e8e40a` (T03.01 read API), `2433422` (T03.02 list/detail). T03.03 bổ sung dashboard dùng endpoint thật,4 KPI,7 nhóm trạng thái đếm mỗi status đúng một lần, bỏ nhóm0/không vẽ chart rỗng, finance theo quyền và latest5 đơn có server paging. Không tạo trend hoặc mutation giả.
+- Vitest parity kiểm tra KPI failure không render0/empty, latest failure độc lập với KPI, limited staff không COD, inactive Shop không có create, single-Shop không có selector thừa; distribution kiểm tra tổng/percent/empty. Giữ toàn bộ HtmlRenderer/Blazor regression cũ.
+- Kestrel real-cookie fixture mở rộng7 Chromium scenarios: auth/context3, list/detail2, dashboard2. KPI → list kiểm tra request thật gồm selected Shop/status/page và UTC cuối ngày `23:59:59.9999999Z`; owner/staff dùng Application thật với EF InMemory riêng. Không coi fixture này là bằng chứng SQL transaction; LocalDB suites vẫn chạy riêng.
+- Xem ảnh dashboard390/1440px và kiểm tra overflow ở390/768/1024/1440px; staff masked, không có COD/create ngoài quyền, table scroll trong vùng focusable. Screenshot chỉ chứa dữ liệu synthetic đã masking, lưu trong `.agent` bị ignore; credentials/cookie không đưa vào trace.
+- Rà soát failure paths bổ sung regression cho malformed/empty detail ID: trả404 UI trước fetch thay vì loader vô hạn. Adapter và URL parser reject pagination offset vượt int để tránh overflow. HTTP invalid-query test mới nằm trong full solution run.
+- `dotnet test Mini-logistics-manegemant-system.slnx -c Release` với `MINILOGISTICS_BROWSER_E2E=1`, pinned Node/Chromium và dev cert: **385 pass/0 fail/1 skip** (Domain22, Application160, Infrastructure78 +1 Redis skip, Web125 gồm real-cookie fixture7 scenarios). Redis chưa có `MINILOGISTICS_TEST_REDIS`; không tuyên bố multi-node Redis đã pass.
+- Frontend `test` đạt **43/43** trong13 files; `build` (bao gồm TypeScript) và `lint` exit0. Có regression riêng cho Shop inactive ngay cả khi được cấp ManageShipments. Hai lần `api:generate` có cùng SHA256 types; Partner OpenAPI không đổi. Icons dùng named imports `@ant-design/icons`6.3.4 đã có, thêm quy tắc không hardcode SVG/emoji vào standards.
+- HTTPS .NET/Vite shell/coexist tests **15/15 pass**; `dotnet publish ... -p:PublishBrowserSpa=true` exit0 và Chromium trên published process **15/15 pass**. Mỗi shell run skip7 Identity/data scenarios vì chúng đã chạy bằng fixture riêng; không tính chúng là shell pass. Native zoom/các browser khác và root cutover/rollback vẫn thuộc Phase 11.
+- AntD vendor933.79kB (gzip297.48kB) giữ warning >500kB; chưa tối ưu tải theo route. Be Vietnam Pro vẫn dùng fallback nếu máy chưa có font. Không thay runtime default SPA=false, Domain/Application/Infrastructure/schema/worker/Partner; create/draft/edit/cancel và import/download vẫn theo Phase 4–5.
+- Tự review authorization/use-case boundary, snapshot/masking, stale query keys, URL/UTC/decimal, error/empty/loading, icon accessibility và phạm vi diff; không có independent reviewer ở Phase 3. Checklist Phase 3 và agent/developer docs cập nhật theo phần đã kiểm chứng. Handoff giữ15/15 user fingerprints, Partner không drift,14 Markdown thay đổi không có broken local file links, diff whitespace check exit0.
 
 ## Cách ghi evidence cho task tiếp theo
 

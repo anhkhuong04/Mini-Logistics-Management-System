@@ -1,5 +1,5 @@
 import { ArrowLeftOutlined } from '@ant-design/icons';
-import { Card, Descriptions, Timeline, Typography } from 'antd';
+import { Card, Descriptions, Result, Timeline, Typography } from 'antd';
 import { Link, useLocation, useParams } from 'react-router';
 import { useSession } from '../../shared/auth/SessionContext';
 import { useI18n } from '../../shared/i18n/I18nContext';
@@ -10,7 +10,7 @@ import { PageHeader } from '../../shared/ui/PageHeader';
 import { AsyncContent } from '../../shared/ui/AsyncContent';
 import { useShopContext } from '../shop-context/ShopContext';
 import { ShopReadBoundary } from '../shop-context/ShopReadBoundary';
-import { useShipment } from './queries';
+import { isShipmentId, useShipment } from './queries';
 import { ShipmentStatusTag } from './ShipmentStatusTag';
 import { ReadError } from './ReadError';
 import { shipmentListUrl } from './shipmentFilters';
@@ -25,7 +25,7 @@ export function ShipmentDetailPage() {
   if (context && savedSearch) savedSearch.set('shopId', context.selectedShopId);
   const back = context ? savedSearch ? `${routePaths.shipments}?${savedSearch}` : shipmentListUrl(context.selectedShopId) : routePaths.shipments;
   return <><PageHeader title={copy.detail} actions={context && <Link to={back}><ArrowLeftOutlined aria-hidden /> {copy.back}</Link>} />
-    <ShopReadBoundary>{query.error ? <ReadError error={query.error} onRetry={() => void query.refetch()} />
+    <ShopReadBoundary>{!isShipmentId(id) ? <Result status="404" title={copy.missing} /> : query.error ? <ReadError error={query.error} onRetry={() => void query.refetch()} />
       : <AsyncContent loading={query.isPending}>{data && <div className="detail-grid">
         <Card title={data.trackingCode}><ShipmentStatusTag status={data.status} />
           <Descriptions column={1} items={[

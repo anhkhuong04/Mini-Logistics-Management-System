@@ -39,6 +39,7 @@ export function readShipmentFilters(search: URLSearchParams): ShipmentFilters {
   if (!sortFields.includes(sortBy as ShipmentFilters['sortBy']) || !['Ascending', 'Descending'].includes(sortDirection)) throw new Error('Invalid sort');
   const page = get('pageNumber') ?? '1'; const size = get('pageSize') ?? '25';
   if (!/^\d+$/.test(page) || !/^\d+$/.test(size) || !Number.isSafeInteger(Number(page)) || Number(page) < 1 || Number(size) < 1 || Number(size) > 100) throw new Error('Invalid page');
+  if (Number(page) > 2147483647 || (Number(page) - 1) * Number(size) > 2147483647) throw new Error('Invalid page');
   const fromUtc = timestamp(get('fromUtc')); const toUtc = timestamp(get('toUtc'));
   if (fromUtc && toUtc && Date.parse(fromUtc) > Date.parse(toUtc)) throw new Error('Invalid date range');
   const minCodAmount = decimal(get('minCodAmount')); const maxCodAmount = decimal(get('maxCodAmount'));

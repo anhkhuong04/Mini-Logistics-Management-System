@@ -62,7 +62,7 @@ export function ShipmentListPage() {
     <Form.Item name="sortDirection" label={copy.direction}><Select options={[{ value: 'Descending', label: copy.descending }, { value: 'Ascending', label: copy.ascending }]} /></Form.Item>
   </div>;
   return <><PageHeader title={copy.list} actions={<Button icon={<ReloadOutlined aria-hidden />} onClick={() => void query.refetch()} disabled={!filters || !context}>{copy.refresh}</Button>} />
-    <ShopReadBoundary><ShopContextSelector />
+    <ShopReadBoundary><ShopContextSelector showInactive={false} />
       {(invalid || formError) && <Alert type="error" role="alert" title={copy.invalid} action={<Button icon={<ClearOutlined aria-hidden />} onClick={() => { setFormError(false); replace({}); }}>{copy.reset}</Button>} />}
       <Form form={form} layout="vertical" onFinish={apply} className="filter-panel">
         <div className="filter-primary"><Form.Item name="trackingCode" label={copy.tracking}><Input prefix={<SearchOutlined aria-hidden />} allowClear /></Form.Item>

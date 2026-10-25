@@ -36,6 +36,7 @@ These rules apply to maintenance of the current Blazor paths while they coexist 
 ### React migration work
 
 - Use React + TypeScript strict + Ant Design for migrated features. Follow the feature layout and dependency responsibilities in [the plan](../refactorfe.md); frontend toolchain versions are locked during T00.02 before installation.
+- Use named imports from the pinned `@ant-design/icons` library for interface icons. Do not hardcode SVG paths, emoji or Unicode glyphs as icons. Hide decorative icons from assistive technology and give icon-only controls an accessible name.
 - Use Ant Design Form/Table/Modal and its theme/locale providers. Map the existing sea-blue/Be Vietnam Pro design intent into Ant Design tokens; Bootstrap, Blazicons, `EditForm` and Razor scoped CSS remain specific to legacy UI.
 - UI owns presentation and interaction state. Call browser HTTP adapters, not repositories, EF or server implementation types; keep business validation, fee calculation, authorization and tenant/assignment isolation in Application/Domain.
 - Keep list pagination/filter/sort on the server and navigation filters in the URL. Key server-state cache by user and Shop, cancel stale requests on context changes, and clear sensitive state on logout/session expiry. Do not display previous-tenant data while refetching.

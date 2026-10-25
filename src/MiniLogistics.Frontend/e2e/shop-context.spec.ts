@@ -6,7 +6,7 @@ test('owner switches Shop via URL, then staff login receives masked data and lim
   await page.getByLabel('Email', { exact: true }).fill('browser-owner@example.test');
   await page.getByLabel('Mật khẩu', { exact: true }).fill(process.env.MINILOGISTICS_E2E_PASSWORD!);
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page).toHaveURL(/\/app\/dashboard(?:\?|$)/);
   await page.goto('./');
   await page.getByRole('combobox', { name: 'Shop hiện tại', exact: true }).click();
   await page.getByTitle('Browser Shop B', { exact: true }).click();
@@ -21,7 +21,7 @@ test('owner switches Shop via URL, then staff login receives masked data and lim
   await page.getByLabel('Email', { exact: true }).fill('browser-staff@example.test');
   await page.getByLabel('Mật khẩu', { exact: true }).fill(process.env.MINILOGISTICS_E2E_PASSWORD!);
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-  await expect(page).toHaveURL(/\/dashboard$/);
+  await expect(page).toHaveURL(/\/app\/dashboard(?:\?|$)/);
   await page.goto('./');
   await expect(page.getByRole('region', { name: 'Shop hiện tại' })).toContainText('Browser Shop A');
   await expect(page.getByRole('region', { name: 'Shop hiện tại' })).not.toContainText('0901234567');

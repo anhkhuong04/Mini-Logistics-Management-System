@@ -17,6 +17,7 @@ import { useShopContext } from '../features/shop-context/ShopContext';
 import { useAuthCopy } from '../shared/i18n/authCopy';
 import { ShipmentListPage } from '../features/shipments/ShipmentListPage';
 import { ShipmentDetailPage } from '../features/shipments/ShipmentDetailPage';
+import { ShopDashboardPage } from '../features/dashboard/ShopDashboardPage';
 
 function Welcome() {
   const { t } = useI18n();
@@ -69,7 +70,8 @@ function AppContent() {
     <Route path="/register-shop" element={<RegisterShopPage />} />
     <Route path={routePaths.shipments} element={<RequireSession roles={['Shop']}><ShipmentListPage /></RequireSession>} />
     <Route path={routePaths.shipmentDetailPattern} element={<RequireSession roles={['Shop']}><ShipmentDetailPage /></RequireSession>} />
-    {['/dashboard', '/profile', '/shop/notifications'].map(path =>
+    <Route path={routePaths.dashboard} element={<RequireSession roles={['Shop']}><ShopDashboardPage /></RequireSession>} />
+    {['/profile', '/shop/notifications'].map(path =>
       <Route key={path} path={path} element={<RequireSession roles={['Shop']}><LegacyFeatureRoute
         shopPermission="ViewShipments" /></RequireSession>} />)}
     <Route path="/shipments/create" element={<RequireSession roles={['Shop']}><LegacyFeatureRoute shopPermission="ManageShipments" /></RequireSession>} />

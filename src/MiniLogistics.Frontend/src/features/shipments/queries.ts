@@ -11,8 +11,9 @@ export function useShipments(filters: ShipmentFilters | null) {
     enabled: Boolean(session && shop && filters),
     queryFn: ({ signal }) => getShipments(shop!, filters!, signal) });
 }
+export const isShipmentId = (id: string) => /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id) && !/^0+-0+-0+-0+-0+$/.test(id);
 export function useShipment(id: string) {
   const { session } = useSession(); const { context } = useShopContext(); const shop = context?.selectedShopId;
   return useQuery({ queryKey: [...queryKeys.shop(session?.userId ?? '', shop ?? ''), 'shipment', id],
-    enabled: Boolean(session && shop && /^[0-9a-f-]{36}$/i.test(id)), queryFn: ({ signal }) => getShipment(shop!, id, signal) });
+    enabled: Boolean(session && shop && isShipmentId(id)), queryFn: ({ signal }) => getShipment(shop!, id, signal) });
 }

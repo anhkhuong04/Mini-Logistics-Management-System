@@ -2,9 +2,9 @@
 
 ## Trạng thái migration
 
-Đã chọn **React + TypeScript + Ant Design**. Phase 1–2 có hosting opt-in `/app`, theme/layout/locale, JSON auth/CSRF/session, form React và Shop context theo quyền. Phần mô tả nghiệp vụ bên dưới vẫn là **Blazor đang tồn tại**, được giữ đến task chuyển tương ứng. Xem [kế hoạch](../../refactorfe.md), [phạm vi và trạng thái](react-migration-contracts.md), [ADR-004](decisions/adr-004-react-typescript-ant-design.md) và [validation log](react-migration-validation.md).
+Đã chọn **React + TypeScript + Ant Design**. Phase 1–3 có hosting opt-in `/app`, theme/layout/locale, JSON auth/CSRF/session, form React, Shop context theo quyền, dashboard và danh sách/chi tiết vận đơn. Phần mô tả Blazor bên dưới tiếp tục áp dụng cho URL cũ trong coexist. Xem [kế hoạch](../../refactorfe.md), [phạm vi và trạng thái](react-migration-contracts.md), [ADR-004](decisions/adr-004-react-typescript-ant-design.md) và [validation log](react-migration-validation.md).
 
-Frontend mới theo feature, gọi HTTP browser API rồi đến Application use case; backend và business invariants được giữ. Auth/context/reference API đã triển khai; shipment/COD/admin/integration API vẫn là Phase 3+. Xem [inventory](react-migration-inventory.md), [toolchain pins](react-migration-toolchain.md) và [lệnh dev/test/publish](../Backend/development.md). Hướng dẫn browser security nằm tại [engineering standards](../../.agents/standards.md).
+Frontend mới theo feature, gọi HTTP browser API rồi đến Application use case; backend và business invariants được giữ. Auth/context/reference và Shop read API đã triển khai; mutation/COD/admin/integration API còn ở Phase 4+. Icon dùng named imports từ `@ant-design/icons`6.3.4 đã pin, không hardcode SVG/emoji. Xem [inventory](react-migration-inventory.md), [toolchain pins](react-migration-toolchain.md) và [lệnh dev/test/publish](../Backend/development.md). Hướng dẫn browser security nằm tại [engineering standards](../../.agents/standards.md).
 
 ## Runtime hiện tại
 
@@ -12,7 +12,7 @@ Các trang nghiệp vụ nằm trong `src/MiniLogistics.Web`, dùng **Blazor Web
 
 React dùng AppProviders + SessionProvider, QueryClient/I18n/ConfigProvider/AntD App; không tải Bootstrap/Blazor CSS. SessionProvider đọc cookie thật, refresh CSRF khi đổi identity, clear cache khi logout/401/đổi user; ShopContextProvider abort/ignore request cũ và key theo user/Shop. AppLayout nhận navigation từ Session và Shop permission server trả; frontend guard chỉ là UX, Application tiếp tục kiểm tra quyền. PublicLayout dành cho trang public ở phase sau. PageHeader quản lý title/focus, AsyncContent phân biệt tải/lỗi/rỗng; locale vi/en đồng bộ culture cookie, AntD/Dayjs và auth copy.
 
-Mở `/app/login` hoặc `/app/register-shop` để dùng form React. Redirect ưu tiên Admin/Operator→Operations, Shipper→workspace, Shop→dashboard, IntegrationAdmin-only→integrations; returnUrl chỉ whitelist route local. Các renderer nghiệp vụ chưa chuyển sẽ mở document Blazor. Shop selector dùng URL `shopId`; profile hiển thị dữ liệu đã masking từ Application. Không persist session/cache/password vào storage.
+Mở `/app/login` hoặc `/app/register-shop` để dùng form React. Redirect ưu tiên Admin/Operator→Operations, Shipper→workspace, Shop→`/app/dashboard`, IntegrationAdmin-only→integrations; returnUrl chỉ whitelist route local. `/app/shipments` và `/app/shipments/:id` dùng React; create/draft/edit/cancel/import/export/label và các feature chưa chuyển mở Blazor. Shop selector dùng URL `shopId`; profile hiển thị dữ liệu đã masking từ Application. Không persist session/cache/password vào storage.
 
 Font stack đã khai báo Be Vietnam Pro/Segoe UI/Arial; React chưa nạp font Be Vietnam Pro riêng, nên browser chưa có font này dùng fallback. Nạp font và kiểm tra typography đầy đủ là mục visual/assets còn lại từ review Phase 1.
 
@@ -57,7 +57,7 @@ Role gate nằm tại page; permission/membership quyết định action chi ti�
 
 **Public tracking:** page hiện gọi `GetAsync(trackingCode)` và nhận summary. Có model xác minh trong component và Application hỗ trợ phone-last-four, nhưng input này chưa được truyền vào lời gọi hiện tại. Không mô tả verified tracking là flow UI hoàn chỉnh.
 
-**Authentication hiện tại:** browser form đi qua `/auth/*` endpoints để thay đổi cookie; POST yêu cầu antiforgery. Giữ flow redirect/form cho các trang Blazor trong giai đoạn coexist; không giả định cookie mới tự cập nhật circuit đang mở. JSON session/CSRF endpoint cho React sẽ được bổ sung riêng theo Phase 2, không thay flow cũ trước checkpoint.
+**Authentication hiện tại:** browser form Blazor đi qua `/auth/*`; React dùng JSON `/api/v1/app/auth/*`. POST đều yêu cầu antiforgery. Giữ flow redirect/form cho các trang Blazor trong coexist; không giả định cookie mới tự cập nhật circuit đang mở.
 
 ## Quy ước UI Blazor hiện tại
 
