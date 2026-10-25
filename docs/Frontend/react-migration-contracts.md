@@ -52,6 +52,12 @@ Baseline đã đọc cả Operations chưa commit; HEAD không đại diện đ�
 
 ## Contract browser đã chốt để triển khai
 
+### Phase 8 — Shop settings (đang kiểm chứng)
+
+Đã có GET/PUT `/api/v1/app/shops/{shopId}/profile`, POST `/shops`, GET/POST `/shops/{shopId}/staff`, PUT `/staff/{staffUserId}`; GET `/cod-report`, `/audit`, `/notifications`, GET/PUT `/notifications/preferences`, POST `/notifications/{notificationId}/read`. Tất cả gọi use case Application với actor principal. Profile read ViewShipments có masking; update cần ManageShopProfile và active Shop, UI thêm ViewFullPii để không sửa snapshot bị che. Additional Shop chỉ owner, chuẩn hóa province/ward bằng Application. Staff chỉ owner theo service hiện tại; Admin role đơn lẻ không vượt ShopAccess; target là UserId, không phải MembershipId. Role preset được server validate; browser truyền permissions dạng mảng tên từng flag, không serialize flags kết hợp qua strict enum converter. Password tạo staff chỉ ở form/request ngắn hạn, không vào query cache/URL/storage.
+
+COD report giữ window tối đa10.000 dòng/tổng tiền hiện tại; audit có SQL action/date/limit<=500, notification giới hạn<=200 và scope cả Shop+user. Không thêm page token giả hoặc phân trang client; chưa đổi báo cáo thành tổng toàn lịch sử. Ngày filter UTC theo Blazor hiện tại; export giữ `/shop/files/cod-report.csv` và ExportData độc lập. Preferences cần ManageNotifications, đọc notification chỉ ViewShipments; audit cần ViewAudit và luôn mask sensitive JSON/text. Không cấp settlement cho Shop. React routes và kết quả E2E chỉ chốt hoàn tất trong validation log.
+
 ### Phase 7 — Shipper self API và mobile workspace
 
 Đã có `/api/v1/app/shipper/me`: GET workspace/profile/working-areas/cod-summary, PUT availability, POST shipments/{id}/status và /cod/collect. Actor lấy principal; không nhận shipper ID để chọn người khác. Profile chỉ gọi Identity summary theo actor và aggregate tải hiện tại; không gọi lookup mọi shipper. Workspace gọi SearchAsync phân trang SQL, tracking search khớp chính xác, name/phone hỗ trợ text như repository hiện tại. Stage CodPending giữ filter PendingCollection từ Application. COD summary nhận businessDate yyyy-MM-dd, mặc định ngày UTC của TimeProvider; giữ membership lịch sử assignment của báo cáo cũ, không đổi policy tài chính.

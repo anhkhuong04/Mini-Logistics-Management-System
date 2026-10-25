@@ -54,6 +54,10 @@ public static class BrowserApiEndpoints
         group.MapBrowserOperationsAssignments();
         group.MapBrowserOperationsActions();
         group.MapBrowserShipper();
+        group.MapBrowserShopProfile();
+        group.MapBrowserShopStaff();
+        group.MapBrowserShopSettingsReads();
+        group.MapBrowserShopNotifications();
         endpoints.MapBrowserReferenceData();
         return group;
     }

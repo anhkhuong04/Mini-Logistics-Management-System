@@ -15,11 +15,23 @@ public sealed class CreateAdditionalShopService : ICreateAdditionalShopService
     private readonly IShopRepository _shopRepository;
     private readonly IAdminAuditService _adminAuditService;
     private readonly TimeProvider _timeProvider;
+    private readonly IAdministrativeDivisionService _administrativeDivisionService;
 
     public CreateAdditionalShopService(
         IValidator<CreateAdditionalShopCommand> validator,
         IShopAccessService shopAccessService,
         IShopRepository shopRepository,
+        TimeProvider timeProvider,
+        IAdminAuditService? adminAuditService = null)
+        : this(validator, shopAccessService, shopRepository, PassThroughAdministrativeDivisionService.Instance, timeProvider, adminAuditService)
+    {
+    }
+
+    public CreateAdditionalShopService(
+        IValidator<CreateAdditionalShopCommand> validator,
+        IShopAccessService shopAccessService,
+        IShopRepository shopRepository,
+        IAdministrativeDivisionService administrativeDivisionService,
         TimeProvider timeProvider,
         IAdminAuditService? adminAuditService = null)
     {
@@ -28,6 +40,7 @@ public sealed class CreateAdditionalShopService : ICreateAdditionalShopService
         _shopRepository = shopRepository;
         _timeProvider = timeProvider;
         _adminAuditService = adminAuditService ?? NullAdminAuditService.Instance;
+        _administrativeDivisionService = administrativeDivisionService;
     }
 
     public async Task<Result<CreateAdditionalShopResponse>> CreateAsync(
@@ -56,6 +69,8 @@ public sealed class CreateAdditionalShopService : ICreateAdditionalShopService
                 ApplicationErrors.Forbidden("Only a shop owner can create an additional shop."));
         }
 
+        var division = await _administrativeDivisionService.NormalizeProvinceWardAsync(command.Province, command.Ward, cancellationToken);
+        if (division.IsFailure) return Result<CreateAdditionalShopResponse>.Failure(division.Error);
         try
         {
             var shop = new Shop(
@@ -64,8 +79,8 @@ public sealed class CreateAdditionalShopService : ICreateAdditionalShopService
                 new PhoneNumber(command.PhoneNumber),
                 new Address(
                     command.AddressLine,
-                    command.Ward,
-                    command.Province,
+                    division.Value.Ward,
+                    division.Value.Province,
                     command.Country),
                 _timeProvider.GetUtcNow());
 

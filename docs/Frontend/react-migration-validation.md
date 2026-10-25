@@ -1,5 +1,9 @@
 # Frontend migration — validation log
 
+## 25/10/2026 — Phase 8 backend/UI checkpoint
+
+Profile endpoint regression bắt đầu RED404, sau triển khai pass với masking/cross-Shop/validation/inactive, actor/audit và shipment address snapshot. Browser settings tests kiểm owner-only staff, UserId khác MembershipId, preset/flag validation, stale cookie bị thu hồi quyền, report money string, per-user notification/read/preferences, audit mask và denied export. Application profile/staff10/10 pass; targeted React8/8 pass, build/typecheck/lint0. E2E đầu báo cáo và restricted reader2/2 pass; profile/staff phát hiện required marker AntD nằm trong accessible name, đã sửa aria-hidden theo pattern hiện có và đang chạy lại. Chưa đánh dấu Phase 8 hoàn tất ở checkpoint này.
+
 ## 25/10/2026 — Phase 7 lifecycle và parity COD
 
 T07.03 bổ sung `cross-role-lifecycle.spec.ts`: bốn cookie session độc lập chạy Shop tạo → Operator phân công → Shipper lấy/vận chuyển/giao thất bại với reason/note → retry/giao thành công → thu COD → Admin đối soát. Sau browser, fixture kiểm database: đúng actor từng history, hai lần Delivering, failure reason/note, assignment kết thúc, số thực thu/chênh lệch, collector/settler và audit/outbox notification. Worker notification/webhook bị bỏ trong fixture; đây là evidence enqueue, không phải external delivery hay SQL transaction evidence.
