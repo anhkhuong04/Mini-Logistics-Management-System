@@ -20,6 +20,9 @@ import { useShipments } from './queries';
 import { readShipmentFilters, shipmentSearch, shipmentStatuses, sortFields, utcDateRange, type ShipmentFilters } from './shipmentFilters';
 import type { ShipmentItem } from './api';
 import { useShipmentFormCopy } from '../../shared/i18n/shipmentFormCopy';
+import { ShipmentImportPanel } from '../shipment-import/ShipmentImportPanel';
+import { FileDownloadButton } from './FileDownloadButton';
+import { exportShipmentsUrl } from './downloads';
 
 type FilterForm = ShipmentFilters & { fromDate?: string; toDate?: string };
 export function ShipmentListPage() {
@@ -65,6 +68,8 @@ export function ShipmentListPage() {
   return <><PageHeader title={copy.list} actions={<Space wrap><Button icon={<ReloadOutlined aria-hidden />} onClick={() => void query.refetch()} disabled={!filters || !context}>{copy.refresh}</Button>
     {selected?.isActive && selected.permissions.includes('ManageShipments') && <Link className="ant-btn ant-btn-primary" to={`${routePaths.shipmentCreate}?shopId=${selected.shopId}`}><PlusOutlined aria-hidden /> {formCopy.create}</Link>}</Space>} />
     <ShopReadBoundary><ShopContextSelector showInactive={false} />
+      <Space wrap className="shipment-file-actions">{selected?.permissions.includes('ExportData') && filters && <FileDownloadButton path={exportShipmentsUrl(selected.shopId, filters)} mime="text/csv" label={locale === 'en-US' ? 'Export shipments CSV' : 'Xuất CSV vận đơn'} />}</Space>
+      <ShipmentImportPanel />
       {(invalid || formError) && <Alert type="error" role="alert" title={copy.invalid} action={<Button icon={<ClearOutlined aria-hidden />} onClick={() => { setFormError(false); replace({}); }}>{copy.reset}</Button>} />}
       <Form form={form} layout="vertical" onFinish={apply} className="filter-panel">
         <div className="filter-primary"><Form.Item name="trackingCode" label={copy.tracking}><Input prefix={<SearchOutlined aria-hidden />} allowClear /></Form.Item>

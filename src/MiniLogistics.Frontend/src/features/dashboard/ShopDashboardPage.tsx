@@ -20,6 +20,8 @@ import { routePaths } from '../../app/router/routePaths';
 import { groupStatuses } from './statusDistribution';
 import { useDashboard } from './queries';
 import type { ShipmentItem } from '../shipments/api';
+import { FileDownloadButton } from '../shipments/FileDownloadButton';
+import { codExportUrl } from '../shipments/downloads';
 
 export function ShopDashboardPage() {
   const copy = useDashboardCopy(), shipmentCopy = useShipmentCopy(); const { locale } = useI18n(); const { session } = useSession();
@@ -73,6 +75,7 @@ export function ShopDashboardPage() {
                 <Progress percent={group.percent} showInfo={false} strokeColor={group.color} aria-label={group.key === 'processing' ? copy.processing : shipmentCopy.labels[group.status]} />
               </li>)}</ul>}
           </Card><Card title={canCod ? copy.finance : copy.fees} extra={canCod && <a href={`/shop/cod-report?shopId=${shop!.shopId}`}>{copy.codReport}</a>}>
+            {canCod && shop?.permissions.includes('ExportData') && range && <FileDownloadButton path={codExportUrl(shop.shopId, range)} mime="text/csv" label={locale === 'en-US' ? 'Export COD CSV' : 'Xuất CSV COD'} />}
             <dl className="money-list">
               {canCod && <><div><dt>{copy.pendingCod}</dt><dd>{money(kpi.pendingCodAmount)}</dd></div><div><dt>{copy.collectedCod}</dt><dd>{money(kpi.collectedCodAmount)}</dd></div></>}
               <div><dt>{copy.fees}</dt><dd>{money(kpi.totalShippingFee)}</dd></div>

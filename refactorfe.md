@@ -1,6 +1,6 @@
 # React + TypeScript + Ant Design Frontend Refactor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–4 đã hoàn tất; Phase 5 chưa bắt đầu. Xem validation log cho evidence; auth/context/dashboard/shipment read/form/actions chạy React dưới `/app`, renderer chưa chuyển vẫn chạy Blazor.
+> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–5 đã hoàn tất; Phase 6 chưa bắt đầu. Xem validation log cho evidence; auth/context/dashboard/shipment read/form/actions/import/download chạy React dưới `/app`, renderer chưa chuyển vẫn chạy Blazor.
 
 **Goal:** Thay toàn bộ frontend Blazor bằng React + TypeScript + Ant Design, giữ tương đương chức năng, quyền truy cập và các hợp đồng nghiệp vụ/tích hợp hiện tại.
 
@@ -476,10 +476,10 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** `POST .../shops/{shopId}/shipment-imports/preview` multipart CSV; `POST .../shipment-imports/confirm` nhận rows đã sửa; `GET .../shipment-imports/{batchId}`; gọi IPreview/IConfirm/IGetShipmentImportBatchService.
 
-- [ ] Server kiểm tra file tối đa `2_000_000` bytes cho phần file, có multipart request limit bao gồm overhead; reject oversized/chất liệu không hợp lệ an toàn, không log raw CSV.
-- [ ] Test parse/row validation, duplicate row/client code theo behavior hiện tại, cross-Shop và thiếu ManageShipments; confirm phải revalidate, không tin preview client.
-- [ ] Move preview/confirm limiter vào endpoint; giữ threshold và 429; batch status đọc qua Application, không query DbContext từ endpoint.
-- [ ] Giữ worker/lease/outbox và response sync/async hiện có; lỗi row phải có row number/code không làm lộ tenant khác.
+- [x] Server kiểm tra file tối đa `2_000_000` bytes cho phần file, có multipart request limit bao gồm overhead; reject oversized/chất liệu không hợp lệ an toàn, không log raw CSV.
+- [x] Test parse/row validation, duplicate row/client code theo behavior hiện tại, cross-Shop và thiếu ManageShipments; confirm phải revalidate, không tin preview client.
+- [x] Move preview/confirm limiter vào endpoint; giữ threshold và 429; batch status đọc qua Application, không query DbContext từ endpoint.
+- [x] Giữ worker/lease/outbox và response sync/async hiện có; lỗi row phải có row number/code không làm lộ tenant khác.
 
 **Verify:** Browser import + Application import cases; LocalDB test liên quan nếu chạm transaction/worker, không thay bằng UI fake.
 
@@ -489,9 +489,9 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** preview → edit/confirm → batch polling mỗi 2 giây → kết quả; poll chỉ khi batch chưa terminal và view đúng user/Shop.
 
-- [ ] AntD Upload chọn CSV không auto-upload ngoài flow; mẫu CSV đặt trong panel import; row error/success/count hiển thị riêng.
-- [ ] Test sửa row sau preview vẫn được server validate lại; chặn confirm lặp trong khi request pending, không tự retry mutation khi timeout.
-- [ ] Poll dừng khi terminal/unmount/logout/đổi Shop; abort request cũ, không cập nhật UI Shop mới bằng batch cũ; error có retry thủ công.
+- [x] AntD Upload chọn CSV không auto-upload ngoài flow; mẫu CSV đặt trong panel import; row error/success/count hiển thị riêng.
+- [x] Test sửa row sau preview vẫn được server validate lại; chặn confirm lặp trong khi request pending, không tự retry mutation khi timeout.
+- [x] Poll dừng khi terminal/unmount/logout/đổi Shop; abort request cũ, không cập nhật UI Shop mới bằng batch cũ; error có retry thủ công.
 
 **Verify:** fake-timer component tests và E2E preview-invalid/confirm/async-complete/download errors; không chờ thật nhiều giây trong unit test.
 
@@ -501,9 +501,9 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** giữ `/shop/files/shipments/export.csv`, `/cod-report.csv`, `/shipments/{shipmentId}/label.pdf`, `/import-batches/{batchId}/errors.csv`; giữ query Shop/filter hiện có.
 
-- [ ] Dùng requestDownload giữ cookie, filename Content-Disposition và MIME; xử lý 400/401/403/429/HTML login response an toàn, revoke object URL sau tải.
-- [ ] Test quyền ExportData/ViewCod/label và Shop isolation thực qua Application; không tạo URL chỉ dựa vào UI gate.
-- [ ] Filter export trùng filter list, CSV giữ escaping/formula protection hiện có, PDF là binary không đi qua JSON parser.
+- [x] Dùng requestDownload giữ cookie, filename Content-Disposition và MIME; xử lý 400/401/403/429/HTML login response an toàn, revoke object URL sau tải.
+- [x] Test quyền ExportData/ViewCod/label và Shop isolation thực qua Application; không tạo URL chỉ dựa vào UI gate.
+- [x] Filter export trùng filter list, CSV giữ escaping/formula protection hiện có, PDF là binary không đi qua JSON parser.
 
 **Verify:** browser download event nhận file đúng loại/tên, request Shop/filter đúng, denied/rate-limit có feedback; không đổi public file contract ngoài phạm vi.
 

@@ -35,7 +35,8 @@ public sealed class BrowserRealBrowserTests
         using var pemCertificate = X509Certificate2.CreateFromPemFile(Path.Combine(certDirectory, "localhost.pem"), Path.Combine(certDirectory, "localhost.key"));
         // Windows Schannel needs a persisted key handle; do not write the PFX or its key to disk.
         using var certificate = X509CertificateLoader.LoadPkcs12(pemCertificate.Export(X509ContentType.Pfx), null);
-        await using var factory = new BrowserIdentityFactory(enableFrontend: true);
+        await using var factory = new BrowserIdentityFactory(enableFrontend: true,
+            configureServices: services => services.AddHostedService<ShipmentImportWorker>());
         factory.UseKestrel(options => options.Listen(IPAddress.Loopback, 0, listen => listen.UseHttps(certificate)));
         using var client = factory.Client();
         var owner = await factory.AddUser("browser-owner@example.test", "Shop");
@@ -70,6 +71,8 @@ public sealed class BrowserRealBrowserTests
         start.ArgumentList.Add("e2e/shop-shipments.spec.ts");
         start.ArgumentList.Add("e2e/dashboard.spec.ts");
         start.ArgumentList.Add("e2e/shipment-lifecycle-shop.spec.ts");
+        start.ArgumentList.Add("e2e/shipment-import.spec.ts");
+        start.ArgumentList.Add("e2e/downloads.spec.ts");
         start.Environment["MINILOGISTICS_E2E_BASE_URL"] = address + "/app/";
         start.Environment["MINILOGISTICS_E2E_IDENTITY_FIXTURE"] = "1";
         start.Environment["MINILOGISTICS_E2E_PASSWORD"] = BrowserIdentityFactory.Password;

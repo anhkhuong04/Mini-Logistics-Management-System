@@ -1,0 +1,41 @@
+import { test, expect } from '@playwright/test';
+import { randomUUID } from 'node:crypto';
+import { mkdir } from 'node:fs/promises';
+test.skip(!process.env.MINILOGISTICS_E2E_IDENTITY_FIXTURE, 'Requires isolated Identity/data fixture and real import worker.');
+test('CSV preview edit confirm real worker completion and error download', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto('./login'); await page.getByLabel('Email', { exact: true }).fill('browser-mutation-owner@example.test');
+  await page.getByLabel('Mật khẩu', { exact: true }).fill(process.env.MINILOGISTICS_E2E_PASSWORD!);
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click(); await expect(page).toHaveURL(/\/app\/dashboard(?:\?|$)/);
+  await page.goto('./shipments'); await page.getByRole('button', { name: 'Nhập CSV', exact: true }).click();
+  const reference = await (await page.request.get('/api/v1/public/reference-data/provinces')).json();
+  const province = reference.provinces.find((item: { name: string }) => item.name === 'Thành phố Hà Nội');
+  const header = 'clientOrderCode,receiverName,receiverPhone,deliveryStreet,deliveryWard,deliveryProvince,deliveryCountry,weightKg,lengthCm,widthCm,heightCm,goodsValueAmount,codAmount,note';
+  const code = randomUUID();
+  const csv = `${header}\n${code},,0901234567,Test Street,${province.wards[0].name},${province.name},Vietnam,1,10,10,10,bad,10000,Test\n${code}-bad,Invalid Receiver,bad,Street,${province.wards[0].name},${province.name},Vietnam,1,10,10,10,0,0,Test`;
+  let previews = 0; page.on('request', request => { if (request.url().endsWith('/shipment-imports/preview')) previews++; });
+  await page.locator('input[type=file]').setInputFiles({ name: 'import.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+  expect(previews).toBe(0); await page.getByRole('button', { name: 'Kiểm tra CSV', exact: true }).click();
+  const receiver = page.getByRole('textbox', { name: 'Dòng 2 · Tên người nhận', exact: true }); await expect(receiver).toBeVisible();
+  const previewErrorDownload = page.waitForEvent('download'); await page.getByRole('button', { name: 'Tải lỗi preview CSV', exact: true }).click();
+  expect((await previewErrorDownload).suggestedFilename()).toBe('shipment-import-errors.csv');
+  await receiver.fill('Bulk Receiver');
+  const goods = page.getByRole('spinbutton', { name: 'Dòng 2 · Giá trị hàng hóa', exact: true });
+  await expect(goods).toHaveValue(''); await expect(page.getByRole('button', { name: 'Xác nhận nhập', exact: true })).toBeDisabled(); await goods.fill('0');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await mkdir('../../.agent/refactorfe-phase5/screenshots', { recursive: true });
+  await page.screenshot({ path: '../../.agent/refactorfe-phase5/screenshots/import-390.png', fullPage: true,
+    mask: [page.getByRole('region', { name: 'Shop hiện tại' }), page.getByRole('textbox'), page.getByRole('spinbutton'), page.getByRole('cell')] });
+  const confirms: string[] = [];
+  await page.route('**/shipment-imports/confirm', async route => { confirms.push(route.request().postData()!); await new Promise(resolve => setTimeout(resolve, 300)); await route.continue(); });
+  const response = page.waitForResponse(response => response.url().endsWith('/shipment-imports/confirm'));
+  await page.getByRole('button', { name: 'Xác nhận nhập', exact: true }).dblclick();
+  const confirmed = await (await response).json(); expect(confirms).toHaveLength(1); expect(JSON.parse(confirms[0]).rows[0].receiverName).toBe('Bulk Receiver');
+  await expect(page.getByText(/Batch đã kết thúc/)).toBeVisible({ timeout: 20000 });
+  await expect(page.getByRole('link', { name: /^ML/ }).last()).toBeVisible();
+  const download = page.waitForEvent('download'); await page.getByRole('button', { name: 'Tải CSV lỗi', exact: true }).click();
+  expect((await download).suggestedFilename()).toBe(`shipment-import-${confirmed.batchId.replaceAll('-', '')}-errors.csv`);
+  const batchPath = `/api/v1/app/shops/${new URL(page.url()).searchParams.get('shopId')}/shipment-imports/${confirmed.batchId}`;
+  let reads = 0; page.on('request', request => { if (new URL(request.url()).pathname === batchPath) reads++; });
+  await page.waitForTimeout(2300); expect(reads).toBe(0); // Terminal state stops the2s poll.
+});

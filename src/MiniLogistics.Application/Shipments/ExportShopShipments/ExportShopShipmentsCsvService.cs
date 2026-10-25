@@ -155,6 +155,7 @@ public sealed class ExportShopShipmentsCsvService : IExportShopShipmentsCsvServi
 
     private static string ToCsvField(string value)
     {
+        if (value.TrimStart().FirstOrDefault() is '=' or '+' or '-' or '@') value = "'" + value;
         return "\"" + value.Replace("\"", "\"\"", StringComparison.Ordinal) + "\"";
     }
 }

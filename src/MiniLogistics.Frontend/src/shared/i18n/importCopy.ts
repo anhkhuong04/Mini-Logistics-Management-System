@@ -1,0 +1,23 @@
+import { useI18n } from './I18nContext';
+const vi = { title: 'Nhập CSV', open: 'Nhập CSV', close: 'Đóng nhập CSV', template: 'Tải mẫu CSV', choose: 'Chọn CSV', preview: 'Kiểm tra CSV', confirm: 'Xác nhận nhập', reset: 'Bắt đầu lại',
+  limit: 'Tối đa 2 MB (2.000.000 byte), 500 dòng. File UTF-8, có hàng tiêu đề.', total: 'Tổng dòng', valid: 'Hợp lệ lúc kiểm tra', invalid: 'Lỗi lúc kiểm tra',
+  hint: 'Có thể sửa từng dòng bên dưới. Server kiểm tra lại mọi dữ liệu khi xác nhận; phí preview không phải phí cuối cùng.', edited: 'Đã sửa; chờ server kiểm tra lại',
+  failure: 'Không thể xử lý CSV. Kiểm tra file, quyền và dữ liệu trước khi thử lại.', oversized: 'Chọn file .csv không quá 2.000.000 byte.', retry: 'Thử lại',
+  pending: 'Batch đang xử lý', done: 'Batch đã kết thúc', created: 'Đã tạo', failed: 'Thất bại', errors: 'Lỗi từng dòng', row: 'Dòng', code: 'Mã đơn của Shop', tracking: 'Mã vận đơn',
+  results: 'Kết quả nhập', downloadErrors: 'Tải CSV lỗi', pollError: 'Không thể đọc batch. Bấm thử lại để tiếp tục, không xác nhận lại batch.',
+  unknown: 'Chưa xác định được kết quả xác nhận. Kiểm tra danh sách đơn trước khi nhập lại để tránh trùng.', selectFile: 'Chọn file rồi bấm kiểm tra. File không tự upload.',
+  batchId: 'Batch ID', lookup: 'Tra cứu batch', lookupHint: 'Dán Batch ID đã nhận để xem lại tiến độ, không gửi lại confirm.', forbidden: 'Shop không hoạt động; chỉ xem lại kết quả batch.',
+  numericRequired: 'Nhập lại các ô số bị thiếu hoặc sai định dạng trước khi xác nhận. Giá trị lỗi không được coi là 0.',
+  previewErrors: 'Tải lỗi preview CSV',
+};
+const en: Record<keyof typeof vi, string> = { title: 'CSV import', open: 'Import CSV', close: 'Close import', template: 'Download CSV template', choose: 'Choose CSV', preview: 'Validate CSV', confirm: 'Confirm import', reset: 'Start over',
+  limit: 'Up to 2 MB (2,000,000 bytes), 500 rows. UTF-8 with a header row.', total: 'Total rows', valid: 'Valid at preview', invalid: 'Invalid at preview',
+  hint: 'Edit rows below. The server validates every row again at confirmation; preview fees are advisory.', edited: 'Edited; awaiting server validation',
+  failure: 'Unable to process CSV. Check the file, permissions and data before retrying.', oversized: 'Choose a .csv file of at most 2,000,000 bytes.', retry: 'Retry',
+  pending: 'Batch processing', done: 'Batch finished', created: 'Created', failed: 'Failed', errors: 'Row errors', row: 'Row', code: 'Shop order code', tracking: 'Tracking code', results: 'Import results',
+  downloadErrors: 'Download error CSV', pollError: 'Unable to read the batch. Retry the read; do not confirm the batch again.', unknown: 'The confirmation outcome is unknown. Check shipments before importing again to avoid duplicates.',
+  selectFile: 'Select a file then validate it. Files are not uploaded automatically.', batchId: 'Batch ID', lookup: 'Look up batch', lookupHint: 'Paste a known Batch ID to resume reading its progress without submitting again.', forbidden: 'The Shop is inactive; previous batch results remain available.',
+  numericRequired: 'Correct missing or malformed numeric cells before confirming. Invalid values are not treated as zero.',
+  previewErrors: 'Download preview errors CSV',
+};
+export function useImportCopy() { return useI18n().locale === 'en-US' ? en : vi; }

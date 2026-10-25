@@ -16,7 +16,8 @@ public sealed record ShipmentImportPreviewRowResponse(
     RouteType? RouteType,
     decimal? ChargeableWeightKg,
     decimal? ShippingFeeAmount,
-    string Currency);
+    string Currency,
+    IReadOnlyList<string>? InvalidNumericFields = null);
 
 public sealed record ShipmentImportConfirmResponse(
     int TotalRows,

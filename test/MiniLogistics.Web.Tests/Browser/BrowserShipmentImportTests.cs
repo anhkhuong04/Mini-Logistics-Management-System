@@ -12,6 +12,16 @@ namespace MiniLogistics.Web.Tests.Browser;
 
 public sealed class BrowserShipmentImportTests
 {
+    [Fact]
+    public async Task PreviewOpenApi_DescribesNamedMultipartFilePart()
+    {
+        await using var factory = new BrowserIdentityFactory(); using var client = factory.Client();
+        var document = await client.GetFromJsonAsync<JsonElement>("/openapi/browser-v1.json");
+        var schema = document.GetProperty("paths").GetProperty("/api/v1/app/shops/{shopId}/shipment-imports/preview").GetProperty("post")
+            .GetProperty("requestBody").GetProperty("content").GetProperty("multipart/form-data").GetProperty("schema");
+        var name = schema.GetProperty("$ref").GetString()!.Split('/').Last();
+        Assert.True(document.GetProperty("components").GetProperty("schemas").GetProperty(name).GetProperty("properties").TryGetProperty("file", out _));
+    }
     internal const string Headers = "clientOrderCode,receiverName,receiverPhone,deliveryStreet,deliveryWard,deliveryProvince,deliveryCountry,weightKg,lengthCm,widthCm,heightCm,goodsValueAmount,codAmount,note";
     internal static async Task<string> Csv(HttpClient client, string code = "IMPORT-1")
     {
@@ -65,6 +75,16 @@ public sealed class BrowserShipmentImportTests
         Assert.Equal(HttpStatusCode.Forbidden, (await other.PostAsync(path + "/preview", File(Encoding.UTF8.GetBytes(csv)))).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await other.PostAsJsonAsync(path + "/confirm", new { rows = new[] { row } })).StatusCode);
         Assert.Equal(HttpStatusCode.Forbidden, (await other.GetAsync(path + "/" + batchId)).StatusCode);
+    }
+    [Fact]
+    public async Task Preview_IdentifiesInvalidNumericCellsWithoutSilentlyTreatingThemAsRealZero()
+    {
+        await using var factory = new BrowserIdentityFactory(); using var client = factory.Client(); var owner = await factory.AddUser("numeric-import@example.test", "Shop");
+        var shop = await BrowserShippingQuoteTests.Seed(factory, owner); await BrowserShopShipmentReadTests.Login(client, "numeric-import@example.test"); await BrowserIdentityFactory.Csrf(client);
+        var csv = (await Csv(client)).Replace(",0,10000,Test", ",bad,bad,Test");
+        var preview = await (await client.PostAsync($"/api/v1/app/shops/{shop.Id}/shipment-imports/preview", File(Encoding.UTF8.GetBytes(csv)))).Content.ReadFromJsonAsync<JsonElement>();
+        var fields = preview.GetProperty("rows")[0].GetProperty("invalidNumericFields").EnumerateArray().Select(value => value.GetString()).ToList();
+        Assert.Contains("codAmount", fields); Assert.Contains("goodsValueAmount", fields);
     }
     [Theory]
     [InlineData("oversize", 413)]

@@ -2448,7 +2448,7 @@
           "content": {
             "multipart/form-data": {
               "schema": {
-                "$ref": "#/components/schemas/IFormFile"
+                "$ref": "#/components/schemas/BrowserShipmentImportPreviewRequest"
               }
             }
           },
@@ -3061,6 +3061,17 @@
             "items": {
               "$ref": "#/components/schemas/ShipmentImportRowDraft"
             }
+          }
+        }
+      },
+      "BrowserShipmentImportPreviewRequest": {
+        "required": [
+          "file"
+        ],
+        "type": "object",
+        "properties": {
+          "file": {
+            "$ref": "#/components/schemas/IFormFile"
           }
         }
       },
@@ -3950,6 +3961,15 @@
           },
           "currency": {
             "type": "string"
+          },
+          "invalidNumericFields": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            }
           }
         }
       },

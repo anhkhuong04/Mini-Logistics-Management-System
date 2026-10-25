@@ -7,6 +7,7 @@ using MiniLogistics.Web.Services;
 namespace MiniLogistics.Web.Endpoints.Browser;
 
 public sealed record BrowserRequestBodyLimit(long Bytes);
+public sealed record BrowserShipmentImportPreviewRequest(IFormFile File);
 public sealed record BrowserShipmentImportConfirmRequest(IReadOnlyList<ShipmentImportRowDraft> Rows);
 
 public static class BrowserShipmentImportEndpoints
@@ -16,7 +17,7 @@ public static class BrowserShipmentImportEndpoints
     public static void MapBrowserShipmentImports(this RouteGroupBuilder group)
     {
         group.MapPost("/shops/{shopId:guid}/shipment-imports/preview", PreviewAsync)
-            .WithName("BrowserPreviewShipmentImport").Accepts<IFormFile>("multipart/form-data")
+            .WithName("BrowserPreviewShipmentImport").Accepts<BrowserShipmentImportPreviewRequest>("multipart/form-data")
             .WithMetadata(new BrowserRequestBodyLimit(RequestLimit)).Produces<ShipmentImportPreviewResponse>();
         group.MapPost("/shops/{shopId:guid}/shipment-imports/confirm", async (HttpContext context, Guid shopId,
             IConfirmShipmentImportService service, IShopUiActionRateLimiter limiter) =>

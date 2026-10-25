@@ -192,7 +192,7 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
                 row.Draft,
                 errors,
                 cancellationToken);
-            previewRows.Add(rowResult);
+            previewRows.Add(rowResult with { InvalidNumericFields = row.InvalidNumericFields });
         }
 
         var response = new ShipmentImportPreviewResponse(
@@ -531,6 +531,7 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
     private static ParsedImportRow ParseDraft(CsvDataRow row, IReadOnlyDictionary<string, int> headerIndexes)
     {
         var errors = new List<string>();
+        var invalidNumericFields = new List<string>();
         var draft = new ShipmentImportRowDraft(
             row.RowNumber,
             NormalizeOptional(GetField(row, headerIndexes, "clientOrderCode")),
@@ -540,15 +541,15 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
             GetRequiredField(row, headerIndexes, "deliveryWard", errors),
             GetRequiredField(row, headerIndexes, "deliveryProvince", errors),
             GetRequiredField(row, headerIndexes, "deliveryCountry", errors),
-            GetRequiredDecimal(row, headerIndexes, "weightKg", errors),
-            GetRequiredDecimal(row, headerIndexes, "lengthCm", errors),
-            GetRequiredDecimal(row, headerIndexes, "widthCm", errors),
-            GetRequiredDecimal(row, headerIndexes, "heightCm", errors),
-            GetRequiredDecimal(row, headerIndexes, "goodsValueAmount", errors),
-            GetRequiredDecimal(row, headerIndexes, "codAmount", errors),
+            GetRequiredDecimal(row, headerIndexes, "weightKg", errors, invalidNumericFields),
+            GetRequiredDecimal(row, headerIndexes, "lengthCm", errors, invalidNumericFields),
+            GetRequiredDecimal(row, headerIndexes, "widthCm", errors, invalidNumericFields),
+            GetRequiredDecimal(row, headerIndexes, "heightCm", errors, invalidNumericFields),
+            GetRequiredDecimal(row, headerIndexes, "goodsValueAmount", errors, invalidNumericFields),
+            GetRequiredDecimal(row, headerIndexes, "codAmount", errors, invalidNumericFields),
             NormalizeOptional(GetField(row, headerIndexes, "note")));
 
-        return new ParsedImportRow(draft, errors);
+        return new ParsedImportRow(draft, errors, invalidNumericFields);
     }
 
     private static HashSet<int> GetDuplicateClientOrderRowNumbers(IEnumerable<ShipmentImportRowDraft> rows)
@@ -580,18 +581,21 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
         CsvDataRow row,
         IReadOnlyDictionary<string, int> headerIndexes,
         string header,
-        List<string> errors)
+        List<string> errors,
+        List<string> invalidNumericFields)
     {
         var value = GetField(row, headerIndexes, header).Trim();
         if (string.IsNullOrWhiteSpace(value))
         {
             errors.Add($"{header} is required.");
+            invalidNumericFields.Add(header);
             return 0;
         }
 
         if (!decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var result))
         {
             errors.Add($"{header} must be a valid decimal number.");
+            invalidNumericFields.Add(header);
             return 0;
         }
 
@@ -736,5 +740,6 @@ public sealed class ShipmentImportService : IPreviewShipmentImportService, IConf
 
     private sealed record ParsedImportRow(
         ShipmentImportRowDraft Draft,
-        IReadOnlyList<string> Errors);
+        IReadOnlyList<string> Errors,
+        IReadOnlyList<string> InvalidNumericFields);
 }

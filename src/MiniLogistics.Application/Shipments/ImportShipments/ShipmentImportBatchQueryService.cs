@@ -96,6 +96,7 @@ public sealed class ShipmentImportBatchQueryService :
     private static string Escape(string? value)
     {
         var text = value ?? string.Empty;
+        if (text.TrimStart().FirstOrDefault() is '=' or '+' or '-' or '@') text = "'" + text;
         return text.IndexOfAny([',', '"', '\r', '\n']) < 0
             ? text
             : $"\"{text.Replace("\"", "\"\"")}\"";

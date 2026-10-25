@@ -1,6 +1,6 @@
 # Frontend migration — inventory route/action và binding contract
 
-Đối chiếu baseline ngày 25/10/2026. Inventory bao gồm 28 routed page files/30 route declarations, 93 binding gọi service và các browser form/file/local action. Phase 1–4 đã triển khai auth/reference/Shop context, dashboard, shipment list/detail và quote/create/draft/edit/submit/cancel; import/download/nghiệp vụ Phase 5+ vẫn là **đặc tả adapter tương lai**. Trạng thái/evidence theo [migration contracts](react-migration-contracts.md) và [validation log](react-migration-validation.md), không suy ra endpoint đã có chỉ từ bảng. Shop adapters có prefix `/api/v1/app`; A049–A061, A064/A074/A076 đã có, renderer tương ứng chạy dưới `/app`, URL Blazor cũ được giữ.
+Đối chiếu baseline ngày 25/10/2026. Inventory bao gồm 28 routed page files/30 route declarations, 93 binding gọi service và các browser form/file/local action. Phase 1–5 đã triển khai auth/reference/Shop context, dashboard, shipment read/quote/mutation, CSV import và file downloads; nghiệp vụ Phase 6+ vẫn là **đặc tả adapter tương lai**. Trạng thái/evidence theo [migration contracts](react-migration-contracts.md) và [validation log](react-migration-validation.md), không suy ra endpoint đã có chỉ từ bảng. Shop adapters có prefix `/api/v1/app`; A049–A066, A074/A076 đã có, file routes giữ `/shop/files`, renderer tương ứng chạy dưới `/app`, URL Blazor cũ được giữ.
 
 ## Quy ước đọc
 
@@ -291,7 +291,7 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 **Source:** [CreateShipment.razor](../../src/MiniLogistics.Web/Components/Pages/Shipments/CreateShipment.razor). **Routes:** `/shipments/create`.
 
-**React page:** `features/shipments/ShipmentFormPage.tsx` và `ShipmentForm.tsx` đã triển khai ở Phase 4. Route React `/app/shipments/create` giữ `shopId/shipmentId`; API quote và commands có prefix `/api/v1/app`. Tỉnh/phường dùng shared reference query. Update draft rồi submit là hai command tuần tự như Blazor; phí do server tính lại. Editing cần ViewFullPii + ViewCod để không ghi đè masked DTO; không nâng quyền đọc trong Application. Import/download còn ở Blazor đến Phase 5.
+**React page:** `features/shipments/ShipmentFormPage.tsx` và `ShipmentForm.tsx` đã triển khai ở Phase 4. Route React `/app/shipments/create` giữ `shopId/shipmentId`; API quote và commands có prefix `/api/v1/app`. Tỉnh/phường dùng shared reference query. Update draft rồi submit là hai command tuần tự như Blazor; phí do server tính lại. Editing cần ViewFullPii + ViewCod để không ghi đè masked DTO; không nâng quyền đọc trong Application. Phase 5 thêm import/download trên list/detail, Blazor cũ giữ trong coexist.
 
 **Query bind hiện tại:** `shopId`, `shipmentId`.
 
@@ -330,7 +330,7 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 **Source:** [Shipments.razor](../../src/MiniLogistics.Web/Components/Pages/Shipments/Shipments.razor). **Routes:** `/shipments`.
 
-**React page:** `features/shipments/ShipmentListPage.tsx` đã triển khai server paging/filter/sort và URL state ở Phase 3; Phase 4 thêm link tạo React theo active/ManageShipments. Import/download vẫn ở Blazor.
+**React page:** `features/shipments/ShipmentListPage.tsx` đã triển khai server paging/filter/sort và URL state ở Phase 3; Phase 4 thêm link tạo React. Phase 5 có `features/shipment-import/ShipmentImportPanel.tsx`, editable preview và polling2s/lookup Batch ID; chọn file rồi preview, confirm revalidate. CSV2MB/500 rows; numeric parse lỗi phải nhập lại; collapse giữ guard pending/unknown. Export filter theo URL list, bỏ paging; file routes giữ nguyên.
 
 **Query bind hiện tại:** `shopId`, `status`, `fromUtc`, `toUtc`.
 
@@ -342,7 +342,7 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 | A065 | `GetShopContextService.GetAsync` | `GET /shop-context?shopId={shopId}` | Shop/ViewShipments | T02.04 / `BrowserShopContextTests` |
 | A066 | `PreviewShipmentImportService.PreviewAsync` | `POST /shops/{shopId}/shipment-imports/preview` | Shop/ManageShipments; active Shop | T05.01 / `BrowserShipmentImportTests` |
 
-**Download local:** CSV template `shipment-import-template.csv` và lỗi preview `shipment-import-errors.csv` hiện là data URI, không có endpoint backend; port thành Blob download local. Batch lỗi sau confirm dùng file endpoint bên dưới.
+**Download local:** CSV template `shipment-import-template.csv` và lỗi preview `shipment-import-errors.csv` đã chuyển sang Blob download local ở Phase 5, có escaping/formula protection/revoke object URL. Batch lỗi sau confirm dùng file endpoint bên dưới. File API legacy vẫn phục vụ Blazor và React cookie downloads, không thay public URL.
 
 **Handler parity (local/lifecycle + orchestrations; không mặc định tạo endpoint):** `ApplyShipmentFiltersAsync`, `ClearImportState`, `ClearShipmentFiltersAsync`, `ConfirmImportAsync`, `GetCurrentUserIdAsync`, `HandleImportFileChangedAsync`, `LoadShipmentItemsAsync`, `NextShipmentPageAsync`, `OnParametersSetAsync`, `OnShopChanged`, `PollImportBatchAsync`, `PreviousShipmentPageAsync`, `ReloadShipmentItemsForCurrentUserAsync`, `ResetShipmentResults`, `ToggleImportPanel`.
 

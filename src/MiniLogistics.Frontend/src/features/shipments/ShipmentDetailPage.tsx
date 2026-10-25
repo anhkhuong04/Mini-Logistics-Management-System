@@ -16,6 +16,8 @@ import { ReadError } from './ReadError';
 import { shipmentListUrl } from './shipmentFilters';
 import { routePaths } from '../../app/router/routePaths';
 import { ShipmentActions } from './ShipmentActions';
+import { FileDownloadButton } from './FileDownloadButton';
+import { labelUrl } from './downloads';
 export function ShipmentDetailPage() {
   const { id = '' } = useParams(); const query = useShipment(id); const data = query.data;
   const location = useLocation();
@@ -29,6 +31,7 @@ export function ShipmentDetailPage() {
     <ShopReadBoundary>{!isShipmentId(id) ? <Result status="404" title={copy.missing} /> : query.error ? <ReadError error={query.error} onRetry={() => void query.refetch()} />
       : <AsyncContent loading={query.isPending}>{data && <><ShipmentActions key={`${session!.userId}/${context!.selectedShopId}/${id}`} shipment={data} reload={() => query.refetch()} /><div className="detail-grid">
         <Card title={data.trackingCode}><ShipmentStatusTag status={data.status} />
+          {data.status !== 'Draft' && context?.shops.find(shop => shop.shopId === context.selectedShopId)?.permissions.includes('ViewFullPii') && <FileDownloadButton path={labelUrl(context.selectedShopId, id)} mime="application/pdf" label={locale === 'en-US' ? 'Download shipping label' : 'Tải nhãn vận chuyển'} />}
           <Descriptions column={1} items={[
             { key: 'sender', label: copy.sender, children: `${data.senderName} · ${data.senderPhone}` },
             { key: 'receiver', label: copy.receiver, children: `${data.receiverName} · ${data.receiverPhone}` },

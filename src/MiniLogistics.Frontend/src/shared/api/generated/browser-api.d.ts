@@ -320,6 +320,9 @@ export interface components {
         BrowserShipmentImportConfirmRequest: {
             rows: components["schemas"]["ShipmentImportRowDraft"][];
         };
+        BrowserShipmentImportPreviewRequest: {
+            file: components["schemas"]["IFormFile"];
+        };
         BrowserShipmentWriteRequest: {
             senderName: string;
             senderPhone: string;
@@ -535,6 +538,7 @@ export interface components {
             chargeableWeightKg: null | string;
             shippingFeeAmount: null | string;
             currency: string;
+            invalidNumericFields?: null | string[];
         };
         ShipmentImportRowDraft: {
             /** Format: int32 */
@@ -2545,7 +2549,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": components["schemas"]["IFormFile"];
+                "multipart/form-data": components["schemas"]["BrowserShipmentImportPreviewRequest"];
             };
         };
         responses: {
