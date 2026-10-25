@@ -2,11 +2,22 @@
 
 Verified against the repository on 2026-09-25. These are context for scoping and testing, not permission to fix them during unrelated work. Re-check the code before acting because this file may age.
 
+Migration-specific notes below were rechecked against source on 2026-10-25. That check does not imply the older runtime/concurrency suites were rerun.
+
 ## Current issues
 
 1. **Public tracking and Shop UI limiters remain process-local/non-atomic.** Route, fee and hub configuration caches now validate local snapshots against shared Redis generations in Production, with SQL fallback when Redis is unavailable. Public tracking and Shop UI limiters still use non-atomic distributed-cache get/set backed by memory and are not multi-instance safe.
 2. **Verified public tracking is not wired through the UI.** The application service supports phone-last-four verification, but the public component currently calls it without that value.
 3. **Documentation drifts.** README progress/test counts and some historic reports may lag current code. Use source/tests/migrations and this context hierarchy rather than copying old counts or schema descriptions.
+4. **Banner administration needs a use-case boundary before HTTP exposure.** `Application/Banners/BannerService.cs` does not receive/check an actor for administrative actions; `AdminBanners.razor` currently supplies the Admin page gate and writes uploaded files directly. T09.04 must add use-case authorization and Infrastructure storage before exposing those actions as browser endpoints. This is a migration prerequisite for that feature, not a claim that an anonymous administrative HTTP endpoint already exists.
+5. **Several internal read services are not actor-authorized entry points.** GetOperationsShipments, GetPendingPickupShipments, GetCodSettlementCandidates, GetActiveShippers and GetLogisticsHubs currently have no actor in their read signature. T06.01/T09.02 must add authorized use-case entry points before HTTP exposure; shipper profile must be a self-only projection, not all active shippers. Manual AutoAssign must pass the existing requestedByUserId argument instead of selecting the system/internal default.
+
+## Migration preparation status
+
+- React/TypeScript/Ant Design is the selected target; current executable UI is still Blazor. Read [migration contract/status](../docs/Frontend/react-migration-contracts.md) before interpreting proposed files, routes, commands or completion checkboxes.
+- Manual-report files under `test/manual` are deleted in the working tree. Their old links have been removed from current guides; do not restore those user deletions during this work. Migration evidence belongs in [the validation log](../docs/Frontend/react-migration-validation.md).
+- Keep the summary-only public tracking behavior and current server-timezone semantics until an explicit behavior change is scoped. Moving browser rate-limit checks from components to ingress does not itself solve multi-instance limiter atomicity.
+- Phase 0 baseline: 320 tests passed, none failed, one Redis integration skipped because its environment variable was absent; see validation log for the exact run, not a permanent test-count claim. Frontend dependencies are pinned but uninstalled; Node local is below the chosen target.
 
 ## Resolved in this branch
 
@@ -26,7 +37,7 @@ Detailed evidence and remediation options are recorded in [historical review](..
 - Production configuration guard, trusted proxy and persisted Data Protection setup.
 - Existing migration history and model snapshot.
 - Shop staff permissions, PII masking and audit boundaries.
-- The existing UI token system in `wwwroot/app.css`.
+- The existing UI token system in `wwwroot/app.css`: preserve it for Blazor maintenance and use its design intent when mapping React Ant Design tokens; the selected migration permits that mapping, not an unrelated brand redesign.
 
 Changes in these areas require an explicit task, end-to-end tracing and focused regression/security tests. Do not replace them with a new framework or pattern merely for consistency.
 

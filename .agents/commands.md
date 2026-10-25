@@ -2,6 +2,12 @@
 
 Run commands from the repository root. Use the solution file, not the stray root `.csproj`.
 
+## Frontend migration command status
+
+React + TypeScript + Ant Design is the selected target, but `src/MiniLogistics.Frontend`, its package scripts and browser OpenAPI artifact do not exist yet. The npm examples in [the plan, section 7](../refactorfe.md#7-lệnh-validation-chuẩn-khi-bắt-đầu-thực-thi) are future validation commands, not currently supported commands.
+
+Keep using the .NET commands below for the current application. T00.02 has locked [toolchain pins](../docs/Frontend/react-migration-toolchain.md); local Node/npm need upgrading to that target before T01.01 installation. T01.01 must create and verify scripts before adding supported frontend commands here. Add browser contract generation checks with T02.01 and publish/cutover instructions with T11.04–05. Actual baseline results and the Redis test skip are in the [validation log](../docs/Frontend/react-migration-validation.md); version/peer checks are not frontend runtime tests.
+
 ## Prerequisites
 
 - .NET 10 SDK.

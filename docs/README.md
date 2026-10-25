@@ -2,6 +2,10 @@
 
 Tài liệu dành cho developer hiểu và bảo trì **hệ thống hiện tại**. Đọc Backend trước để nắm kiến trúc và nghiệp vụ, sau đó chọn Frontend hoặc Service theo phần đang làm.
 
+## Frontend migration
+
+React + TypeScript + Ant Design đã được chọn; runtime hiện tại vẫn là Blazor. Đọc [kế hoạch ở root](../refactorfe.md), [trạng thái/phạm vi migration](Frontend/react-migration-contracts.md), [ADR-004](Frontend/decisions/adr-004-react-typescript-ant-design.md) và [validation log](Frontend/react-migration-validation.md) khi thực hiện các task. Tài liệu runtime chỉ cập nhật theo phần đã triển khai; các đề xuất và roadmap nằm trong bộ migration này.
+
 ## Ba nhóm chính
 
 | Folder | Nội dung và thứ tự đọc |
@@ -10,7 +14,7 @@ Tài liệu dành cho developer hiểu và bảo trì **hệ thống hiện tạ
 | [Frontend](Frontend/README.md) | Render model, cấu trúc UI, route/actor, luồng tương tác và quy ước giao diện |
 | [Service](Service/README.md) | External dependency → [API contract](Service/partner-api.md) → [integration guide](Service/integration-guide.md) → [operations](Service/operations.md) / [security](Service/security.md) |
 
-`Service` chỉ nhóm tài liệu liên kết hệ thống ngoài; repository vẫn là modular monolith. API schema và backend examples nằm cùng tài liệu Service. Test scenarios giữ cạnh code trong [test/manual](../test/manual/README.md) và [test/load](../test/load/README.md).
+`Service` chủ yếu nhóm tài liệu liên kết hệ thống ngoài; repository vẫn là modular monolith. Partner API schema và backend examples nằm cùng tài liệu Service; browser OpenAPI mới chỉ là artifact dự kiến trong kế hoạch. Load scenarios ở [test/load](../test/load/README.md); migration QA và bằng chứng thực tế ở [validation log](Frontend/react-migration-validation.md). Các manual report đã bị xóa trong working tree không phải nguồn kiểm chứng hiện hành.
 
 ## Một chủ đề, một nguồn chính
 
@@ -18,7 +22,7 @@ Tài liệu dành cho developer hiểu và bảo trì **hệ thống hiện tạ
 - API reference sở hữu auth/scope/ownership/idempotency/error/signature; integration guide chỉ mô tả cách website Shop áp dụng.
 - Operations sở hữu cấu hình/recovery/release checklist; threat model sở hữu phân tích security.
 - [OpenAPI](Service/partner-api.openapi.json) sinh từ Web project, không chỉnh tay. Khi public contract đổi, cập nhật reference, [changelog](Service/partner-api-changelog.md), examples và Postman.
-- ADR trong `Backend/decisions` và `Service/decisions` giữ quyết định/trade-off. Quyết định thay đổi cần ADR supersede, không sửa lịch sử âm thầm.
+- ADR trong `Backend/decisions`, `Frontend/decisions` và `Service/decisions` giữ quyết định/trade-off. Quyết định thay đổi cần ADR mới nêu rõ quan hệ với quyết định cũ; khi thay thế thì ghi supersede, không sửa lịch sử âm thầm.
 
 Source, tests, EF configurations/migrations và generated contract là căn cứ để đối chiếu tài liệu. Hướng dẫn hiện hành đã sửa các mô tả cũ về design-time workers, operation-scoped services, rowversion, capacity reservation và Partner create transaction.
 

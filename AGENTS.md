@@ -9,13 +9,14 @@ This repository is a .NET 10 modular monolith for shipment operations. Treat thi
 3. Use [`.agents/workflows.md`](.agents/workflows.md) for implementation, bug-fix, refactor, review, and Definition of Done.
 4. Use [`.agents/commands.md`](.agents/commands.md) for supported commands.
 5. Check [`.agents/known-issues.md`](.agents/known-issues.md) before broad or cross-cutting work.
+6. For frontend migration or browser API work, read [`refactorfe.md`](refactorfe.md) and the [migration contract/status](docs/Frontend/react-migration-contracts.md). Follow the current task scope; planned files, commands and endpoints are not implemented until verified in source.
 
 ## Non-negotiable rules
 
 - Make the smallest coherent change that satisfies the task. Do not perform adjacent cleanup or redesign unless requested.
 - Inspect the current implementation, callers, persistence mapping, and relevant tests before editing. When documentation conflicts with code/tests/migrations, report the conflict and follow the verified current behavior.
 - Preserve dependency direction: Domain has no project dependency; Application depends on Domain; Infrastructure depends on Application and Domain; Web is the composition root and may depend on Application and Infrastructure.
-- Keep business invariants in Domain. Keep orchestration, authorization, and validation in Application. Keep EF Core, Identity, external I/O, and workers in Infrastructure. Razor components and endpoints must not query `MiniLogisticsDbContext` directly.
+- Keep business invariants in Domain. Keep orchestration, authorization, and validation in Application. Keep EF Core, Identity, external I/O, and workers in Infrastructure. UI and business endpoints must not query `MiniLogisticsDbContext` directly; React calls HTTP endpoints that call Application use cases.
 - Enforce authorization and Shop/API-client data isolation in the use case, not only in UI visibility.
 - Do not add a package, architectural pattern, generic repository, mediator, service boundary, or abstraction without a concrete need in the task.
 - Do not manually rewrite existing migration history or the EF model snapshot. Generate schema changes through EF tooling and review all generated files.
@@ -28,4 +29,5 @@ This repository is a .NET 10 modular monolith for shipment operations. Treat thi
 - Add or update tests for changed behavior and important failure/authorization paths.
 - Run the narrowest relevant tests first, then build/test the affected solution scope.
 - OpenAPI generation uses a design-time composition without runtime hosted workers; use the standard build/test commands in `.agents/commands.md`.
+- During frontend migration, preserve the existing Blazor paths until the relevant parity/cutover checkpoint. Update agent/developer docs with each implemented boundary; do not wait until Blazor removal or describe the target stack as already running.
 - Before handoff, inspect `git diff` and confirm no generated or unrelated files were changed.

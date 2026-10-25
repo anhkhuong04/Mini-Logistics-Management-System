@@ -1,5 +1,13 @@
 # Frontend
 
+## Trạng thái migration
+
+Đã chọn **React + TypeScript + Ant Design**; phần dưới mô tả **Blazor đang tồn tại**, không phải yêu cầu dùng Blazor cho frontend mới. Chưa scaffold React hoặc đổi route/runtime. Xem [kế hoạch](../../refactorfe.md), [phạm vi và trạng thái](react-migration-contracts.md), [ADR-004](decisions/adr-004-react-typescript-ant-design.md) và [validation log](react-migration-validation.md).
+
+Frontend mới theo feature, gọi HTTP browser API rồi đến Application use case; backend và business invariants được giữ. Vite/cùng origin/Identity cookie/coexist `/app` đã chốt thiết kế ở Phase 0, chưa phải tính năng đã chạy. Xem [inventory](react-migration-inventory.md) và [toolchain pins](react-migration-toolchain.md). Hướng dẫn React/Ant Design và browser security nằm tại [engineering standards](../../.agents/standards.md); lệnh chạy chỉ bổ sung sau khi scaffold/script đã được kiểm chứng.
+
+## Runtime hiện tại
+
 UI nằm trong `src/MiniLogistics.Web`, dùng **Blazor Web App Interactive Server**. Không có SPA project hoặc frontend build pipeline riêng. Component chạy trên server, nhận thao tác qua Blazor circuit và gọi Application service trực tiếp.
 
 Setup/build chung tại [Backend Development](../Backend/development.md). Quy tắc trạng thái, phí và phân quyền tại [Business rules](../Backend/business-rules.md).
@@ -29,7 +37,7 @@ Không inject repository hoặc `MiniLogisticsDbContext` vào component. Lưu fo
 | Shop | `/dashboard`, `/shipments`, `/shipments/create`, `/shipments/{Id:guid}` | Dashboard, danh sách, tạo/draft/sửa, chi tiết, import/export/label |
 | Shop settings | `/profile`, `/shop/staff`, `/shop/cod-report`, `/shop/notifications`, `/shop/audit` | Hồ sơ, staff, COD, thông báo, audit |
 | Operations | `/operations/assignments` | Assign/reassign, theo dõi vận hành, hỗ trợ trạng thái và COD |
-| Shipper | `/shipper/shipments` | Workspace assignment, pickup/delivery/proof, thu COD |
+| Shipper | `/shipper/shipments` | Workspace assignment, pickup/delivery, thu COD; backend proof capability chưa được nối thành form trên page |
 | Admin | `/admin`, `/admin/dashboard`, `/admin/users`, `/admin/shops`, `/admin/hubs`, `/admin/system-config`, `/admin/cod`, `/admin/audit-logs`, `/admin/banners` | Dashboard, user/config, đối soát, audit, banner |
 | Integration | `/partner/integrations` | Client/key/scope, webhook, test/retry và audit |
 
@@ -43,9 +51,11 @@ Role gate nằm tại page; permission/membership quyết định action chi ti�
 
 **Public tracking:** page hiện gọi `GetAsync(trackingCode)` và nhận summary. Có model xác minh trong component và Application hỗ trợ phone-last-four, nhưng input này chưa được truyền vào lời gọi hiện tại. Không mô tả verified tracking là flow UI hoàn chỉnh.
 
-**Authentication:** browser form đi qua `/auth/*` endpoints để thay đổi cookie; POST yêu cầu antiforgery. Dùng flow redirect/form hiện có khi thay đổi login/logout/register; không giả định cookie mới tự cập nhật circuit đang mở.
+**Authentication hiện tại:** browser form đi qua `/auth/*` endpoints để thay đổi cookie; POST yêu cầu antiforgery. Giữ flow redirect/form cho các trang Blazor trong giai đoạn coexist; không giả định cookie mới tự cập nhật circuit đang mở. JSON session/CSRF endpoint cho React sẽ được bổ sung riêng theo Phase 2, không thay flow cũ trước checkpoint.
 
-## Quy ước UI
+## Quy ước UI Blazor hiện tại
+
+Các primitive, form, CSS isolation và localization API dưới đây áp dụng cho UI Blazor. Khi chuyển một feature, dùng Ant Design và giữ các yêu cầu UX/theme/accessibility tương đương theo kế hoạch.
 
 - Dùng CSS variables/theme trong [app.css](../../src/MiniLogistics.Web/wwwroot/app.css); typography Be Vietnam Pro, màu sea-blue hiện có. CSS riêng đặt ở `.razor.css` khi cần.
 - Tái sử dụng `UiPageHeader`, `UiAlert`, `UiLoadingState`, metric card và `ConfirmActionDialog` trước khi thêm primitive mới.
@@ -54,12 +64,12 @@ Role gate nằm tại page; permission/membership quyết định action chi ti�
 - Dùng `IStringLocalizer` và resource hiện có. Host hỗ trợ `vi-VN` mặc định và `en-US`; `/culture/set` đặt culture cookie và redirect local.
 - Dữ liệu UTC đi qua `UiDisplay.FormatLocalDateTime`; hiện format theo timezone server qua `ToLocalTime()`. Không mặc định đó là timezone browser.
 - Map typed error bằng helper hiện có; với `Application.ConcurrencyConflict`, hướng người dùng reload trước khi thử lại.
-- Không đưa API key vào JavaScript/HTML. Website Shop bên ngoài gọi backend của Shop theo [Integration guide](../Service/integration-guide.md).
+- Không nhúng API key đối tác làm credential cho ứng dụng browser hoặc gọi Partner API trực tiếp từ website Shop; website bên ngoài gọi backend của Shop theo [Integration guide](../Service/integration-guide.md). Portal quản trị có quyền vẫn được hiển thị key mới tạo một lần để người dùng sao chép; không lưu key vào URL, persistent storage, query cache hoặc log.
 
 `HttpContext` có thể không còn là request hiện tại trong một circuit dài; không dựa vào nó để giữ identity/IP/state xuyên operation. Public/Shop rate limiter hiện process-local, chưa an toàn khi scale nhiều node.
 
 ## Kiểm tra khi sửa UI
 
-Chạy Web tests và suite Application của use case bị ảnh hưởng. Kiểm tra trình duyệt theo role: navigation, quyền action, loading/error/empty, form validation, responsive và reload sau conflict. Web tests hiện kiểm tra endpoint/config/helper, không thay thế kiểm tra render/browser.
+Chạy Web tests và suite Application của use case bị ảnh hưởng. Kiểm tra trình duyệt theo role: navigation, quyền action, loading/error/empty, form validation, responsive và reload sau conflict. Web tests hiện có endpoint/config/helper, HtmlRenderer dashboard và HTTP drill-down; render server không thay thế kiểm tra tương tác/browser. Khi migrate, giữ các assertion có giá trị trong React/API tests trước khi bỏ Blazor tests.
 
-Scenarios có tại [Manual test cases](../../test/manual/manual-test-cases.md). Các báo cáo mô phỏng trong `test/manual` chỉ là tài liệu test mẫu, không chứng minh ứng dụng hiện tại đã được kiểm tra thực tế.
+Scenario và bằng chứng mới của migration được ghi trong [validation log](react-migration-validation.md). Manual reports cũ đang bị xóa trong working tree; không khôi phục chúng trong task chuẩn bị tài liệu và không dùng báo cáo mô phỏng làm bằng chứng ứng dụng đã được kiểm tra.

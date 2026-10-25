@@ -23,11 +23,25 @@ These are repository-specific rules. Match nearby code when a formatting/detail 
 
 ## Web and UI
 
+### Existing Blazor UI
+
+These rules apply to maintenance of the current Blazor paths while they coexist with the new UI. They do not require React features to use Razor primitives.
+
 - Razor components handle presentation state, input and calls to Application services. They do not resolve repositories or `MiniLogisticsDbContext`.
 - Keep authorization in the use case even when a component/page has role gating.
 - Use `EditForm`, validation messages, loading/disabled states, accessible labels, keyboard focus, and text plus color for status.
 - Reuse CSS variables and shared primitives in `src/MiniLogistics.Web/wwwroot/app.css`; primary typography is Be Vietnam Pro and the existing sea-blue operational theme. Avoid one-off palettes, inline style systems, large decorative layouts, and premature component extraction.
 - Interactive Server services may outlive an HTTP request. Do not retain request-only state or assume `HttpContext` remains current throughout a circuit.
+
+### React migration work
+
+- Use React + TypeScript strict + Ant Design for migrated features. Follow the feature layout and dependency responsibilities in [the plan](../refactorfe.md); frontend toolchain versions are locked during T00.02 before installation.
+- Use Ant Design Form/Table/Modal and its theme/locale providers. Map the existing sea-blue/Be Vietnam Pro design intent into Ant Design tokens; Bootstrap, Blazicons, `EditForm` and Razor scoped CSS remain specific to legacy UI.
+- UI owns presentation and interaction state. Call browser HTTP adapters, not repositories, EF or server implementation types; keep business validation, fee calculation, authorization and tenant/assignment isolation in Application/Domain.
+- Keep list pagination/filter/sort on the server and navigation filters in the URL. Key server-state cache by user and Shop, cancel stale requests on context changes, and clear sensitive state on logout/session expiry. Do not display previous-tenant data while refetching.
+- Do not automatically retry mutations after timeouts. Re-read authoritative state before a user retries creation, COD, key rotation or webhook actions.
+- Preserve error/loading/empty distinctions, real chart counts, permission-aware drill-down, keyboard focus, accessible labels and mobile actions. Reuse focused primitives without building a generic CRUD framework.
+- Do not use partner API keys as the browser application's authentication credential. Authorized management portals may show newly issued keys once; do not persist those secrets in query cache, URLs, storage, logs or test artifacts.
 
 ## HTTP/API conventions
 
@@ -36,7 +50,9 @@ These are repository-specific rules. Match nearby code when a formatting/detail 
 - Use the existing partner error envelope with stable error code, safe description, and trace ID. Map validation/authorization/not-found/conflict/rate/unavailable failures to the existing 4xx/5xx semantics.
 - Partner shipment creation requires `Idempotency-Key`; preserve `201` for a new resource and `200` for a valid replay. Treat unique-constraint races as part of the idempotency contract.
 - Keep endpoint OpenAPI metadata and partner docs/Postman artifacts aligned when contracts change.
-- Browser state-changing form endpoints require antiforgery validation. APIs using non-cookie credentials need an explicit documented CSRF model.
+- All browser state-changing endpoints authenticated by cookies require antiforgery validation, including JSON, multipart and login/register/logout. APIs using non-cookie credentials need an explicit documented CSRF model.
+- Derive the acting user from the authenticated principal, not request body actor/role/permission fields. A selected Shop ID remains untrusted input and must be authorized in the use case.
+- Browser/public API contracts are introduced separately from partner contracts. Follow [the migration contract/status](../docs/Frontend/react-migration-contracts.md) and plan for proposed prefixes, JSON errors, serialization and OpenAPI; do not apply browser serializers/exception mapping globally to the partner API.
 - Apply body limits, rate limits and safe logging at ingress. Never include credentials, webhook secrets, unmasked PII, or raw sensitive request bodies in logs/errors.
 
 ## EF Core and database
@@ -57,8 +73,10 @@ These are repository-specific rules. Match nearby code when a formatting/detail 
 - Application tests cover orchestration, validation, authorization/data isolation, side effects and failure paths.
 - Infrastructure tests cover mappings, constraints, transactions, query behavior, leases, security transports and migrations against SQL Server LocalDB where relevant.
 - Web tests cover endpoint contract/status/error shape, middleware/policy configuration and production guards. Use concurrency/integration tests for races; in-memory fakes cannot prove database atomicity.
+- Current dashboard tests also cover server-side Razor rendering with HtmlRenderer; those tests do not prove browser interaction. For migrated React features, add behavior tests and browser flows as the toolchain is introduced, and retain meaningful assertions when retiring Blazor tests.
 - Every bug fix needs a regression test that fails for the root cause. Do not test framework getters or duplicate assertions solely to increase coverage.
 - Infrastructure tests currently require Windows LocalDB. State that limitation when they cannot run; do not silently replace them with weaker in-memory assertions.
+- For documentation-only work, verify local links, plan task references, implementation/status claims and the final diff. Do not record unrun application tests as passing.
 
 ## Security and operations
 

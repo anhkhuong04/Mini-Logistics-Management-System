@@ -21,6 +21,7 @@ publish/
 !/README.md
 !/task.md
 !/AGENTS.md
+!/refactorfe.md
 
 # Logs
 *.log

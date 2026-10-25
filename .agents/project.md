@@ -10,6 +10,12 @@ Mini Logistics is a logistics operations modular monolith. It supports Shop ship
 - Distributed production concerns: Redis partner rate limiting and configuration-cache generations, shared persisted Data Protection keys, hosted outbox/webhook/import/retention workers.
 - Logging uses `Microsoft.Extensions.Logging`; Serilog is not installed.
 
+## Frontend migration direction
+
+The user has selected React + TypeScript + Ant Design to replace Blazor. Implementation has not started: the four .NET projects and Blazor runtime below remain the current source layout. See [migration contract/status](../docs/Frontend/react-migration-contracts.md) for readiness and [the plan](../refactorfe.md) for task details.
+
+The plan proposes a frontend project at `src/MiniLogistics.Frontend`, HTTP browser adapters in Web, and a gradual coexistence period before root-route cutover. Frontend code will call HTTP endpoints; Application remains the owner of authorization/orchestration and Domain remains the owner of invariants. Web remains the .NET composition root. Do not delete Blazor components, application operation scopes or background workers during preparation.
+
 ## Projects and dependency direction
 
 ```text
@@ -48,7 +54,7 @@ Application service interfaces registered by `AddApplication` resolve the implem
 - `src/MiniLogistics.Infrastructure/PartnerApi` and `Outbox`: secure webhook transport, retention, dispatch and workers.
 - `src/MiniLogistics.Web/Components`: role-oriented Blazor UI.
 - `src/MiniLogistics.Web/Endpoints`: browser auth, partner API, localization and Shop file downloads.
-- `test`: unit, application, SQL LocalDB integration, web contract, load and manual tests.
+- `test`: unit, application, SQL LocalDB integration, web contract and load tests. Manual reports are deleted in the current working tree; do not restore them as part of migration preparation. New migration QA evidence belongs in the [validation log](../docs/Frontend/react-migration-validation.md).
 - `docs/Backend`, `docs/Frontend`, and `docs/Service`: developer documentation grouped by responsibility; `docs/README.md` is the human entry point. Partner contracts, generated OpenAPI, and examples live in `docs/Service`; keep them aligned with `postman` when APIs change.
 
 ## Roles and authorization model

@@ -1,5 +1,7 @@
 # Phát triển local
 
+Các lệnh dưới đây dành cho runtime .NET/Blazor hiện tại. React + TypeScript + Ant Design là hướng đã chọn; chưa có frontend project hoặc npm scripts. Theo dõi [migration contract/status](../Frontend/react-migration-contracts.md); bổ sung Node/npm/dev proxy và browser contract generation khi task tương ứng đã được triển khai, khóa phiên bản và kiểm chứng.
+
 Chạy lệnh từ repository root. Dùng `Mini-logistics-manegemant-system.slnx`, không dùng file `.csproj` lạc ở root.
 
 ## Điều kiện và cấu hình
@@ -78,4 +80,4 @@ Cập nhật endpoint/DTO, generated OpenAPI, [API reference](../Service/partner
 | OpenAPI generation lỗi | Xem lỗi composition/config trong output; không tắt generation làm cách build chuẩn |
 | Địa chỉ không hợp lệ | Đối chiếu `wwwroot/data/vietnam-administrative-divisions.json` và route config active |
 
-Manual scenarios giữ cùng test tại [test/manual](../../test/manual/README.md); load profile tại [test/load](../../test/load/README.md). Quy tắc làm việc của agent nằm trong [AGENTS.md](../../AGENTS.md), không sao chép vào tài liệu developer.
+Load profile tại [test/load](../../test/load/README.md); scenario và evidence migration ở [validation log](../Frontend/react-migration-validation.md). Manual reports cũ đang bị xóa trong working tree, không còn là tài liệu chạy kiểm tra hiện hành. Quy tắc làm việc của agent nằm trong [AGENTS.md](../../AGENTS.md), không sao chép vào tài liệu developer.

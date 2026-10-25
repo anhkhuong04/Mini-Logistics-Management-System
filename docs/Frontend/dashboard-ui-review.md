@@ -2,6 +2,8 @@
 
 Ngày đối chiếu source: 15/10/2026. Phạm vi: dashboard Shop/Admin, navigation, shared UI và các khu vực vận hành liên quan.
 
+**Phạm vi lịch sử và migration (25/10/2026):** đây là đánh giá đợt UI Blazor. Quyết định frontend mới là React + TypeScript + Ant Design theo [ADR-004](decisions/adr-004-react-typescript-ant-design.md) và [kế hoạch migration](../../refactorfe.md). Bootstrap/Blazicons/Razor primitives bên dưới chỉ mô tả lựa chọn của UI cũ. Các yêu cầu về số liệu thật, error/empty, drill-down, quyền, responsive và accessibility tiếp tục là tiêu chí parity; kết quả QA React phải được ghi riêng trong [validation log](react-migration-validation.md).
+
 **Kết luận:** source có các luồng chức năng nền tảng, nhưng giao diện trước refactor chưa đồng nhất và chưa đủ căn cứ để coi toàn website đạt UX tốt. Các điểm nghiêm trọng nhất là biểu đồ không phản ánh dữ liệu, dữ liệu lỗi hiển thị như rỗng, bảng tổng quan quá dày và action lặp. Đợt này refactor dashboard và UI dùng chung; kiểm tra hình ảnh/browser vẫn cần hoàn tất khi có browser kết nối.
 
 ## Vấn đề đã xử lý
@@ -49,7 +51,7 @@ Các nhận định về layout được suy ra từ Razor/CSS và output render
 - Border/card/shadow cùng token. Không dùng màu chỉ để trang trí số liệu hoặc biểu đồ có tỷ lệ cố định.
 - Button chính 44px; focus/label và status text phải đọc được bằng bàn phím/screen reader. Bảng cuộn ngang nằm trong region có tên và focus.
 - Chart chỉ dùng dữ liệu hiện có. Không tạo tăng trưởng tháng trước, time series hay so sánh kỳ khi API chưa trả dữ liệu đó.
-- Dùng [Blazicons.Lucide](https://github.com/kyleherzog/Blazicons.Lucide), Bootstrap hiện có và shared Blazor primitives; không đưa thêm UI framework vào cùng design system chỉ để thay vẻ ngoài.
+- Trong đợt Blazor này, dùng [Blazicons.Lucide](https://github.com/kyleherzog/Blazicons.Lucide), Bootstrap hiện có và shared Blazor primitives. Khi thực hiện migration đã chọn, React dùng Ant Design và token tương ứng; không trộn Bootstrap/Blazicons vào UI React hoặc giữ hai bộ primitive trong cùng feature mới.
 
 Theo [WCAG 2.2](https://www.w3.org/TR/WCAG22/), kiểm tra contrast, focus và target size là một phần của accessibility. Một số cặp token đã tính: primary/white ~4,70:1; muted/white ~5,58:1; input border/white ~3,37:1; primary-hover/primary-soft ~6,34:1. Các phép tính này không thay thế audit toàn trang và không chứng nhận WCAG conformance.
 
