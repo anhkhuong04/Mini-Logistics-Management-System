@@ -1,16 +1,16 @@
 # Frontend migration — phạm vi, contract readiness và trạng thái
 
-Ngày đối chiếu: 25/10/2026. Tài liệu này sở hữu quyết định contract/readiness; [refactorfe.md](../../refactorfe.md) sở hữu thứ tự task và tiêu chí nghiệm thu. [Inventory](react-migration-inventory.md) sở hữu route/action, service/field bindings và adapter đích; [toolchain](react-migration-toolchain.md) sở hữu exact version pins. Phase 1–7 đã triển khai browser HTTP/auth/reference/Shop context, Shop dashboard/read/quote/mutation, CSV import/downloads, Operations và Shipper mobile; nghiệp vụ Phase 8+ vẫn là thiết kế. Kết quả kiểm chứng từng checkpoint nằm trong validation log.
+Ngày đối chiếu: 25/10/2026. Tài liệu này sở hữu quyết định contract/readiness; [refactorfe.md](../../refactorfe.md) sở hữu thứ tự task và tiêu chí nghiệm thu. [Inventory](react-migration-inventory.md) sở hữu route/action, service/field bindings và adapter đích; [toolchain](react-migration-toolchain.md) sở hữu exact version pins. Phase 1–8 đã triển khai browser HTTP/auth/reference/Shop context, Shop dashboard/read/quote/mutation, CSV import/downloads, Operations và Shipper mobile; nghiệp vụ Phase 9+ vẫn là thiết kế. Kết quả kiểm chứng từng checkpoint nằm trong validation log.
 
 ## Hiện trạng so với đích
 
 | Nội dung | Hiện có trong source | Đích hoặc đề xuất |
 | --- | --- | --- |
 | Frontend | Blazor Interactive Server trong MiniLogistics.Web | React + TypeScript + Ant Design đã được chọn; [ADR-004](decisions/adr-004-react-typescript-ant-design.md) |
-| Project layout | Bốn project .NET và React foundation/auth/context/dashboard/shipments/shipment-import/operations/shipper `src/MiniLogistics.Frontend` | Feature còn lại theo Phase 8+ |
+| Project layout | Bốn project .NET và React foundation/auth/context/dashboard/shipments/shipment-import/operations/shipper/shop-settings `src/MiniLogistics.Frontend` | Feature còn lại theo Phase 9+ |
 | UI transport | JSON auth/reference/Shop/Operations/Shipper read/command adapters gọi Identity/Application; Blazor cũ giữ nguyên | Browser HTTP nghiệp vụ còn lại theo phase tương ứng |
 | Auth | Identity cookie, JSON `/api/v1/app/auth/*`, React login/register/session; form `/auth/*` cũ giữ nguyên | Cùng cookie trong coexist; use-case authorization vẫn là nguồn quyền |
-| API/contract | Partner giữ nguyên; browser auth/context/reference/Shop/Operations/Shipper/COD có OpenAPI3.1.1 và generated TS types riêng; file routes cũ dùng cookie | Endpoint settings/admin/integration còn ở Phase 8+ |
+| API/contract | Partner giữ nguyên; browser auth/context/reference/Shop/Operations/Shipper/COD có OpenAPI3.1.1 và generated TS types riêng; file routes cũ dùng cookie | Endpoint admin/integration còn ở Phase 9+ |
 | Hosting | T01.02: opt-in `/app`, runtime config và `/frontend-assets`; HTTPS Vite proxy, conditional publish | Root cutover còn ở Phase 11; mặc định SPA tắt, route Blazor giữ nguyên |
 | Toolchain | .NET/xUnit/CI partner; React/Vite/Vitest/Playwright scaffold, npm lockfile và frontend CI | Node/npm target đã dùng dạng portable để kiểm chứng; chưa thay Node global |
 | Shell | AntD theme/layout, vi/en, Router basename runtime, navigation từ Session/Shop permission; unknown route NotFound | Feature chưa migrate dùng document navigation sang Blazor; root cutover Phase 11 |
@@ -52,11 +52,11 @@ Baseline đã đọc cả Operations chưa commit; HEAD không đại diện đ�
 
 ## Contract browser đã chốt để triển khai
 
-### Phase 8 — Shop settings (đang kiểm chứng)
+### Phase 8 — Shop settings và reporting
 
 Đã có GET/PUT `/api/v1/app/shops/{shopId}/profile`, POST `/shops`, GET/POST `/shops/{shopId}/staff`, PUT `/staff/{staffUserId}`; GET `/cod-report`, `/audit`, `/notifications`, GET/PUT `/notifications/preferences`, POST `/notifications/{notificationId}/read`. Tất cả gọi use case Application với actor principal. Profile read ViewShipments có masking; update cần ManageShopProfile và active Shop, UI thêm ViewFullPii để không sửa snapshot bị che. Additional Shop chỉ owner, chuẩn hóa province/ward bằng Application. Staff chỉ owner theo service hiện tại; Admin role đơn lẻ không vượt ShopAccess; target là UserId, không phải MembershipId. Role preset được server validate; browser truyền permissions dạng mảng tên từng flag, không serialize flags kết hợp qua strict enum converter. Password tạo staff chỉ ở form/request ngắn hạn, không vào query cache/URL/storage.
 
-COD report giữ window tối đa10.000 dòng/tổng tiền hiện tại; audit có SQL action/date/limit<=500, notification giới hạn<=200 và scope cả Shop+user. Không thêm page token giả hoặc phân trang client; chưa đổi báo cáo thành tổng toàn lịch sử. Ngày filter UTC theo Blazor hiện tại; export giữ `/shop/files/cod-report.csv` và ExportData độc lập. Preferences cần ManageNotifications, đọc notification chỉ ViewShipments; audit cần ViewAudit và luôn mask sensitive JSON/text. Không cấp settlement cho Shop. React routes và kết quả E2E chỉ chốt hoàn tất trong validation log.
+COD report giữ window tối đa10.000 dòng/tổng tiền hiện tại; audit có SQL action/date/limit<=500, notification giới hạn<=200 và scope cả Shop+user. Không thêm page token giả hoặc phân trang client; chưa đổi báo cáo thành tổng toàn lịch sử. Ngày filter UTC theo Blazor hiện tại; export giữ `/shop/files/cod-report.csv` và ExportData độc lập. Preferences cần ManageNotifications, đọc notification chỉ ViewShipments; audit cần ViewAudit và luôn mask sensitive JSON/text. Không cấp settlement cho Shop. React `/app/profile`, `/app/shop/staff`, `/app/shop/cod-report`, `/app/shop/notifications`, `/app/shop/audit` đã nối navigation/returnUrl và verified Identity/data fixture. Context/session/Shop key remount, abort pending requests và guards unknown/409 được kiểm chứng; refresh cũ không mở khóa lỗi mới. Legacy Blazor paths vẫn giữ, không root cutover. Evidence/smoke và giới hạn nằm trong validation log.
 
 ### Phase 7 — Shipper self API và mobile workspace
 

@@ -1,6 +1,6 @@
 # Frontend migration — inventory route/action và binding contract
 
-Đối chiếu baseline ngày 25/10/2026. Inventory bao gồm 28 routed page files/30 route declarations, 93 binding gọi service và các browser form/file/local action. Phase 1–7 đã triển khai auth/reference/Shop context, dashboard, shipment read/quote/mutation, CSV import và file downloads; nghiệp vụ Phase 8+ vẫn là **đặc tả adapter tương lai**. Trạng thái/evidence theo [migration contracts](react-migration-contracts.md) và [validation log](react-migration-validation.md), không suy ra endpoint đã có chỉ từ bảng. Shop adapters có prefix `/api/v1/app`; A049–A066, A074/A076 đã có, file routes giữ `/shop/files`, renderer tương ứng chạy dưới `/app`, URL Blazor cũ được giữ.
+Đối chiếu baseline ngày 25/10/2026. Inventory bao gồm 28 routed page files/30 route declarations, 93 binding gọi service và các browser form/file/local action. Phase 1–8 đã triển khai auth/reference/Shop context, dashboard, shipment read/quote/mutation, CSV import và file downloads; nghiệp vụ Phase 9+ vẫn là **đặc tả adapter tương lai**. Trạng thái/evidence theo [migration contracts](react-migration-contracts.md) và [validation log](react-migration-validation.md), không suy ra endpoint đã có chỉ từ bảng. Shop adapters có prefix `/api/v1/app`; A049–A066, A074/A076 đã có, file routes giữ `/shop/files`, renderer tương ứng chạy dưới `/app`, URL Blazor cũ được giữ.
 
 ## Quy ước đọc
 
@@ -386,7 +386,7 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 **Source:** [ShopAuditLogs.razor](../../src/MiniLogistics.Web/Components/Pages/Shop/ShopAuditLogs.razor). **Routes:** `/shop/audit`.
 
-**React page:** `shop-settings/ShopAuditPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `features/shop-settings/ShopAuditPage.tsx` - implemented under `/app`; legacy route retained. HTTP/browser evidence: migration validation log.
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
@@ -401,13 +401,13 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 **Source:** [ShopCodReport.razor](../../src/MiniLogistics.Web/Components/Pages/Shop/ShopCodReport.razor). **Routes:** `/shop/cod-report`.
 
-**React page:** `shop-settings/ShopCodReportPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `features/shop-settings/ShopCodReportPage.tsx` - implemented under `/app`; legacy route retained. HTTP/browser evidence: migration validation log.
 
 **Query bind hiện tại:** `shopId`, `fromUtc`, `toUtc`.
 
 | ID | Action/use case hiện tại | Endpoint đích | Quyền/ràng buộc | Task / regression dự kiến |
 | --- | --- | --- | --- | --- |
-| A079 | `GetShopCodReportService.GetAsync` | `GET /shops/{shopId}/cod-report` | Shop/ViewCod | T08.03 / `BrowserShopSettingsTests` |
+| A079 | `ShopReportingService.GetAsync` | `GET /shops/{shopId}/cod-report` | Shop/ViewCod | T08.03 / `BrowserShopSettingsTests` |
 | A080 | `GetShopContextService.GetAsync` | `GET /shop-context?shopId={shopId}` | Shop/ViewShipments | T02.04 / `BrowserShopContextTests` |
 
 **Handler parity (local/lifecycle + orchestrations; không mặc định tạo endpoint):** `ApplyDateRangeAsync`, `ClearDateRangeAsync`, `GetCurrentUserIdAsync`, `OnParametersSetAsync`, `OnShopChanged`.
@@ -416,16 +416,16 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 **Source:** [ShopNotifications.razor](../../src/MiniLogistics.Web/Components/Pages/Shop/ShopNotifications.razor). **Routes:** `/shop/notifications`.
 
-**React page:** `shop-settings/ShopNotificationsPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `features/shop-settings/ShopNotificationsPage.tsx` - implemented under `/app`; legacy route retained. HTTP/browser evidence: migration validation log.
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
 | ID | Action/use case hiện tại | Endpoint đích | Quyền/ràng buộc | Task / regression dự kiến |
 | --- | --- | --- | --- | --- |
 | A081 | `NotificationService.GetAsync` | `GET /shops/{shopId}/notifications` | Shop/ViewShipments; user ownership | T08.03 / `BrowserShopSettingsTests` |
-| A082 | `NotificationService.GetPreferencesAsync` | `GET /shops/{shopId}/notification-preferences` | Shop/ManageNotifications | T08.03 / `BrowserShopSettingsTests` |
+| A082 | `NotificationService.GetPreferencesAsync` | `GET /shops/{shopId}/notifications/preferences` | Shop/ManageNotifications | T08.03 / `BrowserShopSettingsTests` |
 | A083 | `NotificationService.MarkReadAsync` | `POST /shops/{shopId}/notifications/{notificationId}/read` | Shop/ViewShipments; user ownership | T08.03 / `BrowserShopSettingsTests` |
-| A084 | `NotificationService.UpdatePreferencesAsync` | `PUT /shops/{shopId}/notification-preferences` | Shop/ManageNotifications | T08.03 / `BrowserShopSettingsTests` |
+| A084 | `NotificationService.UpdatePreferencesAsync` | `PUT /shops/{shopId}/notifications/preferences` | Shop/ManageNotifications | T08.03 / `BrowserShopSettingsTests` |
 | A085 | `ShopContextService.GetAsync` | `GET /shop-context?shopId={shopId}` | Shop/ViewShipments | T02.04 / `BrowserShopContextTests` |
 
 **Handler parity (local/lifecycle + orchestrations; không mặc định tạo endpoint):** `GetUserIdAsync`, `LoadAsync`, `MarkReadAsync`, `OnInitializedAsync`, `OnShopChanged`, `SavePreferencesAsync`, `ShowError`, `ToggleEvent`.
@@ -434,7 +434,7 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 **Source:** [ShopProfile.razor](../../src/MiniLogistics.Web/Components/Pages/Shop/ShopProfile.razor). **Routes:** `/profile`.
 
-**React page:** `shop-settings/ShopProfilePage.tsx` (dự kiến, dưới `features/`).
+**React page:** `features/shop-settings/ShopProfilePage.tsx` - implemented under `/app`; legacy route retained. HTTP/browser evidence: migration validation log.
 
 **Query bind hiện tại:** `shopId`.
 
@@ -451,16 +451,16 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 **Source:** [ShopStaff.razor](../../src/MiniLogistics.Web/Components/Pages/Shop/ShopStaff.razor). **Routes:** `/shop/staff`.
 
-**React page:** `shop-settings/ShopStaffPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `features/shop-settings/ShopStaffPage.tsx` - implemented under `/app`; legacy route retained. HTTP/browser evidence: migration validation log.
 
 **Query bind hiện tại:** `shopId`.
 
 | ID | Action/use case hiện tại | Endpoint đích | Quyền/ràng buộc | Task / regression dự kiến |
 | --- | --- | --- | --- | --- |
 | A090 | `GetShopContextService.GetAsync` | `GET /shop-context?shopId={shopId}` | Shop/ViewShipments | T02.04 / `BrowserShopContextTests` |
-| A091 | `ShopStaffManagementService.CreateAsync` | `POST /shops/{shopId}/staff` | Shop owner only | T08.02 / `BrowserShopStaffTests` |
-| A092 | `ShopStaffManagementService.GetAsync` | `GET /shops/{shopId}/staff` | Shop owner only | T08.02 / `BrowserShopStaffTests` |
-| A093 | `ShopStaffManagementService.UpdateAsync` | `PUT /shops/{shopId}/staff/{staffUserId}` | Shop owner only; bind response.UserId, not MembershipId | T08.02 / `BrowserShopStaffTests` |
+| A091 | `ShopStaffManagementService.CreateAsync` | `POST /shops/{shopId}/staff` | Shop owner only | T08.02 / `BrowserShopSettingsTests` |
+| A092 | `ShopStaffManagementService.GetAsync` | `GET /shops/{shopId}/staff` | Shop owner only | T08.02 / `BrowserShopSettingsTests` |
+| A093 | `ShopStaffManagementService.UpdateAsync` | `PUT /shops/{shopId}/staff/{staffUserId}` | Shop owner only; bind response.UserId, not MembershipId | T08.02 / `BrowserShopSettingsTests` |
 
 **Handler parity (local/lifecycle + orchestrations; không mặc định tạo endpoint):** `CancelSaveStaff`, `ConfirmSaveStaffAsync`, `CreateStaffAsync`, `GetCurrentUserIdAsync`, `LoadStaffAsync`, `OnCreateRoleChanged`, `OnParametersSetAsync`, `OnShopChanged`, `RequestSaveStaff`, `SaveStaffAsync`, `ToggleCreatePermission`.
 

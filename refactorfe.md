@@ -1,6 +1,6 @@
 # React + TypeScript + Ant Design Frontend Refactor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–7 đã hoàn tất; Phase 8 chưa bắt đầu. Xem validation log cho evidence và giới hạn review; auth/context/dashboard/shipment read/form/actions/import/download/Operations/COD/Shipper chạy React dưới `/app`, renderer chưa chuyển vẫn chạy Blazor.
+> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–8 đã hoàn tất; Phase 9 chưa bắt đầu. Xem validation log cho evidence và giới hạn review; auth/context/dashboard/shipment read/form/actions/import/download/Operations/COD/Shipper/Shop-settings chạy React dưới `/app`, renderer chưa chuyển vẫn chạy Blazor.
 
 **Goal:** Thay toàn bộ frontend Blazor bằng React + TypeScript + Ant Design, giữ tương đương chức năng, quyền truy cập và các hợp đồng nghiệp vụ/tích hợp hiện tại.
 
@@ -605,9 +605,9 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** GET/PUT `/api/v1/app/shops/{shopId}/profile`, POST `/api/v1/app/shops` tạo thêm Shop; context refetch sau thành công.
 
-- [ ] Test owner/staff ManageShopProfile, masked profile, validation địa chỉ/phone và Shop inactive theo use case.
-- [ ] Form AntD, chọn địa chỉ từ reference data; tạo Shop mới cập nhật accessible shops, không tự cấp quyền bằng state client.
-- [ ] Đổi profile không làm đổi address snapshot của shipment cũ; actor và audit giữ nguyên behavior.
+- [x] Test owner/staff ManageShopProfile, masked profile, validation địa chỉ/phone và Shop inactive theo use case.
+- [x] Form AntD, chọn địa chỉ từ reference data; tạo Shop mới cập nhật accessible shops, không tự cấp quyền bằng state client.
+- [x] Đổi profile không làm đổi address snapshot của shipment cũ; actor và audit giữ nguyên behavior.
 
 **Verify:** Browser profile + ShopProfileManagementTests và E2E context sau tạo thêm Shop.
 
@@ -617,9 +617,9 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** GET/POST `/shops/{shopId}/staff`, PUT `/shops/{shopId}/staff/{staffUserId}`; bind ShopStaffResponse.UserId vào UpdateShopStaffAccessCommand.StaffUserId, không dùng MembershipId. Action active/status theo command hiện tại; không invent quyền quản lý staff mới chỉ từ Shop role.
 
-- [ ] Test owner/admin behavior đúng service, staff không được tự nâng quyền hoặc sửa membership Shop khác; role/flags được validate server.
-- [ ] UI role template/permission checkbox map tên chính xác; có confirmation deactivate/thay quyền nhạy cảm và feedback safe.
-- [ ] Sau thay quyền, refetch context/session liên quan; action bị thu hồi phải bị server từ chối dù tab cũ vẫn hiện nút.
+- [x] Test owner/admin behavior đúng service, staff không được tự nâng quyền hoặc sửa membership Shop khác; role/flags được validate server.
+- [x] UI role template/permission checkbox map tên chính xác; có confirmation deactivate/thay quyền nhạy cảm và feedback safe.
+- [x] Sau thay quyền, refetch context/session liên quan; action bị thu hồi phải bị server từ chối dù tab cũ vẫn hiện nút.
 
 **Verify:** ShopStaffPermissionTests + browser endpoint + E2E staff hạn chế/COD/PII/export denied.
 
@@ -629,9 +629,11 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** GET `/shops/{shopId}/cod-report`, `/notifications`, `/audit`; notification read/preferences mutations theo IShopNotificationService; COD export dùng T05.03.
 
-- [ ] Test ViewCod/ViewAudit/ManageNotifications/ExportData tách biệt; date/filter/page và PII masking giữ đúng Application.
-- [ ] Reports render count/amount từ DTO thật; notification read/settings update refresh badge/query; audit read-only, không lộ raw secret.
-- [ ] Không tự thêm settlement quyền Shop; verify staff thiếu quyền không nhận field nhạy cảm từ API dù component không render.
+**Đối chiếu source Phase 8:** COD use case trả tối đa 10.000 dòng mới nhất và tính tổng trên cùng window; audit dùng SQL action/date/limit tối đa 500, notification theo Shop+user có limit tối đa 200. Các use case này chưa có page token/page-number contract. Giữ date/filter/limit hiện tại, hiển thị rõ giới hạn, không thêm phân trang client hoặc đổi tổng báo cáo thành toàn lịch sử. Preferences dùng GET/PUT `/notifications/preferences`; không có endpoint settlement cho Shop.
+
+- [x] Test ViewCod/ViewAudit/ManageNotifications/ExportData tách biệt; date/filter/page và PII masking giữ đúng Application.
+- [x] Reports render count/amount từ DTO thật; notification read/settings update refresh badge/query; audit read-only, không lộ raw secret.
+- [x] Không tự thêm settlement quyền Shop; verify staff thiếu quyền không nhận field nhạy cảm từ API dù component không render.
 
 **Verify:** Browser settings + Application reporting/notification/audit cases; E2E mỗi route và export theo quyền.
 
