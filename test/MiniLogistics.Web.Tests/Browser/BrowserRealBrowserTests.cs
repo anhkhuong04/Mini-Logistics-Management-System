@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using Microsoft.EntityFrameworkCore;
 using System.Net;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -14,6 +15,7 @@ using MiniLogistics.Infrastructure.Persistence;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using MiniLogistics.Application.Shipments.AssignmentSelection;
 using MiniLogistics.Domain.CashOnDelivery;
+using MiniLogistics.Domain.Operations;
 using Xunit;
 
 namespace MiniLogistics.Web.Tests.Browser;
@@ -55,6 +57,10 @@ public sealed class BrowserRealBrowserTests
         var driverA = await factory.AddUser("browser-driver-a@example.test", "Shipper");
         var driverB = await factory.AddUser("browser-driver-b@example.test", "Shipper");
         var operationsOwner = await factory.AddUser("browser-operations-shop@example.test", "Shop");
+        var mobileShipper = await factory.AddUser("browser-shipper@example.test", "Shipper");
+        var otherShipper = await factory.AddUser("browser-shipper-other@example.test", "Shipper");
+        var crossOwner = await factory.AddUser("browser-cross-shop@example.test", "Shop");
+        var crossShipper = await factory.AddUser("browser-cross-shipper@example.test", "Shipper");
         await factory.EnsureRole("Shop");
         using (var scope = factory.Services.CreateScope())
         {
@@ -69,6 +75,25 @@ public sealed class BrowserRealBrowserTests
             db.Shipments.Add(BrowserShopShipmentReadTests.NewShipment(first.Id, owner, "ML-BROWSER-001"));
             (await db.Users.FindAsync(driverA))!.FullName = "Driver A";
             (await db.Users.FindAsync(driverB))!.FullName = "Driver B";
+            (await db.Users.FindAsync(mobileShipper))!.FullName = "Mobile Driver";
+            (await db.Users.FindAsync(crossShipper))!.FullName = "Cross Driver";
+            db.Shops.Add(New("Browser Cross Shop", crossOwner));
+            var mobileShop = New("Browser Mobile Shop", operationsOwner); db.Shops.Add(mobileShop);
+            var mobile = BrowserShopShipmentReadTests.NewShipment(mobileShop.Id, operationsOwner, "ML-SHIPPER-MOBILE-1", 100000);
+            var noCod = BrowserShopShipmentReadTests.NewShipment(mobileShop.Id, operationsOwner, "ML-SHIPPER-NOCOD", 0);
+            var pendingCod = BrowserShopShipmentReadTests.NewShipment(mobileShop.Id, operationsOwner, "ML-SHIPPER-COD", 25000);
+            var otherTask = BrowserShopShipmentReadTests.NewShipment(mobileShop.Id, operationsOwner, "ML-SHIPPER-OTHER", 5000);
+            foreach (var task in new[] { mobile, noCod, pendingCod, otherTask })
+            {
+                var assignedShipper = task == otherTask ? otherShipper : mobileShipper;
+                Assert.True(task.AssignShipper(assignedShipper, operationsActor, DateTimeOffset.UtcNow, "seed").IsSuccess);
+                if (task == pendingCod) foreach (var status in new[] { ShipmentStatus.PickingUp, ShipmentStatus.PickedUp, ShipmentStatus.InTransit, ShipmentStatus.Delivering, ShipmentStatus.Delivered })
+                    Assert.True(task.UpdateStatus(status, mobileShipper, DateTimeOffset.UtcNow, "seed").IsSuccess);
+                db.Shipments.Add(task); db.CodTransactions.Add(CodTransaction.Create(task.Id, task.CodAmount, DateTimeOffset.UtcNow));
+            }
+            // Distinct synthetic area preserves the existing no-eligible-shipper and cross-role manual-assignment fixtures.
+            var mobileHub = new Hub("MOBILE-TEST", "Mobile Hub", "Mobile Fixture Province", DateTimeOffset.UtcNow);
+            db.Hubs.Add(mobileHub); db.ShipperWorkingAreas.Add(new ShipperWorkingArea(mobileShipper, mobileHub.Id, mobileHub.Province, DateTimeOffset.UtcNow));
             var operationsShop = New("Browser Operations Shop", operationsOwner); db.Shops.Add(operationsShop);
             var opsPending = BrowserShopShipmentReadTests.NewShipment(operationsShop.Id, operationsOwner, "ML-OPS-PENDING");
             db.Shipments.Add(opsPending);
@@ -100,6 +125,8 @@ public sealed class BrowserRealBrowserTests
         start.ArgumentList.Add("e2e/shipment-import.spec.ts");
         start.ArgumentList.Add("e2e/downloads.spec.ts");
         start.ArgumentList.Add("e2e/operations.spec.ts");
+        start.ArgumentList.Add("e2e/shipper.spec.ts");
+        start.ArgumentList.Add("e2e/cross-role-lifecycle.spec.ts");
         if (Environment.GetEnvironmentVariable("MINILOGISTICS_E2E_GREP") is { Length: > 0 } grep)
         {
             start.ArgumentList.Add("--grep"); start.ArgumentList.Add(grep);
@@ -116,5 +143,33 @@ public sealed class BrowserRealBrowserTests
         catch { process.Kill(entireProcessTree: true); throw; }
         var output = await stdout + await stderr;
         Assert.True(process.ExitCode == 0, output);
+        var selected = Environment.GetEnvironmentVariable("MINILOGISTICS_E2E_GREP");
+        if (string.IsNullOrEmpty(selected) || selected.Contains("cross-role", StringComparison.Ordinal))
+        {
+            using var scope = factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            var shipment = await db.Shipments.Include(item => item.Assignments).Include(item => item.StatusHistory)
+                .SingleAsync(item => item.ReceiverName == "Cross-role Receiver");
+            Assert.Equal(ShipmentStatus.Delivered, shipment.Status);
+            Assert.DoesNotContain(shipment.Assignments, item => item.IsActive);
+            Assert.Equal(operationsActor, shipment.StatusHistory.Single(item => item.Status == ShipmentStatus.Assigned).ChangedByUserId);
+            Assert.All(shipment.StatusHistory.Where(item => item.Status is not (ShipmentStatus.PendingPickup or ShipmentStatus.Assigned)),
+                item => Assert.Equal(crossShipper, item.ChangedByUserId));
+            var failure = Assert.Single(shipment.StatusHistory, item => item.Status == ShipmentStatus.DeliveryFailed);
+            Assert.Equal(FailureReasonCode.ReceiverUnavailable, failure.FailureReasonCode);
+            Assert.Equal("Cross-role receiver unavailable", failure.Note);
+            Assert.Equal(2, shipment.StatusHistory.Count(item => item.Status == ShipmentStatus.Delivering));
+            var cod = await db.CodTransactions.SingleAsync(item => item.ShipmentId == shipment.Id);
+            Assert.Equal(CodStatus.Settled, cod.Status); Assert.Equal(crossShipper, cod.CollectedByUserId); Assert.Equal(adminActor, cod.SettledByUserId);
+            Assert.Equal(99000m, cod.CollectedAmount!.Amount); Assert.Equal(1000m, cod.DiscrepancyAmount!.Amount);
+            Assert.Equal("Cross-role COD shortfall", cod.CollectionNote);
+            Assert.True(await db.AdminAuditLogs.AnyAsync(item => item.TargetId == shipment.Id && item.ActorUserId == crossShipper));
+            Assert.True(await db.AdminAuditLogs.AnyAsync(item => item.TargetId == cod.Id && item.ActorUserId == crossShipper));
+            Assert.True(await db.AdminAuditLogs.AnyAsync(item => item.TargetId == cod.Id && item.ActorUserId == adminActor));
+            var notificationEvents = await db.OutboxMessages.Where(item => item.AggregateId == shipment.Id && item.Type == "ShopNotification").ToListAsync();
+            Assert.Contains(notificationEvents, item => item.PayloadJson.Contains("shipment.delivery_failed", StringComparison.Ordinal));
+            Assert.Contains(notificationEvents, item => item.PayloadJson.Contains("cod.collected", StringComparison.Ordinal));
+            Assert.Contains(notificationEvents, item => item.PayloadJson.Contains("cod.settled", StringComparison.Ordinal));
+        }
     }
 }

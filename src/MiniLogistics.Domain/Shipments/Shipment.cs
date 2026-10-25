@@ -361,7 +361,7 @@ public sealed class Shipment : AuditableEntity
 
         ChangeStatus(newStatus, changedByUserId, changedAtUtc, note, failureReasonCode, gpsCoordinate);
 
-        if (newStatus == ShipmentStatus.Returned
+        if (newStatus is ShipmentStatus.Returned or ShipmentStatus.Cancelled
             || (newStatus == ShipmentStatus.Delivered && CodAmount.IsZero))
         {
             DeactivateActiveAssignments(changedAtUtc);

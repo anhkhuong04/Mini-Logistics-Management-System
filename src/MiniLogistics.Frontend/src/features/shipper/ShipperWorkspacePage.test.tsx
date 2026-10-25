@@ -7,6 +7,29 @@ const item = { shipmentId: 'id-1', trackingCode: 'ML-SHIPPER', senderName: 'Send
   pickupAddress: { fullAddress: 'Pickup', province: 'Province' }, deliveryAddress: { fullAddress: 'Delivery', province: 'Province' }, codAmount: '9007199254740993.01',
   codStatus: 'PendingCollection', shippingFeeAmount: '25000', currency: 'VND', status: 'Delivered', createdAtUtc: '2026-10-25T00:00:00Z', trackingHistory: [] };
 afterEach(() => vi.unstubAllGlobals());
+it('requires a discrepancy note and submits exact actual COD only after confirmation', async () => {
+  const fetch = setup(async () => new Response(null, { status: 204 }));
+  const { user } = renderWithProviders(<ShipperWorkspacePage />, { session });
+  const amount = await screen.findByRole('textbox', { name: 'Số thực thu' });
+  expect(amount).toHaveValue('9007199254740993.01');
+  for (const invalid of ['-1', '1.234', '10000000000000000']) {
+    await user.clear(amount); await user.type(amount, invalid);
+    await user.click(screen.getByRole('button', { name: 'Thu COD ML-SHIPPER' }));
+    expect(await screen.findByText('Nhập số tiền không âm, tối đa 16 số nguyên và 2 số lẻ')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  }
+  await user.clear(amount); await user.type(amount, '9007199254740992.01');
+  await user.click(screen.getByRole('button', { name: 'Thu COD ML-SHIPPER' }));
+  expect(await screen.findByText('Nhập ghi chú khi lệch COD')).toBeInTheDocument();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  await user.type(screen.getByRole('textbox', { name: 'Ghi chú thu COD' }), 'Receiver paid less');
+  await user.click(screen.getByRole('button', { name: 'Thu COD ML-SHIPPER' }));
+  expect(screen.getByRole('dialog')).toHaveTextContent('9.007.199.254.740.992,01 VND');
+  expect(fetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(0);
+  await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Xác nhận' }));
+  await waitFor(() => expect(fetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(1));
+  expect(JSON.parse(String(fetch.mock.calls.find(([, options]) => options?.method === 'POST')![1]?.body))).toEqual({ collectedAmount: '9007199254740992.01', note: 'Receiver paid less' });
+});
 function setup(write: (path: string, options?: RequestInit) => Promise<Response>, items = [item]) {
   let available = true;
   const fetch = vi.fn(async (path: string, options?: RequestInit) => {
@@ -33,7 +56,7 @@ it('blocks duplicate and unknown collection until a successful workspace read', 
   const fetch = setup(async () => { throw new TypeError('offline'); });
   const { user } = renderWithProviders(<ShipperWorkspacePage />, { session });
   await user.click(await screen.findByRole('button', { name: 'Thu COD ML-SHIPPER' }));
-  await user.dblClick(within(screen.getByRole('dialog')).getByRole('button', { name: 'Xác nhận' }));
+  await user.dblClick(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Xác nhận' }));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Thu COD ML-SHIPPER' })).toBeDisabled());
   expect(await screen.findByText(/Chưa xác định kết quả/)).toBeInTheDocument();
   expect(fetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(1);
@@ -45,7 +68,7 @@ it('changes only own availability after confirmation and refreshes the profile',
   const { user } = renderWithProviders(<ShipperWorkspacePage />, { session });
   await user.click(await screen.findByRole('button', { name: 'Tạm dừng nhận đơn' }));
   expect(fetch.mock.calls.some(([, options]) => options?.method === 'PUT')).toBe(false);
-  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Xác nhận' }));
+  await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Xác nhận' }));
   await screen.findByRole('button', { name: 'Nhận đơn tự động' });
   const request = fetch.mock.calls.find(([, options]) => options?.method === 'PUT')!;
   expect(JSON.parse(String(request[1]?.body))).toEqual({ isAvailableForAssignment: false });
@@ -71,7 +94,7 @@ it('keeps other shipment controls usable while one collection is pending', async
   const fetch = setup(async () => pending, items);
   const { user } = renderWithProviders(<ShipperWorkspacePage />, { session });
   await user.click(await screen.findByRole('button', { name: 'Thu COD ML-SHIPPER' }));
-  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Xác nhận' }));
+  await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Xác nhận' }));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Thu COD ML-SHIPPER' })).toBeDisabled());
   expect(screen.getByRole('button', { name: 'Cập nhật ML-SHIPPER-2' })).toBeEnabled();
   expect(fetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(1);
@@ -93,11 +116,11 @@ it('keeps a newer unknown outcome locked when an older profile refresh finishes'
   fetch.mockImplementation(async (path, options) => path.endsWith('/profile') && ++reads === 2 ? delayedProfile : original(path, options));
   const { user } = renderWithProviders(<ShipperWorkspacePage />, { session });
   await user.click(await screen.findByRole('button', { name: 'Thu COD ML-SHIPPER' }));
-  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Xác nhận' }));
+  await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Xác nhận' }));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Thu COD ML-SHIPPER' })).toBeDisabled());
   await user.click(screen.getByRole('button', { name: 'Làm mới' }));
   await user.click(screen.getByRole('button', { name: 'Thu COD ML-SHIPPER-2' }));
-  await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Xác nhận' }));
+  await user.click(within(await screen.findByRole('dialog')).getByRole('button', { name: 'Xác nhận' }));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Thu COD ML-SHIPPER-2' })).toBeDisabled());
   finishProfile(Response.json({ userId: session.userId, fullName: 'Driver', phoneNumber: null, activeShipmentCount: 9, maxActiveShipments: 30, isAvailableForAssignment: true }));
   await waitFor(() => expect(screen.getByRole('button', { name: 'Thu COD ML-SHIPPER' })).toBeEnabled());

@@ -131,6 +131,24 @@ public sealed class ShipmentStateMachineTests
         Assert.DoesNotContain(shipment.Assignments, assignment => assignment.IsActive);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CancelThroughStatusCommand_DeactivatesAssignment(bool pickingUp)
+    {
+        var shipment = CreateShipment();
+        Assert.True(shipment.AssignShipper(ShipperId, OperatorId, Now.AddMinutes(1), "Assigned.").IsSuccess);
+        if (pickingUp)
+        {
+            AssertStatusChange(shipment, ShipmentStatus.PickingUp, ShipperId, Now.AddMinutes(2));
+        }
+
+        AssertStatusChange(shipment, ShipmentStatus.Cancelled, ShipperId, Now.AddMinutes(3));
+
+        Assert.DoesNotContain(shipment.Assignments, assignment => assignment.IsActive);
+        Assert.Equal(ShipmentStatus.Cancelled, shipment.Status);
+    }
+
     private static void MoveToDelivered(Shipment shipment)
     {
         MoveToDelivering(shipment);

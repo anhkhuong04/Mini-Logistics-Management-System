@@ -1,6 +1,6 @@
-import { Button, Card, Collapse, Descriptions, Tag, Typography } from 'antd';
-import { WalletOutlined } from '@ant-design/icons';
-import type { ShipperShipment, StatusBody } from './api';
+import { Card, Collapse, Descriptions, Tag, Typography } from 'antd';
+import type { CollectBody, ShipperShipment, StatusBody } from './api';
+import { CodCollectionForm } from './CodCollectionForm';
 import { canCollectCod } from './models';
 import { ShipmentStatusTag } from '../shipments/ShipmentStatusTag';
 import { StatusActionForm } from './StatusActionForm';
@@ -8,7 +8,7 @@ import { decimalString, formatMoney } from '../../shared/lib/money';
 import { formatDateTime } from '../../shared/lib/dateTime';
 export function ShipmentTaskCard({ shipment, busy, pending, message, timeZone, onStatus, onCollect }: {
   shipment: ShipperShipment; busy: boolean; pending: boolean; message?: string; timeZone: string;
-  onStatus: (body: StatusBody) => void; onCollect: () => void;
+  onStatus: (body: StatusBody) => void; onCollect: (body: CollectBody) => void;
 }) {
   return <article className="shipper-task" aria-label={shipment.trackingCode}><Card title={<Typography.Title level={2}>{shipment.trackingCode}</Typography.Title>}
     extra={<ShipmentStatusTag status={shipment.status} />}>
@@ -22,8 +22,7 @@ export function ShipmentTaskCard({ shipment, busy, pending, message, timeZone, o
       { key: 'date', label: 'Ngày tạo', children: formatDateTime(shipment.createdAtUtc, timeZone, 'vi-VN') },
     ]} />
     <div className="shipper-task-actions" aria-busy={pending}>
-      {canCollectCod(shipment.status, shipment.codStatus) && <Button type="primary" icon={<WalletOutlined aria-hidden />} disabled={busy} loading={pending}
-        aria-label={`Thu COD ${shipment.trackingCode}`} onClick={onCollect}>Xác nhận đã thu COD</Button>}
+      {canCollectCod(shipment.status, shipment.codStatus) && <CodCollectionForm shipment={shipment} busy={busy} pending={pending} onRequest={onCollect} />}
       <StatusActionForm key={`${shipment.status}:${shipment.codStatus}`} shipment={shipment} busy={busy} onRequest={onStatus} />
       {pending && <p role="status">Đang xử lý {shipment.trackingCode}…</p>}
       {message && <p role="status">{message}</p>}

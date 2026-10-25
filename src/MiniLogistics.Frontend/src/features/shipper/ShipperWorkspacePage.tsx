@@ -76,7 +76,7 @@ function ShipperWorkspace({ userId, timeZone }: { userId: string; timeZone: stri
           <ShipmentTaskCard key={`${search}:${shipment.shipmentId}:${shipment.status}:${shipment.codStatus}`} shipment={shipment} timeZone={timeZone}
             busy={workspace.isFetching || commands.busy(shipment.shipmentId)} pending={commands.pending.has(shipment.shipmentId)} message={commands.messages[shipment.shipmentId]}
             onStatus={body => ask({ kind: 'status', key: shipment.shipmentId, code: shipment.trackingCode, body })}
-            onCollect={() => ask({ kind: 'collect', key: shipment.shipmentId, code: shipment.trackingCode })} />)}</div>}
+            onCollect={body => ask({ kind: 'collect', key: shipment.shipmentId, code: shipment.trackingCode, body, currency: shipment.currency })} />)}</div>}
         <Pagination className="shipper-pagination" current={workspace.data.pageNumber} pageSize={workspace.data.pageSize} total={workspace.data.totalCount} showSizeChanger pageSizeOptions={[10, 20, 50, 100]}
           onChange={(pageNumber, pageSize) => replace({ ...filters, pageNumber, pageSize })} />
       </>}
@@ -84,7 +84,7 @@ function ShipperWorkspace({ userId, timeZone }: { userId: string; timeZone: stri
     {target && <Modal open title={target.kind === 'collect' ? 'Xác nhận đã thu COD?' : target.kind === 'status' ? 'Xác nhận cập nhật trạng thái?' : target.available ? 'Bật nhận đơn tự động?' : 'Tạm dừng nhận đơn?'}
       wrapProps={{ onKeyDown: keepFocusInModal }} okText="Xác nhận" cancelText="Đóng" onCancel={close} onOk={() => { const action = target; close(); void commands.execute(action); }}>
       {target.kind === 'availability' ? <p>Chỉ thay đổi việc tự động nhận đơn mới; các đơn đang được phân công vẫn thuộc trách nhiệm của bạn.</p>
-        : <><p>{target.code}</p><p>{target.kind === 'collect' ? 'Chỉ xác nhận sau khi đã nhận đủ số tiền COD khai báo.' : `Trạng thái mới: ${target.body.newStatus}`}</p>{target.kind === 'status' && <p>{target.body.note}</p>}</>}
+        : <><p>{target.code}</p><p>{target.kind === 'collect' ? `Số thực thu: ${formatMoney(decimalString(target.body.collectedAmount!), target.currency)}` : `Trạng thái mới: ${target.body.newStatus}`}</p><p>{target.body.note}</p></>}
     </Modal>}
   </div>;
 }

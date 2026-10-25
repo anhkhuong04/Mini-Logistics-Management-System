@@ -116,10 +116,10 @@ public sealed class BrowserShopShipmentReadTests
         await BrowserIdentityFactory.Csrf(client);
         Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/v1/app/auth/login", new { email, password = BrowserIdentityFactory.Password })).StatusCode);
     }
-    internal static Shipment NewShipment(Guid shop, Guid user, string code) => Shipment.Create(shop,
+    internal static Shipment NewShipment(Guid shop, Guid user, string code, decimal codAmount = 9007199254740993.01m) => Shipment.Create(shop,
         "Private Sender", new PhoneNumber("0901234567"), "Private Receiver", new PhoneNumber("0901234567"),
         new Address("Pickup private", "Ward", "Province", "Vietnam"), new Address("Delivery private", "Ward", "Province", "Vietnam"),
         new Weight(1), new ParcelDimensions(10, 10, 10), new Weight(1), new Money(1000, "VND"),
-        new Money(9007199254740993.01m, "VND"), new ShippingFeeBreakdown(new Money(25000, "VND"), Money.Zero, Money.Zero, Money.Zero),
+        new Money(codAmount, "VND"), new ShippingFeeBreakdown(new Money(25000, "VND"), Money.Zero, Money.Zero, Money.Zero),
         RouteType.IntraProvince, user, DateTimeOffset.Parse("2026-10-01T23:59:59.9999999Z"), "Private note", new TrackingCode(code));
 }

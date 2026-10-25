@@ -15,6 +15,70 @@ namespace MiniLogistics.Web.Tests.Browser;
 public sealed class BrowserShipperTests
 {
     private const string Prefix = "/api/v1/app/shipper/me";
+    [Theory]
+    [InlineData("Delivered", 100000)]
+    [InlineData("Delivered", 0)]
+    [InlineData("Returned", 100000)]
+    [InlineData("Cancelled", 100000)]
+    public async Task SelfLifecycle_PreservesAssignmentCodHistoryAndNotifications(string terminal, decimal amount)
+    {
+        await using var factory = new BrowserIdentityFactory(); using var client = factory.Client();
+        var actor = await factory.AddUser("terminal-shipper@example.test", "Shipper");
+        var owner = await factory.AddUser("terminal-owner@example.test", "Shop");
+        var adminId = await factory.AddUser("terminal-admin@example.test", "Admin");
+        var shop = await BrowserShippingQuoteTests.Seed(factory, owner);
+        var shipment = BrowserShopShipmentReadTests.NewShipment(shop.Id, owner, "ML-SELF-TERMINAL", amount);
+        Assert.True(shipment.AssignShipper(actor, owner, DateTimeOffset.UtcNow, "seed").IsSuccess);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            db.Shipments.Add(shipment); db.CodTransactions.Add(CodTransaction.Create(shipment.Id, shipment.CodAmount, DateTimeOffset.UtcNow));
+            await db.SaveChangesAsync();
+        }
+        await BrowserShopShipmentReadTests.Login(client, "terminal-shipper@example.test"); await BrowserIdentityFactory.Csrf(client);
+        var path = Prefix + $"/shipments/{shipment.Id}";
+        if (terminal != "Cancelled")
+        {
+            foreach (var status in new[] { "PickingUp", "PickedUp", "InTransit", "Delivering", "DeliveryFailed" })
+                Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync(path + "/status", new { newStatus = status,
+                    note = "Receiver unavailable", failureReasonCode = status == "DeliveryFailed" ? "ReceiverUnavailable" : null })).StatusCode);
+            if (terminal == "Delivered")
+                Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync(path + "/status", new { newStatus = "Delivering" })).StatusCode);
+        }
+        Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync(path + "/status", new { newStatus = terminal })).StatusCode);
+        var requiresCollection = terminal == "Delivered" && amount > 0;
+        using (var verify = factory.Services.CreateScope())
+        {
+            var db = verify.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            var saved = await db.Shipments.Include(item => item.Assignments).Include(item => item.StatusHistory).SingleAsync(item => item.Id == shipment.Id);
+            Assert.Equal(requiresCollection, saved.Assignments.Any(item => item.IsActive));
+            Assert.All(saved.StatusHistory.Where(item => item.Status is not (ShipmentStatus.PendingPickup or ShipmentStatus.Assigned)), item => Assert.Equal(actor, item.ChangedByUserId));
+            if (terminal != "Cancelled")
+            {
+                var failure = Assert.Single(saved.StatusHistory, item => item.Status == ShipmentStatus.DeliveryFailed);
+                Assert.Equal(FailureReasonCode.ReceiverUnavailable, failure.FailureReasonCode); Assert.Equal("Receiver unavailable", failure.Note);
+                Assert.True(await db.OutboxMessages.AnyAsync(item => item.AggregateId == shipment.Id && item.Type == "ShopNotification"));
+            }
+            Assert.True(await db.AdminAuditLogs.AnyAsync(item => item.TargetId == shipment.Id && item.ActorUserId == actor));
+        }
+        Assert.Equal(requiresCollection ? HttpStatusCode.Conflict : HttpStatusCode.Forbidden,
+            (await client.PostAsJsonAsync(path + "/status", new { newStatus = "PickingUp" })).StatusCode);
+        if (requiresCollection)
+        {
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync(path + "/cod/collect", new { collectedAmount = "99000" })).StatusCode);
+            Assert.Equal(HttpStatusCode.NoContent, (await client.PostAsJsonAsync(path + "/cod/collect", new { collectedAmount = "99000", note = "COD shortfall" })).StatusCode);
+            Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsJsonAsync(path + "/cod/collect", new { })).StatusCode);
+            using var admin = factory.Client(); await BrowserShopShipmentReadTests.Login(admin, "terminal-admin@example.test"); await BrowserIdentityFactory.Csrf(admin);
+            Assert.Equal(HttpStatusCode.NoContent, (await admin.PostAsJsonAsync($"/api/v1/app/operations/shipments/{shipment.Id}/cod/settle", new { })).StatusCode);
+            using var scope = factory.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            var saved = await db.Shipments.Include(item => item.Assignments).SingleAsync(item => item.Id == shipment.Id);
+            Assert.DoesNotContain(saved.Assignments, item => item.IsActive);
+            var cod = await db.CodTransactions.SingleAsync(); Assert.Equal(CodStatus.Settled, cod.Status);
+            Assert.Equal(actor, cod.CollectedByUserId); Assert.Equal(adminId, cod.SettledByUserId);
+            Assert.Equal(99000m, cod.CollectedAmount!.Amount); Assert.Equal(1000m, cod.DiscrepancyAmount!.Amount); Assert.Equal("COD shortfall", cod.CollectionNote);
+            Assert.True(await db.AdminAuditLogs.AnyAsync(item => item.TargetId == cod.Id && item.ActorUserId == actor));
+        }
+    }
     [Fact]
     public async Task FormerAssignment_DoesNotGrantReadOrMutationAccess()
     {
