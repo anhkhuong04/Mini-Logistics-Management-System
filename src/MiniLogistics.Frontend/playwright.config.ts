@@ -8,6 +8,7 @@ const externalUrl = process.env.MINILOGISTICS_E2E_BASE_URL;
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
+  workers: 2,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
   reporter: 'list',

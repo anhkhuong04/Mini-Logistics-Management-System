@@ -72,7 +72,7 @@ public sealed class BrowserSpaHostingTests
         var config = await client.GetStringAsync("/frontend-config.js");
         const string prefix = "window.__MINI_LOGISTICS_CONFIG__ = ";
         Assert.StartsWith(prefix, config);
-        using var json = JsonDocument.Parse(config[prefix.Length..].TrimEnd(';', '\n', '\r'));
+        using var json = JsonDocument.Parse(config[prefix.Length..].Split(';')[0]);
         Assert.Equal(2, json.RootElement.EnumerateObject().Count());
         Assert.Equal("/app", json.RootElement.GetProperty("basePath").GetString());
         Assert.Equal("/frontend-assets/", json.RootElement.GetProperty("assetBasePath").GetString());
@@ -109,6 +109,18 @@ public sealed class BrowserSpaHostingTests
         using var client = factory.CreateHttpsClient();
         Assert.DoesNotContain(factory.Services.GetServices<IHostedService>(), service =>
             service.GetType().Assembly.GetName().Name == "MiniLogistics.Infrastructure");
+    }
+
+    [Theory]
+    [InlineData("vi-VN", "vi")]
+    [InlineData("en-US", "en")]
+    public async Task RuntimeBootstrap_UsesServerCultureWithoutAddingConfigFields(string culture, string language)
+    {
+        using var factory = new BrowserSpaFactory(enabled: true);
+        using var client = factory.CreateHttpsClient();
+        client.DefaultRequestHeaders.Add("Cookie", $".AspNetCore.Culture=c={culture}|uic={culture}");
+        var script = await client.GetStringAsync("/frontend-config.js");
+        Assert.Contains($"document.documentElement.lang = \"{language}\";", script);
     }
 
     private sealed class BrowserSpaFactory : WebApplicationFactory<Program>

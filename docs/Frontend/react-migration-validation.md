@@ -108,6 +108,17 @@ Check bàn giao đạt trên30 Markdown hiện hành và3 heading anchors nội 
 - Không sửa worker lifecycle bình thường: BrowserTests là môi trường riêng cho UI smoke, không có Infrastructure hosted workers và không migrate/seed. Không suy ra browser auth/data workflows đã hoàn tất; thuộc Phase 2+.
 - Runtime defaults Enabled=false/ServeAtRoot=false; root mode bị reject để giữ coexist. Cert/key, logs và publish output đều ignore, không commit.
 
+## 25/10/2026 — T01.03 theme, layouts và accessibility shell
+
+- Shell/shared UI tests được viết trước implementation: RED vì thiếu AppLayout/AsyncContent → GREEN10/10 Vitest. Bao gồm skip/main, safe login, title/focus khi navigate, drawer Escape/focus return, navigation do caller cung cấp, app/AntD date locale, culture return URL và loading/error/empty/retry/status text.
+- Regression HTTP bootstrap culture RED2/2 → GREEN; runtime config vẫn chỉ2 public paths, script đồng bộ html language theo server culture để Vite và published host nhất quán. Full Web79/79 pass.
+- Chromium HTTPS dev11/11 pass: refresh/legacy/reserved paths, keyboard support/drawer, vòng Tab/Shift+Tab, skip link/Back/focus, cookie vi/en giữ path/query/reload, viewport390/768/1024/1440, CSS zoom200%. Đã xem screenshot4 viewport, mobile drawer và CSS zoom. Đây không thay thế native zoom/browser/OS QA toàn diện ở Phase 11.
+- E2E RED chỉ ra Tab cuối drawer có thể đi vào browser chrome mà không phát focusin: thêm xử lý vòng Tab ở drawer, kiểm tra cả hai chiều và Escape/close/focus return đạt. AntD Layout.Content đã là main; gỡ nested main sau test phát hiện duplicate landmark.
+- Một cold dev run gặp React hook error trong lúc dependency optimizer phát hiện graph mới; khai báo optimizeDeps.include cho graph hiện tại. Run8 browser workers cùng các suite khác có timeout chờ render; giới hạn Playwright2 workers, run đầy đủ11/11 pass.
+- Typecheck/lint/build exit0; chia vendor theo React/AntD/common bằng [Rolldown codeSplitting](https://rolldown.rs/reference/OutputOptions.codeSplitting), không nâng warning threshold. Build entry9.11kB, React254.73kB, AntD453.06kB; không còn chunk-size warning ở lần build này.
+- `dotnet test Mini-logistics-manegemant-system.slnx -c Release` exit0: Domain22, Application160, Infrastructure78 pass/1 Redis skip, Web79; tổng339 pass/0 fail/1 skip. Biến MINILOGISTICS_TEST_REDIS chưa được cấu hình; không kết luận Redis multi-node pass. Partner OpenAPI không drift.
+- Publish bundle mới exit0; Chromium chạy trực tiếp trên published process đạt11/11, gồm culture và toàn bộ shell checks. Local Markdown links11 file thay đổi đạt, `git diff --check` exit0; fingerprint15/15 file dirty ban đầu giữ nguyên, không stage Operations/manual deletions/script local.
+
 ## Cách ghi evidence cho task tiếp theo
 
 Mỗi task ghi: ngày/task ID, working tree hoặc commit được kiểm chứng, môi trường/dependency, command chính xác, exit code/kết quả, scenario/actor/Shop, failure/skip/blocker và artifact an toàn nếu có. Test mock, render server, HTTP test và browser test phải được phân biệt.

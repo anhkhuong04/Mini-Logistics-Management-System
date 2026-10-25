@@ -70,7 +70,8 @@ public static class BrowserSpaHostingExtensions
             context.Response.Headers.CacheControl = "no-store";
             context.Response.Headers.XContentTypeOptions = "nosniff";
             var json = JsonSerializer.Serialize(new { basePath = "/app", assetBasePath = "/frontend-assets/" });
-            return Results.Text($"window.__MINI_LOGISTICS_CONFIG__ = {json};", "text/javascript");
+            var language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "vi";
+            return Results.Text($"window.__MINI_LOGISTICS_CONFIG__ = {json};\ndocument.documentElement.lang = \"{language}\";", "text/javascript");
         }).AllowAnonymous().ExcludeFromDescription();
 
         endpoints.MapMethods("/app", ["GET", "HEAD"], ServeIndexAsync)

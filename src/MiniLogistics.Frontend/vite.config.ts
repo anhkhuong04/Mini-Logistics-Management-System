@@ -24,9 +24,21 @@ export default defineConfig(({ command }) => {
   ) : undefined;
 
   return {
-  plugins: [react()],
-  base: command === 'serve' ? '/' : '/frontend-assets/',
-  build: { assetsDir: '', sourcemap: false },
-  server: { host: 'localhost', port: 5173, strictPort: true, https, proxy },
+    plugins: [react()],
+    optimizeDeps: { include: [
+      'react', 'react-dom', 'react-dom/client', 'react/jsx-runtime', 'react/jsx-dev-runtime',
+      'react-router', '@tanstack/react-query', 'antd', '@ant-design/icons',
+      'antd/locale/vi_VN', 'antd/locale/en_US', 'dayjs', 'dayjs/locale/vi', 'dayjs/locale/en',
+    ] },
+    base: command === 'serve' ? '/' : '/frontend-assets/',
+    build: {
+      assetsDir: '', sourcemap: false,
+      rolldownOptions: { output: { codeSplitting: { groups: [
+        { name: 'react-vendor', test: /node_modules[\\/](react|react-dom|react-router|scheduler)[\\/]/, priority: 20 },
+        { name: 'antd-vendor', test: /node_modules[\\/](antd|@ant-design|@rc-component)[\\/]/, priority: 10 },
+        { name: 'vendor', test: /node_modules/, priority: 5 },
+      ] } } },
+    },
+    server: { host: 'localhost', port: 5173, strictPort: true, https, proxy },
   };
 });

@@ -14,10 +14,10 @@ Migration-specific notes below were rechecked against source on 2026-10-25. That
 
 ## Migration preparation status
 
-- React/TypeScript/Ant Design is the selected target; current executable UI is still Blazor. Read [migration contract/status](../docs/Frontend/react-migration-contracts.md) before interpreting proposed files, routes, commands or completion checkboxes.
+- React/TypeScript/Ant Design is the selected target. Phase 1 provides an opt-in React shell at `/app`; business pages still run Blazor. Read [migration contract/status](../docs/Frontend/react-migration-contracts.md) before interpreting proposed files, routes, commands or completion checkboxes.
 - Manual-report files under `test/manual` are deleted in the working tree. Their old links have been removed from current guides; do not restore those user deletions during this work. Migration evidence belongs in [the validation log](../docs/Frontend/react-migration-validation.md).
 - Keep the summary-only public tracking behavior and current server-timezone semantics until an explicit behavior change is scoped. Moving browser rate-limit checks from components to ingress does not itself solve multi-instance limiter atomicity.
-- Phase 0 baseline: 320 tests passed, none failed, one Redis integration skipped because its environment variable was absent; see validation log for the exact run, not a permanent test-count claim. Frontend dependencies are pinned but uninstalled; Node local is below the chosen target.
+- Phase 0 baseline: 320 tests passed, none failed, one Redis integration skipped because its environment variable was absent; see validation log for the exact run, not a permanent test-count claim. Phase 1 installed/verified pinned frontend dependencies using portable Node24.22.1/npm11.19.1; global Node was not changed. BrowserTests omits Infrastructure workers for isolated shell/routing smoke, not data/auth workflow validation.
 
 ## Resolved in this branch
 

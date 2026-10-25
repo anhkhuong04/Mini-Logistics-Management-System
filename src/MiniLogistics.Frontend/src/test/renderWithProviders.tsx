@@ -1,12 +1,15 @@
 import type { ReactElement } from 'react';
 import { render } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { App, ConfigProvider } from 'antd';
-import viVN from 'antd/locale/vi_VN';
+import { MemoryRouter } from 'react-router';
+import { AppProviders } from '../app/providers/AppProviders';
+import type { Locale } from '../shared/i18n/messages';
 
-export function renderWithProviders(ui: ReactElement) {
+export function renderWithProviders(ui: ReactElement, { path = '/', locale = 'vi-VN' }: { path?: string; locale?: Locale } = {}) {
   return {
     user: userEvent.setup(),
-    ...render(<ConfigProvider locale={viVN} theme={{ token: { motion: false } }}><App>{ui}</App></ConfigProvider>),
+    ...render(ui, { wrapper: ({ children }) => <AppProviders locale={locale} disableMotion>
+      <MemoryRouter initialEntries={[path]}>{children}</MemoryRouter>
+    </AppProviders> }),
   };
 }

@@ -7,12 +7,13 @@ Ngày đối chiếu: 25/10/2026. Tài liệu này sở hữu quyết định co
 | Nội dung | Hiện có trong source | Đích hoặc đề xuất |
 | --- | --- | --- |
 | Frontend | Blazor Interactive Server trong MiniLogistics.Web | React + TypeScript + Ant Design đã được chọn; [ADR-004](decisions/adr-004-react-typescript-ant-design.md) |
-| Project layout | Bốn project .NET và scaffold `src/MiniLogistics.Frontend` (T01.01) | HTTP hosting/API và business pages theo các task tiếp theo |
+| Project layout | Bốn project .NET và React foundation `src/MiniLogistics.Frontend` (Phase 1) | Browser HTTP API và business pages theo các task tiếp theo |
 | UI transport | Component gọi Application service trực tiếp | Browser HTTP adapters gọi Application; thiết kế chốt Phase 0, chưa có API nội bộ đầy đủ |
 | Auth | Identity cookie, `/auth/*` form + antiforgery + redirect | JSON session/CSRF auth ở Phase 2; giữ form cũ trong coexist |
 | API/contract | Partner `/api/v1/partner` và file/culture/auth endpoints hiện có | Browser `/api/v1/app`, public `/api/v1/public`, OpenAPI/types riêng đã chốt thiết kế, chưa triển khai |
 | Hosting | T01.02: opt-in `/app`, runtime config và `/frontend-assets`; HTTPS Vite proxy, conditional publish | Root cutover còn ở Phase 11; mặc định SPA tắt, route Blazor giữ nguyên |
 | Toolchain | .NET/xUnit/CI partner; React/Vite/Vitest/Playwright scaffold, npm lockfile và frontend CI | Node/npm target đã dùng dạng portable để kiểm chứng; chưa thay Node global |
+| Shell | AntD theme, AppLayout/PublicLayout, PageHeader/StatusTag/AsyncContent, vi/en và Router basename runtime | Navigation/session theo quyền ở T02.03–04; hiện chỉ menu Trang chính và link đăng nhập cũ |
 
 Lựa chọn React/TypeScript/Ant Design không làm thay đổi backend modular monolith. Các lựa chọn hỗ trợ dưới đây do người thực hiện chốt trong T00.02 theo phạm vi người dùng yêu cầu; không ghi chúng thành lựa chọn người dùng đã phát biểu. Chỉ cập nhật cột hiện trạng khi có source và evidence.
 
@@ -122,7 +123,7 @@ Baseline đã đọc cả Operations chưa commit; HEAD không đại diện đ�
 - Backend baseline dùng fixture LocalDB tạo database tên ngẫu nhiên, migrate/seed test và cleanup theo test; không chạy app `--migrate/--seed` trên database người dùng. Redis integration chỉ chạy khi biến MINILOGISTICS_TEST_REDIS được đặt; không ghi giá trị connection vào evidence.
 - E2E tương lai dùng fixture environment Development/Test riêng: active Admin/Operator, ownerA với ShopA/ShopA2, ownerB với ShopB, staff ViewShipments-only, staff ManageShipments, staff ViewCod/ExportData thiếu FullPii, inactive Shop/user, assigned shipperA/shipperB và IntegrationAdmin có phạm vi hạn chế. IDs sinh per run, credential môi trường/ephemeral; không ghi giá trị thật vào plan hoặc commit storage state.
 - Fixtures và factories phải tạo quyền ở backend, không fake menu/claim để chứng minh tenant isolation. Scope/expired session/cross-Shop denial cần HTTP tests; SQL race/atomicity cần LocalDB tests hiện có; UI mocks chỉ chứng minh presentation.
-- Baseline có 1 Redis skip được ghi rõ, không phải failing regression hoặc bằng chứng multi-node Redis đã pass. T01.01 cần Node/npm đúng pins; install/lockfile/typecheck/build và browser test là evidence tương lai, không suy ra từ registry peer checks.
+- Baseline có 1 Redis skip được ghi rõ, không phải failing regression hoặc bằng chứng multi-node Redis đã pass. Phase 1 đã có evidence install/ci/typecheck/build/browser trong validation log; không suy ra auth/data workflows từ shell test.
 
 ## Các giới hạn phạm vi cần giữ
 

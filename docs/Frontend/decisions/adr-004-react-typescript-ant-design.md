@@ -2,7 +2,7 @@
 
 - Ngày: 25/10/2026.
 - Trạng thái quyết định: **Accepted** cho React + TypeScript + Ant Design theo lựa chọn của người dùng.
-- Trạng thái triển khai: Phase 0 đã có inventory/baseline/contract/pins; T01.01 có React scaffold/toolchain/CI, các trang nghiệp vụ vẫn là Blazor.
+- Trạng thái triển khai: Phase 0 có inventory/baseline/contract/pins; Phase 1 có scaffold/toolchain/CI, hosting opt-in `/app`, theme/layouts/locale. Các trang nghiệp vụ vẫn là Blazor, browser session/API còn ở Phase 2.
 - Phạm vi: lựa chọn frontend; chi tiết hosting/auth/toolchain đã được người thực hiện chốt theo kế hoạch trong T00.02 và được ghi bên dưới.
 
 ## Bối cảnh
@@ -27,6 +27,6 @@ UI hiện nằm trong MiniLogistics.Web và dùng Blazor Interactive Server đ�
 - Ant Design thay primitive UI; theme, dữ liệu thật, error/empty, quyền và keyboard/mobile behavior cần được chuyển có chủ đích.
 - Trong coexist cần hai frontend runtime; route ownership, assets, auth cũ và rollback phải được kiểm chứng trước khi xóa Blazor.
 
-## Chi tiết thiết kế Phase 0, chưa được triển khai
+## Thiết kế và tiến triển triển khai
 
-[Kế hoạch](../../../refactorfe.md) dùng Vite, React Router, TanStack Query, cùng origin, Identity cookie và coexist dưới `/app`; T00.02 đã chốt browser DecimalString/error/actor/route contracts và [exact version pins](../react-migration-toolchain.md). Không coi các chi tiết thiết kế này là API/hosting đã tồn tại hoặc package đã được cài. Readiness, các giới hạn Node/Redis và scope corrections theo source ở [migration contract/status](../react-migration-contracts.md) và [validation log](../react-migration-validation.md). Đây là ghi chú tiến triển của ADR-004, không thay đổi lịch sử ADR-002.
+[Kế hoạch](../../../refactorfe.md) dùng Vite, React Router, TanStack Query, cùng origin, Identity cookie và coexist dưới `/app`; T00.02 đã chốt browser DecimalString/error/actor/route contracts và [exact version pins](../react-migration-toolchain.md). Phase 1 đã cài dependencies và triển khai hosting/shell; JSON Identity session/CSRF và browser API chưa được phát hành. Readiness, Redis skip và scope corrections theo source ở [migration contract/status](../react-migration-contracts.md) và [validation log](../react-migration-validation.md). Đây là ghi chú tiến triển của ADR-004, không thay đổi lịch sử ADR-002.

@@ -2,13 +2,15 @@
 
 ## Trạng thái migration
 
-Đã chọn **React + TypeScript + Ant Design**; phần dưới mô tả **Blazor đang tồn tại**, không phải yêu cầu dùng Blazor cho frontend mới. T01.01 đã có scaffold, lockfile, test harness và frontend CI; chưa thay trang nghiệp vụ. Xem [kế hoạch](../../refactorfe.md), [phạm vi và trạng thái](react-migration-contracts.md), [ADR-004](decisions/adr-004-react-typescript-ant-design.md) và [validation log](react-migration-validation.md).
+Đã chọn **React + TypeScript + Ant Design**; phần dưới mô tả **Blazor đang tồn tại**, không phải yêu cầu dùng Blazor cho frontend mới. Phase 1 có scaffold/lockfile/test/CI, hosting opt-in `/app`, theme, layouts và locale; chưa thay trang nghiệp vụ. Xem [kế hoạch](../../refactorfe.md), [phạm vi và trạng thái](react-migration-contracts.md), [ADR-004](decisions/adr-004-react-typescript-ant-design.md) và [validation log](react-migration-validation.md).
 
-Frontend mới theo feature, gọi HTTP browser API rồi đến Application use case; backend và business invariants được giữ. Vite/cùng origin/Identity cookie/coexist `/app` đã chốt thiết kế ở Phase 0, chưa phải tính năng đã chạy. Xem [inventory](react-migration-inventory.md) và [toolchain pins](react-migration-toolchain.md). Hướng dẫn React/Ant Design và browser security nằm tại [engineering standards](../../.agents/standards.md); lệnh chạy chỉ bổ sung sau khi scaffold/script đã được kiểm chứng.
+Frontend mới theo feature, gọi HTTP browser API rồi đến Application use case; backend và business invariants được giữ. Hosting cùng origin/coexist đã triển khai; Identity JSON session/CSRF/API vẫn là Phase 2. Xem [inventory](react-migration-inventory.md), [toolchain pins](react-migration-toolchain.md) và [lệnh dev/test/publish](../Backend/development.md). Hướng dẫn React/Ant Design và browser security nằm tại [engineering standards](../../.agents/standards.md).
 
 ## Runtime hiện tại
 
-UI nằm trong `src/MiniLogistics.Web`, dùng **Blazor Web App Interactive Server**. Không có SPA project hoặc frontend build pipeline riêng. Component chạy trên server, nhận thao tác qua Blazor circuit và gọi Application service trực tiếp.
+Các trang nghiệp vụ nằm trong `src/MiniLogistics.Web`, dùng **Blazor Web App Interactive Server**. Component chạy trên server, nhận thao tác qua Blazor circuit và gọi Application service trực tiếp. `src/MiniLogistics.Frontend` có pipeline riêng cho React shell; khi Enabled=true, Web phục vụ `/app` và assets từ bundle, URL cũ vẫn Blazor.
+
+React shell dùng `AppProviders` (QueryClient/I18n/ConfigProvider/AntD App), token từ theme cũ và CSS Modules cho layouts; không tải Bootstrap/Blazor CSS. AppLayout nhận navigation từ caller; hiện chỉ có Trang chính, không tạo demo role hoặc menu nghiệp vụ chưa được xác thực. PublicLayout chuẩn bị cho trang public ở phase sau. PageHeader quản lý title/focus, StatusTag giữ text cùng màu, AsyncContent phân biệt loading/error/empty và retry do người dùng. Locale vi/en đồng bộ AntD/Dayjs, chọn ngôn ngữ qua culture cookie HttpOnly hiện có; session integration vẫn ở Phase 2.
 
 Setup/build chung tại [Backend Development](../Backend/development.md). Quy tắc trạng thái, phí và phân quyền tại [Business rules](../Backend/business-rules.md).
 

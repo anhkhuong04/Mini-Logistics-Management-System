@@ -1,6 +1,6 @@
 # React + TypeScript + Ant Design Frontend Refactor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0 và T01.01 đã hoàn tất; T01.02–03 đang triển khai. Xem validation log/ledger cho evidence; các trang nghiệp vụ và Phase 2 chưa thay đổi.
+> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0 và Phase 1 đã hoàn tất; Phase 2 chưa bắt đầu. Xem validation log cho evidence; các trang nghiệp vụ vẫn chạy Blazor.
 
 **Goal:** Thay toàn bộ frontend Blazor bằng React + TypeScript + Ant Design, giữ tương đương chức năng, quyền truy cập và các hợp đồng nghiệp vụ/tích hợp hiện tại.
 
@@ -41,7 +41,7 @@
 - Đổi frontend từ Blazor sang React TypeScript.
 - Dùng Ant Design.
 - Chia nhiều phase/task theo thứ tự và lưu kế hoạch ở root `refactorfe.md`.
-- Lượt hiện tại chỉ lập kế hoạch; chưa scaffold, cài dependency hoặc thay sản phẩm.
+- Kế hoạch ban đầu đã được duyệt thực hiện; lượt hiện tại triển khai Phase 1 và commit theo task quan trọng, chưa chuyển sang Phase 2.
 
 ### 1.2 Lựa chọn kỹ thuật đề xuất để thực thi
 
@@ -73,7 +73,7 @@ Các lựa chọn này là đề xuất của kế hoạch. T00.02 kiểm tra co
 
 Phần hướng dẫn agent/developer đã được chuẩn bị trước khi viết code: [ADR-004](docs/Frontend/decisions/adr-004-react-typescript-ant-design.md), [migration contract/status](docs/Frontend/react-migration-contracts.md) và [validation log](docs/Frontend/react-migration-validation.md). Entry points, quy tắc Blazor/React, browser security, documentation workflow và các liên kết manual report đã được đồng bộ.
 
-T00.01–T00.02 đã có [inventory từng action và C# field binding](docs/Frontend/react-migration-inventory.md), [exact toolchain pins](docs/Frontend/react-migration-toolchain.md), baseline320 pass/0 fail/1 Redis skip và contract/route/fixture decisions. Node local22.18.0 cần nâng lên target24.22.1/npm11.19.1 trước Phase 1; install/compile/browser/publish của frontend chưa chạy. Không chờ T11.06 mới cập nhật tài liệu: task thay boundary phải cập nhật tài liệu sở hữu trong cùng checkpoint.
+T00.01–T00.02 đã có [inventory từng action và C# field binding](docs/Frontend/react-migration-inventory.md), [exact toolchain pins](docs/Frontend/react-migration-toolchain.md), baseline320 pass/0 fail/1 Redis skip và contract/route/fixture decisions. Phase 1 dùng runtime portable24.22.1/npm11.19.1, giữ Node global; evidence install/compile/browser/publish được bổ sung vào validation log theo task. Không chờ T11.06 mới cập nhật tài liệu: task thay boundary phải cập nhật tài liệu sở hữu trong cùng checkpoint.
 
 Các mô tả proof UI/assignment trong detail và reveal/rotate secret webhook đã được thu hẹp theo source: chúng không phải action UI hiện có. Giữ backend proof capability/tests; thêm chức năng ngoài parity cần task riêng, không đưa vào migration tự động.
 
@@ -320,10 +320,10 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** root AppProviders bọc ConfigProvider/AntD App/QueryClientProvider/I18nProvider; AppLayout nhận session/navigation sau Phase 2, không hard-code demo role.
 
-- [ ] Map theme token/font/spacing hiện có; dựng PublicLayout/AppLayout bằng Layout/Menu/Drawer; icon dùng `@ant-design/icons`.
-- [ ] Thêm PageHeader, StatusTag và AsyncContent cho loading/error/empty; không bọc lại mọi AntD component hoặc đưa logic nghiệp vụ vào shared UI.
-- [ ] Locale vi/en gồm copy app, component AntD và date control; giữ locale server qua culture cookie khi session tích hợp ở Phase 2.
-- [ ] Kiểm tra skip link, title/focus khi navigate, Escape/close/focus return của mobile drawer, keyboard navigation, viewport 390/768/1024/1440 và zoom 200%.
+- [x] Map token/font/spacing hiện có; PublicLayout/AppLayout dùng Layout/Menu/Drawer và Ant Design icons, không tải CSS Blazor/Bootstrap.
+- [x] PageHeader, StatusTag, AsyncContent có behavior tests; loading/error/empty phân biệt, retry chỉ qua user action.
+- [x] Copy vi/en, AntD/date control và Dayjs qua providers; culture cookie HttpOnly hiện có giữ locale sau reload qua Vite và published host. JSON session integration vẫn Phase 2.
+- [x] Skip link/title/focus/Back, Escape/close/focus return và vòng Tab drawer đạt. Chromium viewport390/768/1024/1440 cùng zoom CSS200% đã kiểm tra và xem screenshot; chưa coi CSS zoom là kiểm tra zoom native trên mọi browser/OS.
 
 **Acceptance:** theme nhất quán, shell chạy mobile, không phụ thuộc Bootstrap/Blazor CSS; navigation theo quyền được nối thật ở T02.03–04.
 

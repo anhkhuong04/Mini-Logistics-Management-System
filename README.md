@@ -6,7 +6,7 @@ UI dùng Blazor Interactive Server; dữ liệu dùng EF Core/SQL Server và Ide
 
 ## Chuyển đổi frontend
 
-Đã chọn **React + TypeScript + Ant Design** làm frontend đích; các trang nghiệp vụ hiện vẫn chạy Blazor. T01.01 đã tạo scaffold tại `src/MiniLogistics.Frontend`; lệnh frontend ở [Development](docs/Backend/development.md). [Kế hoạch refactor](refactorfe.md) và [trạng thái migration](docs/Frontend/react-migration-contracts.md) phân biệt phần đã triển khai với các phase còn lại.
+Đã chọn **React + TypeScript + Ant Design** làm frontend đích; các trang nghiệp vụ hiện vẫn chạy Blazor. Phase 1 tạo toolchain, hosting opt-in `/app`, theme/layout responsive và locale vi/en tại `src/MiniLogistics.Frontend`; lệnh HTTPS dev, test và publish ở [Development](docs/Backend/development.md). Browser session/API và nghiệp vụ bắt đầu từ Phase 2 theo [kế hoạch refactor](refactorfe.md) và [trạng thái migration](docs/Frontend/react-migration-contracts.md).
 
 ## Bắt đầu
 
