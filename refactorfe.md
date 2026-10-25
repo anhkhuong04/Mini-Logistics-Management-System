@@ -578,9 +578,9 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** dùng T07.01, shared status/error/confirm; route `/shipper/shipments` qua routePaths.
 
-- [ ] Stage tabs/filter/page và COD daily summary; card/action stack ở 390px, nút đủ kích thước, không phải kéo ngang mới thấy action chính.
-- [ ] Status flow, note/failure reason, confirm thu COD và availability toggle; không thêm form proof hoặc yêu cầu geolocation ngoài UI/contract hiện có.
-- [ ] Pending/error/success theo shipment, refresh tránh double collect; failed network cho phép kiểm tra lại trạng thái trước gửi lại.
+- [x] Stage tabs/filter/page và COD daily summary; card/action stack ở 390px, nút đủ kích thước, không phải kéo ngang mới thấy action chính.
+- [x] Status flow, note/failure reason, confirm thu COD và availability toggle; không thêm form proof hoặc yêu cầu geolocation ngoài UI/contract hiện có.
+- [x] Pending/error/success theo shipment, refresh tránh double collect; failed network cho phép kiểm tra lại trạng thái trước gửi lại.
 
 **Verify:** component tests và E2E viewport mobile/desktop; delivered COD pending vẫn có action thu tiền.
 

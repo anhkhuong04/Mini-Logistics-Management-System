@@ -20,6 +20,7 @@ import { ShipmentDetailPage } from '../features/shipments/ShipmentDetailPage';
 import { ShopDashboardPage } from '../features/dashboard/ShopDashboardPage';
 import { ShipmentFormPage } from '../features/shipments/ShipmentFormPage';
 import { OperationsPage } from '../features/operations/OperationsPage';
+import { ShipperWorkspacePage } from '../features/shipper/ShipperWorkspacePage';
 
 function Welcome() {
   const { t } = useI18n();
@@ -82,7 +83,7 @@ function AppContent() {
     <Route path="/shop/staff" element={<RequireSession roles={['Shop']}><LegacyFeatureRoute ownerOnly /></RequireSession>} />
     <Route path={routePaths.operations} element={<RequireSession roles={['Admin', 'Operator']}><OperationsPage /></RequireSession>} />
     <Route path={routePaths.operationsAlias} element={<RequireSession roles={['Admin', 'Operator']}><OperationsPage /></RequireSession>} />
-    <Route path="/shipper/*" element={<RequireSession roles={['Shipper']}><LegacyFeatureRoute /></RequireSession>} />
+    <Route path={routePaths.shipper} element={<RequireSession roles={['Shipper']}><ShipperWorkspacePage /></RequireSession>} />
     <Route path="/admin/*" element={<RequireSession roles={['Admin']}><LegacyFeatureRoute /></RequireSession>} />
     <Route path="/partner/integrations" element={<RequireSession roles={['Admin', 'Shop', 'IntegrationAdmin']}><LegacyFeatureRoute /></RequireSession>} />
     <Route path="*" element={<NotFound />} />

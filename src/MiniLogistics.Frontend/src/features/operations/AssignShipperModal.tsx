@@ -1,7 +1,7 @@
 import { Alert, Form, Input, Modal, Select, Typography } from 'antd';
 import type { OperationsShipper } from './api';
 import { shipperOptions } from './models';
-import { keepFocusInOperationsModal } from './modalFocus';
+import { keepFocusInModal } from '../../shared/ui/modalFocus';
 export type AssignmentValues = { shipperId: string; note?: string; reason?: string };
 export function AssignShipperModal({ title, trackingCode, province, shippers, currentShipperId, reassign = false, pending, error, onConfirm, onCancel }:
   { title: string; trackingCode: string; province: string; shippers: OperationsShipper[]; currentShipperId?: string | null;
@@ -9,7 +9,7 @@ export function AssignShipperModal({ title, trackingCode, province, shippers, cu
   const [form] = Form.useForm<AssignmentValues>(); const selected = Form.useWatch('shipperId', form);
   const options = shipperOptions(province, shippers.filter(item => item.userId !== currentShipperId));
   const choice = options.find(item => item.userId === selected);
-  return <Modal open title={title} wrapProps={{ onKeyDown: keepFocusInOperationsModal }} onCancel={onCancel} closable={!pending} maskClosable={!pending} keyboard={!pending}
+  return <Modal open title={title} wrapProps={{ onKeyDown: keepFocusInModal }} onCancel={onCancel} closable={!pending} maskClosable={!pending} keyboard={!pending}
     confirmLoading={pending} cancelButtonProps={{ disabled: pending }} okText="Xác nhận" cancelText="Đóng" onOk={() => form.submit()}>
     <Typography.Paragraph>{trackingCode} — Lấy hàng tại {province}</Typography.Paragraph>
     {error && <Alert type="error" title={error} role="alert" />}

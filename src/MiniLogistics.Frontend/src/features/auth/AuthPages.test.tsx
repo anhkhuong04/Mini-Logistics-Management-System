@@ -46,5 +46,7 @@ describe('authentication pages', () => {
     expect(safeReturnUrl('/operations/assignments?view=operations')).toBe('/app/operations/assignments?view=operations');
     expect(safeReturnUrl('/app/operations/assignment?view=cod')).toBe('/app/operations/assignment?view=cod');
     expect(postLoginPath(['IntegrationAdmin'])).toBe('/partner/integrations');
+    expect(postLoginPath(['Shipper'])).toBe('/app/shipper/shipments');
+    expect(safeReturnUrl('/shipper/shipments?stage=CodPending')).toBe('/app/shipper/shipments?stage=CodPending');
   });
 });

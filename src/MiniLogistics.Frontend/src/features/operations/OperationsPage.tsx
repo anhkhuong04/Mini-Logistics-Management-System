@@ -16,7 +16,7 @@ import { ReassignCancelModal } from './ReassignCancelModal';
 import { AssignmentTable } from './AssignmentTable';
 import { BulkRetryPanel } from './BulkRetryPanel';
 import { CodSettlementPanel } from './CodSettlementPanel';
-import { keepFocusInOperationsModal } from './modalFocus';
+import { keepFocusInModal } from '../../shared/ui/modalFocus';
 import './operations.css';
 type Target = { kind: 'assign' | 'reassign' | 'cancel-assignment' | 'status' | 'collect' | 'settle' | 'auto-assign' | 'bulk';
   id: string; code: string; province?: string; currentShipperId?: string | null; status?: string; ids?: string[] };
@@ -136,7 +136,7 @@ function OperationsWorkspace({ userId, permissions, timeZone }: { userId: string
       reassign={target.kind === 'reassign'} pending={isDialogPending} error={dialogError} onCancel={close} onConfirm={(values: AssignmentValues) => { void execute(values); }} />}
     {target?.kind === 'cancel-assignment' && <ReassignCancelModal trackingCode={target.code} title="Hủy phân công" pending={isDialogPending} error={dialogError} onCancel={close} onConfirm={reason => { void execute({ reason }); }} />}
     {target?.kind === 'status' && <StatusModal key={target.id} target={target} pending={isDialogPending} error={dialogError} onCancel={close} onConfirm={values => { void execute(values); }} />}
-    {target && ['auto-assign', 'bulk', 'collect', 'settle'].includes(target.kind) && <Modal open title="Xác nhận thao tác" wrapProps={{ onKeyDown: keepFocusInOperationsModal }} confirmLoading={isDialogPending}
+    {target && ['auto-assign', 'bulk', 'collect', 'settle'].includes(target.kind) && <Modal open title="Xác nhận thao tác" wrapProps={{ onKeyDown: keepFocusInModal }} confirmLoading={isDialogPending}
       cancelButtonProps={{ disabled: isDialogPending }} keyboard={!isDialogPending} maskClosable={!isDialogPending} closable={!isDialogPending}
       okText="Xác nhận" cancelText="Đóng" onCancel={close} onOk={() => { void execute(); }}>
       <Typography.Paragraph>{target.code} — {target.kind === 'collect' ? 'Xác nhận đã thu COD theo số tiền khai báo.' : target.kind === 'settle' ? 'Xác nhận đối soát COD đã thu.' : 'Retry tự động; kết quả phụ thuộc vùng làm việc và sức chứa hiện tại.'}</Typography.Paragraph>
@@ -173,7 +173,7 @@ function PendingTable({ data, busy, can, messages, shippers, bulkResult, onPage,
 }
 function StatusModal({ target, pending, error, onConfirm, onCancel }: { target: Target; pending: boolean; error?: string; onConfirm: (value: { newStatus: string; note?: string; failureReasonCode?: string }) => void; onCancel: () => void }) {
   const [form] = Form.useForm<{ newStatus: string; note?: string; failureReasonCode?: string }>(); const status = Form.useWatch('newStatus', form);
-  return <Modal open title={`Cập nhật ${target.code}`} wrapProps={{ onKeyDown: keepFocusInOperationsModal }} onOk={() => form.submit()} onCancel={onCancel} okText="Xác nhận" cancelText="Đóng" confirmLoading={pending}
+  return <Modal open title={`Cập nhật ${target.code}`} wrapProps={{ onKeyDown: keepFocusInModal }} onOk={() => form.submit()} onCancel={onCancel} okText="Xác nhận" cancelText="Đóng" confirmLoading={pending}
     cancelButtonProps={{ disabled: pending }} closable={!pending} keyboard={!pending} maskClosable={!pending}>
     {error && <Alert role="alert" type="error" title={error} />}<Form form={form} layout="vertical" onFinish={onConfirm}>
       <Form.Item label="Trạng thái mới" name="newStatus" rules={[{ required: true, message: 'Chọn trạng thái' }]}><Select options={nextStatuses(target.status ?? '').map(value => ({ value, label: value }))} /></Form.Item>

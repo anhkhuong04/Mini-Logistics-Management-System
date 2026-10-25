@@ -52,13 +52,13 @@ Baseline đã đọc cả Operations chưa commit; HEAD không đại diện đ�
 
 ## Contract browser đã chốt để triển khai
 
-### Phase 7 — Shipper self API (UI đang triển khai)
+### Phase 7 — Shipper self API và mobile workspace (lifecycle đang kiểm chứng)
 
 Đã có `/api/v1/app/shipper/me`: GET workspace/profile/working-areas/cod-summary, PUT availability, POST shipments/{id}/status và /cod/collect. Actor lấy principal; không nhận shipper ID để chọn người khác. Profile chỉ gọi Identity summary theo actor và aggregate tải hiện tại; không gọi lookup mọi shipper. Workspace gọi SearchAsync phân trang SQL, tracking search khớp chính xác, name/phone hỗ trợ text như repository hiện tại. Stage CodPending giữ filter PendingCollection từ Application. COD summary nhận businessDate yyyy-MM-dd, mặc định ngày UTC của TimeProvider; giữ membership lịch sử assignment của báo cáo cũ, không đổi policy tài chính.
 
 ShipperSelfService buộc RequireActiveShipperAssignment trong Application trước khi gọi orchestration status/COD cũ. Đây là flag nội bộ (default false cho callers cũ), không có trong browser contract; assignment được kiểm trên aggregate tracked trong service, kể cả tài khoản Shipper đồng thời Operator/Admin. Availability chỉ đổi trạng thái nhận đơn của actor, không nhận max capacity. Cookie/CSRF, decimal strings, enum names và safe errors giữ foundation. Timeline actor name/email giữ presentation đã có ở Blazor Shipper; không thêm proof hoặc GPS UI.
 
-Query Shipper NotRequired được sửa có regression SQL: gồm cả explicit COD transaction status NotRequired và legacy absent row; Operations query không đổi. Các behavior/UI/lifecycle còn lại chỉ đánh dấu hoàn tất khi có evidence trong validation log.
+Query Shipper NotRequired được sửa có regression SQL: gồm cả explicit COD transaction status NotRequired và legacy absent row; Operations query không đổi. React `/app/shipper/shipments` đã thay legacy-link trong navigation/login/returnUrl; Blazor `/shipper/shipments` vẫn cùng tồn tại. Stage/filter/page nằm trong URL; summary dùng business date UTC và không hiển thị số 0 giả khi đọc lỗi. Card 390px, action tối thiểu 44px, confirm giữ focus, không thêm proof/GPS. Pending/error theo shipment; 409 hoặc kết quả mạng không xác định khóa gửi lại đến khi refresh thành công. Refresh cũ không mở khóa lỗi mới. Lifecycle xuyên role đang kiểm chứng trong T07.03.
 
 ### Phase 6 — Operations
 
