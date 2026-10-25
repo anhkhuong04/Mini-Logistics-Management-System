@@ -11,8 +11,8 @@ export default defineConfig(({ command }) => {
   } : undefined;
   const proxy = command === 'serve' ? Object.fromEntries(
     [
-      '/api', '/auth', '/culture', '/shop/files', '/frontend-config.js', '/frontend-assets',
-      '^/$', '/faq', '/contact', '/login', '/register-shop', '/dashboard', '/shipments',
+      '/api', '/auth', '/culture', '/shop/files', '/health', '/openapi', '/frontend-config.js', '/frontend-assets',
+      '^/$', '/faq', '/contact', '/tracking', '/Error', '/not-found', '/login', '/register-shop', '/dashboard', '/shipments',
       '/profile', '/shop/', '/operations', '/shipper', '/admin', '/partner/integrations',
       '/images', '/data', '/lib', '/app.', '/MiniLogistics.Web', '/_framework', '/_content', '/_blazor',
     ].map(path => [path, {

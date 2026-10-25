@@ -70,6 +70,16 @@ test('skip link and route navigation move focus to the intended content', async 
   await expect(page.getByRole('heading', { level: 1, name: 'Không tìm thấy trang' })).toBeFocused();
 });
 
+test('choosing a mobile drawer link preserves focus on the destination after the drawer closes', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('./missing');
+  await page.getByRole('button', { name: 'Mở menu' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Điều hướng' });
+  await dialog.getByRole('link', { name: 'Trang chính', exact: true }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByRole('heading', { level: 1, name: 'Mini Logistics', exact: true })).toBeFocused();
+});
+
 test('culture cookie switches copy, survives reload and preserves route and query', async ({ page, context }) => {
   await page.goto('./missing?status=ready');
   await page.getByRole('link', { name: 'English', exact: true }).click();

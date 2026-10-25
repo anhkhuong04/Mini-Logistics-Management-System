@@ -12,6 +12,8 @@ Các trang nghiệp vụ nằm trong `src/MiniLogistics.Web`, dùng **Blazor Web
 
 React shell dùng `AppProviders` (QueryClient/I18n/ConfigProvider/AntD App), token từ theme cũ và CSS Modules cho layouts; không tải Bootstrap/Blazor CSS. AppLayout nhận navigation từ caller; hiện chỉ có Trang chính, không tạo demo role hoặc menu nghiệp vụ chưa được xác thực. PublicLayout chuẩn bị cho trang public ở phase sau. PageHeader quản lý title/focus, StatusTag giữ text cùng màu, AsyncContent phân biệt loading/error/empty và retry do người dùng. Locale vi/en đồng bộ AntD/Dayjs, chọn ngôn ngữ qua culture cookie HttpOnly hiện có; session integration vẫn ở Phase 2.
 
+Font stack đã khai báo Be Vietnam Pro/Segoe UI/Arial; React chưa nạp font Be Vietnam Pro riêng, nên browser chưa có font này dùng fallback. Nạp font và kiểm tra typography đầy đủ là mục visual/assets còn lại từ review Phase 1.
+
 Setup/build chung tại [Backend Development](../Backend/development.md). Quy tắc trạng thái, phí và phân quyền tại [Business rules](../Backend/business-rules.md).
 
 Đánh giá giao diện, thay đổi dashboard và các bước visual QA được duy trì tại [Dashboard UI/UX review](dashboard-ui-review.md). Dashboard Shop có KPI drill-down theo Shop/status/date; chart dùng count thật, COD chỉ hiển thị theo permission. Bộ lọc nâng cao của danh sách đơn được mở theo nhu cầu.

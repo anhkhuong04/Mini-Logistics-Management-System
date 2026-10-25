@@ -23,3 +23,25 @@ test('backend and asset routes retain their own responses', async ({ request, ba
   expect(faq.status()).toBe(200);
   expect(await faq.text()).toContain('blazor.web.js');
 });
+
+test('health OpenAPI and remaining legacy routes are owned by the backend on the dev origin', async ({ request, baseURL }) => {
+  const origin = new URL(baseURL!).origin;
+  const health = await request.get(`${origin}/health/live`, { headers: { Accept: '*/*' } });
+  expect(health.status()).toBe(200);
+  expect(health.headers()['content-type']).not.toContain('text/html');
+  expect(await health.json()).toMatchObject({ status: 'Healthy' });
+  const openapi = await request.get(`${origin}/openapi/v1.json`);
+  expect(openapi.status()).toBe(200);
+  expect(openapi.headers()['content-type']).toContain('application/json');
+  expect((await openapi.json()).openapi).toMatch(/^3\./);
+  for (const path of ['/health/missing', '/openapi/missing']) {
+    const response = await request.get(`${origin}${path}`, { headers: { Accept: '*/*' } });
+    expect(response.status()).toBe(404);
+    expect(response.headers()['content-type'] ?? '').not.toContain('text/html');
+  }
+  for (const path of ['/tracking?code=', '/Error', '/not-found']) {
+    const response = await request.get(`${origin}${path}`, { headers: { Accept: 'text/html' } });
+    expect(await response.text()).toContain('blazor.web.js');
+    expect(await response.text()).not.toContain('<div id="root">');
+  }
+});

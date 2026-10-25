@@ -119,6 +119,15 @@ Check bàn giao đạt trên30 Markdown hiện hành và3 heading anchors nội 
 - `dotnet test Mini-logistics-manegemant-system.slnx -c Release` exit0: Domain22, Application160, Infrastructure78 pass/1 Redis skip, Web79; tổng339 pass/0 fail/1 skip. Biến MINILOGISTICS_TEST_REDIS chưa được cấu hình; không kết luận Redis multi-node pass. Partner OpenAPI không drift.
 - Publish bundle mới exit0; Chromium chạy trực tiếp trên published process đạt11/11, gồm culture và toàn bộ shell checks. Local Markdown links11 file thay đổi đạt, `git diff --check` exit0; fingerprint15/15 file dirty ban đầu giữ nguyên, không stage Operations/manual deletions/script local.
 
+### Review cuối Phase 1
+
+- Review độc lập range `a083e92..e791111` tìm1 Important và2 Minor. Important: Vite bỏ sót backend routes `/health`, `/openapi`, `/tracking`, `/Error`, `/not-found`; native backend tests chưa bắt Vite intercept. Đã viết regression RED rồi bổ sung proxy; health/OpenAPI giữ JSON/404, tracking/error/not-found vẫn Blazor.
+- Nâng finding drawer navigation từ Minor lên Important vì không đạt keyboard focus acceptance: sau chọn trang, animation callback giành lại focus từ heading. Regression browser RED → GREEN; phân biệt dismiss và navigate, tắt cơ chế restore trùng của AntD, focus heading sau animation khi navigate; Escape/close vẫn trả trigger.
+- Sau fix: frontend typecheck/lint/build exit0, Vitest10/10, Chromium HTTPS dev13/13. Entry9.30kB; vendor sizes giữ nguyên, không chunk warning.
+- Re-publish exit0, Chromium trên published process13/13 pass sau fix. Không thay backend sau full solution339 pass/1 Redis skip; Partner OpenAPI và15 user fingerprints giữ nguyên.
+- Minor hoãn: React chưa nạp riêng Be Vietnam Pro, font stack dùng Segoe UI/Arial fallback nếu máy chưa có font. Bổ sung font trong visual/assets follow-up; không coi font token declaration là bằng chứng font đã tải.
+- Phần review để phase sau: tenant/session/cache/mutation/serialization ở Phase 2+, root cutover/atomic rollback/data-upload ở Phase 11, native zoom và browser/OS khác. Dirty user files giữ ngoài review; Redis skip giữ nguyên, không suy ra integration pass.
+
 ## Cách ghi evidence cho task tiếp theo
 
 Mỗi task ghi: ngày/task ID, working tree hoặc commit được kiểm chứng, môi trường/dependency, command chính xác, exit code/kết quả, scenario/actor/Shop, failure/skip/blocker và artifact an toàn nếu có. Test mock, render server, HTTP test và browser test phải được phân biệt.
