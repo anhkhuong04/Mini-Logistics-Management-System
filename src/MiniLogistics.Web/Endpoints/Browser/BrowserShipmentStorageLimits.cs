@@ -14,6 +14,7 @@ internal static class BrowserShipmentStorageLimits
             if (decimal.Round(value, scale) > maximum) errors.Add(new(field, "Value is outside the supported range."));
         }
         Check("WeightKg", weight, 3, 9999999.999m);
+        if (weight > 0 && decimal.Round(weight, 3) == 0) errors.Add(new("WeightKg", "Weight is below the supported precision."));
         Check("LengthCm", length, 2, 99999999.99m); Check("WidthCm", width, 2, 99999999.99m); Check("HeightCm", height, 2, 99999999.99m);
         Check("GoodsValueAmount", goods, 2, 9999999999999999.99m); Check("CodAmount", cod, 2, 9999999999999999.99m);
         if (errors.Count == 0 && length > 0 && width > 0 && height > 0)

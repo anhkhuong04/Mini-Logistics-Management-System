@@ -17,11 +17,11 @@ npm --prefix src/MiniLogistics.Frontend run build
 npm --prefix src/MiniLogistics.Frontend run dev
 ```
 
-For shell browser tests, install the pinned Playwright browser first (`npx playwright install chromium` from the frontend directory), run `npm --prefix src/MiniLogistics.Frontend run dev:cert`, build Web in Release, then run `npm --prefix src/MiniLogistics.Frontend run test:e2e`. Playwright starts isolated HTTPS .NET/Vite processes in `BrowserTests`, which omits Infrastructure hosted workers; this path skips the seven Identity/data fixture scenarios. Set `MINILOGISTICS_E2E_BASE_URL=https://localhost:<port>/app/` to test a separately started published host. Browser binaries/test state/certificates must remain ignored. Evidence belongs in the [validation log](../docs/Frontend/react-migration-validation.md).
+For shell browser tests, install the pinned Playwright browser first (`npx playwright install chromium` from the frontend directory), run `npm --prefix src/MiniLogistics.Frontend run dev:cert`, build Web in Release, then run `npm --prefix src/MiniLogistics.Frontend run test:e2e`. Playwright starts isolated HTTPS .NET/Vite processes in `BrowserTests`, which omits Infrastructure hosted workers; this path skips the Identity/data fixture scenarios (ten after Phase 4). Set `MINILOGISTICS_E2E_BASE_URL=https://localhost:<port>/app/` to test a separately started published host. Browser binaries/test state/certificates must remain ignored. Evidence belongs in the [validation log](../docs/Frontend/react-migration-validation.md).
 
 Build Web normally to generate `docs/Service/browser-api.openapi.json`, then run `npm --prefix src/MiniLogistics.Frontend run api:generate` for committed TypeScript types. Regenerate twice and check drift; never hand-edit schemas/types. Browser serializers/document groups are separate from Partner `v1`.
 
-The real-cookie browser fixture uses an isolated HTTPS Kestrel process with real Identity/Application services and an EF InMemory database (not SQL transaction evidence). It covers auth, Shop switching/masking, shipment list/detail and dashboard KPI drill-down requests. Build the frontend first, prepare Chromium/dev cert, then:
+The real-cookie browser fixture uses an isolated HTTPS Kestrel process with real Identity/Application services and an EF InMemory database (not SQL transaction evidence). It covers auth, Shop switching/masking, shipment list/detail, dashboard KPI drill-down and create/draft/edit/submit/cancel with real fees. Build the frontend first, prepare Chromium/dev cert, then:
 
 ```powershell
 $env:MINILOGISTICS_BROWSER_E2E = '1'

@@ -1,6 +1,6 @@
 # React + TypeScript + Ant Design Frontend Refactor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–3 đã hoàn tất; Phase 4 chưa bắt đầu. Xem validation log cho evidence; dashboard và shipment read chạy React dưới `/app`, renderer chưa chuyển vẫn chạy Blazor.
+> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–4 đã hoàn tất; Phase 5 chưa bắt đầu. Xem validation log cho evidence; auth/context/dashboard/shipment read/form/actions chạy React dưới `/app`, renderer chưa chuyển vẫn chạy Blazor.
 
 **Goal:** Thay toàn bộ frontend Blazor bằng React + TypeScript + Ant Design, giữ tương đương chức năng, quyền truy cập và các hợp đồng nghiệp vụ/tích hợp hiện tại.
 
@@ -435,10 +435,10 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** dùng anonymous `GET /api/v1/public/reference-data/provinces` đã có ở T02.02; authenticated `POST /api/v1/app/shops/{shopId}/shipping/quote` nhận parcel/address/value, trả route + fee breakdown.
 
-- [ ] Endpoint dùng VietnamAdministrativeDivisionService/IAdministrativeDivisionService và IRouteClassificationService/IShippingFeeService; không copy bảng phí/phân tuyến vào TypeScript.
-- [ ] Test tỉnh/phường chuẩn hóa/không hợp lệ, weight/dimension/value range và Shop ngoài quyền; quote phải kiểm tra quyền Shop ở use case/adaptor orchestration phù hợp, không chỉ UI.
-- [ ] Debounce quote request, abort/ignore response cũ; fee preview không bao giờ trở thành giá server tin cậy khi create.
-- [ ] Dùng reference data chung cho pickup/delivery, giữ registration T02.03 không regression; backend giữ JSON authoritative trong wwwroot/data.
+- [x] Endpoint dùng VietnamAdministrativeDivisionService/IAdministrativeDivisionService và IRouteClassificationService/IShippingFeeService; không copy bảng phí/phân tuyến vào TypeScript.
+- [x] Test tỉnh/phường chuẩn hóa/không hợp lệ, weight/dimension/value range và Shop ngoài quyền; quote phải kiểm tra quyền Shop ở use case/adaptor orchestration phù hợp, không chỉ UI.
+- [x] Debounce quote request, abort/ignore response cũ; fee preview không bao giờ trở thành giá server tin cậy khi create.
+- [x] Dùng reference data chung cho pickup/delivery, giữ registration T02.03 không regression; backend giữ JSON authoritative trong wwwroot/data.
 
 **Verify:** reference/quote tests, fee/domain suites liên quan và register E2E pass; không có protected data trong anonymous reference response.
 
@@ -448,10 +448,10 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** `POST .../shops/{shopId}/shipments`, `POST .../shipments/drafts`, `PUT .../shipments/{id}`, `POST .../{id}/submit`, `POST .../{id}/cancel`; request DTO không có CreatedByUserId/fee/role tin cậy.
 
-- [ ] Test success/validation/inactive Shop/staff không ManageShipments/cross-Shop; request giả actor không được thay người thực hiện.
-- [ ] Map từng operation về use case hiện có; status hợp lệ, draft không auto assign và submit tính lại phí theo behavior thật; không gộp workflow partner vào UI.
-- [ ] Chuyển create limiter từ Razor sang HTTP ingress dùng service store hiện tại; 429 giữ Retry-After. Không bỏ limiter UI cũ khi Blazor còn hoạt động.
-- [ ] Map invalid transition/conflict/concurrency/capacity; không thêm automatic retry tạo shipment khi connection đứt sau commit; không đổi transaction/outbox của use case.
+- [x] Test success/validation/inactive Shop/staff không ManageShipments/cross-Shop; request giả actor không được thay người thực hiện.
+- [x] Map từng operation về use case hiện có; status hợp lệ, draft không auto assign và submit tính lại phí theo behavior thật; không gộp workflow partner vào UI.
+- [x] Chuyển create limiter từ Razor sang HTTP ingress dùng service store hiện tại; 429 giữ Retry-After. Không bỏ limiter UI cũ khi Blazor còn hoạt động.
+- [x] Map invalid transition/conflict/concurrency/capacity; không thêm automatic retry tạo shipment khi connection đứt sau commit; không đổi transaction/outbox của use case.
 
 **Verify:** browser command tests + ShipmentBusinessRuleTests/ShopProductionHardeningTests liên quan; audit actor là user đăng nhập.
 
@@ -461,10 +461,10 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** dùng quote T04.01 và mutation T04.02; create route dùng query `shipmentId`/`shopId` tương thích link sửa hiện có, mapping chi tiết ghi ở inventory.
 
-- [ ] AntD Form chia sender/receiver/address/parcel/COD/note, prefill đúng Shop, dependent province/ward, validation và focus field lỗi đầu tiên.
-- [ ] Hỗ trợ create, save draft, edit draft/pending pickup, submit draft và cancel có confirmation; permission/active/status quyết định action, server kiểm tra lại.
-- [ ] Disable action khi pending, invalidate đúng dashboard/list/detail sau success; 409 yêu cầu reload trước thử lại; timeout hiển thị hướng kiểm tra đơn đã tạo, không tự gửi lại.
-- [ ] Giữ số liệu preview, kết quả server và tracking rõ ràng; không format tiền thành string locale rồi gửi ngược như số.
+- [x] AntD Form chia sender/receiver/address/parcel/COD/note, prefill đúng Shop, dependent province/ward, validation và focus field lỗi đầu tiên.
+- [x] Hỗ trợ create, save draft, edit draft/pending pickup, submit draft và cancel có confirmation; permission/active/status quyết định action, server kiểm tra lại.
+- [x] Disable action khi pending, invalidate đúng dashboard/list/detail sau success; 409 yêu cầu reload trước thử lại; timeout hiển thị hướng kiểm tra đơn đã tạo, không tự gửi lại.
+- [x] Giữ số liệu preview, kết quả server và tracking rõ ràng; không format tiền thành string locale rồi gửi ngược như số.
 
 **Verify:** E2E create/draft/edit/submit/cancel, double click chỉ một request đang chạy, fee từ server và cross-Shop/staff negative paths pass.
 

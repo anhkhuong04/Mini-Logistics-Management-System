@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Button, Collapse, Form, Input, Select, Space, Table } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { ClearOutlined, FilterOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
+import { ClearOutlined, FilterOutlined, PlusOutlined, ReloadOutlined, SearchOutlined } from '@ant-design/icons';
 import { Link, useSearchParams } from 'react-router';
 import { useSession } from '../../shared/auth/SessionContext';
 import { useI18n } from '../../shared/i18n/I18nContext';
@@ -19,10 +19,11 @@ import { ReadError } from './ReadError';
 import { useShipments } from './queries';
 import { readShipmentFilters, shipmentSearch, shipmentStatuses, sortFields, utcDateRange, type ShipmentFilters } from './shipmentFilters';
 import type { ShipmentItem } from './api';
+import { useShipmentFormCopy } from '../../shared/i18n/shipmentFormCopy';
 
 type FilterForm = ShipmentFilters & { fromDate?: string; toDate?: string };
 export function ShipmentListPage() {
-  const copy = useShipmentCopy(); const { locale } = useI18n(); const { session } = useSession();
+  const copy = useShipmentCopy(); const formCopy = useShipmentFormCopy(); const { locale } = useI18n(); const { session } = useSession();
   const { context } = useShopContext(); const [search, setSearch] = useSearchParams();
   const selected = context?.shops.find(shop => shop.shopId === context.selectedShopId);
   const fullPii = selected?.permissions.includes('ViewFullPii') ?? false, cod = selected?.permissions.includes('ViewCod') ?? false;
@@ -61,7 +62,8 @@ export function ShipmentListPage() {
       label: ({ CreatedAt: copy.created, TrackingCode: copy.tracking, ReceiverName: copy.receiver, CodAmount: 'COD', ShippingFee: copy.fee })[value] }))} /></Form.Item>
     <Form.Item name="sortDirection" label={copy.direction}><Select options={[{ value: 'Descending', label: copy.descending }, { value: 'Ascending', label: copy.ascending }]} /></Form.Item>
   </div>;
-  return <><PageHeader title={copy.list} actions={<Button icon={<ReloadOutlined aria-hidden />} onClick={() => void query.refetch()} disabled={!filters || !context}>{copy.refresh}</Button>} />
+  return <><PageHeader title={copy.list} actions={<Space wrap><Button icon={<ReloadOutlined aria-hidden />} onClick={() => void query.refetch()} disabled={!filters || !context}>{copy.refresh}</Button>
+    {selected?.isActive && selected.permissions.includes('ManageShipments') && <Link className="ant-btn ant-btn-primary" to={`${routePaths.shipmentCreate}?shopId=${selected.shopId}`}><PlusOutlined aria-hidden /> {formCopy.create}</Link>}</Space>} />
     <ShopReadBoundary><ShopContextSelector showInactive={false} />
       {(invalid || formError) && <Alert type="error" role="alert" title={copy.invalid} action={<Button icon={<ClearOutlined aria-hidden />} onClick={() => { setFormError(false); replace({}); }}>{copy.reset}</Button>} />}
       <Form form={form} layout="vertical" onFinish={apply} className="filter-panel">

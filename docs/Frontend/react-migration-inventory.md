@@ -1,6 +1,6 @@
 # Frontend migration — inventory route/action và binding contract
 
-Đối chiếu baseline ngày 25/10/2026. Inventory bao gồm 28 routed page files/30 route declarations, 93 binding gọi service và các browser form/file/local action. Phase 1–3 đã triển khai auth/reference/Shop context, Shop dashboard và shipment list/detail; mutation/nghiệp vụ Phase 4+ vẫn là **đặc tả adapter tương lai**. Trạng thái/evidence theo [migration contracts](react-migration-contracts.md) và [validation log](react-migration-validation.md), không suy ra endpoint đã có chỉ từ bảng. Shop read adapters có prefix `/api/v1/app`; A052/A059/A064/A074/A076 đã có, renderer tương ứng chạy dưới `/app`, URL Blazor cũ được giữ.
+Đối chiếu baseline ngày 25/10/2026. Inventory bao gồm 28 routed page files/30 route declarations, 93 binding gọi service và các browser form/file/local action. Phase 1–4 đã triển khai auth/reference/Shop context, dashboard, shipment list/detail và quote/create/draft/edit/submit/cancel; import/download/nghiệp vụ Phase 5+ vẫn là **đặc tả adapter tương lai**. Trạng thái/evidence theo [migration contracts](react-migration-contracts.md) và [validation log](react-migration-validation.md), không suy ra endpoint đã có chỉ từ bảng. Shop adapters có prefix `/api/v1/app`; A049–A061, A064/A074/A076 đã có, renderer tương ứng chạy dưới `/app`, URL Blazor cũ được giữ.
 
 ## Quy ước đọc
 
@@ -291,7 +291,7 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 **Source:** [CreateShipment.razor](../../src/MiniLogistics.Web/Components/Pages/Shipments/CreateShipment.razor). **Routes:** `/shipments/create`.
 
-**React page:** `shipments/ShipmentFormPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `features/shipments/ShipmentFormPage.tsx` và `ShipmentForm.tsx` đã triển khai ở Phase 4. Route React `/app/shipments/create` giữ `shopId/shipmentId`; API quote và commands có prefix `/api/v1/app`. Tỉnh/phường dùng shared reference query. Update draft rồi submit là hai command tuần tự như Blazor; phí do server tính lại. Editing cần ViewFullPii + ViewCod để không ghi đè masked DTO; không nâng quyền đọc trong Application. Import/download còn ở Blazor đến Phase 5.
 
 **Query bind hiện tại:** `shopId`, `shipmentId`.
 
@@ -313,7 +313,7 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 **Source:** [ShipmentDetail.razor](../../src/MiniLogistics.Web/Components/Pages/Shipments/ShipmentDetail.razor). **Routes:** `/shipments/{Id:guid}`.
 
-**React page:** `features/shipments/ShipmentDetailPage.tsx` đã triển khai read/history DTO ở Phase 3; action mutation trong bảng dưới vẫn chờ Phase 4.
+**React page:** `features/shipments/ShipmentDetailPage.tsx` read/history từ Phase 3; `ShipmentActions.tsx` thêm edit/submit/cancel ở Phase 4. Submit/cancel có xác nhận, active/ManageShipments/status gate và server kiểm tra lại; edit còn cần snapshot không bị che. Assignment/proof projection chưa có, không dựng UI giả.
 
 **Query bind hiện tại:** `shopId`.
 
@@ -330,7 +330,7 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 **Source:** [Shipments.razor](../../src/MiniLogistics.Web/Components/Pages/Shipments/Shipments.razor). **Routes:** `/shipments`.
 
-**React page:** `features/shipments/ShipmentListPage.tsx` đã triển khai server paging/filter/sort và URL state ở Phase 3; import/download/mutation vẫn ở Blazor.
+**React page:** `features/shipments/ShipmentListPage.tsx` đã triển khai server paging/filter/sort và URL state ở Phase 3; Phase 4 thêm link tạo React theo active/ManageShipments. Import/download vẫn ở Blazor.
 
 **Query bind hiện tại:** `shopId`, `status`, `fromUtc`, `toUtc`.
 

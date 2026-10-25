@@ -15,6 +15,7 @@ import { ShipmentStatusTag } from './ShipmentStatusTag';
 import { ReadError } from './ReadError';
 import { shipmentListUrl } from './shipmentFilters';
 import { routePaths } from '../../app/router/routePaths';
+import { ShipmentActions } from './ShipmentActions';
 export function ShipmentDetailPage() {
   const { id = '' } = useParams(); const query = useShipment(id); const data = query.data;
   const location = useLocation();
@@ -26,7 +27,7 @@ export function ShipmentDetailPage() {
   const back = context ? savedSearch ? `${routePaths.shipments}?${savedSearch}` : shipmentListUrl(context.selectedShopId) : routePaths.shipments;
   return <><PageHeader title={copy.detail} actions={context && <Link to={back}><ArrowLeftOutlined aria-hidden /> {copy.back}</Link>} />
     <ShopReadBoundary>{!isShipmentId(id) ? <Result status="404" title={copy.missing} /> : query.error ? <ReadError error={query.error} onRetry={() => void query.refetch()} />
-      : <AsyncContent loading={query.isPending}>{data && <div className="detail-grid">
+      : <AsyncContent loading={query.isPending}>{data && <><ShipmentActions key={`${session!.userId}/${context!.selectedShopId}/${id}`} shipment={data} reload={() => query.refetch()} /><div className="detail-grid">
         <Card title={data.trackingCode}><ShipmentStatusTag status={data.status} />
           <Descriptions column={1} items={[
             { key: 'sender', label: copy.sender, children: `${data.senderName} · ${data.senderPhone}` },
@@ -50,6 +51,6 @@ export function ShipmentDetailPage() {
         ]} /></Card>
         <Card title={copy.history} className="history-card"><Timeline items={data.trackingHistory.map((history, index) => ({ key: index,
           content: <><ShipmentStatusTag status={history.status} /><p>{formatDateTime(history.changedAtUtc, session!.serverTimeZoneId, locale)} · {history.changedByDisplayName}{history.changedByEmail ? ` (${history.changedByEmail})` : ''}</p><p>{history.note}</p></> }))} /></Card>
-      </div>}</AsyncContent>}
+      </div></>}</AsyncContent>}
     </ShopReadBoundary></>;
 }

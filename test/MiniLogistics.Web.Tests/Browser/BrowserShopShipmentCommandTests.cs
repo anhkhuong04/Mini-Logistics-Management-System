@@ -121,6 +121,8 @@ public sealed class BrowserShopShipmentCommandTests
     }
     [Theory]
     [InlineData("weightKg", "10000000")]
+    [InlineData("weightKg", "0.00001")]
+    [InlineData("lengthCm", "10000000")]
     [InlineData("lengthCm", "100000000")]
     [InlineData("codAmount", "10000000000000000")]
     [InlineData("goodsValueAmount", "10000000000000000")]
@@ -129,7 +131,7 @@ public sealed class BrowserShopShipmentCommandTests
         await using var factory = new BrowserIdentityFactory(); using var client = factory.Client();
         await factory.AddUser("precision@example.test", "Shop");
         await BrowserShopShipmentReadTests.Login(client, "precision@example.test"); await BrowserIdentityFactory.Csrf(client);
-        var body = await Body(client); body[field] = value;
+        var body = await Body(client); body["widthCm"] = "1000"; body["heightCm"] = "1000"; body[field] = value;
         var response = await client.PostAsJsonAsync($"/api/v1/app/shops/{Guid.NewGuid()}/shipments", body);
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
         Assert.True((await response.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("errors").TryGetProperty(field, out _));
@@ -139,5 +141,32 @@ public sealed class BrowserShopShipmentCommandTests
         var body = JsonSerializer.SerializeToNode(await BrowserShippingQuoteTests.Request(client), new JsonSerializerOptions(JsonSerializerDefaults.Web))!.AsObject();
         body["senderName"] = "Sender"; body["senderPhone"] = "0901234567"; body["receiverName"] = "Receiver"; body["receiverPhone"] = "0901234567"; body["codAmount"] = "100000";
         return body;
+    }
+    [Theory]
+    [InlineData("ef")]
+    [InlineData("wrapped")]
+    [InlineData("capacity")]
+    public async Task CommandBoundary_MapsConcurrencyAndCapacityToSafeConflict(string mode)
+    {
+        await using var factory = new BrowserIdentityFactory(configureServices: services => {
+            services.RemoveAll<MiniLogistics.Application.Shipments.DraftShipments.IUpdateShipmentBeforePickupService>();
+            services.AddSingleton<MiniLogistics.Application.Shipments.DraftShipments.IUpdateShipmentBeforePickupService>(new FailingUpdate(mode));
+        });
+        using var client = factory.Client(); await factory.AddUser("conflict@example.test", "Shop");
+        await BrowserShopShipmentReadTests.Login(client, "conflict@example.test"); await BrowserIdentityFactory.Csrf(client);
+        var response = await client.PutAsJsonAsync($"/api/v1/app/shops/{Guid.NewGuid()}/shipments/{Guid.NewGuid()}", await Body(client));
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+        Assert.DoesNotContain("private failure", await response.Content.ReadAsStringAsync());
+    }
+    private sealed class FailingUpdate(string mode) : MiniLogistics.Application.Shipments.DraftShipments.IUpdateShipmentBeforePickupService
+    {
+        public Task<MiniLogistics.Domain.Common.Result<MiniLogistics.Application.Shipments.DraftShipments.DraftShipmentResponse>> UpdateAsync(
+            MiniLogistics.Application.Shipments.DraftShipments.UpdateShipmentBeforePickupCommand command, CancellationToken cancellationToken = default)
+        {
+            if (mode == "capacity") return Task.FromResult(MiniLogistics.Domain.Common.Result<MiniLogistics.Application.Shipments.DraftShipments.DraftShipmentResponse>.Failure(
+                MiniLogistics.Application.Common.ApplicationErrors.CapacityReached("private failure")));
+            throw mode == "ef" ? new DbUpdateConcurrencyException("private failure")
+                : new MiniLogistics.Application.Common.ConcurrencyConflictException("private failure", new InvalidOperationException());
+        }
     }
 }

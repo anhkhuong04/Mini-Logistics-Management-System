@@ -54,7 +54,7 @@ export function ShopDashboardPage() {
   const groups = kpi ? groupStatuses(kpi.countByStatus) : [];
   return <><PageHeader title={copy.title} description={copy.description} actions={<Space wrap>
     <Button icon={<ReloadOutlined aria-hidden />} disabled={!range || !context} onClick={() => { void query.refetch(); void latest.refetch(); }}>{shipmentCopy.refresh}</Button>
-    {shop?.isActive && shop.permissions.includes('ManageShipments') && <Button type="primary" icon={<PlusOutlined aria-hidden />} href={`/shipments/create?shopId=${shop.shopId}`}>{copy.create}</Button>}
+    {shop?.isActive && shop.permissions.includes('ManageShipments') && <Link className="ant-btn ant-btn-primary" to={`${routePaths.shipmentCreate}?shopId=${shop.shopId}`}><PlusOutlined aria-hidden /> {copy.create}</Link>}
   </Space>} />
     <ShopReadBoundary><ShopContextSelector showInactive={false} />
       <Form form={form} layout="vertical" className="filter-panel" aria-label={copy.range} onFinish={values => apply(values.fromDate, values.toDate)}>

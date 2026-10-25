@@ -2,7 +2,7 @@
 
 - Ngày: 25/10/2026.
 - Trạng thái quyết định: **Accepted** cho React + TypeScript + Ant Design theo lựa chọn của người dùng.
-- Trạng thái triển khai: Phase 0 có inventory/baseline/contract/pins; Phase 1–3 có hosting opt-in `/app`, theme/layouts/locale, browser auth/CSRF/session/Shop context, typed transport, Shop dashboard và shipment list/detail. Mutation/API còn lại theo Phase 4+; Blazor được giữ trong coexist. Icon dùng thư viện `@ant-design/icons` đã pin.
+- Trạng thái triển khai: Phase 0 có inventory/baseline/contract/pins; Phase 1–4 có hosting opt-in `/app`, theme/layouts/locale, browser auth/CSRF/session/Shop context, typed transport, Shop dashboard, shipment list/detail và form/actions create/draft/edit/submit/cancel với server quote. Import/download và API còn lại theo Phase 5+; Blazor được giữ trong coexist. Icon dùng thư viện `@ant-design/icons` đã pin.
 - Phạm vi: lựa chọn frontend; chi tiết hosting/auth/toolchain đã được người thực hiện chốt theo kế hoạch trong T00.02 và được ghi bên dưới.
 
 ## Bối cảnh
@@ -29,4 +29,4 @@ UI hiện nằm trong MiniLogistics.Web và dùng Blazor Interactive Server đ�
 
 ## Thiết kế và tiến triển triển khai
 
-[Kế hoạch](../../../refactorfe.md) dùng Vite, React Router, TanStack Query, cùng origin, Identity cookie và coexist dưới `/app`; T00.02 chốt browser DecimalString/error/actor/route contracts và [exact pins](../react-migration-toolchain.md). Phase 1–2 đã triển khai hosting/shell, JSON Identity/CSRF, auth/reference/Shop context và generated contracts. API nghiệp vụ Phase 3+ chưa phát hành. Readiness, Redis skip và scope corrections theo source ở [migration contract/status](../react-migration-contracts.md) và [validation log](../react-migration-validation.md). Đây là ghi chú tiến triển của ADR-004, không thay đổi lịch sử ADR-002.
+[Kế hoạch](../../../refactorfe.md) dùng Vite, React Router, TanStack Query, cùng origin, Identity cookie và coexist dưới `/app`; T00.02 chốt browser DecimalString/error/actor/route contracts và [exact pins](../react-migration-toolchain.md). Phase 1–4 đã triển khai hosting/shell, JSON Identity/CSRF, auth/reference/Shop context, Shop dashboard/read/quote/commands và generated contracts. Các API nghiệp vụ còn lại theo Phase 5+. Readiness, Redis skip và scope corrections theo source ở [migration contract/status](../react-migration-contracts.md) và [validation log](../react-migration-validation.md). Đây là ghi chú tiến triển của ADR-004, không thay đổi lịch sử ADR-002.

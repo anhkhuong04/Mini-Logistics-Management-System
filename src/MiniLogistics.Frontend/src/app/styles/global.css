@@ -53,6 +53,14 @@ main:focus, h1:focus { outline: none; }
 .money-list dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 .date-presets { margin-bottom: 16px; }
 .cell-note { display: block; color: var(--ui-muted); font-size: 12px; margin-top: 4px; }
+.shipment-form-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 24px; }
+.shipment-form-grid .ant-card { margin-bottom: 24px; }
+.shipment-form-grid > *, .shipment-form-grid .ant-input-number { min-width: 0; }
+.address-fields { border: 0; padding: 0; margin: 16px 0 0; }
+.address-fields legend { padding: 0; font-weight: 600; margin-bottom: 12px; }
+.shipment-form-actions, .shipment-actions { margin: 24px 0; }
+.required-mark { color: var(--ui-danger, #b42318); margin-right: 4px; }
+@media (max-width: 991px) { .shipment-form-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 1199px) { .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 767px) { .dashboard-overview { grid-template-columns: 1fr; } }
 @media (max-width: 575px) { .metric-grid { grid-template-columns: 1fr; } }

@@ -1,16 +1,16 @@
 # Frontend migration — phạm vi, contract readiness và trạng thái
 
-Ngày đối chiếu: 25/10/2026. Tài liệu này sở hữu quyết định contract/readiness; [refactorfe.md](../../refactorfe.md) sở hữu thứ tự task và tiêu chí nghiệm thu. [Inventory](react-migration-inventory.md) sở hữu route/action, service/field bindings và adapter đích; [toolchain](react-migration-toolchain.md) sở hữu exact version pins. Phase 1–3 đã triển khai browser HTTP/auth/reference/Shop context và Shop dashboard/list/detail; endpoint mutation/nghiệp vụ Phase 4+ vẫn là thiết kế.
+Ngày đối chiếu: 25/10/2026. Tài liệu này sở hữu quyết định contract/readiness; [refactorfe.md](../../refactorfe.md) sở hữu thứ tự task và tiêu chí nghiệm thu. [Inventory](react-migration-inventory.md) sở hữu route/action, service/field bindings và adapter đích; [toolchain](react-migration-toolchain.md) sở hữu exact version pins. Phase 1–4 đã triển khai browser HTTP/auth/reference/Shop context, Shop dashboard/list/detail và quote/create/draft/edit/submit/cancel; endpoint import/download/nghiệp vụ Phase 5+ vẫn là thiết kế.
 
 ## Hiện trạng so với đích
 
 | Nội dung | Hiện có trong source | Đích hoặc đề xuất |
 | --- | --- | --- |
 | Frontend | Blazor Interactive Server trong MiniLogistics.Web | React + TypeScript + Ant Design đã được chọn; [ADR-004](decisions/adr-004-react-typescript-ant-design.md) |
-| Project layout | Bốn project .NET và React foundation/auth/context/dashboard/shipments `src/MiniLogistics.Frontend` | Feature còn lại theo Phase 4+ |
-| UI transport | JSON auth/reference/Shop read adapters gọi Identity/Application; Blazor cũ giữ nguyên | Browser HTTP nghiệp vụ còn lại theo phase tương ứng |
+| Project layout | Bốn project .NET và React foundation/auth/context/dashboard/shipments `src/MiniLogistics.Frontend` | Feature còn lại theo Phase 5+ |
+| UI transport | JSON auth/reference/Shop read/quote/command adapters gọi Identity/Application; Blazor cũ giữ nguyên | Browser HTTP nghiệp vụ còn lại theo phase tương ứng |
 | Auth | Identity cookie, JSON `/api/v1/app/auth/*`, React login/register/session; form `/auth/*` cũ giữ nguyên | Cùng cookie trong coexist; use-case authorization vẫn là nguồn quyền |
-| API/contract | Partner giữ nguyên; browser auth/context/reference/Shop read có OpenAPI3.1.1 và generated TS types riêng | Endpoint mutation/COD/admin/integration còn ở Phase 4+ |
+| API/contract | Partner giữ nguyên; browser auth/context/reference/Shop read/quote/command có OpenAPI3.1.1 và generated TS types riêng | Endpoint import/download/COD/admin/integration còn ở Phase 5+ |
 | Hosting | T01.02: opt-in `/app`, runtime config và `/frontend-assets`; HTTPS Vite proxy, conditional publish | Root cutover còn ở Phase 11; mặc định SPA tắt, route Blazor giữ nguyên |
 | Toolchain | .NET/xUnit/CI partner; React/Vite/Vitest/Playwright scaffold, npm lockfile và frontend CI | Node/npm target đã dùng dạng portable để kiểm chứng; chưa thay Node global |
 | Shell | AntD theme/layout, vi/en, Router basename runtime, navigation từ Session/Shop permission; unknown route NotFound | Feature chưa migrate dùng document navigation sang Blazor; root cutover Phase 11 |
@@ -58,11 +58,13 @@ Baseline đã đọc cả Operations chưa commit; HEAD không đại diện đ�
 - `GET .../shipments` gọi `SearchAsync` có phân trang: status/tracking/receiver/date/COD/sort/page. Page mặc định1/size25, size1–100; reject giá trị invalid, duplicate hoặc offset tràn int. Permission cho PII/COD filter do Application kiểm tra.
 - `GET .../shipments/{shipmentId}` trả snapshot/history DTO hiện có, không có assignment/proof giả. Cross-Shop actor403, shipment ngoài selected Shop404; inactive Shop vẫn xem lịch sử; masking do Application thực hiện.
 - React `/app/dashboard`, `/app/shipments`, `/app/shipments/:id` dùng API trên; state theo URL, cache theo user/Shop/filter, abort stale requests. KPI failure không hiển thị0, latest failure không giả empty, staff không ViewCod không thấy COD. Drill-down giữ UTC end-of-day7 fractional digits và kiểm tra request thật trong Chromium.
-- Tạo/sửa/hủy và file/import vẫn ở Blazor đến Phase 4–5; route root cũ và Blazor regression tests được giữ. Icon dùng `@ant-design/icons` đã pin; không thêm package icon trùng.
+- Tạo/sửa/hủy đã nối React ở Phase 4, file/import vẫn ở Blazor đến Phase 5; route root cũ và Blazor regression tests được giữ. Icon dùng `@ant-design/icons` đã pin; không thêm package icon trùng.
 
 ### Transport và schema
 
-Phase 4 backend checkpoint: quote đã có authorized Application use case, normalize tỉnh/phường rồi gọi route/fee services. Browser create/draft/update/submit/cancel đã gọi use case cũ; create/draft dùng chung actor limiter hiện tại, trả429 + Retry-After; POST tạo resource trả201 + Location. Invalid transition/concurrency trả409. Browser ingress reject số vượt precision SQL hiện tại và kích thước có volumetric weight vượt decimal(10,3); giữ rounding của Domain, không đổi schema hoặc Partner. Đây là giới hạn transport mới để tránh lỗi persistence, không phải tuyên bố mọi fee/config calculation đều nằm trong precision. React mutation form đang được chuyển tại T04.03; URL Blazor được giữ.
+Phase 4: quote có authorized Application use case, normalize tỉnh/phường rồi gọi route/fee services. Browser create/draft/update/submit/cancel gọi use case cũ; create/draft dùng chung actor limiter hiện tại, trả429 + Retry-After; POST tạo resource trả201 + Location. Invalid transition/concurrency trả409. Browser ingress reject số vượt precision SQL hiện tại, weight làm tròn về0 và kích thước có volumetric weight vượt decimal(10,3); giữ rounding của Domain, không đổi schema hoặc Partner. Đây là giới hạn transport mới để tránh lỗi persistence, không phải tuyên bố mọi fee/config calculation đều nằm trong precision. React mutation form tại `/app/shipments/create` giữ query `shopId/shipmentId`; URL Blazor cũ và limiter cũ được giữ.
+
+React form create/save draft/update/submit và detail submit/cancel gọi typed command client, không gửi actor/fee/status. Submit từ edit draft thực hiện update rồi submit như Blazor; không biến hai command thành transaction mới. Unknown outcome khóa retry và dẫn kiểm tra danh sách;409 khóa đến reload, mutation không auto retry. Snapshot bị masking không được dùng để sửa: editing UX cần ViewFullPii + ViewCod, server permission ManageShipments giữ nguyên. User/Shop/edit target mới remount form; response cũ không được điều hướng workspace mới. Quote là POST read-only có debounce/abort/retry=false và không được gửi vào command body.
 
 - `/api/v1/app` dùng Identity cookie; `/api/v1/public` chỉ anonymous safe projections. Không dùng API key partner cho app nội bộ. Mọi endpoint cụ thể và C# binding ở [inventory](react-migration-inventory.md).
 - Auth: GET `/auth/csrf` anonymous trả `{ requestToken: string }`; POST `/auth/login` anonymous nhận `{ email, password, rememberMe }`; POST `/auth/register-shop` anonymous nhận camelCase RegisterShopCommand; POST `/auth/logout` authenticated trả 204; GET `/auth/me` authenticated trả Session. Các path này có prefix `/api/v1/app`, không thay `/auth/*` form cũ.
