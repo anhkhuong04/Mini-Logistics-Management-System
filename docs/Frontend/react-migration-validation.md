@@ -206,6 +206,13 @@ Check bàn giao đạt trên30 Markdown hiện hành và3 heading anchors nội 
 
 ## Cách ghi evidence cho task tiếp theo
 
+## 25/10/2026 — T05.01 import HTTP checkpoint
+
+- HTTP tests RED6/6 do chưa có endpoints → GREEN9/9. Browser preview multipart/confirm JSON/batch GET gọi Application services hiện có, actor từ Identity cookie; request giả actor không đổi batch.RequestedByUserId. Confirm nhận draft rows và revalidate, không tin IsValid/fee từ preview. Test processor thật chuyển Pending→Completed, không chạy worker sản phẩm trong endpoint.
+- File tối đa2.000.000 bytes, request multipart/confirm3.000.000 bytes gồm overhead; feature metadata ghi đè giới hạn64KiB riêng cho import. Reject extension/MIME/UTF-8/control bytes không hợp lệ, empty/null/duplicate row identity trước use case; không log raw CSV. File70KiB qua transport, row lỗi vẫn trả preview đúng contract. Preview/confirm dùng limiter actor hiện có10/5 mỗi phút;429 kèm Retry-After.
+- Cookie/CSRF, owner/staff/cross-Shop, duplicate code, edited-after-preview invalid phone, queued batch/no immediate shipment, batch status và invalid uploads được kiểm tra bằng Identity/Application + EF InMemory fixture riêng. Không suy ra SQL transaction/lease pass; Domain/Application/Infrastructure import services/worker chưa thay đổi ở checkpoint này.
+- Browser schema/types được generate bằng tooling; Partner artifact không đổi. Frontend polling/download tests đã có RED→GREEN riêng, UI import/download đang triển khai tại T05.02–03, chưa coi Phase 5 hoàn tất.
+
 Mỗi task ghi: ngày/task ID, working tree hoặc commit được kiểm chứng, môi trường/dependency, command chính xác, exit code/kết quả, scenario/actor/Shop, failure/skip/blocker và artifact an toàn nếu có. Test mock, render server, HTTP test và browser test phải được phân biệt.
 
 Không ghi credential, API key, raw PII, auth storage state hoặc local connection string. Không lấy manual report mô phỏng đã xóa làm bằng chứng; scenario mới nằm trong plan/inventory và được ghi kết quả ở đây khi thực sự chạy.

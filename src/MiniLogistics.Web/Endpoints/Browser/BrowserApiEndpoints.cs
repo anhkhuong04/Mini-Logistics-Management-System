@@ -24,7 +24,7 @@ public static class BrowserApiEndpoints
         {
             var context = invocation.HttpContext;
             context.Response.Headers.CacheControl = "no-store";
-            const long bodyLimit = 64 * 1024;
+            var bodyLimit = context.GetEndpoint()?.Metadata.GetMetadata<BrowserRequestBodyLimit>()?.Bytes ?? 64 * 1024;
             if (context.Request.ContentLength > bodyLimit) return BrowserApiResultMapper.Problem(context, "Request.TooLarge", 413);
             var bodySize = context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
             if (bodySize is { IsReadOnly: false }) bodySize.MaxRequestBodySize = bodyLimit;
@@ -49,6 +49,7 @@ public static class BrowserApiEndpoints
         group.MapBrowserShopReporting();
         group.MapBrowserShippingQuote();
         group.MapBrowserShopShipmentCommands();
+        group.MapBrowserShipmentImports();
         endpoints.MapBrowserReferenceData();
         return group;
     }
