@@ -50,6 +50,9 @@ public static class BrowserApiEndpoints
         group.MapBrowserShippingQuote();
         group.MapBrowserShopShipmentCommands();
         group.MapBrowserShipmentImports();
+        group.MapBrowserOperationsReads();
+        group.MapBrowserOperationsAssignments();
+        group.MapBrowserOperationsActions();
         endpoints.MapBrowserReferenceData();
         return group;
     }

@@ -1,5 +1,12 @@
 # Frontend migration — validation log
 
+## 25/10/2026 — Phase 6 backend checkpoint (T06.01–03)
+
+- Thêm actor-authorized Operations read/action entry points, browser read/assignment/status/COD endpoints; giữ capacity transaction/ba auto attempts, system actor và audit requester đúng use case. Không đổi schema, Partner hoặc proof.
+- Đọc COD settlement dùng count/order/page SQL, giữ Admin/CodSettle tương đương working-tree Blazor; inventory Phase 0 đề xuất CodViewPending rộng hơn được ghi rõ trong contract. History identity/GPS cần AuditView; active shipper lookup bỏ email và lấy capacity count từ aggregate repository.
+- RED: HTTP endpoints chưa tồn tại; sau triển khai 19 BrowserOperations tests pass. Operations/COD/permission Application:33 pass. SQL LocalDB concurrency/capacity và settlement projection/paging:6 pass. Browser capacity adapter dùng guard InMemory chỉ trong test, không thay thế evidence SQL locking.
+- React workspace, E2E, publish và full baseline còn đang kiểm chứng. Giữ nguyên15 file user baseline; Partner schema không drift ở checkpoint.
+
 ## 25/10/2026 — Chuẩn bị tài liệu Phase 0
 
 **Phạm vi:** đồng bộ entry point/.agents/developer docs, phân loại hiện trạng và kiến trúc đích, thêm ADR-004/status document, sửa liên kết manual report và cập nhật checkpoint tài liệu trong [kế hoạch](../../refactorfe.md).

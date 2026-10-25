@@ -52,6 +52,14 @@ Baseline đã đọc cả Operations chưa commit; HEAD không đại diện đ�
 
 ## Contract browser đã chốt để triển khai
 
+### Phase 6 — Operations (đang kiểm chứng UI)
+
+Backend đã có GET `/api/v1/app/operations/shipments`, `/pending-pickups`, `/shippers`, `/cod/settlement-candidates`; assignment/auto/reassign/cancel/bulk-retry và status/COD collect/settle gọi Application, actor lấy principal. `IOperationsReadService` kiểm ShipmentView trước truy vấn; history actor identity/GPS chỉ phát hành khi có AuditView. Shipper lookup bỏ email, thêm activeShipmentCount từ aggregate repository, không đếm từ trang hiện tại. Hai list vận đơn giữ filter/page/order SQL hiện có; COD dùng focused SQL projection với count/order/page. Shipper là lookup active hiện có, chưa thêm search/paging riêng.
+
+Quyết định tương đương UI hiện tại: settlement candidates cần **CodSettle** (Admin), Operator vẫn thu COD nhưng không đọc workspace đối soát hoặc settle. Inventory Phase 0 từng đề xuất CodViewPending cho cả Admin/Operator; source working tree chỉ tải khu vực này cho Admin. Giữ giới hạn đang chạy, không mở rộng truy cập tài chính trong migration. Raw internal read signatures vẫn dùng cho Blazor/internal, không expose trực tiếp qua HTTP. `OperationsActionService` kiểm quyền Operations trước auto-assign/status/collect/settle, vì shared use case còn phục vụ system/Shipper. Manual auto-assign truyền requestedByUserId để ghi audit; capacity locking/ba attempt/outbox giữ nguyên.
+
+Browser request giữ decimal string cho COD/GPS; no actor trong contract. Bulk tối đa50 ID hợp lệ/duy nhất, trả từng row và partial outcomes. Conflicting assignment/status/COD trả409, không tự retry mutation. Không thêm proof endpoint/UI. React workspace và E2E đang được hoàn thiện; task hoàn tất chỉ khi có evidence trong validation log.
+
 ### Phase 3 đã triển khai
 
 - `GET /api/v1/app/shops/{shopId}/dashboard` nhận `fromUtc/toUtc`; `countByStatus` dùng enum-name keys và integer counts, mọi amount/ratio decimal là string.

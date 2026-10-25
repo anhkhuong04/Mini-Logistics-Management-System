@@ -162,6 +162,7 @@ public static class DependencyInjection
             (CachedRouteRegionConfigRepository)provider.GetRequiredService<IRouteRegionConfigRepository>());
         services.AddScoped<IShipperWorkingAreaRepository, ShipperWorkingAreaRepository>();
         services.AddScoped<ICodTransactionRepository, CodTransactionRepository>();
+        services.AddScoped<MiniLogistics.Application.Operations.IOperationsSettlementReadRepository, OperationsSettlementReadRepository>();
         services.AddScoped<IDeliveryProofRepository, DeliveryProofRepository>();
         services.AddScoped<IShipperCodDailySummaryRepository, ShipperCodDailySummaryRepository>();
         services.AddScoped<IApiClientRepository, ApiClientRepository>();

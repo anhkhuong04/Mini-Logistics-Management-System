@@ -15,6 +15,9 @@ public static class BrowserApiResultMapper
         "Application.NotFound" => 404,
         "Application.Conflict" or "Application.ConcurrencyConflict" or "Application.CapacityReached" => 409,
         "Shipment.CannotEditBeforePickup" or "Shipment.OnlyDraftCanBeSubmitted" or "Shipment.CannotCancel"
+            or "Shipment.CannotAssign" or "Shipment.ActiveAssignmentExists" or "Shipment.CannotReassign"
+            or "Shipment.CannotCancelAssignment" or "Shipment.ActiveAssignmentNotFound"
+            or "COD.CannotCollect" or "COD.CannotSettle" or "COD.ShipmentMustBeDelivered" or "COD.CollectionNotRequired"
             or "Shipment.InvalidStatusTransition" or "Shipment.CompletedShipmentCannotChange" => 409,
         "Browser.RateLimitExceeded" => 429,
         "Application.Unavailable" or "Application.RegistrationFailed" => 503,

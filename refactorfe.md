@@ -1,6 +1,6 @@
 # React + TypeScript + Ant Design Frontend Refactor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–5 đã hoàn tất; Phase 6 chưa bắt đầu. Xem validation log cho evidence; auth/context/dashboard/shipment read/form/actions/import/download chạy React dưới `/app`, renderer chưa chuyển vẫn chạy Blazor.
+> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–5 đã hoàn tất; Phase 6 đang triển khai/kiểm chứng. Xem validation log cho evidence; auth/context/dashboard/shipment read/form/actions/import/download chạy React dưới `/app`, renderer chưa chuyển vẫn chạy Blazor.
 
 **Goal:** Thay toàn bộ frontend Blazor bằng React + TypeScript + Ant Design, giữ tương đương chức năng, quyền truy cập và các hợp đồng nghiệp vụ/tích hợp hiện tại.
 
@@ -515,9 +515,9 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** GET `/api/v1/app/operations/shipments`, `/pending-pickups`, `/shippers`, `/cod/settlement-candidates`; lọc/page/sort như current workspace.
 
-- [ ] Test Admin/Operator được đọc theo OperationPermissions, Shop/Shipper denied; COD settlement candidate và audit field theo permission, không chỉ menu role.
-- [ ] Đối chiếu service nào chưa tự kiểm quyền (ví dụ lookup shipper); bổ sung kiểm tra vào use case hoặc focused authorized query trước khi expose, không mở raw internal service.
-- [ ] DTO chỉ gồm capacity/working area/warning field UI cần; pagination tại SQL/Application hiện có, không full-table fetch để React lọc.
+- [x] Test Admin/Operator được đọc theo OperationPermissions, Shop/Shipper denied; COD settlement candidate và audit field theo permission, không chỉ menu role.
+- [x] Đối chiếu service nào chưa tự kiểm quyền (ví dụ lookup shipper); bổ sung kiểm tra vào use case hoặc focused authorized query trước khi expose, không mở raw internal service.
+- [x] DTO chỉ gồm capacity/working area/warning field UI cần; pagination tại SQL/Application hiện có, không full-table fetch để React lọc.
 
 **Verify:** Browser Operations read + OperationsP2Tests liên quan; permission checks tồn tại ở use case.
 
@@ -527,9 +527,9 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** POST `/operations/shipments/{id}/assign`, `/auto-assign`, `/reassign`, `/cancel-assignment`; POST `/operations/assignments/bulk-retry` với IDs/filters đúng use case, không actor trong body.
 
-- [ ] Test assign pending pickup, reassign/cancel chỉ Assigned, active/area warning/capacity, duplicate/inactive selection và role denied.
-- [ ] Giữ capacity guard/transaction/auto retry tối đa ba attempt bên server; browser không thêm loop auto-retry.
-- [ ] Bulk result giữ kết quả từng shipment, partial failure có thể review; không hiển thị mọi row success khi chỉ một phần thành công.
+- [x] Test assign pending pickup, reassign/cancel chỉ Assigned, active/area warning/capacity, duplicate/inactive selection và role denied.
+- [x] Giữ capacity guard/transaction/auto retry tối đa ba attempt bên server; browser không thêm loop auto-retry.
+- [x] Bulk result giữ kết quả từng shipment, partial failure có thể review; không hiển thị mọi row success khi chỉ một phần thành công.
 
 **Verify:** Browser assignment + OperationsP2Tests; chạy `ConcurrencyAndRegistrationTransactionTests` cho capacity khi adapter thay đường gọi, giữ SQL locking behavior.
 
@@ -539,9 +539,9 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** POST `/operations/shipments/{id}/status`, `/cod/collect`, `/cod/settle`; các path có prefix `/api/v1/app`. Không có GET proof use case trong inventory UI để giả định expose sẵn.
 
-- [ ] Test failure reason/note/GPS validation theo UpdateShipmentStatusCommand, invalid transition và actor audit; giữ backend proof capability/tests nhưng chỉ mở rộng proof UI/API trong task riêng khi được đặt trong scope.
-- [ ] Test Operator thu COD được phép nhưng settle bị 403; Admin settle được; delivered/pending/collected invariant giữ nguyên.
-- [ ] Đảm bảo request duplicate/stale trả conflict đúng use case; mutation không được retry tự động; giữ outbox/audit/notification behavior.
+- [x] Test failure reason/note/GPS validation theo UpdateShipmentStatusCommand, invalid transition và actor audit; giữ backend proof capability/tests nhưng chỉ mở rộng proof UI/API trong task riêng khi được đặt trong scope.
+- [x] Test Operator thu COD được phép nhưng settle bị 403; Admin settle được; delivered/pending/collected invariant giữ nguyên.
+- [x] Đảm bảo request duplicate/stale trả conflict đúng use case; mutation không được retry tự động; giữ outbox/audit/notification behavior.
 
 **Verify:** browser action + COD/domain/Application permission tests, không suy luận đúng từ status nút UI.
 
