@@ -1,5 +1,19 @@
 # Frontend migration — validation log
 
+## 25/10/2026 — Phase 7 lifecycle và parity COD
+
+T07.03 bổ sung `cross-role-lifecycle.spec.ts`: bốn cookie session độc lập chạy Shop tạo → Operator phân công → Shipper lấy/vận chuyển/giao thất bại với reason/note → retry/giao thành công → thu COD → Admin đối soát. Sau browser, fixture kiểm database: đúng actor từng history, hai lần Delivering, failure reason/note, assignment kết thúc, số thực thu/chênh lệch, collector/settler và audit/outbox notification. Worker notification/webhook bị bỏ trong fixture; đây là evidence enqueue, không phải external delivery hay SQL transaction evidence.
+
+Domain regression phát hiện UpdateStatus(Cancelled) giữ assignment active (Assigned/PickingUp RED2); sửa điều kiện deactivation như Cancel(), Domain24/24 GREEN. Browser terminal cases kiểm Delivered+COD pending giữ assignment đến collect; no-COD Delivered/Returned/Cancelled kết thúc; terminal/foreign/mixed role không được mutate, thiếu discrepancy note trả400 đúng mapper hiện tại. SQL NotRequired regression và các suite persistence/capacity/outbox hiện có tiếp tục dùng LocalDB.
+
+Reviewer độc lập chỉ đọc phát hiện Important: thiếu số thực thu/ghi chú so với Blazor. Đã sửa RED→GREEN bằng form string/BigInt, note bắt buộc khi lệch, confirm đúng amount/note, reject âm/overprecision/overflow; cross-role thu99000 trên COD100000 và đối chiếu discrepancy1000. Reviewer bị giới hạn dịch vụ trước verdict cuối; phần còn lại được tác giả tự rà soát endpoint/caller, quyền/isolation, query cancellation, failure generations, lifecycle và side effects. Không coi đây là review độc lập hoàn chỉnh.
+
+QA đã gặp race của test tạo đơn không giữ shopId: context tự thêm shopId gây remount trong lúc điền receiver; test dùng selected shopId như navigation thực tế, validate empty form trước fill và assert receiver trước submit. Một lượt chạy chồng Vitest/browser gây9 timeout5s ở cả Operations cũ và Shipper; chạy riêng lại92/92 pass, giữ timeout/retries/isolation.
+
+**Baseline sau sửa:** Domain24/24, Application160/160, Infrastructure80 pass/1 Redis skip (thiếu biến cấu hình); Web187/187 gồm fixture18/18 Chromium và DB postassertions. Tổng451 pass/0 fail/1 skip khi ghép scope không đổi của lượt solution với lượt Web cuối; lượt solution ban đầu có một browser-test race nêu trên, không ghi thành một lượt solution hoàn toàn xanh. Frontend92/92 trong26 files, build/typecheck/lint exit0. Publish SPA exit0. Browser schema SHA256 `AA92F73467990AD1D4D38AB6059BAD5A2D2BE162A0FA503018ECD812232EEE45`, generated TS `DF806E7D892AA68382685ABF38DE46F0C4D5E431D8D4066C34D4D2F163FD3D83` sau generate hai lần không drift; Partner không đổi. Commit API `c1d8614`, UI `6f6b4ee`, lifecycle/COD `bc3e305`.
+
+**Handoff Phase 7:** published HTTPS smoke15/15 (8.5s), dev HTTPS smoke15/15 (28.2s), mỗi lượt skip18 Identity/data cases đã chạy riêng18/18. Visual390px đã kiểm tra; layout không tràn ngang, primary action44px, focus modal/restore và deep link/reload1280 được kiểm chứng. AntD989.55kB/gzip314.89kB vẫn có warning >500kB đã biết; font fallback và Redis skip vẫn là giới hạn cũ. Fingerprint15/15 file user giữ nguyên; local Markdown links không hỏng; diff không có output/cert/password/download. Checklist T07.01–03 hoàn tất, Phase 8 chưa bắt đầu; giữ branch/commits local, không push/merge/deploy hoặc root cutover.
+
 ## 25/10/2026 — Phase 7 backend checkpoint (T07.01)
 
 Shipper /me read/mutation adapters đã nối Application; self profile không enumerate active shippers, shared status/COD buộc active-assignment policy kể cả mixed roles. Không đổi schema, Partner hoặc outbox orchestration. Browser tests bắt đầu RED vì chưa có endpoint; SQL NotRequired RED vì query bỏ explicit zero-COD transaction. Sau sửa, SQL regression1/1 pass, Application160/160 pass, Browser Shipper/Operations30/30 pass; test former/inactive assignment bổ sung được ghi ở checkpoint tiếp theo. React mobile và cross-role lifecycle chưa hoàn tất tại checkpoint này.

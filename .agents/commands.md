@@ -25,6 +25,8 @@ The real-cookie browser fixture uses an isolated HTTPS Kestrel process with real
 
 Phase 6 extends it with Operator mobile assignment/reassign/cancel/status/collection and Admin settlement/alias. Its capacity guard is an InMemory test adapter; retain `InfrastructurePersistenceTests.AutoAssignment_ConcurrentReservationsDoNotExceedShipperCapacityOrDuplicateSideEffects` for real capacity locking, `ConcurrencyAndRegistrationTransactionTests` for rowversion/transaction conflicts, and `OperationsSettlementReadRepositoryTests` for SQL paging/projection. Optional `MINILOGISTICS_E2E_GREP` filters scenarios when debugging; remove it for the full15-scenario baseline.
 
+Phase 7 adds `shipper.spec.ts` (390px/1280px) and `cross-role-lifecycle.spec.ts`, bringing the Identity fixture to18 scenarios. Cross-role sessions are separate; successful browser completion is followed by DB assertions for actor history, assignment completion, COD collector/settler, audit and queued notification outbox events. Hosted notification/webhook workers remain omitted; queued events are not proof of external delivery. Use `BrowserShipperTests` for self/foreign/mixed-role/terminal policies and `ShipperWorkspaceRepositoryTests` for SQL NotRequired paging. Clear optional grep for the full18-scenario baseline.
+
 ```powershell
 $env:MINILOGISTICS_BROWSER_E2E = '1'
 # Optional absolute executable when the system Node differs from the pins:

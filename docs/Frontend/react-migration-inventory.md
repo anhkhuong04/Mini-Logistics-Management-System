@@ -1,6 +1,6 @@
 # Frontend migration — inventory route/action và binding contract
 
-Đối chiếu baseline ngày 25/10/2026. Inventory bao gồm 28 routed page files/30 route declarations, 93 binding gọi service và các browser form/file/local action. Phase 1–6 đã triển khai auth/reference/Shop context, dashboard, shipment read/quote/mutation, CSV import và file downloads; nghiệp vụ Phase 7+ vẫn là **đặc tả adapter tương lai**. Trạng thái/evidence theo [migration contracts](react-migration-contracts.md) và [validation log](react-migration-validation.md), không suy ra endpoint đã có chỉ từ bảng. Shop adapters có prefix `/api/v1/app`; A049–A066, A074/A076 đã có, file routes giữ `/shop/files`, renderer tương ứng chạy dưới `/app`, URL Blazor cũ được giữ.
+Đối chiếu baseline ngày 25/10/2026. Inventory bao gồm 28 routed page files/30 route declarations, 93 binding gọi service và các browser form/file/local action. Phase 1–7 đã triển khai auth/reference/Shop context, dashboard, shipment read/quote/mutation, CSV import và file downloads; nghiệp vụ Phase 8+ vẫn là **đặc tả adapter tương lai**. Trạng thái/evidence theo [migration contracts](react-migration-contracts.md) và [validation log](react-migration-validation.md), không suy ra endpoint đã có chỉ từ bảng. Shop adapters có prefix `/api/v1/app`; A049–A066, A074/A076 đã có, file routes giữ `/shop/files`, renderer tương ứng chạy dưới `/app`, URL Blazor cũ được giữ.
 
 ## Quy ước đọc
 
@@ -350,13 +350,13 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 **Source:** [ShipperShipments.razor](../../src/MiniLogistics.Web/Components/Pages/Shipper/ShipperShipments.razor). **Routes:** `/shipper/shipments`.
 
-**React page:** `shipper/ShipperWorkspacePage.tsx` (dự kiến, dưới `features/`).
+**React page:** `features/shipper/ShipperWorkspacePage.tsx` đã triển khai tại `/app/shipper/shipments`; navigation/login/returnUrl dùng React, Blazor cũ vẫn tồn tại. Stage/search/COD/page/businessDate theo URL; cards390px, confirm, availability, status/failure note và thu COD. A067–A073 đã có dưới prefix `/api/v1/app`.
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
 | ID | Action/use case hiện tại | Endpoint đích | Quyền/ràng buộc | Task / regression dự kiến |
 | --- | --- | --- | --- | --- |
-| A067 | `GetActiveShippersService.GetAsync` | `GET /shipper/me/profile` | Shipper/self projection; no all-shipper leak | T07.01 / `BrowserShipperTests` |
+| A067 | `ShipperSelfService.ProfileAsync` | `GET /shipper/me/profile` | Shipper/self projection + aggregate load; không enumerate active shippers | T07.01 / `BrowserShipperTests` |
 | A068 | `GetAssignedShipmentsForShipperService.SearchAsync` | `GET /shipper/me/workspace` | Shipper/self assignment | T07.01 / `BrowserShipperTests` |
 | A069 | `GetShipperCodDailySummaryService.GetAsync` | `GET /shipper/me/cod-summary` | Shipper/self | T07.01 / `BrowserShipperTests` |
 | A070 | `GetShipperWorkingAreasService.GetAsync` | `GET /shipper/me/working-areas` | Shipper/self | T07.01 / `BrowserShipperTests` |

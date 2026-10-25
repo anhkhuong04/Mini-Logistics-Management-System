@@ -1,6 +1,6 @@
 # React + TypeScript + Ant Design Frontend Refactor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–6 đã hoàn tất; Phase 7 đang triển khai. Xem validation log cho evidence; auth/context/dashboard/shipment read/form/actions/import/download/Operations/COD chạy React dưới `/app`, renderer chưa chuyển vẫn chạy Blazor.
+> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–7 đã hoàn tất; Phase 8 chưa bắt đầu. Xem validation log cho evidence và giới hạn review; auth/context/dashboard/shipment read/form/actions/import/download/Operations/COD/Shipper chạy React dưới `/app`, renderer chưa chuyển vẫn chạy Blazor.
 
 **Goal:** Thay toàn bộ frontend Blazor bằng React + TypeScript + Ant Design, giữ tương đương chức năng, quyền truy cập và các hợp đồng nghiệp vụ/tích hợp hiện tại.
 
@@ -590,10 +590,10 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** dùng API/UI đã có; fixture riêng cho mỗi flow, không sửa database dùng chung hoặc bật seed production.
 
-- [ ] Flow create → assign → pickup → in transit → delivering → delivered → collect → settle, assertions cả trạng thái UI và server response.
-- [ ] Delivered có COD pending giữ assignment active; collect kết thúc assignment; delivered không COD/returned/cancelled có behavior kết thúc tương ứng.
-- [ ] Flow failed delivery có reason/note rồi retry/return; state terminal không bị mutation; Operator không settle.
-- [ ] Kiểm tra audit/history và side effect bằng integration tests hiện có, không chỉ mock trình duyệt.
+- [x] Flow create → assign → pickup → in transit → delivering → delivered → collect → settle, assertions cả trạng thái UI và server response.
+- [x] Delivered có COD pending giữ assignment active; collect kết thúc assignment; delivered không COD/returned/cancelled có behavior kết thúc tương ứng.
+- [x] Flow failed delivery có reason/note rồi retry/return; state terminal không bị mutation; Operator không settle.
+- [x] Kiểm tra audit/history và side effect bằng integration tests hiện có, không chỉ mock trình duyệt.
 
 **Acceptance:** luồng nghiệp vụ xuyên role có bằng chứng chạy thật; failure trong Domain/Application không được chữa bằng cách nới UI guard.
 
