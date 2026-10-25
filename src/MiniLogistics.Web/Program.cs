@@ -22,6 +22,8 @@ using MiniLogistics.Web.Components;
 using MiniLogistics.Web.Endpoints;
 using MiniLogistics.Web.Services;
 using StackExchange.Redis;
+using MiniLogistics.Web.Endpoints.Browser;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 var builder = WebApplication.CreateBuilder(args);
 const string PartnerApiCorsPolicy = "PartnerApiPolicy";
@@ -142,11 +144,47 @@ builder.Services.AddRateLimiter(options =>
     };
 });
 builder.Services.AddExceptionHandler<PartnerApiExceptionHandler>();
+builder.Services.AddExceptionHandler<BrowserApiExceptionHandler>();
+builder.Services.AddScoped<BrowserSessionReader>();
+builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
+builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Events.OnValidatePrincipal = async context =>
+    {
+        await Microsoft.AspNetCore.Identity.SecurityStampValidator.ValidatePrincipalAsync(context);
+        if (BrowserApiEndpoints.IsBrowserPath(context.Request.Path) && context.Principal?.Identity?.IsAuthenticated == true)
+        {
+            var users = context.HttpContext.RequestServices.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<MiniLogistics.Infrastructure.Identity.ApplicationUser>>();
+            var user = await users.GetUserAsync(context.Principal);
+            if (user is null) context.RejectPrincipal();
+            else context.ReplacePrincipal(await context.HttpContext.RequestServices
+                .GetRequiredService<Microsoft.AspNetCore.Identity.SignInManager<MiniLogistics.Infrastructure.Identity.ApplicationUser>>().CreateUserPrincipalAsync(user));
+        }
+    };
+    options.Events.OnRedirectToLogin = context => BrowserApiEndpoints.IsBrowserPath(context.Request.Path)
+        ? BrowserApiResultMapper.Problem(context.HttpContext, "Browser.Unauthenticated", 401).ExecuteAsync(context.HttpContext)
+        : LegacyRedirect(context);
+    options.Events.OnRedirectToAccessDenied = context => BrowserApiEndpoints.IsBrowserPath(context.Request.Path)
+        ? BrowserApiResultMapper.Problem(context.HttpContext, "Application.Forbidden", 403).ExecuteAsync(context.HttpContext)
+        : LegacyRedirect(context);
+});
 builder.Services.AddProblemDetails();
 builder.Services.AddOpenApi("v1", options =>
 {
     options.ShouldInclude = description => description.GroupName == "v1";
     options.AddDocumentTransformer<PartnerApiOpenApiTransformer>();
+});
+builder.Services.AddOpenApi("browser-v1", options =>
+{
+    options.ShouldInclude = description => description.GroupName is "browser-v1" or "public-v1";
+    options.AddSchemaTransformer<BrowserApiOpenApiTransformer>();
+    options.AddDocumentTransformer((document, _, _) =>
+    {
+        document.Info.Title = "MiniLogistics Browser API";
+        document.Info.Description = "Same-origin Identity cookie. Mutations require X-CSRF-TOKEN from auth/csrf; refresh it after identity changes. Errors use application/problem+json.";
+        return Task.CompletedTask;
+    });
 });
 builder.Services.AddAuthorization(options =>
 {
@@ -308,6 +346,7 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapBrowserSpa();
+app.MapBrowserApiEndpoints();
 app.MapLocalizationEndpoints();
 app.MapAuthenticationEndpoints();
 app.MapShopShipmentFileEndpoints();
@@ -338,6 +377,12 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+static Task LegacyRedirect(Microsoft.AspNetCore.Authentication.RedirectContext<CookieAuthenticationOptions> context)
+{
+    context.Response.Redirect(context.RedirectUri);
+    return Task.CompletedTask;
+}
 
 static async Task RunDatabaseCommandsAsync(
     WebApplication app,

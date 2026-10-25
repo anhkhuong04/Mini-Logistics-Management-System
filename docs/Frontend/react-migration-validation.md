@@ -130,6 +130,13 @@ Check bàn giao đạt trên30 Markdown hiện hành và3 heading anchors nội 
 
 ## Cách ghi evidence cho task tiếp theo
 
+## 25/10/2026 — Phase 2 backend/transport checkpoint
+
+- Browser JSON converters và status map: RED missing namespace → GREEN16 tests. DecimalString round-trip vượt JS safe integer, nullable, enum unknown/numeric rejection và UTC normalization; không thay serializer partner.
+- JSON auth/reference/Shop context triển khai qua Identity và Application services. Web suite99/99 pass, bao gồm cookie thật, remember-me, CSRF identity rotation, invalid credential, lockout5 lần, inactive account, registration auto-sign-in, reference canonicalization và Application PII/owner/staff/cross-Shop checks. Fixture Identity dùng EF InMemory để kiểm tra HTTP/cookie, không dùng kết quả này để kết luận SQL atomicity; các suite SQL hiện có vẫn giữ.
+- HTTP wrapper tests6/6 pass, thêm precision/DST/retry-policy tests3/3; fetch same-origin credentials, CSRF, multipart/download/204, abort và một POST duy nhất sau transport failure. React auth/context UI vẫn đang triển khai tại checkpoint này.
+- Browser OpenAPI3.1.1 sinh từ endpoint metadata, document browser-v1/public-v1 tách partner; openapi-typescript7.13.0 sinh types local. Build vẫn design-time không worker; Partner artifact không đổi.
+
 Mỗi task ghi: ngày/task ID, working tree hoặc commit được kiểm chứng, môi trường/dependency, command chính xác, exit code/kết quả, scenario/actor/Shop, failure/skip/blocker và artifact an toàn nếu có. Test mock, render server, HTTP test và browser test phải được phân biệt.
 
 Không ghi credential, API key, raw PII, auth storage state hoặc local connection string. Không lấy manual report mô phỏng đã xóa làm bằng chứng; scenario mới nằm trong plan/inventory và được ghi kết quả ở đây khi thực sự chạy.

@@ -55,4 +55,9 @@
     </ItemGroup>
   </Target>
 
+  <Target Name="GenerateBrowserOpenApiDocument" AfterTargets="RenamePartnerOpenApiDocument" Condition="'$(OpenApiGenerateDocuments)' == 'true'">
+    <Exec Command="dotnet &quot;$(NuGetPackageRoot)microsoft.extensions.apidescription.server/10.0.0/tools/dotnet-getdocument.dll&quot; --assembly &quot;$(TargetPath)&quot; --file-list &quot;$(IntermediateOutputPath)MiniLogistics.BrowserOpenApiFiles.cache&quot; --framework &quot;$(TargetFrameworkMoniker)&quot; --output &quot;$(OpenApiDocumentsDirectory)&quot; --project &quot;$(MSBuildProjectName)&quot; --assets-file &quot;$(ProjectAssetsFile)&quot; --file-name browser-api --document-name browser-v1" />
+    <Move SourceFiles="$(OpenApiDocumentsDirectory)/browser-api_browser-v1.json" DestinationFiles="$(OpenApiDocumentsDirectory)/browser-api.openapi.json" />
+  </Target>
+
 </Project>

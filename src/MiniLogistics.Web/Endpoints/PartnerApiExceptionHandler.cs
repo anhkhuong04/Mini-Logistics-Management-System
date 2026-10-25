@@ -16,7 +16,7 @@ public sealed class PartnerApiExceptionHandler : IExceptionHandler
         Exception exception,
         CancellationToken cancellationToken)
     {
-        if (!httpContext.Request.Path.StartsWithSegments("/api") || httpContext.Response.HasStarted)
+        if (!httpContext.Request.Path.StartsWithSegments("/api/v1/partner") || httpContext.Response.HasStarted)
         {
             return false;
         }
