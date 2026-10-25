@@ -93,6 +93,26 @@
               }
             }
           },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
           "423": {
             "description": "Locked",
             "content": {
@@ -203,6 +223,26 @@
               }
             }
           },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
           "423": {
             "description": "Locked",
             "content": {
@@ -243,7 +283,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "IdentityCookie": [ ]
+          }
+        ]
       }
     },
     "/api/v1/app/auth/login": {
@@ -252,6 +297,16 @@
           "BrowserAuthenticationEndpoints"
         ],
         "operationId": "BrowserLogin",
+        "parameters": [
+          {
+            "name": "X-CSRF-TOKEN",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -323,6 +378,26 @@
               }
             }
           },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
           "423": {
             "description": "Locked",
             "content": {
@@ -372,6 +447,16 @@
           "BrowserAuthenticationEndpoints"
         ],
         "operationId": "BrowserRegisterShop",
+        "parameters": [
+          {
+            "name": "X-CSRF-TOKEN",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "content": {
             "application/json": {
@@ -443,6 +528,26 @@
               }
             }
           },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
           "423": {
             "description": "Locked",
             "content": {
@@ -492,6 +597,16 @@
           "MiniLogistics.Web"
         ],
         "operationId": "BrowserLogout",
+        "parameters": [
+          {
+            "name": "X-CSRF-TOKEN",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "204": {
             "description": "No Content"
@@ -546,6 +661,26 @@
               }
             }
           },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
           "423": {
             "description": "Locked",
             "content": {
@@ -586,7 +721,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "IdentityCookie": [ ]
+          }
+        ]
       }
     },
     "/api/v1/app/shop-context": {
@@ -666,6 +806,26 @@
               }
             }
           },
+          "413": {
+            "description": "Payload Too Large",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Unsupported Media Type",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
           "423": {
             "description": "Locked",
             "content": {
@@ -706,7 +866,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "IdentityCookie": [ ]
+          }
+        ]
       }
     }
   },
@@ -1011,6 +1176,14 @@
             "type": "string"
           }
         }
+      }
+    },
+    "securitySchemes": {
+      "IdentityCookie": {
+        "type": "apiKey",
+        "description": "HttpOnly Identity cookie managed by the browser; never persist credentials or tokens in localStorage.",
+        "name": ".AspNetCore.Identity.Application",
+        "in": "cookie"
       }
     }
   },

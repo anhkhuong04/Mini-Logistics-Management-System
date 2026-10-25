@@ -1,19 +1,19 @@
 # Frontend migration — phạm vi, contract readiness và trạng thái
 
-Ngày đối chiếu: 25/10/2026. Tài liệu này sở hữu quyết định contract và readiness của Phase 0; [refactorfe.md](../../refactorfe.md) sở hữu thứ tự task và tiêu chí nghiệm thu. [Inventory](react-migration-inventory.md) sở hữu route/action, service/field bindings và adapter đích; [toolchain](react-migration-toolchain.md) sở hữu exact version pins và compatibility evidence. Đây là thiết kế đã chốt để triển khai, chưa phải browser API đã phát hành.
+Ngày đối chiếu: 25/10/2026. Tài liệu này sở hữu quyết định contract/readiness; [refactorfe.md](../../refactorfe.md) sở hữu thứ tự task và tiêu chí nghiệm thu. [Inventory](react-migration-inventory.md) sở hữu route/action, service/field bindings và adapter đích; [toolchain](react-migration-toolchain.md) sở hữu exact version pins. Phase 2 đã triển khai browser HTTP/auth/reference/Shop context; endpoint nghiệp vụ Phase 3+ vẫn là thiết kế, chưa phát hành.
 
 ## Hiện trạng so với đích
 
 | Nội dung | Hiện có trong source | Đích hoặc đề xuất |
 | --- | --- | --- |
 | Frontend | Blazor Interactive Server trong MiniLogistics.Web | React + TypeScript + Ant Design đã được chọn; [ADR-004](decisions/adr-004-react-typescript-ant-design.md) |
-| Project layout | Bốn project .NET và React foundation `src/MiniLogistics.Frontend` (Phase 1) | Browser HTTP API và business pages theo các task tiếp theo |
-| UI transport | Component gọi Application service trực tiếp | Browser HTTP adapters gọi Application; thiết kế chốt Phase 0, chưa có API nội bộ đầy đủ |
-| Auth | Identity cookie, `/auth/*` form + antiforgery + redirect | JSON session/CSRF auth ở Phase 2; giữ form cũ trong coexist |
-| API/contract | Partner `/api/v1/partner` và file/culture/auth endpoints hiện có | Browser `/api/v1/app`, public `/api/v1/public`, OpenAPI/types riêng đã chốt thiết kế, chưa triển khai |
+| Project layout | Bốn project .NET và React foundation/auth/context `src/MiniLogistics.Frontend` | Business pages theo Phase 3+ |
+| UI transport | JSON auth/reference/Shop adapters gọi Identity/Application; business Razor gọi Application trực tiếp | Browser HTTP nghiệp vụ theo phase tương ứng |
+| Auth | Identity cookie, JSON `/api/v1/app/auth/*`, React login/register/session; form `/auth/*` cũ giữ nguyên | Cùng cookie trong coexist; use-case authorization vẫn là nguồn quyền |
+| API/contract | Partner giữ nguyên; browser auth/context/reference có OpenAPI3.1.1 và generated TS types riêng | Endpoint shipment/COD/admin/integration còn ở Phase 3+ |
 | Hosting | T01.02: opt-in `/app`, runtime config và `/frontend-assets`; HTTPS Vite proxy, conditional publish | Root cutover còn ở Phase 11; mặc định SPA tắt, route Blazor giữ nguyên |
 | Toolchain | .NET/xUnit/CI partner; React/Vite/Vitest/Playwright scaffold, npm lockfile và frontend CI | Node/npm target đã dùng dạng portable để kiểm chứng; chưa thay Node global |
-| Shell | AntD theme, AppLayout/PublicLayout, PageHeader/StatusTag/AsyncContent, vi/en và Router basename runtime | Navigation/session theo quyền ở T02.03–04; hiện chỉ menu Trang chính và link đăng nhập cũ |
+| Shell | AntD theme/layout, vi/en, Router basename runtime, navigation từ Session/Shop permission; unknown route NotFound | Feature chưa migrate dùng document navigation sang Blazor; root cutover Phase 11 |
 
 Lựa chọn React/TypeScript/Ant Design không làm thay đổi backend modular monolith. Các lựa chọn hỗ trợ dưới đây do người thực hiện chốt trong T00.02 theo phạm vi người dùng yêu cầu; không ghi chúng thành lựa chọn người dùng đã phát biểu. Chỉ cập nhật cột hiện trạng khi có source và evidence.
 
@@ -87,6 +87,8 @@ Baseline đã đọc cả Operations chưa commit; HEAD không đại diện đ�
 - Pending/Operations paging default25, shipper20, user25; server clamp như hiện tại nhưng browser adapter reject pageNumber<1, pageSize ngoài1–100, không cho truyền int.MaxValue để mở full scan. Legacy nội bộ giữ behavior cũ; URL không hợp lệ được normalize/hiển thị lỗi trước request. Notification limit1–200, audit Shop1–500 theo use case.
 
 ### Session, CSRF, cache và limiter
+
+Phase 2 đã triển khai các auth/reference/context contracts ở trên. Browser group giới hạn body64KiB cho JSON foundation hiện tại; unsupported media trả415 JSON và body quá lớn413 JSON, malformed JSON vẫn400. Các upload endpoint Phase 5/9 phải khai báo lại limit theo feature. Browser document mô tả Identity cookie/CSRF; schema/types được sinh từ metadata, không chỉnh bằng tay.
 
 - Same-origin .NET Identity HttpOnly cookie; không thêm JWT/localStorage token. GET CSRF tạo request token cùng antiforgery cookie, frontend gửi header `X-CSRF-TOKEN` cho POST/PUT/PATCH/DELETE bao gồm auth anonymous và multipart. Server validate rõ ràng cho JSON; không coi MapPost JSON tự có antiforgery.
 - Login/logout/register đổi identity phải invalidate/refresh CSRF token; logout và 401 hủy request, clear Query cache và one-time secrets. 403 reload context/permission cho UX, không retry mutation. Client retry GET chỉ hữu hạn cho transport/5xx, không retry 4xx/429 tức thời; mutation retry=false.

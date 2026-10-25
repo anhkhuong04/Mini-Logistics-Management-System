@@ -56,9 +56,7 @@ public static class BrowserAuthenticationEndpoints
         var command = await BrowserApiEndpoints.ReadAsync<RegisterShopCommand>(context);
         var validation = await validator.ValidateAsync(command, context.RequestAborted);
         if (!validation.IsValid)
-            return BrowserApiResultMapper.Problem(context, "Application.ValidationFailed", 400,
-                validation.Errors.GroupBy(error => System.Text.Json.JsonNamingPolicy.CamelCase.ConvertName(error.PropertyName))
-                    .ToDictionary(errors => errors.Key, errors => errors.Select(error => error.ErrorMessage).ToArray()));
+            return BrowserValidationProblem.From(context, validation.Errors);
         var address = await divisions.NormalizeProvinceWardAsync(command.Province, command.Ward, context.RequestAborted);
         if (address.IsFailure) return BrowserApiResultMapper.Problem(context, address.Error.Code, 400,
             new Dictionary<string, string[]> { ["ward"] = ["Choose a valid province and ward."] });

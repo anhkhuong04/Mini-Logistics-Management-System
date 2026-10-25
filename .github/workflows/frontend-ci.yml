@@ -23,7 +23,35 @@ jobs:
           cache-dependency-path: src/MiniLogistics.Frontend/package-lock.json
       - run: npm install --global npm@11.19.1
       - run: npm ci
+      - name: Regenerate browser types and reject drift
+        run: |
+          npm run api:generate
+          git diff --exit-code -- src/shared/api/generated/browser-api.d.ts
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
       - run: npm run build
+
+  browser-identity:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: src/MiniLogistics.Frontend/.node-version
+          cache: npm
+          cache-dependency-path: src/MiniLogistics.Frontend/package-lock.json
+      - run: npm install --global npm@11.19.1
+      - run: npm --prefix src/MiniLogistics.Frontend ci
+      - run: npm --prefix src/MiniLogistics.Frontend run build
+      - run: npm --prefix src/MiniLogistics.Frontend run dev:cert
+      - run: npx playwright install chromium
+        working-directory: src/MiniLogistics.Frontend
+      - name: Real-cookie browser authentication and Shop isolation
+        env:
+          MINILOGISTICS_BROWSER_E2E: '1'
+        run: dotnet test test/MiniLogistics.Web.Tests/MiniLogistics.Web.Tests.csproj -c Release --filter FullyQualifiedName~BrowserRealBrowserTests

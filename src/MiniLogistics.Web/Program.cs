@@ -135,6 +135,12 @@ builder.Services.AddRateLimiter(options =>
     options.OnRejected = async (context, cancellationToken) =>
     {
         context.HttpContext.Response.Headers.RetryAfter = "60";
+        if (BrowserApiEndpoints.IsBrowserPath(context.HttpContext.Request.Path))
+        {
+            await BrowserApiResultMapper.Problem(context.HttpContext, "Browser.RateLimitExceeded", 429)
+                .ExecuteAsync(context.HttpContext);
+            return;
+        }
         await context.HttpContext.Response.WriteAsJsonAsync(
             new PartnerApiErrorResponse(new PartnerApiError(
                 "PartnerApi.RateLimitExceeded",
@@ -179,12 +185,7 @@ builder.Services.AddOpenApi("browser-v1", options =>
 {
     options.ShouldInclude = description => description.GroupName is "browser-v1" or "public-v1";
     options.AddSchemaTransformer<BrowserApiOpenApiTransformer>();
-    options.AddDocumentTransformer((document, _, _) =>
-    {
-        document.Info.Title = "MiniLogistics Browser API";
-        document.Info.Description = "Same-origin Identity cookie. Mutations require X-CSRF-TOKEN from auth/csrf; refresh it after identity changes. Errors use application/problem+json.";
-        return Task.CompletedTask;
-    });
+    options.AddDocumentTransformer<BrowserApiDocumentTransformer>();
 });
 builder.Services.AddAuthorization(options =>
 {
@@ -331,6 +332,14 @@ if (!app.Environment.IsDevelopment())
 app.UseWhen(
     context => context.Request.Path.StartsWithSegments("/api"),
     apiApp => apiApp.UseExceptionHandler());
+app.UseWhen(
+    context => BrowserApiEndpoints.IsBrowserPath(context.Request.Path),
+    browserApp => browserApp.UseStatusCodePages(async statusContext =>
+    {
+        var context = statusContext.HttpContext;
+        await BrowserApiResultMapper.Problem(context, context.Response.StatusCode == 404
+            ? "Application.NotFound" : "Browser.HttpError", context.Response.StatusCode).ExecuteAsync(context);
+    }));
 app.UseWhen(
     context => !BrowserSpaHostingExtensions.ShouldSkipStatusCodePage(context.Request.Path),
     uiApp => uiApp.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true));

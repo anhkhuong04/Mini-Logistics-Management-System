@@ -10,7 +10,27 @@ namespace MiniLogistics.Web.Tests.Browser;
 
 public sealed class BrowserApiContractTests
 {
+    [Theory]
+    [InlineData("DeliveryAddress.Province", "deliveryAddress.province")]
+    [InlineData("Rows[0].ReceiverPhone", "rows[0].receiverPhone")]
+    public void ValidationPaths_UseCamelCaseForEverySegment(string source, string expected) =>
+        Assert.Equal(expected, MiniLogistics.Web.Services.BrowserValidationProblem.FieldPath(source));
     private sealed record Payload(decimal Amount, decimal? Optional, ShipmentStatus Status, DateTimeOffset At);
+
+    [Fact]
+    public void BrowserJson_KeepsOneBasedPaginationAndDecimalLimits()
+    {
+        var page = new MiniLogistics.Application.Common.PagedResponse<decimal>([decimal.MinValue, 0.10m, decimal.MaxValue], 2, 3, 7);
+        var text = JsonSerializer.Serialize(page, BrowserApiJsonOptions.Value);
+        using var json = JsonDocument.Parse(text);
+        Assert.Equal(2, json.RootElement.GetProperty("pageNumber").GetInt32());
+        Assert.Equal(3, json.RootElement.GetProperty("pageSize").GetInt32());
+        Assert.Equal(7, json.RootElement.GetProperty("totalCount").GetInt32());
+        Assert.Equal(3, json.RootElement.GetProperty("totalPages").GetInt32());
+        Assert.Equal("0.10", json.RootElement.GetProperty("items")[1].GetString());
+        var roundTrip = JsonSerializer.Deserialize<MiniLogistics.Application.Common.PagedResponse<decimal>>(text, BrowserApiJsonOptions.Value)!;
+        Assert.Equal(page.Items, roundTrip.Items);
+    }
 
     [Fact]
     public void BrowserJson_PreservesDecimalAndNormalizesUtcWithoutChangingPartnerDefaults()
@@ -30,6 +50,7 @@ public sealed class BrowserApiContractTests
     [InlineData("1,23")]
     [InlineData("NaN")]
     [InlineData("79228162514264337593543950336")]
+    [InlineData("0.12345678901234567890123456789")]
     public void BrowserDecimal_RejectsInvalidAndOverflowValues(string amount) =>
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<decimal>($"\"{amount}\"", BrowserApiJsonOptions.Value));
 

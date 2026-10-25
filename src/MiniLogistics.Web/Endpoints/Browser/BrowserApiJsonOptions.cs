@@ -27,6 +27,14 @@ public static class BrowserApiJsonOptions
             if (!Regex.IsMatch(text, DecimalPattern, RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100))
                 || !decimal.TryParse(text, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
                     CultureInfo.InvariantCulture, out var value)) throw new JsonException();
+            var parts = text.TrimStart('-').Split('.');
+            var whole = parts[0].TrimStart('0');
+            if (whole.Length == 0) whole = "0";
+            var fraction = parts.Length == 2 ? parts[1].TrimEnd('0') : "";
+            var canonical = whole + (fraction.Length == 0 ? "" : "." + fraction);
+            if (text.StartsWith('-') && canonical != "0") canonical = "-" + canonical;
+            // decimal.TryParse can silently round excess scale; the browser contract must reject loss of precision.
+            if (value.ToString("0.############################", CultureInfo.InvariantCulture) != canonical) throw new JsonException();
             return value;
         }
         public override void Write(Utf8JsonWriter writer, decimal value, JsonSerializerOptions options) =>

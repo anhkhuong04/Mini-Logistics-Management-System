@@ -53,6 +53,9 @@ public sealed class BrowserAuthenticationTests
         Assert.Equal(HttpStatusCode.Unauthorized, me.StatusCode);
         Assert.Null(me.Headers.Location);
         Assert.Equal("application/problem+json", me.Content.Headers.ContentType?.MediaType);
+        var missing = await client.GetAsync("/api/v1/app/not-found");
+        Assert.Equal(HttpStatusCode.NotFound, missing.StatusCode);
+        Assert.Equal("application/problem+json", missing.Content.Headers.ContentType?.MediaType);
         foreach (var path in new[] { "login", "register-shop" })
         {
             client.DefaultRequestHeaders.Remove("X-CSRF-TOKEN");
@@ -121,12 +124,15 @@ public sealed class BrowserAuthenticationTests
         var malformed = await client.PostAsync("/api/v1/app/auth/login", new StringContent("{password-secret", System.Text.Encoding.UTF8, "application/json"));
         Assert.Equal(HttpStatusCode.BadRequest, malformed.StatusCode);
         Assert.DoesNotContain("password-secret", await malformed.Content.ReadAsStringAsync());
+        var nonJson = await client.PostAsync("/api/v1/app/auth/login", new StringContent("not json"));
+        Assert.Equal(HttpStatusCode.UnsupportedMediaType, nonJson.StatusCode);
+        Assert.Equal("application/problem+json", nonJson.Content.Headers.ContentType?.MediaType);
     }
 }
 
 public sealed class BrowserIdentityFactory(bool enableFrontend = false) : WebApplicationFactory<Program>
 {
-    public const string Password = "BrowserTest!123";
+    public static string Password { get; } = $"BrowserTest!{Guid.NewGuid():N}";
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");

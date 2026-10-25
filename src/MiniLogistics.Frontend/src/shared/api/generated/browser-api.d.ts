@@ -286,6 +286,24 @@ export interface operations {
                     "application/problem+json": components["schemas"]["BrowserApiProblem"];
                 };
             };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
             /** @description Locked */
             423: {
                 headers: {
@@ -387,6 +405,24 @@ export interface operations {
                     "application/problem+json": components["schemas"]["BrowserApiProblem"];
                 };
             };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
             /** @description Locked */
             423: {
                 headers: {
@@ -428,7 +464,9 @@ export interface operations {
     BrowserLogin: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                "X-CSRF-TOKEN": string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -492,6 +530,24 @@ export interface operations {
                     "application/problem+json": components["schemas"]["BrowserApiProblem"];
                 };
             };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
             /** @description Locked */
             423: {
                 headers: {
@@ -533,7 +589,9 @@ export interface operations {
     BrowserRegisterShop: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                "X-CSRF-TOKEN": string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -597,6 +655,24 @@ export interface operations {
                     "application/problem+json": components["schemas"]["BrowserApiProblem"];
                 };
             };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
             /** @description Locked */
             423: {
                 headers: {
@@ -638,7 +714,9 @@ export interface operations {
     BrowserLogout: {
         parameters: {
             query?: never;
-            header?: never;
+            header: {
+                "X-CSRF-TOKEN": string;
+            };
             path?: never;
             cookie?: never;
         };
@@ -689,6 +767,24 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -792,6 +888,24 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Payload Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
                 headers: {
                     [name: string]: unknown;
                 };

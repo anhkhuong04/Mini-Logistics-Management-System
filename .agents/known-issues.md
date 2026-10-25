@@ -14,12 +14,14 @@ Migration-specific notes below were rechecked against source on 2026-10-25. That
 
 ## Migration preparation status
 
-- React/TypeScript/Ant Design is the selected target. Phase 1 provides an opt-in React shell at `/app`; business pages still run Blazor. Read [migration contract/status](../docs/Frontend/react-migration-contracts.md) before interpreting proposed files, routes, commands or completion checkboxes.
+- React/TypeScript/Ant Design is the selected target. Phase 1–2 provides opt-in `/app`, real JSON Identity/CSRF, auth forms and Shop context; business renderers still run Blazor until their feature task. Read [migration contract/status](../docs/Frontend/react-migration-contracts.md) before interpreting future endpoints as implemented.
 - Manual-report files under `test/manual` are deleted in the working tree. Their old links have been removed from current guides; do not restore those user deletions during this work. Migration evidence belongs in [the validation log](../docs/Frontend/react-migration-validation.md).
 - Keep the summary-only public tracking behavior and current server-timezone semantics until an explicit behavior change is scoped. Moving browser rate-limit checks from components to ingress does not itself solve multi-instance limiter atomicity.
 - Phase 0 baseline: 320 tests passed, none failed, one Redis integration skipped because its environment variable was absent; see validation log for the exact run, not a permanent test-count claim. Phase 1 installed/verified pinned frontend dependencies using portable Node24.22.1/npm11.19.1; global Node was not changed. BrowserTests omits Infrastructure workers for isolated shell/routing smoke, not data/auth workflow validation.
 
 ## Resolved in this branch
+
+Phase 2 browser validation uses an opt-in Kestrel/Identity/Application fixture with isolated EF InMemory; it is not SQL transaction evidence. Existing LocalDB suites remain authoritative there. The AntD form bundle has a >500kB warning; maxSize splitting caused a production initialization failure and was reverted. Keep route-based performance work scoped separately.
 
 - **TASK-CI-06 — shipper capacity reservations.** Assignment paths lock the shipper's `AspNetUsers` row in the database transaction, read the current limit and active load under that lock, and commit assignment/outbox effects before releasing it. Automatic assignment allows three total attempts; manual assignment and reassignment reject a full shipper. See the focused SQL Server concurrency test.
 - **TASK-CI-07 — partner create idempotency.** Partner create now holds one database transaction through shipment/reference/outbox creation, auto-assignment and final response snapshot. The capacity guard joins that transaction. Only the two external-reference unique indexes are translated; a losing request rolls back, clears tracking and reloads the winner for replay/conflict. SQL Server integration tests cover identical payload, different payload and external-order races without duplicate shipment, reference or outbox rows.

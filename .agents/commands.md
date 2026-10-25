@@ -17,7 +17,22 @@ npm --prefix src/MiniLogistics.Frontend run build
 npm --prefix src/MiniLogistics.Frontend run dev
 ```
 
-For browser tests, install the pinned Playwright browser first (`npx playwright install chromium` from the frontend directory), run `npm --prefix src/MiniLogistics.Frontend run dev:cert`, build Web in Release, then run `npm --prefix src/MiniLogistics.Frontend run test:e2e`. Playwright starts isolated HTTPS .NET/Vite processes in `BrowserTests`, which omits Infrastructure hosted workers; it does not exercise database/session workflows. Set `MINILOGISTICS_E2E_BASE_URL=https://localhost:<port>/app/` to test a separately started published host. Browser binaries/test state/certificates must remain ignored. `api:generate` intentionally exits with a clear error until T02.01 creates the real browser OpenAPI; do not add a placeholder schema to make it pass. Evidence belongs in the [validation log](../docs/Frontend/react-migration-validation.md).
+For shell browser tests, install the pinned Playwright browser first (`npx playwright install chromium` from the frontend directory), run `npm --prefix src/MiniLogistics.Frontend run dev:cert`, build Web in Release, then run `npm --prefix src/MiniLogistics.Frontend run test:e2e`. Playwright starts isolated HTTPS .NET/Vite processes in `BrowserTests`, which omits Infrastructure hosted workers; this path skips the three Identity fixture scenarios. Set `MINILOGISTICS_E2E_BASE_URL=https://localhost:<port>/app/` to test a separately started published host. Browser binaries/test state/certificates must remain ignored. Evidence belongs in the [validation log](../docs/Frontend/react-migration-validation.md).
+
+Build Web normally to generate `docs/Service/browser-api.openapi.json`, then run `npm --prefix src/MiniLogistics.Frontend run api:generate` for committed TypeScript types. Regenerate twice and check drift; never hand-edit schemas/types. Browser serializers/document groups are separate from Partner `v1`.
+
+The real-cookie browser fixture uses an isolated HTTPS Kestrel process with real Identity/Application services and an EF InMemory database (not SQL transaction evidence). Build the frontend first, prepare Chromium/dev cert, then:
+
+```powershell
+$env:MINILOGISTICS_BROWSER_E2E = '1'
+# Optional absolute executable when the system Node differs from the pins:
+$env:MINILOGISTICS_NODE = '<path-to-pinned-node.exe>'
+dotnet test test/MiniLogistics.Web.Tests/MiniLogistics.Web.Tests.csproj -c Release --filter FullyQualifiedName~BrowserRealBrowserTests
+Remove-Item Env:MINILOGISTICS_BROWSER_E2E
+Remove-Item Env:MINILOGISTICS_NODE
+```
+
+Use `PLAYWRIGHT_BROWSERS_PATH` only if browsers were installed to a custom location. Without the opt-in flag this test explicitly skips in the .NET suite. Fixture passwords/cookies are ephemeral, traces disabled; never commit its state. Shell and Identity test output directories are separate.
 
 Coexistence is opt-in: set `BrowserSpa__Enabled=true` when running Web, then run Vite and visit `https://localhost:5173/app/`. `dev:cert` exports the .NET development certificate to ignored `.agent/https`; trust the development certificate locally using `dotnet dev-certs https --trust` if needed. Vite proxies to `https://localhost:7195` with certificate verification enabled; override with `MINILOGISTICS_BACKEND_URL`, `MINILOGISTICS_HTTPS_CERT` and `MINILOGISTICS_HTTPS_KEY` as appropriate. Frontend and backend certificates must have the same trusted issuer for this local setup.
 

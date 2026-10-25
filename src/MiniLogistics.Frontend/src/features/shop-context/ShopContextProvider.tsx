@@ -8,12 +8,12 @@ import { getShopContext } from './api';
 import { ShopContextState } from './ShopContext';
 
 export function ShopContextProvider({ children }: { children: ReactNode }) {
-  const { session, permissionVersion, isLoading } = useSession();
+  const { session, permissionVersion, isLoading, error: sessionError } = useSession();
   const [search, setSearch] = useSearchParams();
   const queryClient = useQueryClient();
   const shopId = search.get('shopId');
   const valid = !shopId || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(shopId);
-  const enabled = !isLoading && Boolean(session?.roles.includes('Shop')) && valid;
+  const enabled = !isLoading && !sessionError && Boolean(session?.roles.includes('Shop')) && valid;
   const query = useQuery({ queryKey: queryKeys.context(session?.userId ?? '', shopId, permissionVersion), enabled,
     staleTime: 0, gcTime: 0, retry: false,
     queryFn: ({ signal }) => getShopContext(shopId, signal) });

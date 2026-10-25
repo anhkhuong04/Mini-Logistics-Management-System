@@ -144,6 +144,19 @@ Check bàn giao đạt trên30 Markdown hiện hành và3 heading anchors nội 
 - Build pass với AntD chunk601.74kB (gzip198.36kB), giữ warning threshold. Thử maxSize split làm bundle lỗi runtime `Cannot destructure property LEFT ... undefined`; bỏ thay đổi split đó và fixture Chromium3/3 pass lại. Chưa tối ưu tải bundle trong checkpoint này.
 - Bổ sung HTTP regression roles bị thu hồi/inactive với cookie đang có; targeted auth/contract/browser run23/23 pass. React hỗ trợ copy auth vi/en; các form cũ còn nguyên.
 
+## 25/10/2026 — Phase 2 kiểm tra bàn giao
+
+- Commits quan trọng: `310c5b2` cho backend/transport và `82e6478` cho React auth/session/context. Không sửa Domain/schema/worker/Partner contracts; không stage các thay đổi Operations/manual có sẵn.
+- Rà soát lại failure paths và cache: thêm regression RED→GREEN khi reload session phát hiện tài khoản B mà query của A còn tồn tại; clear/cancel cache khi đổi user, ẩn Shop context khi session đang reload/lỗi. Forbidden resource chỉ tự refresh permission một lần để không tạo vòng lặp403 vô hạn.
+- Decimal parser có regression RED→GREEN cho excess scale bị decimal.TryParse làm tròn âm thầm: giờ reject mất precision; kiểm tra min/max/0.10, nullable, pagination one-based, UTC và camelCase field paths. Tách lỗi request400, body413, unsupported media415 thành ProblemDetails safe; Retry-After cho429 và404 browser/public JSON. Đây là HTTP browser contract, không thay error envelope partner.
+- Web suite110/110 pass với opt-in Chromium Identity fixture bật sau hardening; thêm pagination/decimal-limits contract test đạt trong contract suite26/26. Mật khẩu fixture sinh ngẫu nhiên mỗi process; không commit credential dùng được vào ứng dụng.
+- Vitest29/29, typecheck/lint/build exit0. Browser shell/coexist/mobile-auth đạt15/15 trên published process (3 auth scenarios được skip ở lượt này vì đã chạy qua fixture Kestrel riêng). Đã xem screenshot login/register390px; province data chờ load trước snapshot. Native zoom/wider browser release QA vẫn Phase 11.
+- OpenAPI/schema/types regenerate hai lần ổn định; browser document có Cookie auth/CSRF metadata, validator paths camelCase. CI thêm drift guard cho browser schema/types và job Windows real-cookie browser; chỉ xác nhận lệnh tương ứng chạy local, chưa có kết quả GitHub Actions remote trong lượt này.
+- Tự review boundaries/authorization/CSRF/cache/proxy/publish; không có independent reviewer trong lượt Phase 2. Các giới hạn còn lại: Redis chưa cấu hình, AntD vendor601.74kB/gzip198.36kB warning, font Be Vietnam Pro chưa load riêng từ Phase 1. API/renderer nghiệp vụ Phase 3+ chưa được triển khai.
+- Full handoff `dotnet test Mini-logistics-manegemant-system.slnx -c Release` với opt-in browser bật: Domain22, Application160, Infrastructure78 pass/1 Redis skip, Web111 pass; tổng371 pass/0 fail/1 skip. Web gồm real-cookie Kestrel fixture chạy3 Chromium auth/Shop scenarios. Default `.NET` run không bật opt-in sẽ có thêm1 skip của browser fixture; không nhầm lượt đó với lượt đã chạy ở đây.
+- Sau đồng bộ copy navigation/context vi/en: Vitest29/29 và build/lint đạt; real-cookie browser fixture chạy lại pass. Publish artifact được cập nhật và shell/mobile-auth15/15 pass, không còn thay đổi renderer nào chưa build. Kiểm tra cuối giữ15/15 user fingerprints, Partner artifact không drift và không có broken local file links trong13 Markdown thay đổi.
+- Bài kiểm tra reference data nằm cùng BrowserAuthenticationTests; browser Shop context contracts được đặt cạnh endpoint thay vì tách file chỉ chứa record. Không thêm package, migration hay user fixture vào runtime sản phẩm.
+
 ## Cách ghi evidence cho task tiếp theo
 
 Mỗi task ghi: ngày/task ID, working tree hoặc commit được kiểm chứng, môi trường/dependency, command chính xác, exit code/kết quả, scenario/actor/Shop, failure/skip/blocker và artifact an toàn nếu có. Test mock, render server, HTTP test và browser test phải được phân biệt.

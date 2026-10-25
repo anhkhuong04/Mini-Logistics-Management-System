@@ -19,12 +19,12 @@ import { useAuthCopy } from '../shared/i18n/authCopy';
 function Welcome() {
   const { t } = useI18n();
   const [isHelpOpen, setHelpOpen] = useState(false);
-  const { session } = useSession();
+  const { session, isLoading, error } = useSession();
 
   return (
     <>
       <PageHeader title="Mini Logistics" description={t('description')} />
-      {session?.roles.includes('Shop') && <ShopContextSelector />}
+      {session?.roles.includes('Shop') && !isLoading && !error && <ShopContextSelector />}
       <section className="welcome-panel" aria-labelledby="welcome-heading">
         <Typography.Title level={2} id="welcome-heading">{t('welcome')}</Typography.Title>
         <Typography.Paragraph type="secondary">{t('welcomeDetail')}</Typography.Paragraph>
@@ -51,13 +51,14 @@ function NotFound() {
 }
 
 function AppContent() {
-  const { session, logout } = useSession();
+  const { session, logout, isLoading, error } = useSession();
   const { context } = useShopContext();
   const copy = useAuthCopy();
+  const { locale } = useI18n();
   const [logoutError, setLogoutError] = useState(false);
-  const tools = session && <div className="session-tools"><span>{session.displayName}</span>
+  const tools = session && !isLoading && !error && <div className="session-tools"><span>{session.displayName}</span>
     <Button onClick={() => { void logout().catch(() => setLogoutError(true)); }}>{copy.logout}</Button></div>;
-  return <AppLayout navigation={navigationFor(session, context)} sessionTools={tools}>
+  return <AppLayout navigation={navigationFor(isLoading || error ? null : session, context, locale)} sessionTools={tools}>
     {logoutError && <Result status="warning" title={copy.logoutFailure}
       extra={<Button onClick={() => { void logout().then(() => setLogoutError(false)).catch(() => setLogoutError(true)); }}>{copy.retry}</Button>} />}
     <Routes>

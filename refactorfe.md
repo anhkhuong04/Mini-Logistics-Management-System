@@ -1,6 +1,6 @@
 # React + TypeScript + Ant Design Frontend Refactor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0 và Phase 1 đã hoàn tất; Phase 2 chưa bắt đầu. Xem validation log cho evidence; các trang nghiệp vụ vẫn chạy Blazor.
+> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–2 đã hoàn tất; Phase 3 chưa bắt đầu. Xem validation log cho evidence; renderer nghiệp vụ vẫn chạy Blazor cho đến task chuyển tương ứng.
 
 **Goal:** Thay toàn bộ frontend Blazor bằng React + TypeScript + Ant Design, giữ tương đương chức năng, quyền truy cập và các hợp đồng nghiệp vụ/tích hợp hiện tại.
 
@@ -335,12 +335,12 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** `MapBrowserApiEndpoints(...)`, `BrowserUserClaims.TryGetUserId(ClaimsPrincipal, out Guid)`; requestJson/requestForm/requestDownload và ApiProblem theo mục 4. Browser OpenAPI document name `browser-v1`, tách group `browser-v1`/`public-v1` khỏi group partner `v1`.
 
-- [ ] Test mapping validation/forbidden/not-found/conflict/concurrency/rate-limit/unavailable, malformed JSON, undefined enum và trace ID; kiểm tra response là JSON, không có stack trace/PII.
-- [ ] Branch exception handler theo browser/public prefix; thu hẹp handler partner đang bắt toàn `/api` để không nuốt browser errors, nhưng giữ output partner và toàn bộ Partner contract tests.
-- [ ] Chốt browser serializer ở endpoint/type boundary; không thay JSON options toàn host làm đổi partner. Test camelCase/enum/UTC/pagination và money round-trip tại min/max/range có số lẻ của validator.
-- [ ] Configure OpenAPI browser và generated artifact/types; kiểm tra OpenAPI version tương thích `openapi-typescript`; không hạ format partner để phục vụ generator. `api:generate` đọc artifact local và sinh `browser-api.d.ts`.
-- [ ] Implement fetch wrapper có cookie, AbortSignal, CSRF cho mutation, hỗ trợ FormData/download/204; giữ status/code/traceId khi lỗi, xử lý response HTML bất thường như lỗi protocol.
-- [ ] TanStack Query không retry mutation; read chỉ retry hữu hạn lỗi transport/5xx, không retry 401/403/validation/429 ngay lập tức. Thử POST timeout chứng minh chỉ gửi một lần.
+- [x] Test mapping validation/forbidden/not-found/conflict/concurrency/rate-limit/unavailable, malformed JSON, undefined enum và trace ID; kiểm tra response là JSON, không có stack trace/PII.
+- [x] Branch exception handler theo browser/public prefix; thu hẹp handler partner đang bắt toàn `/api` để không nuốt browser errors, nhưng giữ output partner và toàn bộ Partner contract tests.
+- [x] Chốt browser serializer ở endpoint/type boundary; không thay JSON options toàn host làm đổi partner. Test camelCase/enum/UTC/pagination và money round-trip tại min/max/range có số lẻ của validator.
+- [x] Configure OpenAPI browser và generated artifact/types; kiểm tra OpenAPI version tương thích `openapi-typescript`; không hạ format partner để phục vụ generator. `api:generate` đọc artifact local và sinh `browser-api.d.ts`.
+- [x] Implement fetch wrapper có cookie, AbortSignal, CSRF cho mutation, hỗ trợ FormData/download/204; giữ status/code/traceId khi lỗi, xử lý response HTML bất thường như lỗi protocol.
+- [x] TanStack Query không retry mutation; read chỉ retry hữu hạn lỗi transport/5xx, không retry 401/403/validation/429 ngay lập tức. Thử POST timeout chứng minh chỉ gửi một lần.
 
 **Verify:** Web contract + partner suites pass; httpClient tests cho 204/JSON/error/abort/multipart/timeout pass; regenerate contracts hai lần không tạo diff ngoài dự kiến.
 
@@ -350,12 +350,12 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** năm auth endpoint ở mục 4; csrf trả `{ requestToken }`, `me`/login/register thành công trả Session; logout trả 204. Session reader lấy user active và role/operation permission server-side. Anonymous `GET /api/v1/public/reference-data/provinces` trả tỉnh/phường đang được dùng trong app để register hoạt động đầy đủ ngay Phase 2; nguồn server vẫn là VietnamAdministrativeDivisionService.
 
-- [ ] Test login/register/logout thiếu hoặc sai CSRF bị 400; login sai 401, lockout 423 với code ổn định, inactive bị từ chối; `me` anonymous 401, role denied 403, không redirect HTML.
-- [ ] Reuse SignInManager/UserManager/RegisterShopService, chính sách password, lockout 5 lần/15 phút và Data Protection hiện có; không tạo password verifier/token store mới.
-- [ ] Validate JSON/form field errors; password không đưa vào log, error, draft cookie hoặc response. Login/register phải AllowAnonymous rõ ràng dù parent group yêu cầu auth.
-- [ ] Lấy identity từ principal; đọc lại trạng thái active/role khi tạo session và ở đường use case. Bảo toàn auth form cũ trong coexist và test regression cũ.
-- [ ] Sau login/logout refresh antiforgery token theo identity mới; response auth/CSRF/session có no-store, cookie security giữ theo production policy hiện tại.
-- [ ] Thêm anonymous reference endpoint với DTO chỉ có tên tỉnh/phường; kiểm tra không lộ protected data, data có thể dùng cho registration và canonicalization dùng cùng nguồn JSON. Không chuyển file authoritative sang frontend.
+- [x] Test login/register/logout thiếu hoặc sai CSRF bị 400; login sai 401, lockout 423 với code ổn định, inactive bị từ chối; `me` anonymous 401, role denied 403, không redirect HTML.
+- [x] Reuse SignInManager/UserManager/RegisterShopService, chính sách password, lockout 5 lần/15 phút và Data Protection hiện có; không tạo password verifier/token store mới.
+- [x] Validate JSON/form field errors; password không đưa vào log, error, draft cookie hoặc response. Login/register phải AllowAnonymous rõ ràng dù parent group yêu cầu auth.
+- [x] Lấy identity từ principal; đọc lại trạng thái active/role khi tạo session và ở đường use case. Bảo toàn auth form cũ trong coexist và test regression cũ.
+- [x] Sau login/logout refresh antiforgery token theo identity mới; response auth/CSRF/session có no-store, cookie security giữ theo production policy hiện tại.
+- [x] Thêm anonymous reference endpoint với DTO chỉ có tên tỉnh/phường; kiểm tra không lộ protected data, data có thể dùng cho registration và canonicalization dùng cùng nguồn JSON. Không chuyển file authoritative sang frontend.
 
 **Verify:** Browser authentication và auth form antiforgery suites pass; kiểm tra cookie thật bằng factory HandleCookies và browser, không chỉ fake principal.
 
@@ -365,11 +365,11 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** `useSession(): { session: Session | null; isLoading: boolean; reload(): Promise<void>; logout(): Promise<void> }`; `RequireSession`/role guard phục vụ UX.
 
-- [ ] Test session loading không flash nội dung được bảo vệ; reload browser giữ cookie; expired session clear cache và chuyển login; 403 hiển thị trang không quyền.
-- [ ] Dựng form AntD, disabled/loading, map server field errors, clear password sau failure cần thiết; không lưu credential vào storage.
-- [ ] Giữ ưu tiên redirect hiện có: Admin/Operator → Operations, Shipper → workspace, Shop → dashboard; IntegrationAdmin-only → trang integrations có quyền. `returnUrl` chỉ local route hợp lệ, không open redirect.
-- [ ] Register đầy đủ field Shop/address, validation và auto sign-in như hiện tại; dùng anonymous reference data endpoint T02.02, province đổi phải cập nhật ward; không dùng data giả.
-- [ ] Menu đọc role/permission server trả; link đến feature chưa chuyển dùng điều hướng document sang Blazor, không để React router trả blank page.
+- [x] Test session loading không flash nội dung được bảo vệ; reload browser giữ cookie; expired session clear cache và chuyển login; 403 hiển thị trang không quyền.
+- [x] Dựng form AntD, disabled/loading, map server field errors, clear password sau failure cần thiết; không lưu credential vào storage.
+- [x] Giữ ưu tiên redirect hiện có: Admin/Operator → Operations, Shipper → workspace, Shop → dashboard; IntegrationAdmin-only → trang integrations có quyền. `returnUrl` chỉ local route hợp lệ, không open redirect.
+- [x] Register đầy đủ field Shop/address, validation và auto sign-in như hiện tại; dùng anonymous reference data endpoint T02.02, province đổi phải cập nhật ward; không dùng data giả.
+- [x] Menu đọc role/permission server trả; link đến feature chưa chuyển dùng điều hướng document sang Blazor, không để React router trả blank page.
 
 **Verify:** registration/login/logout/remember-me/lockout/đổi tài khoản và direct protected route pass bằng cookie thật; không có phụ thuộc vào feature của phase sau.
 
@@ -379,10 +379,10 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** `GET /api/v1/app/shop-context?shopId=...` gọi IGetShopContextService; `useShopContext()` trả context, loading và `selectShop(shopId: string)`; chuyển Shop cập nhật URL.
 
-- [ ] Test owner nhiều Shop, staff quyền hạn chế, Shop inactive, Shop ngoài quyền bị 403; profile PII trả đúng masking từ Application.
-- [ ] Map ShopPermission flags thành string array ở browser adapter; không tự cấp owner quyền vì role Shop hoặc tin permission client gửi lên.
-- [ ] Query key gồm userId/shopId/filters; abort old requests, bỏ stale response và clear sensitive state khi user/Shop đổi. Không dùng keepPreviousData xuyên tenant.
-- [ ] Navigation/action được kiểm tra bằng permissions context; đơn vị authorization thật vẫn trong use case. Invalid selectedShop không tự tải dữ liệu một Shop không được phép.
+- [x] Test owner nhiều Shop, staff quyền hạn chế, Shop inactive, Shop ngoài quyền bị 403; profile PII trả đúng masking từ Application.
+- [x] Map ShopPermission flags thành string array ở browser adapter; không tự cấp owner quyền vì role Shop hoặc tin permission client gửi lên.
+- [x] Query key gồm userId/shopId/filters; abort old requests, bỏ stale response và clear sensitive state khi user/Shop đổi. Không dùng keepPreviousData xuyên tenant.
+- [x] Navigation/action được kiểm tra bằng permissions context; đơn vị authorization thật vẫn trong use case. Invalid selectedShop không tự tải dữ liệu một Shop không được phép.
 
 **Verify:** test trì hoãn response Shop A, đổi sang B rồi response A về: UI chỉ hiển thị B; logout rồi login user khác không còn A/B cache.
 

@@ -6,6 +6,12 @@ import { RegisterShopPage } from './RegisterShopPage';
 import { safeReturnUrl, postLoginPath } from './redirects';
 afterEach(() => vi.unstubAllGlobals());
 describe('authentication pages', () => {
+  it('uses English labels when the server locale is English', () => {
+    renderWithProviders(<LoginPage />, { locale: 'en-US' });
+    expect(screen.getByRole('heading', { name: 'Sign in' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Password')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Register a shop' })).toBeInTheDocument();
+  });
   it('submits login once, maps safe errors, and clears the password', async () => {
     const fetch = vi.fn().mockResolvedValueOnce(Response.json({ requestToken: 'test' }))
       .mockResolvedValueOnce(Response.json({ code: 'Auth.InvalidCredentials', title: 'Invalid credentials' }, { status: 401 }));

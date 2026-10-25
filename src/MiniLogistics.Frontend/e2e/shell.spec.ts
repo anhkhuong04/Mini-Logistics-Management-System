@@ -5,6 +5,17 @@ import { resolve } from 'node:path';
 const screenshots = resolve('../../.agent/refactorfe-phase1/screenshots');
 mkdirSync(screenshots, { recursive: true });
 
+for (const path of ['login', 'register-shop']) {
+  test(`authentication page ${path} fits a 390px viewport`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(`./${path}`);
+    await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+    if (path === 'register-shop') await expect(page.getByRole('combobox', { name: 'Tỉnh / Thành phố' })).toBeEnabled();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ path: resolve(screenshots, `auth-${path}-390.png`), fullPage: true });
+  });
+}
+
 for (const width of [390, 768, 1024, 1440]) {
   test(`shell fits ${width}px and exposes navigation appropriate to the viewport`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });

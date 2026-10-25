@@ -13,10 +13,12 @@ export function SessionProvider({ children, initialSession }: { children: ReactN
   const request = useRef<AbortController | null>(null);
   const reading = useRef(false);
   const deniedPaths = useRef(new Set<string>());
+  const sessionUserId = useRef(initialSession?.userId ?? null);
   const clear = useCallback(() => {
     generation.current++;
     request.current?.abort();
     setSession(null);
+    sessionUserId.current = null;
     setLoading(false);
     void queryClient.cancelQueries();
     queryClient.clear();
@@ -29,13 +31,19 @@ export function SessionProvider({ children, initialSession }: { children: ReactN
     reading.current = true;
     try {
       const value = await requestJson<Session>('/api/v1/app/auth/me', { signal: controller.signal });
-      if (current === generation.current) setSession(value);
+      if (current === generation.current) {
+        if (sessionUserId.current && sessionUserId.current !== value.userId) {
+          void queryClient.cancelQueries(); queryClient.clear(); resetCsrf(); deniedPaths.current.clear();
+        }
+        sessionUserId.current = value.userId;
+        setSession(value);
+      }
     } catch (failure) {
       if (controller.signal.aborted) return;
       if (failure instanceof ApiError && [401, 403].includes(failure.status)) clear();
       else if (current === generation.current) setError(failure as Error);
     } finally { reading.current = false; if (!controller.signal.aborted) setLoading(false); }
-  }, [clear]);
+  }, [clear, queryClient]);
   const reload = useCallback(async () => { setLoading(true); setError(null); await read(); }, [read]);
   const cancel = useCallback(() => { generation.current++; request.current?.abort(); }, []);
   useEffect(() => {
@@ -58,6 +66,7 @@ export function SessionProvider({ children, initialSession }: { children: ReactN
   const signedIn = async (value: Session) => {
     clear();
     deniedPaths.current.clear();
+    sessionUserId.current = value.userId;
     setSession(value); setLoading(false); setError(null);
     await refreshCsrf();
   };

@@ -37,6 +37,10 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw "Generated OpenAPI differs from the committed artifact. Review and commit the contract change."
           }
+          git diff --exit-code -- docs/Service/browser-api.openapi.json
+          if ($LASTEXITCODE -ne 0) {
+            throw "Generated browser OpenAPI differs from the committed artifact."
+          }
 
       - name: Reject unversioned breaking OpenAPI changes
         if: github.event_name == 'pull_request'

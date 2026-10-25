@@ -1,6 +1,6 @@
 # Frontend migration — inventory route/action và binding contract
 
-Đối chiếu working tree ngày 25/10/2026. Đây là **đặc tả adapter tương lai**, chưa có browser endpoint/React page nào được triển khai. Inventory bao gồm 28 routed page files/30 route declarations, 93 binding gọi service từ các page và các browser form/file/local action bổ sung bên dưới.
+Đối chiếu baseline ngày 25/10/2026. Inventory bao gồm 28 routed page files/30 route declarations, 93 binding gọi service và các browser form/file/local action. Phase 2 đã triển khai auth/reference/Shop context và form React tương ứng; bảng nghiệp vụ Phase 3+ vẫn là **đặc tả adapter tương lai**. Trạng thái/evidence theo [migration contracts](react-migration-contracts.md) và [validation log](react-migration-validation.md), không suy ra endpoint đã có chỉ từ bảng.
 
 ## Quy ước đọc
 

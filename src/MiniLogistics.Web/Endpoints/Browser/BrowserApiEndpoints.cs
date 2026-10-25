@@ -8,19 +8,26 @@ public static class BrowserApiEndpoints
     public static bool IsBrowserPath(PathString path) => path.StartsWithSegments("/api/v1/app")
         || path.StartsWithSegments("/api/v1/public");
 
-    public static async Task<T> ReadAsync<T>(HttpContext context) where T : class =>
-        await context.Request.ReadFromJsonAsync<T>(BrowserApiJsonOptions.Value, context.RequestAborted)
-        ?? throw new JsonException();
+    public static async Task<T> ReadAsync<T>(HttpContext context) where T : class
+    {
+        if (!context.Request.HasJsonContentType()) throw new BadHttpRequestException("Expected JSON.");
+        return await context.Request.ReadFromJsonAsync<T>(BrowserApiJsonOptions.Value, context.RequestAborted)
+            ?? throw new JsonException();
+    }
 
     public static RouteGroupBuilder MapBrowserApiEndpoints(this IEndpointRouteBuilder endpoints)
     {
         var group = endpoints.MapGroup("/api/v1/app").WithGroupName("browser-v1").RequireAuthorization();
-        foreach (var status in new[] { 400, 401, 403, 404, 409, 423, 429, 500, 503 })
+        foreach (var status in new[] { 400, 401, 403, 404, 409, 413, 415, 423, 429, 500, 503 })
             group.WithMetadata(new Microsoft.AspNetCore.Mvc.ProducesResponseTypeAttribute(typeof(BrowserApiProblem), status, "application/problem+json"));
         group.AddEndpointFilter(async (invocation, next) =>
         {
             var context = invocation.HttpContext;
             context.Response.Headers.CacheControl = "no-store";
+            const long bodyLimit = 64 * 1024;
+            if (context.Request.ContentLength > bodyLimit) return BrowserApiResultMapper.Problem(context, "Request.TooLarge", 413);
+            var bodySize = context.Features.Get<Microsoft.AspNetCore.Http.Features.IHttpMaxRequestBodySizeFeature>();
+            if (bodySize is { IsReadOnly: false }) bodySize.MaxRequestBodySize = bodyLimit;
             if (context.GetEndpoint()?.Metadata.GetMetadata<Microsoft.AspNetCore.Authorization.IAllowAnonymous>() is null)
             {
                 if (!BrowserUserClaims.TryGetUserId(context.User, out _)) return BrowserApiResultMapper.Problem(context, "Browser.Unauthenticated", 401);

@@ -21,6 +21,7 @@ SQL, Redis và Data Protection là dependency hạ tầng; xem [Persistence](../
 | --- | --- |
 | Endpoint, auth, ownership, idempotency, lỗi và chữ ký webhook | [Partner API reference](partner-api.md) |
 | Schema request/response chính xác | [Generated OpenAPI](partner-api.openapi.json) |
+| Browser Identity/CSRF/reference/Shop context | [Browser OpenAPI](browser-api.openapi.json), [migration contract](../Frontend/react-migration-contracts.md) |
 | Gắn trạng thái giao hàng vào website Shop | [Integration guide](integration-guide.md) |
 | Cấu hình production, deploy, recovery và release evidence | [Operations](operations.md) |
 | Threat, control và security verification | [Threat model](security.md) |
@@ -32,7 +33,7 @@ Ví dụ backend: [Node.js](examples/partner-api-node.mjs), [C#](examples/Partne
 
 ## Ranh giới trách nhiệm
 
-Mini Logistics xác thực client, giới hạn quota, giữ Shop/client isolation, commit business/outbox và gửi webhook đã ký. Backend Shop giữ key, authorize customer/order, lưu mapping tracking code, verify webhook, deduplicate và reconcile. Browser chỉ gọi backend Shop.
+Mini Logistics xác thực client, giới hạn quota, giữ Shop/client isolation, commit business/outbox và gửi webhook đã ký. Backend Shop giữ key, authorize customer/order, lưu mapping tracking code, verify webhook, deduplicate và reconcile. Browser của partner gọi backend Shop; UI React nội bộ Mini Logistics dùng same-origin Identity cookie và browser API riêng, không dùng Partner API key.
 
 API reference sở hữu hợp đồng; guide chỉ mô tả cách áp dụng; runbook sở hữu cấu hình/vận hành; threat model sở hữu phân tích rủi ro. Không sao chép bảng scope/lỗi/chữ ký sang từng tài liệu. OpenAPI sinh từ Web project; khi hợp đồng đổi, cập nhật reference, changelog và examples cùng artifact theo [Development](../Backend/development.md).
 

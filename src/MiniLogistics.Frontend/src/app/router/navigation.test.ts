@@ -11,5 +11,6 @@ describe('navigation permissions', () => {
     const links = navigationFor(session, context);
     expect(links.find(item => item.key === 'shipments')).toMatchObject({ document: true, to: '/shipments?shopId=A' });
     expect(links.some(item => ['cod', 'staff', 'admin'].includes(item.key))).toBe(false);
+    expect(navigationFor(session, context, 'en-US').find(item => item.key === 'shipments')?.label).toBe('Shipments');
   });
 });
