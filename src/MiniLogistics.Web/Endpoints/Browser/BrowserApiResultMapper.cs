@@ -14,6 +14,8 @@ public static class BrowserApiResultMapper
         "Application.Forbidden" => 403,
         "Application.NotFound" => 404,
         "Application.Conflict" or "Application.ConcurrencyConflict" or "Application.CapacityReached" => 409,
+        "Shipment.CannotEditBeforePickup" or "Shipment.OnlyDraftCanBeSubmitted" or "Shipment.CannotCancel"
+            or "Shipment.InvalidStatusTransition" or "Shipment.CompletedShipmentCannotChange" => 409,
         "Browser.RateLimitExceeded" => 429,
         "Application.Unavailable" or "Application.RegistrationFailed" => 503,
         "Browser.InternalError" => 500,

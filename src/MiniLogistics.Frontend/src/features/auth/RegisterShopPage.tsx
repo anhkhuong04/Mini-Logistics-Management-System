@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Alert, Button, Form, Input, Select } from 'antd';
 import { Link } from 'react-router';
-import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '../../shared/ui/PageHeader';
-import { ApiError, requestJson } from '../../shared/api/httpClient';
+import { ApiError } from '../../shared/api/httpClient';
+import { useProvinces } from '../../shared/api/referenceData';
 import { useSession } from '../../shared/auth/SessionContext';
-import { register, type Registration, type ProvinceData } from './api';
+import { register, type Registration } from './api';
 import { postLoginPath } from './redirects';
 import { useAuthCopy } from '../../shared/i18n/authCopy';
 export function RegisterShopPage() {
@@ -15,7 +15,7 @@ export function RegisterShopPage() {
   const [error, setError] = useState('');
   const { signedIn } = useSession();
   const province = Form.useWatch('province', form);
-  const reference = useQuery({ queryKey: ['public', 'provinces'], queryFn: ({ signal }) => requestJson<ProvinceData>('/api/v1/public/reference-data/provinces', { signal }) });
+  const reference = useProvinces();
   useEffect(() => () => { form.setFieldValue('password', ''); }, [form]);
   async function submit(values: Registration) {
     if (pending) return;

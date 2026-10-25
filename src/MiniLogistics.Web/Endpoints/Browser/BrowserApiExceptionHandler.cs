@@ -14,6 +14,7 @@ public sealed class BrowserApiExceptionHandler(ILogger<BrowserApiExceptionHandle
             JsonException => 400,
             BadHttpRequestException bad => bad.StatusCode,
             DbUpdateConcurrencyException => 409,
+            MiniLogistics.Application.Common.ConcurrencyConflictException => 409,
             _ => 500
         };
         // Do not log exception messages/bodies: JSON/Identity errors may contain credentials or PII.

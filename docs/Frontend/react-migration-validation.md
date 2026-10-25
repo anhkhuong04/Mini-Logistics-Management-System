@@ -186,6 +186,14 @@ Check bàn giao đạt trên30 Markdown hiện hành và3 heading anchors nội 
 
 ## Cách ghi evidence cho task tiếp theo
 
+## 25/10/2026 — Phase 4 quote/command backend checkpoint
+
+- T04.01 thêm QuoteShopShipment Application service: ManageShipments/active Shop kiểm tra trước normalize tỉnh/phường, classify route và calculate fee. Public reference endpoint giữ nguyên; client provinces chuyển sang shared module, registration dùng lại. Quote query350ms debounce, abort qua signal, key theo user/Shop/input, không retry POST tự động.
+- T04.02 browser create/draft/update/submit/cancel gọi use case cũ, actor từ principal và Shop từ route. Draft không COD/assignment; submit tính lại phí theo rule mới; audit/history dùng actor phiên đăng nhập, body giả actor/fee/role bị bỏ qua. Create/draft chia sẻ limiter actor30/phút và store với Blazor, 429 giữ Retry-After. Invalid state/concurrency409, conflict/capacity mapping cũ giữ nguyên.
+- Targeted HTTP tests9/9 pass bằng cookie Identity/Application thật + EF InMemory: quote success/normalization/invalid/CSRF/cross-Shop/staff/inactive, draft→edit→reprice→submit→cancel, create/Location, actor/audit/COD, permissions,429 và4 precision boundary cases. Đây không phải SQL transaction evidence. Direct fee-rule test update phải invalidate cache như admin workflow; sửa fixture rồi GREEN, không thay cache sản phẩm.
+- Browser ingress thêm guard theo precision SQL hiện tại (weight10,3; dimensions10,2; money18,2; chargeable10,3), không sửa migration/model/Partner hoặc rounding Domain. Giới hạn input không bảo đảm mọi cấu hình fee bất thường đều lưu được; scope này không sửa historical service/fee configuration rules.
+- Hook debounce và auth component targeted5/5 pass; browser schema/types sinh bằng tooling. T04.03 renderer/E2E và full solution/published checks vẫn cần hoàn tất ở checkpoint tiếp theo.
+
 Mỗi task ghi: ngày/task ID, working tree hoặc commit được kiểm chứng, môi trường/dependency, command chính xác, exit code/kết quả, scenario/actor/Shop, failure/skip/blocker và artifact an toàn nếu có. Test mock, render server, HTTP test và browser test phải được phân biệt.
 
 Không ghi credential, API key, raw PII, auth storage state hoặc local connection string. Không lấy manual report mô phỏng đã xóa làm bằng chứng; scenario mới nằm trong plan/inventory và được ghi kết quả ở đây khi thực sự chạy.

@@ -62,6 +62,8 @@ Baseline đã đọc cả Operations chưa commit; HEAD không đại diện đ�
 
 ### Transport và schema
 
+Phase 4 backend checkpoint: quote đã có authorized Application use case, normalize tỉnh/phường rồi gọi route/fee services. Browser create/draft/update/submit/cancel đã gọi use case cũ; create/draft dùng chung actor limiter hiện tại, trả429 + Retry-After; POST tạo resource trả201 + Location. Invalid transition/concurrency trả409. Browser ingress reject số vượt precision SQL hiện tại và kích thước có volumetric weight vượt decimal(10,3); giữ rounding của Domain, không đổi schema hoặc Partner. Đây là giới hạn transport mới để tránh lỗi persistence, không phải tuyên bố mọi fee/config calculation đều nằm trong precision. React mutation form đang được chuyển tại T04.03; URL Blazor được giữ.
+
 - `/api/v1/app` dùng Identity cookie; `/api/v1/public` chỉ anonymous safe projections. Không dùng API key partner cho app nội bộ. Mọi endpoint cụ thể và C# binding ở [inventory](react-migration-inventory.md).
 - Auth: GET `/auth/csrf` anonymous trả `{ requestToken: string }`; POST `/auth/login` anonymous nhận `{ email, password, rememberMe }`; POST `/auth/register-shop` anonymous nhận camelCase RegisterShopCommand; POST `/auth/logout` authenticated trả 204; GET `/auth/me` authenticated trả Session. Các path này có prefix `/api/v1/app`, không thay `/auth/*` form cũ.
 - Session là `{ userId, displayName, roles: string[], operationPermissions: string[], locale: 'vi-VN' | 'en-US', serverTimeZoneId }`. ShopContext giữ field của GetShopContextResponse nhưng ShopPermission là tên quyền đơn lẻ trong array, không serialize cờ thành số/chuỗi gộp. Không phát hành `All` như quyền độc lập.

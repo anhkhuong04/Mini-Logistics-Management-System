@@ -47,6 +47,8 @@ public static class BrowserApiEndpoints
         group.MapBrowserShopContext();
         group.MapBrowserShopShipmentReads();
         group.MapBrowserShopReporting();
+        group.MapBrowserShippingQuote();
+        group.MapBrowserShopShipmentCommands();
         endpoints.MapBrowserReferenceData();
         return group;
     }
