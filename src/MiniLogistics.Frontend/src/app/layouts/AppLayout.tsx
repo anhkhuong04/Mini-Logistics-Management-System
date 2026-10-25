@@ -6,8 +6,8 @@ import { useI18n } from '../../shared/i18n/I18nContext';
 import { routePaths } from '../router/routePaths';
 import { LanguageLinks } from './LanguageLinks';
 import styles from './AppLayout.module.css';
-export interface NavigationItem { key: string; label: string; to: string; icon?: ReactNode }
-export function AppLayout({ children, navigation }: { children: ReactNode; navigation?: NavigationItem[] }) {
+export interface NavigationItem { key: string; label: string; to: string; icon?: ReactNode; document?: boolean }
+export function AppLayout({ children, navigation, sessionTools }: { children: ReactNode; navigation?: NavigationItem[]; sessionTools?: ReactNode }) {
   const { t } = useI18n();
   const { pathname } = useLocation();
   const [open, setOpen] = useState(false);
@@ -30,8 +30,9 @@ export function AppLayout({ children, navigation }: { children: ReactNode; navig
       first?.focus();
     }
   }
-  const items = (navigation ?? [{ key: 'home', label: t('home'), to: routePaths.home, icon: <HomeOutlined /> }])
-    .map(item => ({ key: item.to, icon: item.icon, label: <Link to={item.to} onClick={() => {
+  const defaultNavigation: NavigationItem[] = [{ key: 'home', label: t('home'), to: routePaths.home, icon: <HomeOutlined /> }];
+  const items = (navigation ?? defaultNavigation)
+    .map(item => ({ key: item.to, icon: item.icon, label: item.document ? <a href={item.to}>{item.label}</a> : <Link to={item.to} onClick={() => {
       navigated.current = true;
       setOpen(false);
     }}>{item.label}</Link> }));
@@ -45,7 +46,7 @@ export function AppLayout({ children, navigation }: { children: ReactNode; navig
           setOpen(true);
         }} />
       <Link className={styles.brand} to={routePaths.home}><TruckOutlined aria-hidden />Mini Logistics</Link>
-      <div className={styles.headerTools}><LanguageLinks /></div>
+      <div className={styles.headerTools}><LanguageLinks />{sessionTools}</div>
     </Layout.Header>
     <Layout className={styles.body}>
       <Layout.Sider width={224} className={styles.sider}><nav aria-label={t('navigation')}>{menu}</nav></Layout.Sider>

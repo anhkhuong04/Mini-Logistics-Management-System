@@ -31,6 +31,7 @@ public static class BrowserApiResultMapper
             _ => "An unexpected error occurred"
         };
         context.Response.Headers.CacheControl = "no-store";
+        if (httpStatus == 429 && !context.Response.Headers.ContainsKey("Retry-After")) context.Response.Headers.RetryAfter = "60";
         return Results.Json(new BrowserApiProblem("about:blank", title, httpStatus, title, code,
             context.TraceIdentifier, errors), BrowserApiJsonOptions.Value, "application/problem+json", httpStatus);
     }

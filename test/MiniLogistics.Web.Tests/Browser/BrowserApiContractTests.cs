@@ -2,6 +2,9 @@ using System.Text.Json;
 using MiniLogistics.Web.Endpoints.Browser;
 using MiniLogistics.Domain.Shipments;
 using Xunit;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
+using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Web.Tests.Browser;
 
@@ -47,4 +50,27 @@ public sealed class BrowserApiContractTests
     [InlineData("Browser.RateLimitExceeded", 429)]
     [InlineData("Application.Unavailable", 503)]
     public void ErrorMapping_IsStable(string code, int status) => Assert.Equal(status, BrowserApiResultMapper.StatusFor(code));
+
+    [Theory]
+    [InlineData("Application.ValidationFailed", 400)]
+    [InlineData("Application.Forbidden", 403)]
+    [InlineData("Application.NotFound", 404)]
+    [InlineData("Application.ConcurrencyConflict", 409)]
+    [InlineData("Browser.RateLimitExceeded", 429)]
+    [InlineData("Application.Unavailable", 503)]
+    public async Task ProblemResponse_PreservesCodeAndTraceButNeverCopiesRawUseCaseDescription(string code, int expected)
+    {
+        using var services = new ServiceCollection().AddLogging().AddOptions().BuildServiceProvider();
+        var context = new DefaultHttpContext { RequestServices = services, TraceIdentifier = "safe-trace" };
+        context.Response.Body = new MemoryStream();
+        var result = BrowserApiResultMapper.From(context, Result<string>.Failure(new Error(code, "private customer password stack trace")));
+        await result.ExecuteAsync(context);
+        context.Response.Body.Position = 0;
+        var text = await new StreamReader(context.Response.Body).ReadToEndAsync();
+        Assert.Equal(expected, context.Response.StatusCode);
+        Assert.StartsWith("application/problem+json", context.Response.ContentType);
+        Assert.Contains("safe-trace", text); Assert.Contains(code, text);
+        Assert.DoesNotContain("private customer", text);
+        if (expected == 429) Assert.Equal("60", context.Response.Headers.RetryAfter);
+    }
 }

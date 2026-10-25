@@ -18,6 +18,33 @@ namespace MiniLogistics.Web.Tests.Browser;
 public sealed class BrowserAuthenticationTests
 {
     [Fact]
+    public async Task ExistingCookie_RefreshesRolesAndRejectsDeactivatedUser()
+    {
+        await using var factory = new BrowserIdentityFactory();
+        using var client = factory.Client();
+        var id = await factory.AddUser("changing@example.test", "Operator");
+        await BrowserIdentityFactory.Csrf(client);
+        Assert.Equal(HttpStatusCode.OK, (await client.PostAsJsonAsync("/api/v1/app/auth/login", new {
+            email = "changing@example.test", password = BrowserIdentityFactory.Password })).StatusCode);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = (await users.FindByIdAsync(id.ToString()))!;
+            Assert.True((await users.RemoveFromRoleAsync(user, "Operator")).Succeeded);
+        }
+        var session = await client.GetFromJsonAsync<JsonElement>("/api/v1/app/auth/me");
+        Assert.Empty(session.GetProperty("roles").EnumerateArray());
+        Assert.Empty(session.GetProperty("operationPermissions").EnumerateArray());
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/v1/app/shop-context")).StatusCode);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+            var user = (await users.FindByIdAsync(id.ToString()))!; user.IsActive = false;
+            Assert.True((await users.UpdateAsync(user)).Succeeded);
+        }
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.GetAsync("/api/v1/app/auth/me")).StatusCode);
+    }
+    [Fact]
     public async Task AnonymousAndCsrfFailures_AreSafeJsonWithoutRedirects()
     {
         await using var factory = new BrowserIdentityFactory();
@@ -28,10 +55,13 @@ public sealed class BrowserAuthenticationTests
         Assert.Equal("application/problem+json", me.Content.Headers.ContentType?.MediaType);
         foreach (var path in new[] { "login", "register-shop" })
         {
+            client.DefaultRequestHeaders.Remove("X-CSRF-TOKEN");
             var response = await client.PostAsJsonAsync($"/api/v1/app/auth/{path}", new { email = "secret@example.test", password = "secret" });
             Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
             Assert.Contains("Browser.CsrfValidationFailed", await response.Content.ReadAsStringAsync());
             Assert.DoesNotContain("secret", await response.Content.ReadAsStringAsync());
+            client.DefaultRequestHeaders.Add("X-CSRF-TOKEN", "invalid-token");
+            Assert.Equal(HttpStatusCode.BadRequest, (await client.PostAsJsonAsync($"/api/v1/app/auth/{path}", new { })).StatusCode);
         }
         await BrowserIdentityFactory.Csrf(client);
         var invalid = await client.PostAsJsonAsync("/api/v1/app/auth/login", new { email = "missing@example.test", password = "wrong" });
@@ -94,12 +124,17 @@ public sealed class BrowserAuthenticationTests
     }
 }
 
-public sealed class BrowserIdentityFactory : WebApplicationFactory<Program>
+public sealed class BrowserIdentityFactory(bool enableFrontend = false) : WebApplicationFactory<Program>
 {
     public const string Password = "BrowserTest!123";
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
+        if (enableFrontend)
+        {
+            builder.UseSetting("BrowserSpa:Enabled", "true");
+            builder.UseSetting("BrowserSpa:DistPath", Path.Combine(RepositoryRoot(), "src", "MiniLogistics.Frontend", "dist"));
+        }
         builder.UseSetting("ConnectionStrings:DefaultConnection", "Server=(localdb)\\MSSQLLocalDB;Database=UnusedBrowserTests;Trusted_Connection=True");
         var database = "BrowserIdentity-" + Guid.NewGuid();
         builder.ConfigureServices(services =>
@@ -136,5 +171,11 @@ public sealed class BrowserIdentityFactory : WebApplicationFactory<Program>
         using var scope = Services.CreateScope();
         var roles = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
         if (!await roles.RoleExistsAsync(role)) Assert.True((await roles.CreateAsync(new IdentityRole<Guid>(role))).Succeeded);
+    }
+    public static string RepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "Mini-logistics-manegemant-system.slnx"))) directory = directory.Parent;
+        return directory?.FullName ?? throw new InvalidOperationException("Repository root not found.");
     }
 }

@@ -5,19 +5,31 @@ import { AppLayout } from './layouts/AppLayout';
 import { PageHeader } from '../shared/ui/PageHeader';
 import { useI18n } from '../shared/i18n/I18nContext';
 import { routePaths } from './router/routePaths';
+import { LoginPage } from '../features/auth/LoginPage';
+import { RegisterShopPage } from '../features/auth/RegisterShopPage';
+import { useSession } from '../shared/auth/SessionContext';
+import { RequireSession } from '../shared/auth/RequireSession';
+import { LegacyFeatureRoute } from './router/LegacyFeatureRoute';
+import { navigationFor } from './router/navigation';
+import { ShopContextProvider } from '../features/shop-context/ShopContextProvider';
+import { ShopContextSelector } from '../features/shop-context/ShopContextSelector';
+import { useShopContext } from '../features/shop-context/ShopContext';
+import { useAuthCopy } from '../shared/i18n/authCopy';
 
 function Welcome() {
   const { t } = useI18n();
   const [isHelpOpen, setHelpOpen] = useState(false);
+  const { session } = useSession();
 
   return (
     <>
       <PageHeader title="Mini Logistics" description={t('description')} />
+      {session?.roles.includes('Shop') && <ShopContextSelector />}
       <section className="welcome-panel" aria-labelledby="welcome-heading">
         <Typography.Title level={2} id="welcome-heading">{t('welcome')}</Typography.Title>
         <Typography.Paragraph type="secondary">{t('welcomeDetail')}</Typography.Paragraph>
         <div className="welcome-actions">
-          <Button type="primary" href={routePaths.signIn}>{t('signIn')}</Button>
+          {!session && <Link className="ant-btn ant-btn-primary" to={routePaths.signIn}>{t('signIn')}</Link>}
           <Button onClick={() => setHelpOpen(true)}>{t('support')}</Button>
         </div>
         <div className="welcome-links"><a href={routePaths.faq}>{t('faq')}</a></div>
@@ -38,9 +50,32 @@ function NotFound() {
   </>;
 }
 
-export function App() {
-  return <AppLayout><Routes>
+function AppContent() {
+  const { session, logout } = useSession();
+  const { context } = useShopContext();
+  const copy = useAuthCopy();
+  const [logoutError, setLogoutError] = useState(false);
+  const tools = session && <div className="session-tools"><span>{session.displayName}</span>
+    <Button onClick={() => { void logout().catch(() => setLogoutError(true)); }}>{copy.logout}</Button></div>;
+  return <AppLayout navigation={navigationFor(session, context)} sessionTools={tools}>
+    {logoutError && <Result status="warning" title={copy.logoutFailure}
+      extra={<Button onClick={() => { void logout().then(() => setLogoutError(false)).catch(() => setLogoutError(true)); }}>{copy.retry}</Button>} />}
+    <Routes>
     <Route path={routePaths.home} element={<Welcome />} />
+    <Route path="/login" element={<LoginPage />} />
+    <Route path="/register-shop" element={<RegisterShopPage />} />
+    {['/dashboard', '/shipments', '/shipments/*', '/profile', '/shop/notifications'].map(path =>
+      <Route key={path} path={path} element={<RequireSession roles={['Shop']}><LegacyFeatureRoute
+        shopPermission="ViewShipments" /></RequireSession>} />)}
+    <Route path="/shipments/create" element={<RequireSession roles={['Shop']}><LegacyFeatureRoute shopPermission="ManageShipments" /></RequireSession>} />
+    <Route path="/shop/cod-report" element={<RequireSession roles={['Shop']}><LegacyFeatureRoute shopPermission="ViewCod" /></RequireSession>} />
+    <Route path="/shop/audit" element={<RequireSession roles={['Shop']}><LegacyFeatureRoute shopPermission="ViewAudit" /></RequireSession>} />
+    <Route path="/shop/staff" element={<RequireSession roles={['Shop']}><LegacyFeatureRoute ownerOnly /></RequireSession>} />
+    <Route path="/operations/*" element={<RequireSession roles={['Admin', 'Operator']}><LegacyFeatureRoute /></RequireSession>} />
+    <Route path="/shipper/*" element={<RequireSession roles={['Shipper']}><LegacyFeatureRoute /></RequireSession>} />
+    <Route path="/admin/*" element={<RequireSession roles={['Admin']}><LegacyFeatureRoute /></RequireSession>} />
+    <Route path="/partner/integrations" element={<RequireSession roles={['Admin', 'Shop', 'IntegrationAdmin']}><LegacyFeatureRoute /></RequireSession>} />
     <Route path="*" element={<NotFound />} />
   </Routes></AppLayout>;
 }
+export function App() { return <ShopContextProvider><AppContent /></ShopContextProvider>; }

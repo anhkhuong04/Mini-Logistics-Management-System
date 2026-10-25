@@ -22,6 +22,10 @@ main:focus, h1:focus { outline: none; }
 .welcome-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
 .welcome-links { margin-top: 28px; }
 .content-state { padding: 48px 16px; text-align: center; }
+.auth-panel { max-width: 520px; padding: 24px; background: white; border: 1px solid var(--ui-border); border-radius: 16px; }
+.auth-panel form { margin-top: 16px; }
+.session-tools { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.shop-context { margin-bottom: 24px; padding: 16px; background: white; border: 1px solid var(--ui-border); border-radius: 12px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }

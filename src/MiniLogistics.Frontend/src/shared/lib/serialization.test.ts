@@ -7,6 +7,7 @@ describe('transport precision and retry policy', () => {
   it('formats large money and fractional zeros without number coercion', () => {
     expect(formatMoney(decimalString('9007199254740993.01'), 'VND', 'en-US')).toBe('9,007,199,254,740,993.01 VND');
     expect(formatMoney(decimalString('0.10'), 'VND', 'en-US')).toBe('0.10 VND');
+    expect(formatMoney(decimalString('-0.10'), 'VND', 'en-US')).toBe('-0.10 VND');
     expect(() => decimalString('1e2')).toThrow();
   });
   it('uses the supplied timezone including historic DST instead of browser local time', () => {

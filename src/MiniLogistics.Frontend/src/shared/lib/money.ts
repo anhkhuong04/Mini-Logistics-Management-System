@@ -7,5 +7,7 @@ export function decimalString(value: string): DecimalString {
 export function formatMoney(value: DecimalString, currency: string, locale = 'vi-VN') {
   const [integer, fraction] = value.split('.');
   const decimal = new Intl.NumberFormat(locale).formatToParts(1.1).find(part => part.type === 'decimal')!.value;
-  return `${new Intl.NumberFormat(locale).format(BigInt(integer))}${fraction ? decimal + fraction : ''} ${currency}`;
+  const whole = BigInt(integer);
+  const signedWhole = whole === 0n && integer.startsWith('-') ? -0 : whole;
+  return `${new Intl.NumberFormat(locale).format(signedWhole)}${fraction ? decimal + fraction : ''} ${currency}`;
 }

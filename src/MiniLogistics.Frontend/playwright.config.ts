@@ -7,6 +7,7 @@ const externalUrl = process.env.MINILOGISTICS_E2E_BASE_URL;
 
 export default defineConfig({
   testDir: './e2e',
+  outputDir: process.env.MINILOGISTICS_E2E_SENSITIVE ? './test-results/identity' : './test-results/shell',
   fullyParallel: true,
   workers: 2,
   forbidOnly: Boolean(process.env.CI),
@@ -15,7 +16,7 @@ export default defineConfig({
   use: {
     baseURL: externalUrl ?? 'https://localhost:15173/app/',
     ignoreHTTPSErrors: true, // Isolated local browser-test certificates only; proxy TLS remains strict.
-    trace: 'retain-on-failure',
+    trace: process.env.MINILOGISTICS_E2E_SENSITIVE ? 'off' : 'retain-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: externalUrl ? undefined : [

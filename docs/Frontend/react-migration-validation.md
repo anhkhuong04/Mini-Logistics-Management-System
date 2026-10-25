@@ -128,14 +128,23 @@ Check bàn giao đạt trên30 Markdown hiện hành và3 heading anchors nội 
 - Minor hoãn: React chưa nạp riêng Be Vietnam Pro, font stack dùng Segoe UI/Arial fallback nếu máy chưa có font. Bổ sung font trong visual/assets follow-up; không coi font token declaration là bằng chứng font đã tải.
 - Phần review để phase sau: tenant/session/cache/mutation/serialization ở Phase 2+, root cutover/atomic rollback/data-upload ở Phase 11, native zoom và browser/OS khác. Dirty user files giữ ngoài review; Redis skip giữ nguyên, không suy ra integration pass.
 
-## Cách ghi evidence cho task tiếp theo
-
 ## 25/10/2026 — Phase 2 backend/transport checkpoint
 
 - Browser JSON converters và status map: RED missing namespace → GREEN16 tests. DecimalString round-trip vượt JS safe integer, nullable, enum unknown/numeric rejection và UTC normalization; không thay serializer partner.
 - JSON auth/reference/Shop context triển khai qua Identity và Application services. Web suite99/99 pass, bao gồm cookie thật, remember-me, CSRF identity rotation, invalid credential, lockout5 lần, inactive account, registration auto-sign-in, reference canonicalization và Application PII/owner/staff/cross-Shop checks. Fixture Identity dùng EF InMemory để kiểm tra HTTP/cookie, không dùng kết quả này để kết luận SQL atomicity; các suite SQL hiện có vẫn giữ.
 - HTTP wrapper tests6/6 pass, thêm precision/DST/retry-policy tests3/3; fetch same-origin credentials, CSRF, multipart/download/204, abort và một POST duy nhất sau transport failure. React auth/context UI vẫn đang triển khai tại checkpoint này.
 - Browser OpenAPI3.1.1 sinh từ endpoint metadata, document browser-v1/public-v1 tách partner; openapi-typescript7.13.0 sinh types local. Build vẫn design-time không worker; Partner artifact không đổi.
+
+## 25/10/2026 — Phase 2 React authentication/context checkpoint
+
+- React login/register/session/permission navigation và Shop context đã nối HTTP; chưa chuyển nội dung nghiệp vụ Phase 3+. Link chưa migrate mở document Blazor, direct React feature route có session/role/context gate rồi chuyển URL cũ.
+- Vitest27/27: auth field behavior, loading không flash private content, 401 xóa session, safe return URL/role priority, reference province→ward reset, permission navigation, delayed response A→B abort/ignore và logout clear context.
+- HTTPS Kestrel fixture + Chromium3 scenarios pass trên bundle thật: register auto-sign-in/reload/logout, remember-me/login-failure/lockout, owner nhiều Shop→staff masked/permission-limited→foreign Shop denied→expired cookie về login. Fixture dùng real Identity/Application + EF InMemory riêng, không fake principal, không chạm database ứng dụng. Bộ browser fixture là opt-in; shell suite thường skip3 scenario này và chạy13 shell/coexist tests.
+- Body/cookie/credentials không lưu vào trace của fixture auth; output directories shell/identity tách riêng. Đã sửa Windows PEM/Schannel test fixture bằng certificate key handle trong memory. Lần chạy hai Playwright suite dùng chung output có artifact collision; output đã tách và shell13/13 pass khi chạy lại.
+- Build pass với AntD chunk601.74kB (gzip198.36kB), giữ warning threshold. Thử maxSize split làm bundle lỗi runtime `Cannot destructure property LEFT ... undefined`; bỏ thay đổi split đó và fixture Chromium3/3 pass lại. Chưa tối ưu tải bundle trong checkpoint này.
+- Bổ sung HTTP regression roles bị thu hồi/inactive với cookie đang có; targeted auth/contract/browser run23/23 pass. React hỗ trợ copy auth vi/en; các form cũ còn nguyên.
+
+## Cách ghi evidence cho task tiếp theo
 
 Mỗi task ghi: ngày/task ID, working tree hoặc commit được kiểm chứng, môi trường/dependency, command chính xác, exit code/kết quả, scenario/actor/Shop, failure/skip/blocker và artifact an toàn nếu có. Test mock, render server, HTTP test và browser test phải được phân biệt.
 

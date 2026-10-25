@@ -23,7 +23,7 @@ class ResizeObserverMock {
   unobserve() {}
   disconnect() {}
 }
-vi.stubGlobal('ResizeObserver', ResizeObserverMock);
+Object.defineProperty(window, 'ResizeObserver', { configurable: true, writable: true, value: ResizeObserverMock });
 window.getComputedStyle = ((original) => (element: Element) => original(element))(
   window.getComputedStyle,
 );

@@ -8,8 +8,8 @@ export type RequestOptions = { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELE
 let csrf: string | undefined;
 let csrfRequest: Promise<string> | undefined;
 let csrfGeneration = 0;
-const listeners = new Set<(status: number) => void>();
-export function onAccessFailure(listener: (status: number) => void) { listeners.add(listener); return () => { listeners.delete(listener); }; }
+const listeners = new Set<(status: number, path: string) => void>();
+export function onAccessFailure(listener: (status: number, path: string) => void) { listeners.add(listener); return () => { listeners.delete(listener); }; }
 export function resetCsrf() { csrf = undefined; csrfRequest = undefined; csrfGeneration++; }
 export async function refreshCsrf() {
   resetCsrf();
@@ -38,7 +38,7 @@ async function send(path: string, options: RequestOptions, form?: FormData) {
   if (!form && options.body !== undefined) headers.set('Content-Type', 'application/json');
   const response = await fetch(path, { method, headers, credentials: 'same-origin', cache: 'no-store', signal: options.signal,
     body: form ?? (options.body === undefined ? undefined : JSON.stringify(options.body)) });
-  if (response.status === 401 || response.status === 403) for (const listener of listeners) listener(response.status);
+  if (response.status === 401 || response.status === 403) for (const listener of listeners) listener(response.status, path);
   return response;
 }
 async function json<T>(response: Response): Promise<T> {
