@@ -1,0 +1,14 @@
+import type { components } from '../../shared/api/generated/browser-api';
+import { requestJson } from '../../shared/api/httpClient';
+export type Profile = components['schemas']['GetShopProfileResponse'];
+export type ProfileBody = components['schemas']['BrowserShopProfileRequest'];
+export type Staff = components['schemas']['BrowserStaffResponse'];
+export type CreateStaff = components['schemas']['BrowserCreateStaffRequest'];
+export type StaffAccess = components['schemas']['BrowserUpdateStaffRequest'];
+export type CodReport = components['schemas']['ShopCodReportResponse'];
+export type Notification = components['schemas']['ShopNotificationResponse'];
+export type Preferences = components['schemas']['ShopNotificationPreferenceResponse'];
+export type Audit = components['schemas']['ShopAuditLogResponse'];
+export const settingsKey = (user: string, shop: string) => ['user', user, 'shop-settings', shop] as const;
+export const shopPath = (shop: string) => `/api/v1/app/shops/${encodeURIComponent(shop)}`;
+export const readSettings = <T,>(shop: string, part: string, signal: AbortSignal) => requestJson<T>(`${shopPath(shop)}/${part}`, { signal });

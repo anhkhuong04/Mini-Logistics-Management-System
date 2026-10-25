@@ -41,7 +41,7 @@ test('Shipper mobile reads only own cards updates status collects pending COD an
     nodes: Array.from(document.querySelectorAll('body *')).map(element => ({ tag: element.tagName, class: element.getAttribute('class'), right: element.getBoundingClientRect().right, width: element.getBoundingClientRect().width }))
       .filter(element => element.right > window.innerWidth || element.width > window.innerWidth).slice(-8) }));
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), JSON.stringify(overflow)).toBe(true);
-  const actionWidth = await pending.getByRole('button', { name: 'Thu COD ML-SHIPPER-COD' }).boundingBox(); expect(actionWidth!.height).toBeGreaterThanOrEqual(44);
+  await expect.poll(async () => (await pending.getByRole('button', { name: 'Thu COD ML-SHIPPER-COD' }).boundingBox())?.height ?? 0).toBeGreaterThanOrEqual(44);
   await mkdir('../../.agent/refactorfe-phase7/screenshots', { recursive: true });
   await page.screenshot({ path: '../../.agent/refactorfe-phase7/screenshots/shipper-390.png', fullPage: true, mask: [page.getByRole('article'), page.getByRole('region', { name: 'Báo cáo COD' })] });
   await pending.getByRole('button', { name: 'Thu COD ML-SHIPPER-COD' }).click(); await confirm(page, '/cod/collect');

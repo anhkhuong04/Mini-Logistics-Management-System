@@ -8,7 +8,7 @@ const navigationIcons = { home: HomeOutlined, operations: TruckOutlined, shipper
   audit: AuditOutlined, 'shop-integrations': ApiOutlined, staff: TeamOutlined };
 export function navigationFor(session: Session | null, context: ShopContext | null, locale = 'vi-VN'): NavigationItem[] {
   const links: NavigationItem[] = [{ key: 'home', label: 'Trang chính', to: '/' }];
-  const add = (key: string, label: string, to: string) => links.push({ key, label, to, document: !['dashboard', 'shipments', 'operations', 'shipper'].includes(key) });
+  const add = (key: string, label: string, to: string) => links.push({ key, label, to, document: !['dashboard', 'shipments', 'operations', 'shipper', 'profile', 'staff', 'cod', 'audit', 'notifications'].includes(key) });
   if (session?.operationPermissions.includes('operations.shipment.view')) add('operations', 'Điều phối', '/operations/assignments');
   if (session?.roles.includes('Shipper')) add('shipper', 'Công việc giao hàng', '/shipper/shipments');
   if (session?.roles.includes('Admin')) add('admin', 'Quản trị', '/admin');

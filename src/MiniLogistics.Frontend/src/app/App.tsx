@@ -21,6 +21,11 @@ import { ShopDashboardPage } from '../features/dashboard/ShopDashboardPage';
 import { ShipmentFormPage } from '../features/shipments/ShipmentFormPage';
 import { OperationsPage } from '../features/operations/OperationsPage';
 import { ShipperWorkspacePage } from '../features/shipper/ShipperWorkspacePage';
+import { ShopProfilePage } from '../features/shop-settings/ShopProfilePage';
+import { ShopStaffPage } from '../features/shop-settings/ShopStaffPage';
+import { ShopCodReportPage } from '../features/shop-settings/ShopCodReportPage';
+import { ShopNotificationsPage } from '../features/shop-settings/ShopNotificationsPage';
+import { ShopAuditPage } from '../features/shop-settings/ShopAuditPage';
 
 function Welcome() {
   const { t } = useI18n();
@@ -74,13 +79,12 @@ function AppContent() {
     <Route path={routePaths.shipments} element={<RequireSession roles={['Shop']}><ShipmentListPage /></RequireSession>} />
     <Route path={routePaths.shipmentDetailPattern} element={<RequireSession roles={['Shop']}><ShipmentDetailPage /></RequireSession>} />
     <Route path={routePaths.dashboard} element={<RequireSession roles={['Shop']}><ShopDashboardPage /></RequireSession>} />
-    {['/profile', '/shop/notifications'].map(path =>
-      <Route key={path} path={path} element={<RequireSession roles={['Shop']}><LegacyFeatureRoute
-        shopPermission="ViewShipments" /></RequireSession>} />)}
+    <Route path={routePaths.shopProfile} element={<RequireSession roles={['Shop']}><ShopProfilePage /></RequireSession>} />
+    <Route path={routePaths.shopNotifications} element={<RequireSession roles={['Shop']}><ShopNotificationsPage /></RequireSession>} />
     <Route path={routePaths.shipmentCreate} element={<RequireSession roles={['Shop']}><ShipmentFormPage /></RequireSession>} />
-    <Route path="/shop/cod-report" element={<RequireSession roles={['Shop']}><LegacyFeatureRoute shopPermission="ViewCod" /></RequireSession>} />
-    <Route path="/shop/audit" element={<RequireSession roles={['Shop']}><LegacyFeatureRoute shopPermission="ViewAudit" /></RequireSession>} />
-    <Route path="/shop/staff" element={<RequireSession roles={['Shop']}><LegacyFeatureRoute ownerOnly /></RequireSession>} />
+    <Route path={routePaths.shopCodReport} element={<RequireSession roles={['Shop']}><ShopCodReportPage /></RequireSession>} />
+    <Route path={routePaths.shopAudit} element={<RequireSession roles={['Shop']}><ShopAuditPage /></RequireSession>} />
+    <Route path={routePaths.shopStaff} element={<RequireSession roles={['Shop']}><ShopStaffPage /></RequireSession>} />
     <Route path={routePaths.operations} element={<RequireSession roles={['Admin', 'Operator']}><OperationsPage /></RequireSession>} />
     <Route path={routePaths.operationsAlias} element={<RequireSession roles={['Admin', 'Operator']}><OperationsPage /></RequireSession>} />
     <Route path={routePaths.shipper} element={<RequireSession roles={['Shipper']}><ShipperWorkspacePage /></RequireSession>} />

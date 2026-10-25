@@ -61,6 +61,11 @@ public sealed class BrowserRealBrowserTests
         var otherShipper = await factory.AddUser("browser-shipper-other@example.test", "Shipper");
         var crossOwner = await factory.AddUser("browser-cross-shop@example.test", "Shop");
         var crossShipper = await factory.AddUser("browser-cross-shipper@example.test", "Shipper");
+        var profileOwner = await factory.AddUser("browser-profile-owner@example.test", "Shop");
+        var staffOwner = await factory.AddUser("browser-staff-owner@example.test", "Shop");
+        var settingsStaff = await factory.AddUser("browser-settings-staff@example.test", "Shop");
+        var reportOwner = await factory.AddUser("browser-report-owner@example.test", "Shop");
+        var reportReader = await factory.AddUser("browser-report-reader@example.test", "Shop");
         await factory.EnsureRole("Shop");
         using (var scope = factory.Services.CreateScope())
         {
@@ -78,6 +83,17 @@ public sealed class BrowserRealBrowserTests
             (await db.Users.FindAsync(mobileShipper))!.FullName = "Mobile Driver";
             (await db.Users.FindAsync(crossShipper))!.FullName = "Cross Driver";
             db.Shops.Add(New("Browser Cross Shop", crossOwner));
+            var profileShop = New("Browser Profile Shop", profileOwner); db.Shops.Add(profileShop);
+            db.Shipments.Add(BrowserShopShipmentReadTests.NewShipment(profileShop.Id, profileOwner, "ML-PROFILE-E2E-SNAPSHOT", 0));
+            var staffShop = New("Browser Staff Shop", staffOwner); db.Shops.Add(staffShop);
+            (await db.Users.FindAsync(settingsStaff))!.FullName = "Settings Staff";
+            db.ShopStaffMemberships.Add(new ShopStaffMembership(staffShop.Id, settingsStaff, staffOwner, ShopStaffRole.Viewer, ShopPermission.ViewShipments, DateTimeOffset.UtcNow));
+            var reportShop = New("Browser Report Shop", reportOwner); db.Shops.Add(reportShop);
+            db.ShopStaffMemberships.Add(new ShopStaffMembership(reportShop.Id, reportReader, reportOwner, ShopStaffRole.Viewer, ShopPermission.ViewShipments, DateTimeOffset.UtcNow));
+            var reportShipment = BrowserShopShipmentReadTests.NewShipment(reportShop.Id, reportOwner, "ML-SETTINGS-COD", 100000); db.Shipments.Add(reportShipment);
+            db.CodTransactions.Add(CodTransaction.Create(reportShipment.Id, reportShipment.CodAmount, DateTimeOffset.UtcNow));
+            db.ShopNotifications.Add(new ShopNotification(Guid.NewGuid(), reportShop.Id, reportOwner, "shipment.delivered", "Settings delivery notice", "Synthetic delivery notification", DateTimeOffset.UtcNow, reportShipment.Id));
+            db.AdminAuditLogs.Add(new MiniLogistics.Domain.AdminAuditing.AdminAuditLog(reportOwner, "Shop", "FixtureSettingsAudit", "Shop", reportShop.Id, DateTimeOffset.UtcNow, newValueJson: "{\"password\":\"settings-secret-fixture\"}"));
             var mobileShop = New("Browser Mobile Shop", operationsOwner); db.Shops.Add(mobileShop);
             var mobile = BrowserShopShipmentReadTests.NewShipment(mobileShop.Id, operationsOwner, "ML-SHIPPER-MOBILE-1", 100000);
             var noCod = BrowserShopShipmentReadTests.NewShipment(mobileShop.Id, operationsOwner, "ML-SHIPPER-NOCOD", 0);
@@ -127,6 +143,9 @@ public sealed class BrowserRealBrowserTests
         start.ArgumentList.Add("e2e/operations.spec.ts");
         start.ArgumentList.Add("e2e/shipper.spec.ts");
         start.ArgumentList.Add("e2e/cross-role-lifecycle.spec.ts");
+        start.ArgumentList.Add("e2e/shop-profile.spec.ts");
+        start.ArgumentList.Add("e2e/shop-staff.spec.ts");
+        start.ArgumentList.Add("e2e/shop-settings.spec.ts");
         if (Environment.GetEnvironmentVariable("MINILOGISTICS_E2E_GREP") is { Length: > 0 } grep)
         {
             start.ArgumentList.Add("--grep"); start.ArgumentList.Add(grep);
@@ -144,6 +163,31 @@ public sealed class BrowserRealBrowserTests
         var output = await stdout + await stderr;
         Assert.True(process.ExitCode == 0, output);
         var selected = Environment.GetEnvironmentVariable("MINILOGISTICS_E2E_GREP");
+        if (string.IsNullOrEmpty(selected) || selected.Contains("Shop profile edit", StringComparison.Ordinal))
+        {
+            using var scope = factory.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            var profile = await db.Shops.SingleAsync(item => item.OwnerUserId == profileOwner && item.Name == "Updated Profile Shop");
+            Assert.Equal("Updated profile street", profile.Address.Street);
+            Assert.Equal(profileOwner, (await db.Shops.SingleAsync(item => item.Name == "Additional Profile Shop")).OwnerUserId);
+            var shipment = await db.Shipments.SingleAsync(item => item.TrackingCode == new TrackingCode("ML-PROFILE-E2E-SNAPSHOT"));
+            Assert.Equal("Pickup private", shipment.PickupAddress.Street);
+            Assert.True(await db.AdminAuditLogs.AnyAsync(item => item.TargetId == profile.Id && item.ActorUserId == profileOwner));
+        }
+        if (string.IsNullOrEmpty(selected) || selected.Contains("Shop staff owner", StringComparison.Ordinal))
+        {
+            using var scope = factory.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            var membership = await db.ShopStaffMemberships.SingleAsync(item => item.UserId == settingsStaff);
+            Assert.False(membership.IsActive); Assert.Equal(ShopStaffRole.Viewer, membership.Role); Assert.Equal(ShopPermission.ViewShipments, membership.Permissions);
+            Assert.True(await db.AdminAuditLogs.CountAsync(item => item.TargetId == membership.Id && item.ActorUserId == staffOwner) >= 3);
+            var createdStaff = await db.Users.SingleAsync(item => item.Email == "browser-created-settings-staff@example.test");
+            Assert.True(await db.ShopStaffMemberships.AnyAsync(item => item.UserId == createdStaff.Id && item.ShopId == membership.ShopId && item.IsActive));
+        }
+        if (string.IsNullOrEmpty(selected) || selected.Contains("Shop reporting notifications", StringComparison.Ordinal))
+        {
+            using var scope = factory.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            Assert.True((await db.ShopNotifications.SingleAsync(item => item.UserId == reportOwner)).IsRead);
+            Assert.DoesNotContain("cod.collected", (await db.ShopNotificationPreferences.SingleAsync(item => item.UserId == reportOwner)).EnabledEventTypes);
+        }
         if (string.IsNullOrEmpty(selected) || selected.Contains("cross-role", StringComparison.Ordinal))
         {
             using var scope = factory.Services.CreateScope();

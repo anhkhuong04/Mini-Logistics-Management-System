@@ -1,0 +1,8 @@
+.shop-settings { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; min-width: 0; }
+.shop-settings > *, .shop-settings .ant-card-body { min-width: 0; overflow-wrap: anywhere; }
+.shop-settings .ant-form { max-width: 720px; }
+.shop-settings .ant-checkbox-group { display: flex; gap: 12px; flex-wrap: wrap; }
+.shop-settings pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.settings-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 16px; }
+.settings-notice { display: grid; gap: 12px; }
+@media(max-width: 600px) { .shop-settings .ant-btn { min-height: 44px; white-space: normal; height: auto; } .shop-settings .ant-card-body { padding: 16px; } }

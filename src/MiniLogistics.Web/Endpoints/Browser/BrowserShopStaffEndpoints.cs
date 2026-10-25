@@ -1,4 +1,5 @@
 using System.Text.Json;
+using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.Shops.Staff;
 using MiniLogistics.Domain.Shops;
 
@@ -33,7 +34,8 @@ public static class BrowserShopStaffEndpoints
         group.MapPost("/shops/{shopId:guid}/staff", async (HttpContext context, Guid shopId, IShopStaffManagementService service) => {
             BrowserUserClaims.TryGetUserId(context.User, out var actor);
             var body = await BrowserApiEndpoints.ReadAsync<BrowserCreateStaffRequest>(context);
-            if (body.FullName?.Length > 200 || body.Email?.Length > 256 || body.PhoneNumber?.Length > 20 || body.Password?.Length > 128) throw new JsonException();
+            if (body.FullName is null || body.Email is null || body.PhoneNumber is null || body.Password is null
+                || body.FullName.Length > 200 || body.Email.Length > 256 || body.PhoneNumber.Length > 20 || body.Password.Length > PasswordPolicy.MaximumLength) throw new JsonException();
             var result = await service.CreateAsync(new(actor, shopId, body.FullName, body.Email, body.PhoneNumber, body.Password, body.Role, Permissions(body.Permissions)), context.RequestAborted);
             return result.IsFailure ? BrowserApiResultMapper.Problem(context, result.Error.Code) : BrowserApiResultMapper.Json(Response(result.Value));
         }).WithName("BrowserCreateShopStaff").Accepts<BrowserCreateStaffRequest>("application/json").Produces<BrowserStaffResponse>();
