@@ -36,6 +36,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/public/tracking/{trackingCode}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["BrowserPublicTracking"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/app/auth/csrf": {
         parameters: {
             query?: never;
@@ -1524,6 +1540,21 @@ export interface components {
             provinces: components["schemas"]["ProvinceOption"][];
             serverTimeZoneId: string;
         };
+        BrowserPublicTrackingResponse: {
+            trackingCode: string;
+            accessLevel: components["schemas"]["PublicTrackingAccessLevel"];
+            currentStatus: components["schemas"]["ShipmentStatus"];
+            pickupProvince: string;
+            deliveryProvince: string;
+            /** Format: date-time */
+            createdAtUtc: string;
+            /** Format: date-time */
+            lastUpdatedAtUtc: string;
+            senderName: null | string;
+            receiverName: null | string;
+            timeline: components["schemas"]["PublicTrackingTimelineItemResponse"][];
+            serverTimeZoneId: string;
+        };
         BrowserReassignmentRequest: {
             /** Format: uuid */
             shipperId: string;
@@ -2145,6 +2176,16 @@ export interface components {
             name: string;
             wards: components["schemas"]["WardOption"][];
         };
+        /** @enum {string} */
+        PublicTrackingAccessLevel: "Summary" | "Verified";
+        PublicTrackingTimelineItemResponse: {
+            status: components["schemas"]["ShipmentStatus"];
+            messageCode: string;
+            message: string;
+            locale: string;
+            /** Format: date-time */
+            changedAtUtc: string;
+        };
         RegisterShopCommand: {
             fullName: string;
             email: string;
@@ -2561,6 +2602,64 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BannerDto"][];
+                };
+            };
+        };
+    };
+    BrowserPublicTracking: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                trackingCode: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BrowserPublicTrackingResponse"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["BrowserApiProblem"];
                 };
             };
         };

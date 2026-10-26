@@ -68,6 +68,7 @@ public static class BrowserApiEndpoints
         group.MapBrowserIntegrationWebhooks();
         endpoints.MapBrowserReferenceData();
         endpoints.MapBrowserPublicBanners();
+        endpoints.MapBrowserPublicTracking();
         return group;
     }
 }

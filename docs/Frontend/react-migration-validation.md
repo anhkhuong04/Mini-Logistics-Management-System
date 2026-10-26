@@ -311,6 +311,26 @@ Check bàn giao đạt trên30 Markdown hiện hành và3 heading anchors nội 
 - HTTPS dev smoke15/15 and published smoke15/15, each intentionally skips30 Identity data cases run separately. SPA publish exit0, no schema/package/migration/Partner transport changes. Browser schema/types regeneration stable SHA256 C961D25C111284A9EA0C52AF3DD08ED7882A03FC4B1930E6067AEFC8B2FAFDA8; Partner artifact unchanged. Existing15 user files preserved by fingerprint, Markdown links/diff checks clean. Artifacts/logs/certificates/credentials remain ignored; Phase11 not started.
 - Contract limitations retained: dashboard10 delivery/audit per client,100 global outbox failures before scope filtering; usage aggregates remain server-derived. API key in transient modal only; signing secret write-only and cleared before confirmation. Config environment is host-controlled and webhook upsert reactivates; unsupported management operations were not invented.
 
+## Phase11 — public pages, root cutover và cleanup (đang chốt checkpoint)
+
+Ngày26/10/2026, base Phase10 `2ab3bf4`; thay đổi thuộc T11.01–T11.06, không có schema/migration/Partner transport change. Không suy ra task hoàn thành hoặc deploy production từ các lượt kiểm tra trung gian dưới đây. **Final cleanup/full validation/sign-off đang chờ parent ghi kết quả cuối.**
+
+| Checkpoint | Command / environment | Kết quả đã xác minh |
+| --- | --- | --- |
+| Public tracking HTTP + root routing | Web Release filter BrowserPublicTrackingTests/BrowserRootRoutingTests; isolated BrowserTests | 23 pass (7 tracking +16 root), gồm safe DTO/draft/notfound/limiter/trusted-forwarded và reserved routing |
+| Published trước cleanup, React `/app` | `dotnet publish ... -c Release -p:PublishBrowserSpa=true -o .agent/refactorfe-phase11/cutover-artifact`; `python .agent/refactorfe-phase11/published_smoke.py cutover-app` | 21 pass;32 skip là Identity/data và root-only scenarios chạy riêng, không phải đã pass |
+| Root published artifact | `python .agent/refactorfe-phase11/published_smoke.py cutover-root` | Chờ kết quả cuối |
+| Real-cookie fixture root | `MINILOGISTICS_BROWSER_E2E=1`, `MINILOGISTICS_E2E_ROOT=1`; filter BrowserRealBrowserTests | Chờ lượt chạy37 scenarios |
+| Rollback rehearsal | Cùng precleanup artifact, Enabled=true/ServeAtRoot=false, legacy FAQ/React `/app` và storage probes | Chờ kết quả/commit checkpoint cuối; không dùng cleanup artifact để rollback Blazor |
+| Frontend clean install/typecheck/lint/test/build, .NET full, schema/type/Partner drift | Toolchain pins + .NET Release/Windows LocalDB | Chờ kết quả cuối, không dùng counts Phase10 cho source Phase11 |
+| Cleanup source/runtime + final published smoke/review | `rg` callers, renderer assertion map, runtime/network smoke và git diff | Chờ checkpoint trước cleanup và full validation sau cleanup |
+
+Artifact trước cleanup: `.agent/refactorfe-phase11/cutover-artifact` (ignored; checkpoint revision sẽ ghi sau). Published host test dùng `ASPNETCORE_ENVIRONMENT=BrowserTests`, không Infrastructure workers, không migrate/seed hay dùng database người dùng. Banner storage cùng thư mục persistent Phase9; ảnh upload cũ giữ hash qua publish/restart. Data Protection key ring rehearsal ở ignored `.agent/refactorfe-phase11/persistent-keys`; cấu hình/log/test credentials không đưa vào commit. Legacy FAQ là probe rollback vì không cần dữ liệu; các workflow dữ liệu được kiểm ở Identity fixture riêng. Các test này là local staging rehearsal, không chứng nhận SQL/Redis/worker/external webhook readiness trên production.
+
+Coverage/action audit: [inventory A001–A093 và retirement map](react-migration-inventory.md#tổng-hợp-evidence-cho-a001a093). Source baseline Razor được ghi như lịch sử; chín file Operations người dùng đã sửa được giữ nguyên nhưng excluded compile/publish khi cleanup. Các15 original user paths (9 modified Operations,5 deleted manual reports,1 untracked helper) cần fingerprint check cuối. Test renderer cũ chỉ bỏ sau equivalent React/API assertions và rollback checkpoint.
+
+Giới hạn giữ nguyên: public tracking summary-only/no verified-phone UI; public/Shop limiter process-local/non-atomic; SPA không SSR/SEO server rendering; AntD vendor còn cảnh báo kích thước dù feature chunks lazy. InMemory fixture không chứng minh SQL transaction; Redis opt-in và production health/worker topology phải ghi riêng theo lượt thực sự chạy. Chưa thực hiện rollout môi trường ngoài.
+
 ## Cách ghi evidence cho task tiếp theo
 
 Mỗi task ghi: ngày/task ID, working tree hoặc commit được kiểm chứng, môi trường/dependency, command chính xác, exit code/kết quả, scenario/actor/Shop, failure/skip/blocker và artifact an toàn nếu có. Test mock, render server, HTTP test và browser test phải được phân biệt.

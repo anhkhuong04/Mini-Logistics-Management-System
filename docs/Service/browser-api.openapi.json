@@ -49,6 +49,76 @@
         }
       }
     },
+    "/api/v1/public/tracking/{trackingCode}": {
+      "get": {
+        "tags": [
+          "MiniLogistics.Web"
+        ],
+        "operationId": "BrowserPublicTracking",
+        "parameters": [
+          {
+            "name": "trackingCode",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserPublicTrackingResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BrowserApiProblem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/app/auth/csrf": {
       "get": {
         "tags": [
@@ -14998,6 +15068,68 @@
           }
         }
       },
+      "BrowserPublicTrackingResponse": {
+        "required": [
+          "trackingCode",
+          "accessLevel",
+          "currentStatus",
+          "pickupProvince",
+          "deliveryProvince",
+          "createdAtUtc",
+          "lastUpdatedAtUtc",
+          "senderName",
+          "receiverName",
+          "timeline",
+          "serverTimeZoneId"
+        ],
+        "type": "object",
+        "properties": {
+          "trackingCode": {
+            "type": "string"
+          },
+          "accessLevel": {
+            "$ref": "#/components/schemas/PublicTrackingAccessLevel"
+          },
+          "currentStatus": {
+            "$ref": "#/components/schemas/ShipmentStatus"
+          },
+          "pickupProvince": {
+            "type": "string"
+          },
+          "deliveryProvince": {
+            "type": "string"
+          },
+          "createdAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastUpdatedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "senderName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "receiverName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "timeline": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicTrackingTimelineItemResponse"
+            }
+          },
+          "serverTimeZoneId": {
+            "type": "string"
+          }
+        }
+      },
       "BrowserReassignmentRequest": {
         "required": [
           "shipperId",
@@ -17200,6 +17332,41 @@
             "items": {
               "$ref": "#/components/schemas/WardOption"
             }
+          }
+        }
+      },
+      "PublicTrackingAccessLevel": {
+        "enum": [
+          "Summary",
+          "Verified"
+        ],
+        "type": "string"
+      },
+      "PublicTrackingTimelineItemResponse": {
+        "required": [
+          "status",
+          "messageCode",
+          "message",
+          "locale",
+          "changedAtUtc"
+        ],
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/ShipmentStatus"
+          },
+          "messageCode": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "changedAtUtc": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
