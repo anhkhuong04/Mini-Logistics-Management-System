@@ -130,7 +130,7 @@ public sealed class BrowserAuthenticationTests
     }
 }
 
-public sealed class BrowserIdentityFactory(bool enableFrontend = false, Action<IServiceCollection>? configureServices = null, string? bannerRoot = null) : WebApplicationFactory<Program>
+public sealed class BrowserIdentityFactory(bool enableFrontend = false, Action<IServiceCollection>? configureServices = null, string? bannerRoot = null, bool serveAtRoot = false) : WebApplicationFactory<Program>
 {
     public static string Password { get; } = $"BrowserTest!{Guid.NewGuid():N}";
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -140,6 +140,7 @@ public sealed class BrowserIdentityFactory(bool enableFrontend = false, Action<I
         if (enableFrontend)
         {
             builder.UseSetting("BrowserSpa:Enabled", "true");
+            builder.UseSetting("BrowserSpa:ServeAtRoot", serveAtRoot.ToString());
             builder.UseSetting("BrowserSpa:DistPath", Path.Combine(RepositoryRoot(), "src", "MiniLogistics.Frontend", "dist"));
         }
         builder.UseSetting("ConnectionStrings:DefaultConnection", "Server=(localdb)\\MSSQLLocalDB;Database=UnusedBrowserTests;Trusted_Connection=True");

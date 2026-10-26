@@ -1,17 +1,19 @@
 import { DatePicker } from 'antd';
-import { screen, waitFor } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { screen, waitFor, within } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../App';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import { AppLayout } from './AppLayout';
 import { PageHeader } from '../../shared/ui/PageHeader';
 
+beforeEach(() => vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json([]))));
+afterEach(() => vi.unstubAllGlobals());
 describe('application shell', () => {
   it('offers a skip link and a real login without assuming a signed-in role', () => {
     renderWithProviders(<App />);
     expect(screen.getByRole('link', { name: 'Đến nội dung chính' })).toHaveAttribute('href', '#main-content');
     expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
-    expect(screen.getByRole('link', { name: 'Đăng nhập' })).toHaveAttribute('href', '/login');
+    expect(within(screen.getByRole('navigation', { name: 'Điều hướng công khai' })).getByRole('link', { name: 'Đăng nhập' })).toHaveAttribute('href', '/login');
     expect(screen.queryByText('Admin')).not.toBeInTheDocument();
   });
 
@@ -19,12 +21,12 @@ describe('application shell', () => {
     const { user } = renderWithProviders(<App />, { path: '/missing?status=example' });
     expect(screen.getByRole('heading', { level: 1, name: 'Không tìm thấy trang' })).toHaveFocus();
     await user.click(screen.getByRole('link', { name: 'Về trang chính' }));
-    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'Mini Logistics' })).toHaveFocus());
-    expect(document.title).toBe('Mini Logistics');
+    await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: /LAK/ })).toHaveFocus());
+    expect(document.title).toContain('LAK');
   });
 
   it('closes the mobile navigation with Escape and returns focus to its trigger', async () => {
-    const { user } = renderWithProviders(<App />);
+    const { user } = renderWithProviders(<App />, { path: '/missing' });
     const trigger = screen.getByRole('button', { name: 'Mở menu' });
     await user.click(trigger);
     expect(await screen.findByRole('dialog')).toHaveAccessibleName('Điều hướng');
@@ -43,7 +45,7 @@ describe('application shell', () => {
 
   it('uses English app and Ant Design date-control copy together', async () => {
     const { user } = renderWithProviders(<><App /><DatePicker /></>, { locale: 'en-US' });
-    expect(screen.getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login');
+    expect(within(screen.getByRole('navigation', { name: 'Public navigation' })).getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login');
     const input = screen.getByPlaceholderText('Select date');
     await user.click(input);
     expect(await screen.findByText('Today')).toBeInTheDocument();

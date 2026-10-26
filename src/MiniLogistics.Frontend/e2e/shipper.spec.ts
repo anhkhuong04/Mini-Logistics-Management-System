@@ -6,7 +6,7 @@ async function login(page: Page) {
   await page.getByLabel('Email', { exact: true }).fill('browser-shipper@example.test');
   await page.getByLabel('Mật khẩu', { exact: true }).fill(process.env.MINILOGISTICS_E2E_PASSWORD!);
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-  await expect(page).toHaveURL(/\/app\/shipper\/shipments/);
+  await expect(page).toHaveURL(/^https:\/\/[^/]+\/(?:app\/)?shipper\/shipments/);
   await expect(page.getByRole('heading', { level: 1, name: 'Đơn được phân công' })).toBeVisible();
 }
 async function confirm(page: Page, path: string, method = 'POST') {
@@ -56,6 +56,6 @@ test('Shipper desktop keeps NotRequired filter deep links and primary controls a
   await expect(page.getByRole('heading', { name: 'ML-SHIPPER-NOCOD' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'ML-SHIPPER-MOBILE-1' })).toHaveCount(0);
   await page.reload(); await expect(page.getByRole('button', { name: 'Cập nhật ML-SHIPPER-NOCOD' })).toBeEnabled();
-  await expect(page.getByRole('link', { name: 'Công việc giao hàng', exact: true })).toHaveAttribute('href', '/app/shipper/shipments');
+  await expect(page.getByRole('link', { name: 'Công việc giao hàng', exact: true })).toHaveAttribute('href', `${process.env.MINILOGISTICS_E2E_ROOT === '1' ? '' : '/app'}/shipper/shipments`);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
 });

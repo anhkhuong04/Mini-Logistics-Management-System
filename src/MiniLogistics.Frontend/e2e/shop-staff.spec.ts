@@ -3,7 +3,7 @@ test.skip(!process.env.MINILOGISTICS_E2E_IDENTITY_FIXTURE, 'Requires isolated Id
 async function login(page: Page, email: string, route: string) {
   await page.goto(`./login?returnUrl=${encodeURIComponent(route)}`); await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Mật khẩu', { exact: true }).fill(process.env.MINILOGISTICS_E2E_PASSWORD!); await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`/app${route}(?:\\?|$)`)); await expect(page).toHaveURL(/shopId=/);
+  await expect(page).toHaveURL(new RegExp(`^https://[^/]+(?:/app)?${route}(?:\\?|$)`)); await expect(page).toHaveURL(/shopId=/);
 }
 test('Shop staff owner edits by user ID and revoked rights deny an existing cookie session', async ({ page, browser }) => {
   const context = await browser.newContext({ baseURL: process.env.MINILOGISTICS_E2E_BASE_URL, ignoreHTTPSErrors: true });

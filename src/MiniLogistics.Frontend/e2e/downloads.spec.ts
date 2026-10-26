@@ -3,7 +3,7 @@ test.skip(!process.env.MINILOGISTICS_E2E_IDENTITY_FIXTURE, 'Requires isolated Id
 async function login(page: import('@playwright/test').Page, email: string) {
   await page.goto('./login'); await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Mật khẩu', { exact: true }).fill(process.env.MINILOGISTICS_E2E_PASSWORD!);
-  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click(); await expect(page).toHaveURL(/\/app\/dashboard(?:\?|$)/);
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click(); await expect(page).toHaveURL(/^https:\/\/[^/]+\/(?:app\/)?dashboard(?:\?|$)/);
 }
 test('cookie downloads keep current filters CSV filename PDF binary and error feedback', async ({ page }) => {
   await login(page, 'browser-owner@example.test'); await page.goto('./shipments?trackingCode=ML-BROWSER-001&status=PendingPickup&toUtc=2026-10-01T23:59:59.9999999Z');

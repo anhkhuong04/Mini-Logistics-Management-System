@@ -341,11 +341,19 @@ app.UseWhen(
             ? "Application.NotFound" : "Browser.HttpError", context.Response.StatusCode).ExecuteAsync(context);
     }));
 app.UseWhen(
-    context => !BrowserSpaHostingExtensions.ShouldSkipStatusCodePage(context.Request.Path),
+    context => !app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<BrowserSpaOptions>>().Value.ServeAtRoot
+        && !BrowserSpaHostingExtensions.ShouldSkipStatusCodePage(context.Request.Path),
     uiApp => uiApp.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true));
 app.UseHttpsRedirection();
 app.UseBrowserSpaAssets();
 app.UseBannerImages();
+app.Use(async (context, next) =>
+{
+    if (app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<BrowserSpaOptions>>().Value.ServeAtRoot
+        && (context.Request.Path.StartsWithSegments("/_blazor") || context.Request.Path.StartsWithSegments("/_framework")))
+    { context.Response.StatusCode = StatusCodes.Status404NotFound; return; }
+    await next(context);
+});
 
 app.UseRouting();
 app.UseRateLimiter();
@@ -375,8 +383,8 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     Predicate = registration => registration.Tags.Contains("ready"),
     ResponseWriter = WriteHealthResponseAsync
 });
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+if (!app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<BrowserSpaOptions>>().Value.ServeAtRoot)
+    app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 // Pre-warm the EF Core model to avoid ObjectDisposedException in background workers
 // caused by EF Core's internal service provider caching the scoped ApplicationServiceProvider

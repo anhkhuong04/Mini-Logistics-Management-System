@@ -55,3 +55,9 @@ jobs:
         env:
           MINILOGISTICS_BROWSER_E2E: '1'
         run: dotnet test test/MiniLogistics.Web.Tests/MiniLogistics.Web.Tests.csproj -c Release --filter FullyQualifiedName~BrowserRealBrowserTests
+      - name: Publish full-stack artifact and smoke both basenames
+        shell: pwsh
+        run: |
+          ./scripts/Publish-WebWithFrontend.ps1 -OutputPath .agent/ci-publish -SkipInstall
+          ./scripts/Test-PublishedWeb.ps1 -ArtifactPath .agent/ci-publish
+          ./scripts/Test-PublishedWeb.ps1 -ArtifactPath .agent/ci-publish -RootMode

@@ -5,7 +5,7 @@ async function login(page: Page, email = 'browser-mutation-owner@example.test') 
   await page.goto('./login'); await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Mật khẩu', { exact: true }).fill(process.env.MINILOGISTICS_E2E_PASSWORD!);
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-  await expect(page).toHaveURL(/\/app\/dashboard(?:\?|$)/);
+  await expect(page).toHaveURL(/^https:\/\/[^/]+\/(?:app\/)?dashboard(?:\?|$)/);
 }
 async function fillShipment(page: Page, receiver: string) {
   await page.goto('./shipments/create');
@@ -35,7 +35,7 @@ test('real draft edit submit and cancel preserve server fees history and URL sta
   const draftResponse = write(page, 'POST', '/shipments/drafts');
   await page.getByRole('button', { name: 'Lưu nháp', exact: true }).click();
   const draft = await (await draftResponse).json(); expect(draft.status).toBe('Draft'); expect(draft.shippingFeeAmount).toBe('25000');
-  await expect(page).toHaveURL(new RegExp(`/app/shipments/${draft.shipmentId}\\?`));
+  await expect(page).toHaveURL(new RegExp(`^https://[^/]+(?:/app)?/shipments/${draft.shipmentId}\\?`));
   await page.getByRole('link', { name: 'Sửa vận đơn', exact: true }).click();
   await expect(page).toHaveURL(/shipmentId=/); await page.reload();
   await expect(page.getByRole('textbox', { name: 'Tên người nhận', exact: true })).toHaveValue('Lifecycle Receiver');
@@ -73,7 +73,7 @@ test('create double click sends one command and mobile form remains contained', 
   const response = write(page, 'POST', '/shipments');
   await page.getByRole('button', { name: 'Tạo đơn hàng', exact: true }).dblclick();
   const created = await (await response).json(); expect(created.status).toBe('PendingPickup'); expect(created.shippingFeeAmount).toBe('25000');
-  await expect(page).toHaveURL(new RegExp(`/app/shipments/${created.shipmentId}\\?`)); expect(commands).toBe(1);
+  await expect(page).toHaveURL(new RegExp(`^https://[^/]+(?:/app)?/shipments/${created.shipmentId}\\?`)); expect(commands).toBe(1);
 });
 
 test('restricted staff cannot enter the mutation form or act on a shipment', async ({ page }) => {

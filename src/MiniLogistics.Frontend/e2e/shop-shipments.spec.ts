@@ -4,7 +4,7 @@ async function login(page: import('@playwright/test').Page, email: string) {
   await page.goto('./login'); await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Mật khẩu', { exact: true }).fill(process.env.MINILOGISTICS_E2E_PASSWORD!);
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-  await expect(page).toHaveURL(/\/app\/dashboard(?:\?|$)/);
+  await expect(page).toHaveURL(/^https:\/\/[^/]+\/(?:app\/)?dashboard(?:\?|$)/);
 }
 test('owner list search detail back reload and invalid URL use the real paged endpoint', async ({ page }) => {
   await login(page, 'browser-owner@example.test');

@@ -40,7 +40,7 @@ public sealed class BrowserRealBrowserTests
         using var pemCertificate = X509Certificate2.CreateFromPemFile(Path.Combine(certDirectory, "localhost.pem"), Path.Combine(certDirectory, "localhost.key"));
         // Windows Schannel needs a persisted key handle; do not write the PFX or its key to disk.
         using var certificate = X509CertificateLoader.LoadPkcs12(pemCertificate.Export(X509ContentType.Pfx), null);
-        await using var factory = new BrowserIdentityFactory(enableFrontend: true,
+        await using var factory = new BrowserIdentityFactory(enableFrontend: true, serveAtRoot: Environment.GetEnvironmentVariable("MINILOGISTICS_E2E_ROOT")=="1",
             configureServices: services => {
                 services.AddHostedService<ShipmentImportWorker>();
                 services.RemoveAll<IShipperAssignmentCapacityGuard>();
@@ -165,6 +165,7 @@ public sealed class BrowserRealBrowserTests
             RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = System.Text.Encoding.UTF8,
             StandardErrorEncoding = System.Text.Encoding.UTF8, UseShellExecute = false, CreateNoWindow = true };
         start.ArgumentList.Add("node_modules/@playwright/test/cli.js"); start.ArgumentList.Add("test");
+        start.ArgumentList.Add("e2e/public-pages.spec.ts"); start.ArgumentList.Add("e2e/public-tracking.spec.ts");
         start.ArgumentList.Add("e2e/auth.spec.ts"); start.ArgumentList.Add("e2e/shop-context.spec.ts");
         start.ArgumentList.Add("e2e/admin-reporting.spec.ts");
         start.ArgumentList.Add("e2e/admin-users-shops.spec.ts");
@@ -187,7 +188,7 @@ public sealed class BrowserRealBrowserTests
         {
             start.ArgumentList.Add("--grep"); start.ArgumentList.Add(grep);
         }
-        start.Environment["MINILOGISTICS_E2E_BASE_URL"] = address + "/app/";
+        start.Environment["MINILOGISTICS_E2E_BASE_URL"] = address + (Environment.GetEnvironmentVariable("MINILOGISTICS_E2E_ROOT")=="1" ? "/" : "/app/");
         start.Environment["MINILOGISTICS_E2E_IDENTITY_FIXTURE"] = "1";
         start.Environment["MINILOGISTICS_E2E_PASSWORD"] = BrowserIdentityFactory.Password;
         start.Environment["MINILOGISTICS_E2E_FOREIGN_INTEGRATION_SHOP"] = excludedPortal.Shop.Id.ToString();

@@ -6,7 +6,7 @@ async function login(page: Page, email: string, destination: string) {
   await page.getByLabel('Email', { exact: true }).fill(email);
   await page.getByLabel('Mật khẩu', { exact: true }).fill(process.env.MINILOGISTICS_E2E_PASSWORD!);
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`/app${destination.replaceAll('/', '\\/')}(?:\\?|$)`));
+  await expect(page).toHaveURL(new RegExp(`^https://[^/]+(?:/app)?${destination.replaceAll('/', '\\/')}(?:\\?|$)`));
 }
 async function confirm(page: Page, suffix: string) {
   const response = page.waitForResponse(item => item.request().method() === 'POST' && new URL(item.url()).pathname.endsWith(suffix));

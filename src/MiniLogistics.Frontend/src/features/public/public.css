@@ -1,0 +1,20 @@
+.public-page { display: grid; gap: 24px; min-width: 0; overflow-wrap: anywhere; }
+.public-page h2 { font-size: 1.3rem; line-height: 1.45; margin-top: 0; }
+.public-page h3 { font-size: 1.1rem; }
+.public-page p { line-height: 1.75; }
+.public-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,260px),1fr)); gap: 20px; }
+.public-grid > *, .public-page .ant-card, .public-page section { min-width: 0; }
+.public-page .ant-card-body { padding: clamp(16px,3vw,28px); }
+.public-hero { border-radius: 16px; background: #edf5f9; overflow: hidden; }
+.public-hero img { display: block; width: 100%; height: auto; max-height: 430px; object-fit: cover; }
+.public-banner-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 12px; padding: 12px; }
+.public-tracking-search { display: grid; gap: 10px; }
+.public-tracking-search label { font-weight: 600; }
+.public-search-controls { display: flex; gap: 12px; }
+.public-search-controls .ant-input { min-width: 0; }
+.public-service-icon { font-size: 28px; color: #1b6596; }
+.public-tracking-summary { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,230px),1fr)); gap: 20px; margin-block: 24px; }
+.public-tracking-summary dt { color: #536978; }
+.public-tracking-summary dd { margin: 4px 0 0; font-weight: 600; }
+.public-page .ant-timeline { margin-top: 24px; }
+@media (max-width: 540px) { .public-search-controls { flex-direction: column; } .public-search-controls .ant-btn { width: 100%; } }

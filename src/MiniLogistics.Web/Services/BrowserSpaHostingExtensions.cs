@@ -25,8 +25,8 @@ public static class BrowserSpaHostingExtensions
                 }
                 options.DistPath = Path.GetFullPath(options.DistPath, environment.ContentRootPath);
             })
-            .Validate(options => !options.ServeAtRoot,
-                "BrowserSpa:ServeAtRoot is reserved for the root cutover; coexistence serves only /app.")
+            .Validate(options => !options.ServeAtRoot || options.Enabled,
+                "BrowserSpa:ServeAtRoot requires BrowserSpa:Enabled.")
             .ValidateOnStart();
         return services;
     }
@@ -69,15 +69,32 @@ public static class BrowserSpaHostingExtensions
         {
             context.Response.Headers.CacheControl = "no-store";
             context.Response.Headers.XContentTypeOptions = "nosniff";
-            var json = JsonSerializer.Serialize(new { basePath = "/app", assetBasePath = "/frontend-assets/" });
+            var json = JsonSerializer.Serialize(new { basePath = options.ServeAtRoot ? "" : "/app", assetBasePath = "/frontend-assets/" });
             var language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName == "en" ? "en" : "vi";
             return Results.Text($"window.__MINI_LOGISTICS_CONFIG__ = {json};\ndocument.documentElement.lang = \"{language}\";", "text/javascript");
         }).AllowAnonymous().ExcludeFromDescription();
 
-        endpoints.MapMethods("/app", ["GET", "HEAD"], ServeIndexAsync)
-            .AllowAnonymous().ExcludeFromDescription();
-        endpoints.MapMethods("/app/{**path:nonfile}", ["GET", "HEAD"], ServeIndexAsync)
-            .AllowAnonymous().ExcludeFromDescription();
+        if (options.ServeAtRoot)
+        {
+            endpoints.MapMethods("/app", ["GET", "HEAD"], (HttpContext context) =>
+                Results.LocalRedirect("/" + context.Request.QueryString))
+                .AllowAnonymous().ExcludeFromDescription();
+            endpoints.MapMethods("/app/{**path:nonfile}", ["GET", "HEAD"], (HttpContext context, string? path) =>
+            {
+                if (path?.Contains('\\') == true || context.Request.QueryString.Value?.Any(char.IsControl) == true)
+                    return Results.BadRequest();
+                return Results.LocalRedirect("/" + (path ?? "").TrimStart('/') + context.Request.QueryString);
+            }).AllowAnonymous().ExcludeFromDescription();
+            endpoints.MapMethods("/{**path:nonfile}", ["GET", "HEAD"], ServeRootAsync)
+                .AllowAnonymous().ExcludeFromDescription();
+        }
+        else
+        {
+            endpoints.MapMethods("/app", ["GET", "HEAD"], ServeIndexAsync)
+                .AllowAnonymous().ExcludeFromDescription();
+            endpoints.MapMethods("/app/{**path:nonfile}", ["GET", "HEAD"], ServeIndexAsync)
+                .AllowAnonymous().ExcludeFromDescription();
+        }
         return endpoints;
     }
 
@@ -91,6 +108,14 @@ public static class BrowserSpaHostingExtensions
         || path.StartsWithSegments("/frontend-assets")
         || path.StartsWithSegments("/app")
         || path.Equals("/frontend-config.js");
+
+    private static Task<IResult> ServeRootAsync(HttpContext context, IOptions<BrowserSpaOptions> options)
+    {
+        var reserved = new[] { "/api", "/auth", "/culture", "/shop/files", "/health", "/openapi", "/images", "/data", "/frontend-assets", "/_blazor", "/_framework", "/_content", "/lib" };
+        if (reserved.Any(prefix => context.Request.Path.StartsWithSegments(prefix)))
+            return Task.FromResult<IResult>(Results.NotFound());
+        return ServeIndexAsync(context, options);
+    }
 
     private static async Task<IResult> ServeIndexAsync(
         HttpContext context,

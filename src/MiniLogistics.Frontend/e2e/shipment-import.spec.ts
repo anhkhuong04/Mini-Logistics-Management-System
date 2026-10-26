@@ -6,7 +6,7 @@ test('CSV preview edit confirm real worker completion and error download', async
   await page.setViewportSize({ width: 390, height: 900 });
   await page.goto('./login'); await page.getByLabel('Email', { exact: true }).fill('browser-mutation-owner@example.test');
   await page.getByLabel('Mật khẩu', { exact: true }).fill(process.env.MINILOGISTICS_E2E_PASSWORD!);
-  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click(); await expect(page).toHaveURL(/\/app\/dashboard(?:\?|$)/);
+  await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click(); await expect(page).toHaveURL(/^https:\/\/[^/]+\/(?:app\/)?dashboard(?:\?|$)/);
   await page.goto('./shipments'); await page.getByRole('button', { name: 'Nhập CSV', exact: true }).click();
   const reference = await (await page.request.get('/api/v1/public/reference-data/provinces')).json();
   const province = reference.provinces.find((item: { name: string }) => item.name === 'Thành phố Hà Nội');

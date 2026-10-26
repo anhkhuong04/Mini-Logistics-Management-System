@@ -19,7 +19,7 @@ for (const path of ['login', 'register-shop']) {
 for (const width of [390, 768, 1024, 1440]) {
   test(`shell fits ${width}px and exposes navigation appropriate to the viewport`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
-    await page.goto('./');
+    await page.goto('./missing');
     await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
     await expect(page.getByRole('main')).toHaveCount(1);
     const trigger = page.getByRole('button', { name: 'Mở menu' });
@@ -35,7 +35,7 @@ for (const width of [390, 768, 1024, 1440]) {
 
 test('mobile drawer traps keyboard focus, closes with Escape and restores focus', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('./');
+  await page.goto('./missing');
   const trigger = page.getByRole('button', { name: 'Mở menu' });
   await trigger.focus();
   await page.keyboard.press('Enter');
@@ -70,13 +70,13 @@ test('skip link and route navigation move focus to the intended content', async 
   await page.keyboard.press('Enter');
   await expect(page.getByRole('main')).toBeFocused();
   await page.getByRole('link', { name: 'Về trang chính' }).click();
-  await expect(page).toHaveTitle('Mini Logistics');
+  await expect(page).toHaveTitle(/LAK.*Mini Logistics/);
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
   await page.goBack();
   await expect(page.getByRole('main')).toBeFocused(); // Restores the skip-link fragment.
   await page.goto('./missing?status=ready');
   await page.getByRole('link', { name: 'Về trang chính' }).click();
-  await expect(page.getByRole('heading', { level: 1, name: 'Mini Logistics', exact: true })).toBeFocused();
+  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
   await page.goBack();
   await expect(page.getByRole('heading', { level: 1, name: 'Không tìm thấy trang' })).toBeFocused();
 });
@@ -88,13 +88,13 @@ test('choosing a mobile drawer link preserves focus on the destination after the
   const dialog = page.getByRole('dialog', { name: 'Điều hướng' });
   await dialog.getByRole('link', { name: 'Trang chính', exact: true }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByRole('heading', { level: 1, name: 'Mini Logistics', exact: true })).toBeFocused();
+  await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
 });
 
 test('culture cookie switches copy, survives reload and preserves route and query', async ({ page, context }) => {
   await page.goto('./missing?status=ready');
   await page.getByRole('link', { name: 'English', exact: true }).click();
-  await expect(page).toHaveURL(/\/app\/missing\?status=ready$/);
+  await expect(page).toHaveURL(/^https:\/\/[^/]+\/(?:app\/)?missing\?status=ready$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   const culture = (await context.cookies()).find(cookie => cookie.name === '.AspNetCore.Culture');
@@ -108,14 +108,16 @@ test('culture cookie switches copy, survives reload and preserves route and quer
 
 test('layout remains usable at 200 percent CSS zoom', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 900 });
-  await page.goto('./');
+  await page.goto('./missing');
   await page.evaluate(() => { document.documentElement.style.zoom = '2'; });
-  await expect(page.getByRole('link', { name: 'Đăng nhập' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.getByRole('button', { name: 'Hỗ trợ', exact: true }).click();
+  // CSS zoom leaves media-query width unchanged; also exercise the mobile breakpoint.
+  await page.setViewportSize({ width: 768, height: 900 });
+  await page.getByRole('button', { name: 'Mở menu', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(page.getByRole('dialog')).toBeHidden();
-  await expect(page.getByRole('button', { name: 'Hỗ trợ', exact: true })).toBeFocused();
+  await expect(page.getByRole('button', { name: 'Mở menu', exact: true })).toBeFocused();
   await page.screenshot({ path: resolve(screenshots, 'shell-zoom200.png'), fullPage: true });
 });

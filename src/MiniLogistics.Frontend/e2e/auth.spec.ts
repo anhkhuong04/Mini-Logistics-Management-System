@@ -16,7 +16,7 @@ test('registration signs in with a real cookie, reload keeps session, logout cle
   await page.getByLabel('Phường / Xã').press('ArrowDown');
   await page.getByLabel('Phường / Xã').press('Enter');
   await page.getByRole('button', { name: 'Đăng ký Shop', exact: true }).click();
-  await expect(page).toHaveURL(/\/app\/dashboard(?:\?|$)/);
+  await expect(page).toHaveURL(/^https:\/\/[^/]+\/(?:app\/)?dashboard(?:\?|$)/);
   await page.goto('./');
   await expect(page.getByText('Registered Browser Shop', { exact: true })).toBeVisible();
   await page.reload();
@@ -30,7 +30,7 @@ test('registration signs in with a real cookie, reload keeps session, logout cle
   await expect(page.getByRole('button', { name: 'Đăng xuất', exact: true })).toHaveCount(0);
   expect((await context.cookies()).some(item => item.name === '.AspNetCore.Identity.Application')).toBe(false);
   await page.goto('./dashboard');
-  await expect(page).toHaveURL(/\/app\/login\?/);
+  await expect(page).toHaveURL(/^https:\/\/[^/]+\/(?:app\/)?login\?/);
   await expect(page.getByRole('heading', { level: 1, name: 'Đăng nhập' })).toBeVisible();
 });
 
@@ -44,7 +44,7 @@ test('login failure, remember-me, safe return URL and lockout use real Identity'
   await page.getByLabel('Mật khẩu', { exact: true }).fill(process.env.MINILOGISTICS_E2E_PASSWORD!);
   await page.getByLabel('Ghi nhớ đăng nhập').check();
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-  await expect(page).toHaveURL(/\/app\/dashboard(?:\?|$)/);
+  await expect(page).toHaveURL(/^https:\/\/[^/]+\/(?:app\/)?dashboard(?:\?|$)/);
   const cookie = (await context.cookies()).find(item => item.name === '.AspNetCore.Identity.Application');
   expect(cookie!.expires).toBeGreaterThan(Date.now() / 1000);
   await page.goto('./');

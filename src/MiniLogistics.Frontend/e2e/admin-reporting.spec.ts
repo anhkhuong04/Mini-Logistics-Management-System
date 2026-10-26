@@ -33,7 +33,8 @@ test('Operator cannot open Admin pages or call administrative endpoints', async 
   await page.getByLabel('Email', { exact: true }).fill('browser-operator@example.test');
   await page.getByLabel('Mật khẩu', { exact: true }).fill(process.env.MINILOGISTICS_E2E_PASSWORD!);
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-  await expect(page).toHaveURL(/\/app\/admin\/users$/);
+  await expect(page).toHaveURL(url => /^\/(?:app\/)?admin\/users$/.test(url.pathname));
+  await expect(page.getByText('Kh\u00f4ng c\u00f3 quy\u1ec1n truy c\u1eadp', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Tạo người dùng', exact: true })).toHaveCount(0);
   for (const part of ['dashboard', 'cod-report', 'audit', 'users', 'shops', 'hubs', 'configuration', 'banners']) expect((await page.request.get(new URL(`/api/v1/app/admin/${part}`, page.url()).href)).status()).toBe(403);
 });
