@@ -11,9 +11,9 @@ public static class BrowserApiResultMapper
     {
         "Auth.InvalidCredentials" or "Browser.Unauthenticated" => 401,
         "Auth.LockedOut" => 423,
-        "Application.Forbidden" => 403,
+        "Application.Forbidden" or "PartnerApi.MissingScope" => 403,
         "Application.NotFound" => 404,
-        "Application.Conflict" or "Application.ConcurrencyConflict" or "Application.CapacityReached" => 409,
+        "Application.Conflict" or "Application.ConcurrencyConflict" or "Application.CapacityReached" or "WebhookDelivery.NotFailed" or "OutboxMessage.NotFailed" => 409,
         "Shipment.CannotEditBeforePickup" or "Shipment.OnlyDraftCanBeSubmitted" or "Shipment.CannotCancel"
             or "Shipment.CannotAssign" or "Shipment.ActiveAssignmentExists" or "Shipment.CannotReassign"
             or "Shipment.CannotCancelAssignment" or "Shipment.ActiveAssignmentNotFound"

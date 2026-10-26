@@ -64,6 +64,8 @@ public static class BrowserApiEndpoints
         group.MapBrowserAdminHubs();
         group.MapBrowserAdminConfiguration();
         group.MapBrowserAdminBanners();
+        group.MapBrowserIntegrationClients();
+        group.MapBrowserIntegrationWebhooks();
         endpoints.MapBrowserReferenceData();
         endpoints.MapBrowserPublicBanners();
         return group;

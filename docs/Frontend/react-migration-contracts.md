@@ -52,6 +52,16 @@ Baseline đã đọc cả Operations chưa commit; HEAD không đại diện đ�
 
 ## Contract browser đã chốt để triển khai
 
+### Phase 10 — Integration management portal
+
+Checkpoint triển khai: browser adapters đã có, React portal đang kiểm chứng. `/api/v1/app/integrations/dashboard?shopId` gọi IWebhookManagementService/IntegrationScopeService, trả Shop/client trong phạm vi hiện có; GUID query không thuộc phạm vi trả403. POST `/clients`, POST `/clients/{id}/rotate-key`, PUT `/clients/{id}/active`, PUT `/clients/{id}/security`; PUT `/clients/{id}/webhook`, POST `/clients/{id}/webhook/test`, POST `/deliveries/{id}/retry`, POST `/outbox/{id}/retry`. Actor lấy principal, target lấy route. Cookie/CSRF/no-store giữ foundation; không dùng API key để đăng nhập portal.
+
+Browser scopes dùng mảng tên Quote/CreateShipment/TrackShipment/CancelShipment/WebhookManage, không chấp nhận flags số/All/None/tên ghép/duplicate. Quyền quản lý giữ fallback global khi chưa có active management scope, sau đó áp dụng global/Shop/province records; Shop staff cần ManageIntegrations. Role đơn lẻ không vượt scope. Không thêm UI/API cấp management scope mới. Môi trường key mới do IApiCredentialPolicy trên host quyết định (Live/Sandbox); không có lựa chọn môi trường từng client. Thu hồi là active=false; rotate đổi key và kích hoạt lại như service cũ.
+
+Response tạo/rotate là one-time secret DTO; dashboard chỉ có prefix, không hash/key/signing secret/protected secret/payload. Frontend giữ key trong modal transient, không query cache/URL/storage; đóng modal, đổi Shop/client, logout/401/permission change sẽ clear. SigningSecret write-only, clear trước confirmation và chỉ vào request upsert. Service hiện chỉ upsert/reactivate endpoint, không có deactivate/reveal/rotate-signing-secret hay event-subscription command riêng; không tự thêm contract này. Test webhook chỉ xếp hàng, không chứng minh delivery ra ngoài.
+
+Dashboard giữ10 delivery/audit mỗi client, cửa sổ100 outbox failures trước khi filter và các usage buckets do server tính. Browser projection chuyển LastError/ErrorMessage thành thông báo chung, bỏ query khỏi failed request path; không expose raw response/body/secret. MissingScope trả403, retry NotFailed trả409; Partner HTTP contracts giữ nguyên. URL HTTPS/public DNS/connection validation, signing, retry/leasing/outbox/persistence không thay đổi. Bằng chứng hoàn tất ghi ở validation log/checklist, không suy ra toàn bộ QA đã đạt từ checkpoint này.
+
 ### Phase 9 — Administration và banner I/O
 
 Browser adapters hiện có dưới `/api/v1/app/admin`: GET dashboard/cod-report/audit/users/shops/hubs/configuration/banners; POST users/hubs/banners/configuration/fees, PUT users/{id}/active/password/capacity/working-areas, shops/{id}/active, hubs/{id} và /active, configuration/routes, banners/{id}; POST banners/{id}/toggle, DELETE banners/{id}. Actor lấy từ principal; Application kiểm active Admin, không cấp quyền cho Operator/IntegrationAdmin. COD settlement dùng command Operations hiện có. Dashboard giữ scope thời gian riêng từng metric; audit giới hạn SQL500 và che trường nhạy cảm bằng PiiMaskingService trước khi trả DTO. Users giữ paging tại Application theo implementation Identity hiện có; không tuyên bố SQL paging. Hubs/shops giữ list semantics cũ. Cấu hình vẫn dùng SQL application lock/version/audit/cache invalidation, không sửa snapshot vận đơn.
