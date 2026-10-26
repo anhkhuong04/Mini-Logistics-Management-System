@@ -18,7 +18,6 @@ using MiniLogistics.Application.PartnerApi;
 using MiniLogistics.Infrastructure;
 using MiniLogistics.Infrastructure.Health;
 using MiniLogistics.Infrastructure.Persistence;
-using MiniLogistics.Web.Components;
 using MiniLogistics.Web.Endpoints;
 using MiniLogistics.Web.Services;
 using StackExchange.Redis;
@@ -193,7 +192,6 @@ builder.Services.AddAuthorization(options =>
         OperationPermissions.ShipmentView,
         policy => policy.RequireRole("Admin", "Operator"));
 });
-builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSingleton<VietnamAdministrativeDivisionService>();
 builder.Services.AddSingleton<MiniLogistics.Application.Common.IAdministrativeDivisionService>(provider =>
     provider.GetRequiredService<VietnamAdministrativeDivisionService>());
@@ -247,8 +245,6 @@ else
         "PartnerApi:RateLimiting:Mode must be either 'Memory' or 'Redis'. The legacy non-atomic 'Distributed' mode is not supported.");
 }
 
-builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
 builder.Services.AddBrowserSpa(builder.Configuration, builder.Environment);
 
 var app = builder.Build();
@@ -340,17 +336,12 @@ app.UseWhen(
         await BrowserApiResultMapper.Problem(context, context.Response.StatusCode == 404
             ? "Application.NotFound" : "Browser.HttpError", context.Response.StatusCode).ExecuteAsync(context);
     }));
-app.UseWhen(
-    context => !app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<BrowserSpaOptions>>().Value.ServeAtRoot
-        && !BrowserSpaHostingExtensions.ShouldSkipStatusCodePage(context.Request.Path),
-    uiApp => uiApp.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true));
 app.UseHttpsRedirection();
 app.UseBrowserSpaAssets();
 app.UseBannerImages();
 app.Use(async (context, next) =>
 {
-    if (app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<BrowserSpaOptions>>().Value.ServeAtRoot
-        && (context.Request.Path.StartsWithSegments("/_blazor") || context.Request.Path.StartsWithSegments("/_framework")))
+    if (context.Request.Path.StartsWithSegments("/_blazor") || context.Request.Path.StartsWithSegments("/_framework"))
     { context.Response.StatusCode = StatusCodes.Status404NotFound; return; }
     await next(context);
 });
@@ -383,8 +374,6 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
     Predicate = registration => registration.Tags.Contains("ready"),
     ResponseWriter = WriteHealthResponseAsync
 });
-if (!app.Services.GetRequiredService<Microsoft.Extensions.Options.IOptions<BrowserSpaOptions>>().Value.ServeAtRoot)
-    app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 
 // Pre-warm the EF Core model to avoid ObjectDisposedException in background workers
 // caused by EF Core's internal service provider caching the scoped ApplicationServiceProvider

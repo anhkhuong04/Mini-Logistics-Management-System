@@ -1,8 +1,0 @@
-.ui-metric { display: grid; gap: .5rem; background: var(--ui-surface); border: 1px solid var(--ui-border); border-radius: var(--ui-radius); height: 100%; min-width: 0; min-height: 8rem; padding: 1.125rem; position: relative; }
-.ui-metric__icon { position: absolute; right: 1rem; top: 1rem; color: var(--ui-primary); }
-.ui-metric__label { color: var(--ui-muted); font-size: .8125rem; font-weight: 500; padding-right: 1.75rem; }
-.ui-metric strong { color: var(--ui-text-strong); font-size: clamp(1.5rem, 2.2vw, 1.875rem); font-weight: 600; letter-spacing: -.025em; line-height: 1.2; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.ui-metric small { color: var(--ui-muted); font-size: .75rem; line-height: 1.5; }
-.ui-metric--warning .ui-metric__icon { color: var(--ui-warning); }
-.ui-metric--danger .ui-metric__icon { color: var(--ui-danger); }
-.ui-metric--success .ui-metric__icon { color: var(--ui-success); }

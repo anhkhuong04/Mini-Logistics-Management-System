@@ -1,9 +1,0 @@
-.ui-page-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; min-width: 0; }
-.ui-page-header__identity { display: flex; align-items: center; gap: .875rem; min-width: 0; }
-.ui-page-header__identity > div { min-width: 0; }
-.ui-page-header__icon { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; color: var(--ui-primary); background: var(--ui-primary-soft); border-radius: var(--ui-radius-sm); width: 2.75rem; height: 2.75rem; }
-.ui-page-header__eyebrow { color: var(--ui-muted); font-size: .75rem; font-weight: 500; margin: 0 0 .25rem; }
-h1 { color: var(--ui-text-strong); font-size: clamp(1.375rem, 2vw, 1.75rem); font-weight: 600; letter-spacing: -.025em; line-height: 1.35; margin: 0; overflow-wrap: anywhere; }
-.ui-page-header__description { color: var(--ui-muted); font-size: .875rem; line-height: 1.6; margin: .3rem 0 0; max-width: 44rem; }
-.ui-page-header__actions { display: flex; align-items: center; flex-wrap: wrap; gap: .625rem; }
-@media (max-width: 720px) { .ui-page-header { align-items: stretch; flex-direction: column; } .ui-page-header__actions { width: 100%; } }

@@ -4,7 +4,6 @@
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
     <OpenApiGenerateDocuments>true</OpenApiGenerateDocuments>
     <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)\..\..\docs\Service</OpenApiDocumentsDirectory>
     <OpenApiGenerateDocumentsOptions>--file-name partner-api --document-name v1</OpenApiGenerateDocumentsOptions>
@@ -13,7 +12,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Blazicons.Lucide" Version="3.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
@@ -32,8 +30,11 @@
     <ProjectReference Include="..\MiniLogistics.Infrastructure\MiniLogistics.Infrastructure.csproj" />
   </ItemGroup>
 
+  <!-- Preserve pre-existing user edits as inactive source, outside compilation and publish. -->
   <ItemGroup>
-    <Folder Include="wwwroot\images\landing\" />
+    <RazorComponent Remove="Components/**" />
+    <Content Remove="Components/**" />
+    <None Remove="Components/**" />
   </ItemGroup>
 
   <Target Name="RenamePartnerOpenApiDocument" AfterTargets="GenerateOpenApiDocuments">

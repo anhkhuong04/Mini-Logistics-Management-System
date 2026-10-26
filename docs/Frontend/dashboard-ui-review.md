@@ -1,5 +1,7 @@
 # Đánh giá và refactor UI/UX dashboard
 
+**Runtime sau Phase11:** React/Ant Design tại root đã thay renderer theo checkpoint trong [validation log](react-migration-validation.md). Tài liệu này giữ lịch sử review Blazor; không dùng các source links/primitive bên dưới làm hướng dẫn runtime mới. [Frontend README](README.md) và [retirement map](react-migration-inventory.md#retirement-map-cho-test-renderer-blazor) sở hữu implementation/assertion mapping hiện tại.
+
 Ngày đối chiếu source: 15/10/2026. Phạm vi: dashboard Shop/Admin, navigation, shared UI và các khu vực vận hành liên quan.
 
 **Phạm vi lịch sử và migration (25/10/2026):** đây là đánh giá đợt UI Blazor. Quyết định frontend mới là React + TypeScript + Ant Design theo [ADR-004](decisions/adr-004-react-typescript-ant-design.md) và [kế hoạch migration](../../refactorfe.md). Bootstrap/Blazicons/Razor primitives bên dưới chỉ mô tả lựa chọn của UI cũ. Các yêu cầu về số liệu thật, error/empty, drill-down, quyền, responsive và accessibility tiếp tục là tiêu chí parity; kết quả QA React phải được ghi riêng trong [validation log](react-migration-validation.md).

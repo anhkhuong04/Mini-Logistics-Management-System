@@ -20,11 +20,11 @@ test('backend and asset routes retain their own responses', async ({ request, ba
   expect(asset.status()).toBe(404);
   expect(await asset.text()).not.toContain('<div id="root">');
   const faq = await request.get(`${origin}/faq`);
-  expect(faq.status()).toBe(200);
-  expect(await faq.text()).toContain('blazor.web.js');
+  expect(faq.status()).toBe(new URL(baseURL!).pathname === '/app/' ? 404 : 200);
+  expect(await faq.text()).not.toContain('blazor.web.js');
 });
 
-test('health OpenAPI and remaining legacy routes are owned by the backend on the dev origin', async ({ request, baseURL }) => {
+test('health OpenAPI and public navigation keep separate route ownership', async ({ request, baseURL }) => {
   const origin = new URL(baseURL!).origin;
   const health = await request.get(`${origin}/health/live`, { headers: { Accept: '*/*' } });
   expect(health.status()).toBe(200);
@@ -40,8 +40,9 @@ test('health OpenAPI and remaining legacy routes are owned by the backend on the
     expect(response.headers()['content-type'] ?? '').not.toContain('text/html');
   }
   for (const path of ['/tracking?code=', '/Error', '/not-found']) {
-    const response = await request.get(`${origin}${path}`, { headers: { Accept: 'text/html' } });
-    expect(await response.text()).toContain('blazor.web.js');
-    expect(await response.text()).not.toContain('<div id="root">');
+    const response = await request.get(new URL(path.replace(/^\//, ''), baseURL).href, { headers: { Accept: 'text/html' } });
+    expect(response.status()).toBe(200);
+    expect(await response.text()).not.toContain('blazor.web.js');
+    expect(await response.text()).toContain('<div id="root">');
   }
 });

@@ -1,20 +1,35 @@
 # Phát triển local
 
-Các lệnh .NET dưới đây dành cho runtime backend/Blazor hiện tại. Scaffold React/TypeScript/Ant Design nằm ở `src/MiniLogistics.Frontend`, dùng Node 24.22.1/npm 11.19.1 theo [toolchain](../Frontend/react-migration-toolchain.md). Xem [migration status](../Frontend/react-migration-contracts.md) để biết phạm vi hosting/API đã có.
+Backend là ASP.NET Core .NET10 modular monolith; frontend hiện tại React + TypeScript + Ant Design tại `src/MiniLogistics.Frontend`. Dùng Node **24.22.1**/npm **11.19.1** theo [toolchain](../Frontend/react-migration-toolchain.md), .NET10 SDK và LocalDB trên Windows khi chạy Infrastructure tests. Trạng thái/evidence ở [migration status](../Frontend/react-migration-contracts.md) và [validation log](../Frontend/react-migration-validation.md).
 
-Frontend: chạy `npm --prefix src/MiniLogistics.Frontend ci`, sau đó `run dev`; validation dùng `run typecheck`, `run lint`, `test`, `run build`. `run test:e2e` dùng Playwright Chromium đã cài. Build Web sinh cả Partner OpenAPI và `docs/Service/browser-api.openapi.json`; chạy `npm --prefix src/MiniLogistics.Frontend run api:generate` để cập nhật types browser, kiểm tra diff trước commit.
+```powershell
+npm --prefix src/MiniLogistics.Frontend ci
+npm --prefix src/MiniLogistics.Frontend run dev:cert
+dotnet dev-certs https --trust
+# Terminal 1:
+dotnet run --project src/MiniLogistics.Web --launch-profile https
+# Terminal 2:
+npm --prefix src/MiniLogistics.Frontend run dev
+```
 
-T01.02 đã có hosting coexist, mặc định tắt. Xuất dev certificate bằng `npm --prefix src/MiniLogistics.Frontend run dev:cert` (file chỉ ở `.agent/https` bị ignore); trust certificate trên máy bằng `dotnet dev-certs https --trust` nếu cần. Bật `$env:BrowserSpa__Enabled = 'true'`, chạy Web với HTTPS profile bên dưới và Vite ở terminal khác, truy cập `https://localhost:5173/app/`. Vite xác thực TLS khi proxy đến backend7195; override bằng `MINILOGISTICS_BACKEND_URL`, `MINILOGISTICS_HTTPS_CERT`/`MINILOGISTICS_HTTPS_KEY` nếu cần. Các URL Blazor cũ vẫn được proxy tới Web.
+Mở `https://localhost:5173/`: Vite phục vụ React/HMR và proxy HTTP/static/system tới Web7195, kiểm TLS. Override `MINILOGISTICS_BACKEND_URL`, `MINILOGISTICS_HTTPS_CERT`/`MINILOGISTICS_HTTPS_KEY` khi cần; key/certificate chỉ ở ignored storage. Root host mặc định `BrowserSpa:Enabled=true`, `ServeAtRoot=true`; build frontend trước khi mở UI trực tiếp từ Web. `/app/...` redirect local sang root giữ query. Các endpoint `/api`, `/auth`, `/culture`, `/shop/files`, `/health`, `/openapi` không bị SPA fallback chiếm. Sau cleanup không có Blazor/circuit; chín file Operations đã sửa của người dùng được giữ nguyên nhưng loại compile/publish.
 
-Sau `run build`, publish cùng bundle bằng `dotnet publish src/MiniLogistics.Web/MiniLogistics.Web.csproj -c Release -p:PublishBrowserSpa=true -o <output>`; dist được copy tới `<output>/frontend`, thiếu index.html làm publish fail. Bật `BrowserSpa__Enabled=true` tại runtime; `BrowserSpa__DistPath` chỉ cần override khi bundle ở nơi khác. Không bật `ServeAtRoot` trước Phase 11. Build/test/publish mặc định không cần Node hoặc dist.
+```powershell
+npm --prefix src/MiniLogistics.Frontend run typecheck
+npm --prefix src/MiniLogistics.Frontend run lint
+npm --prefix src/MiniLogistics.Frontend test
+npm --prefix src/MiniLogistics.Frontend run build
+pwsh -File scripts/Publish-WebWithFrontend.ps1 -OutputPath .agent/release
+pwsh -File scripts/Test-PublishedWeb.ps1 -ArtifactPath .agent/release -RootMode
+```
 
-Playwright yêu cầu `dev:cert`, Web Release build và Chromium đã cài; tự chạy HTTPS backend/Vite trong environment `BrowserTests`, bỏ Infrastructure hosted workers để kiểm tra shell/routing mà không truy cập database. Đây không phải môi trường xác thực nghiệp vụ/session. Để kiểm tra published process đã chạy riêng, đặt `MINILOGISTICS_E2E_BASE_URL=https://localhost:<port>/app/`; Playwright khi đó không tự mở server. Chỉ browser test bỏ kiểm tra certificate local; proxy vẫn kiểm tra TLS.
+Publish script tạo artifact riêng với bundle tại `frontend`; normal .NET build/test không phụ thuộc Node. `BrowserSpa:DistPath` có thể override khi bundle nằm nơi khác. Cùng dist hỗ trợ React dưới `/app` nếu root flag false; không khôi phục Blazor trong artifact cuối. [Operations runbook](../Service/operations.md#react-release-và-rollback-phase11) sở hữu rollback artifact/config và storage guardrails. Script không migrate/seed hay deploy môi trường ngoài.
 
-Phase 2 có fixture browser riêng cho Identity cookie thật, register/login/logout/Shop context: build frontend trước, đặt `$env:MINILOGISTICS_BROWSER_E2E='1'`, chạy `dotnet test test/MiniLogistics.Web.Tests/MiniLogistics.Web.Tests.csproj -c Release --filter FullyQualifiedName~BrowserRealBrowserTests`, rồi xóa biến opt-in. `MINILOGISTICS_NODE` là optional absolute path tới Node đúng pins, `PLAYWRIGHT_BROWSERS_PATH` cho browser install path riêng. Fixture tự tạo HTTPS Kestrel/Identity/Application với EF InMemory tách biệt, không truy cập database người dùng; không chứng minh SQL transaction. Trace credential/cookie bị tắt. Lệnh shell E2E thường skip3 scenario cần fixture; suite .NET mặc định skip1 fixture test. Xem [supported commands](../../.agents/commands.md) cho đầy đủ bước.
+Playwright cần Chromium đã cài (`npx playwright install chromium` trong frontend), dev certificate và Web Release build. Shell suite tự chạy HTTPS backend/Vite trong `BrowserTests` không Infrastructure workers; data/Identity scenarios chạy bằng opt-in fixture riêng. Fixture dùng cookie/Identity/Application thật và EF InMemory tách biệt, không thay bằng chứng SQL transaction. Chạy `MINILOGISTICS_BROWSER_E2E=1`, `MINILOGISTICS_E2E_ROOT=1` rồi filter `BrowserRealBrowserTests`; xem [.agents/commands](../../.agents/commands.md) cho cách đặt/xóa env và optional pinned Node path. Published smoke dùng process từ artifact; shell smoke không chứng minh production dependency health hoặc external webhook delivery.
 
-React auth ở `/app/login`, `/app/register-shop`; JSON endpoints `/api/v1/app/auth/{csrf,login,register-shop,logout,me}`, Shop context `/api/v1/app/shop-context?shopId=...`, reference `/api/v1/public/reference-data/provinces`. Mutation dùng header X-CSRF-TOKEN từ csrf GET, refresh sau identity change. Cookies/session/PII responses no-store. Feature chưa chuyển renderer mở URL Blazor cũ; không bật root cutover.
+React auth ở `/login`, `/register-shop`; JSON cookie/CSRF APIs ở `/api/v1/app/auth/*`, Shop context `/api/v1/app/shop-context`, public reference/banners/tracking ở `/api/v1/public`. Legacy POST `/auth/*` giữ compatibility/antiforgery; không có Razor form renderer. Build Web sinh browser OpenAPI riêng, chạy `npm --prefix src/MiniLogistics.Frontend run api:generate` rồi kiểm drift; không áp browser converters lên Partner API.
 
-Chạy lệnh từ repository root. Dùng `Mini-logistics-manegemant-system.slnx`, không dùng file `.csproj` lạc ở root.
+Chạy lệnh từ repository root, dùng solution, không dùng `.csproj` lạc ở root.
 
 ## Điều kiện và cấu hình
 
@@ -84,7 +99,7 @@ Cập nhật endpoint/DTO, generated OpenAPI, [API reference](../Service/partner
 
 ## Administration và ảnh banner (Phase 9)
 
-React quản trị tại `/app/admin` dùng cookie/CSRF và API `/api/v1/app/admin`; active Admin được kiểm trong Application. Giữ các URL Blazor trong coexist. Cấu hình route/fee vẫn tạo version và invalidation cache trên server; khi bắt đầu cấu hình vùng tuyến, phải chuẩn bị đủ danh sách tỉnh phục vụ vì bản đồ cấu hình thay thế toàn bộ fallback mặc định.
+React quản trị tại `/admin` dùng cookie/CSRF và API `/api/v1/app/admin`; active Admin được kiểm trong Application. Cấu hình route/fee vẫn tạo version và invalidation cache trên server; khi bắt đầu cấu hình vùng tuyến, phải chuẩn bị đủ danh sách tỉnh phục vụ vì bản đồ cấu hình thay thế toàn bộ fallback mặc định.
 
 Đặt `BannerImages__RootPath` thành đường dẫn tuyệt đối ngoài thư mục release, trỏ đến storage bền vững có quyền đọc/ghi và backup. Mặc định dùng LocalApplicationData của account chạy host, không dùng release wwwroot. Trước khi bỏ release cũ, copy các ảnh runtime cũ từ `wwwroot/images/banners` vào storage giữ nguyên tên; `/images/banners/...` vẫn giữ URL. Không đưa storage vào bước xóa/copy frontend khi publish. Upload giới hạn5MiB, sáu extension cũ; SVG chỉ nhận subset an toàn, không script/style/event/external resource. Xóa metadata không xóa file ảnh.
 
@@ -92,7 +107,7 @@ Kiểm tra một URL ảnh đã upload trước publish, publish SPA theo lệnh
 
 ## Integration portal (Phase10)
 
-Portal opt-in tại `/app/partner/integrations` dùng Identity cookie/CSRF, gọi `/api/v1/app/integrations`. Không dùng partner key làm credential của UI. Quyền vẫn là global/Shop/province trong IntegrationScopeService và ManageIntegrations của staff. Host quyết định Live/Sandbox; không có environment override từng client. Rotate đổi key và kích hoạt lại client; thu hồi là active=false. New key chỉ hiển thị một lần; mất response cần kiểm tra prefix/audit rồi mới quyết định rotate lại, không tự retry.
+Portal tại `/partner/integrations` dùng Identity cookie/CSRF, gọi `/api/v1/app/integrations`. Không dùng partner key làm credential của UI. Quyền vẫn là global/Shop/province trong IntegrationScopeService và ManageIntegrations của staff. Host quyết định Live/Sandbox; không có environment override từng client. Rotate đổi key và kích hoạt lại client; thu hồi là active=false. New key chỉ hiển thị một lần; mất response cần kiểm tra prefix/audit rồi mới quyết định rotate lại, không tự retry.
 
 Webhook URL phải qua server URL/DNS policy; browser chỉ gọi upsert/test/retry. Signing secret write-only, tối thiểu32 byte UTF-8, tối đa200 ký tự ở browser; URL tối đa500 ký tự, IP whitelist tối đa2000 ký tự. Không có API reveal/rotate secret đã lưu hoặc deactivate endpoint riêng. Dashboard giữ10 delivery/audit gần nhất/client,100 outbox failures trước filter, usage aggregates hiện có; lỗi browser được redacted. Test queue/retry trong fixture không chứng minh external delivery. Transport signing/SSRF/leasing/retry/retention và Partner contracts không thay đổi. Xem [contracts](../Frontend/react-migration-contracts.md#phase-10--integration-management-portal) và [validation](../Frontend/react-migration-validation.md).
 

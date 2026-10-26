@@ -2,11 +2,9 @@
 
 Run commands from the repository root. Use the solution file, not the stray root `.csproj`.
 
-## Frontend migration command status
+## Frontend, contracts and release
 
-T01.01 has created `src/MiniLogistics.Frontend` with a pinned npm lockfile and frontend CI. Use Node 24.22.1 and npm 11.19.1 from the [toolchain pins](../docs/Frontend/react-migration-toolchain.md). The system Node may differ; use your version manager or a matching portable runtime without committing it.
-
-Run from repository root:
+Use Node **24.22.1**, npm **11.19.1** from the [toolchain pins](../docs/Frontend/react-migration-toolchain.md). A matching portable runtime is supported; do not commit it or change global Node unnecessarily.
 
 ```powershell
 npm --prefix src/MiniLogistics.Frontend ci
@@ -14,49 +12,46 @@ npm --prefix src/MiniLogistics.Frontend run typecheck
 npm --prefix src/MiniLogistics.Frontend run lint
 npm --prefix src/MiniLogistics.Frontend test
 npm --prefix src/MiniLogistics.Frontend run build
+npm --prefix src/MiniLogistics.Frontend run dev:cert
+dotnet dev-certs https --trust
+# Terminal 1:
+dotnet run --project src/MiniLogistics.Web --launch-profile https
+# Terminal 2:
 npm --prefix src/MiniLogistics.Frontend run dev
 ```
 
-For shell browser tests, install the pinned Playwright browser first (`npx playwright install chromium` from the frontend directory), run `npm --prefix src/MiniLogistics.Frontend run dev:cert`, build Web in Release, then run `npm --prefix src/MiniLogistics.Frontend run test:e2e`. Playwright starts isolated HTTPS .NET/Vite processes in `BrowserTests`, which omits Infrastructure hosted workers; this path skips the Identity/data fixture scenarios (twenty-two after Phase 8). Set `MINILOGISTICS_E2E_BASE_URL=https://localhost:<port>/app/` to test a separately started published host. Browser binaries/test state/certificates must remain ignored. Evidence belongs in the [validation log](../docs/Frontend/react-migration-validation.md).
+Use Vite `https://localhost:5173/` for root React/HMR; appsettings enables `BrowserSpa:Enabled=true`, `ServeAtRoot=true`. Vite proxies HTTP/system/static paths to `https://localhost:7195` with certificate verification enabled. Override `MINILOGISTICS_BACKEND_URL`, `MINILOGISTICS_HTTPS_CERT`/`MINILOGISTICS_HTTPS_KEY` when needed; certificates/keys remain ignored. Build frontend before serving UI directly from Web. `BrowserSpa:DistPath` defaults to source dist in Development or `<publish>/frontend` otherwise. Disabling root serves React under `/app`; it does not restore Blazor after cleanup.
 
-Build Web normally to generate `docs/Service/browser-api.openapi.json`, then run `npm --prefix src/MiniLogistics.Frontend run api:generate` for committed TypeScript types. Regenerate twice and check drift; never hand-edit schemas/types. Browser serializers/document groups are separate from Partner `v1`.
+Build Web normally to generate `docs/Service/browser-api.openapi.json`, then `npm --prefix src/MiniLogistics.Frontend run api:generate` for committed TypeScript types. Regenerate twice and inspect drift. Do not hand-edit generated schemas/types; browser document/serializers are separate from Partner `v1`. Keep the Partner compatibility/drift workflow.
 
-The real-cookie browser fixture uses an isolated HTTPS Kestrel process with real Identity/Application services and an EF InMemory database (not SQL transaction evidence). It covers auth, Shop switching/masking, shipment list/detail, dashboard KPI drill-down, shipment lifecycle, editable CSV import and file downloads. This fixture explicitly enables only the existing ShipmentImportWorker for real batch completion; normal shell BrowserTests still omit Infrastructure workers. Build the frontend first, prepare Chromium/dev cert, then:
-
-Phase 6 extends it with Operator mobile assignment/reassign/cancel/status/collection and Admin settlement/alias. Its capacity guard is an InMemory test adapter; retain `InfrastructurePersistenceTests.AutoAssignment_ConcurrentReservationsDoNotExceedShipperCapacityOrDuplicateSideEffects` for real capacity locking, `ConcurrencyAndRegistrationTransactionTests` for rowversion/transaction conflicts, and `OperationsSettlementReadRepositoryTests` for SQL paging/projection. Optional `MINILOGISTICS_E2E_GREP` filters scenarios when debugging; remove it for the full15-scenario baseline.
-
-Phase 7 adds `shipper.spec.ts` (390px/1280px) and `cross-role-lifecycle.spec.ts`, bringing the Identity fixture to18 scenarios. Cross-role sessions are separate; successful browser completion is followed by DB assertions for actor history, assignment completion, COD collector/settler, audit and queued notification outbox events. Hosted notification/webhook workers remain omitted; queued events are not proof of external delivery. Use `BrowserShipperTests` for self/foreign/mixed-role/terminal policies and `ShipperWorkspaceRepositoryTests` for SQL NotRequired paging. Clear optional grep for the full18-scenario baseline.
-
-Phase 8 adds `shop-profile.spec.ts`, `shop-staff.spec.ts`, `shop-settings.spec.ts` (four cases;22 Identity scenarios total). The fixture seeds separate Shop owners/readers, verifies profile snapshots/audit, creation/context, preset/revoked staff rights and notification persistence. `BrowserShopProfileTests`/`BrowserShopSettingsTests` cover HTTP policy, strict permission-name arrays, masking and per-user notification isolation. No notification worker or schema change is required. Clear optional grep for the complete22-scenario run; ordinary shell smoke skips these22 data cases intentionally.
+Install the pinned Chromium browser (`npx playwright install chromium` from the frontend directory), prepare dev certificate and Web Release build, then run:
 
 ```powershell
+npm --prefix src/MiniLogistics.Frontend run test:e2e
 $env:MINILOGISTICS_BROWSER_E2E = '1'
-# Optional absolute executable when the system Node differs from the pins:
+$env:MINILOGISTICS_E2E_ROOT = '1'
+# Optional when global Node differs: absolute path to the pinned executable
 $env:MINILOGISTICS_NODE = '<path-to-pinned-node.exe>'
 dotnet test test/MiniLogistics.Web.Tests/MiniLogistics.Web.Tests.csproj -c Release --filter FullyQualifiedName~BrowserRealBrowserTests
 Remove-Item Env:MINILOGISTICS_BROWSER_E2E
+Remove-Item Env:MINILOGISTICS_E2E_ROOT
 Remove-Item Env:MINILOGISTICS_NODE
 ```
 
-Use `PLAYWRIGHT_BROWSERS_PATH` only if browsers were installed to a custom location. Without the opt-in flag this test explicitly skips in the .NET suite. Fixture passwords/cookies are ephemeral, traces disabled; never commit its state. Shell and Identity test output directories are separate.
+Shell E2E starts HTTPS .NET/Vite in isolated `BrowserTests`, without Infrastructure hosted workers or runtime database access. Identity/data scenarios are skipped there and run through the opt-in .NET fixture: real cookies/Identity/Application plus isolated EF InMemory. The fixture alone enables the import worker for batch completion; notification/webhook dispatch workers remain omitted. It verifies Shop/Operator/Shipper/Admin/integration lifecycles and DB audit/outbox state, not SQL locking or external delivery. Keep LocalDB persistence/concurrency/SSRF/signing tests. `MINILOGISTICS_E2E_GREP` optionally filters scenarios; clear it for complete validation. Test credentials/state/traces stay ignored. Counts and exact runs belong in the [validation log](../docs/Frontend/react-migration-validation.md).
 
-Coexistence is opt-in: set `BrowserSpa__Enabled=true` when running Web, then run Vite and visit `https://localhost:5173/app/`. `dev:cert` exports the .NET development certificate to ignored `.agent/https`; trust the development certificate locally using `dotnet dev-certs https --trust` if needed. Vite proxies to `https://localhost:7195` with certificate verification enabled; override with `MINILOGISTICS_BACKEND_URL`, `MINILOGISTICS_HTTPS_CERT` and `MINILOGISTICS_HTTPS_KEY` as appropriate. Frontend and backend certificates must have the same trusted issuer for this local setup.
+Run .NET, Vitest and browser suites sequentially on constrained Windows machines. Optional `$env:DOTNET_PROCESSOR_COUNT='2'` and frontend `test -- --maxWorkers=1` reduce contention without extending timeouts or weakening assertions.
 
-After frontend build, publish with `dotnet publish src/MiniLogistics.Web/MiniLogistics.Web.csproj -c Release -p:PublishBrowserSpa=true -o <output>`. This copies dist into `<output>/frontend`; it fails if index.html is absent. Enable `BrowserSpa__Enabled=true` separately at runtime. Default publish/build/test do not require Node or dist. `BrowserSpa__ServeAtRoot=true` is rejected until the later root cutover; legacy routes stay owned by Blazor.
+```powershell
+pwsh -File scripts/Publish-WebWithFrontend.ps1 -OutputPath .agent/release
+pwsh -File scripts/Test-PublishedWeb.ps1 -ArtifactPath .agent/release -RootMode
+# Explicit alternate React /app hosting smoke:
+pwsh -File scripts/Test-PublishedWeb.ps1 -ArtifactPath .agent/release
+```
 
-## Phase 9 administration validation
+The publish script enforces pins, runs npm ci/typecheck/lint/test/build and `dotnet publish -p:PublishBrowserSpa=true`, then writes a release manifest in the separate output directory. `-SkipInstall` is for an already installed matching lockfile. Normal .NET build/test/publish do not download npm dependencies; the conditional bundle target fails when explicitly requested without dist/index.html. `Test-PublishedWeb.ps1` starts a local BrowserTests process, not a production deploy, and exercises the published bundle with strict local certificate trust. Prepare dev certificate/browser first. To test a separately running host, set `MINILOGISTICS_E2E_BASE_URL=https://localhost:<port>/` and `MINILOGISTICS_E2E_ROOT=1`; `/app/` is the alternate-mode base URL.
 
-`BrowserAdminTests` and `BrowserBannerTests` cover browser adapters and direct banner use-case authorization. `BannerImageStorageTests` covers bounded streams/content/path/storage failure; existing `AdminDashboardMetricsRepositoryTests` and `SystemConfigurationConcurrencyTests` remain SQL evidence. Keep `SystemConfigurationP3Tests` and optional Redis integration tests.
-
-The Identity browser fixture now includes `admin-reporting.spec.ts`, `admin-users-shops.spec.ts`, `admin-config.spec.ts`, `admin-banners.spec.ts`: five scenarios,27 total. It uses a test-only configuration lock adapter for InMemory; production SQL locking is unchanged. Ordinary shell smoke intentionally skips27 data scenarios. Clear grep for full validation. On constrained Windows machines set `$env:DOTNET_PROCESSOR_COUNT='2'` before .NET tests to reduce parallel resource pressure; this is local test configuration, not a production setting.
-
-Run .NET, Vitest and browser suites sequentially on constrained machines. `npm --prefix src/MiniLogistics.Frontend test -- --maxWorkers=1` reduces Vitest worker contention without increasing test timeouts or disabling isolation.
-
-Before runtime/publish validation, set `BannerImages__RootPath` to an absolute persistent directory outside the release; copy legacy uploads keeping their filenames, then verify an existing `/images/banners/...` URL after publish and host restart. Do not place uploads under `frontend` or release `wwwroot`. Secrets/cookies, files, certificates and test outputs stay ignored.
-
-## Phase10 integration validation
-
-`BrowserIntegrationTests` uses real Identity/Application with isolated InMemory persistence, replacing only webhook DNS resolution for deterministic URL-policy tests. Keep `PartnerIntegrationP3Tests`/`PartnerApiServiceTests` and Infrastructure webhook/SSRF/signing/lease/transaction regressions as separate evidence. The opt-in Identity fixture includes `integration-clients.spec.ts` (2 cases) and `integration-webhooks.spec.ts` (1 case),30 scenarios total. It uses separate owners/manager scopes and test-only public DNS, does not dispatch webhooks; DB assertions verify scope/activation/audit and queued retries. Shell smoke skips those30 data cases. Optional grep `Integration client lifecycle|Integration manager sees|Integration webhook lifecycle` filters the new slice; clear it for full validation. Sensitive traces remain disabled, no one-time keys in screenshots/artifacts.
+Before release, configure absolute persistent `BannerImages__RootPath` outside releases and copy legacy uploads preserving names/URLs. Keep SQL/Redis, Data Protection keys/ApplicationName/certificate stable across releases. Never publish files over the upload store. Phase11 rollback after cleanup requires the recorded **precleanup artifact**, with root mode false for its Blazor UI; the final artifact cannot re-enable Blazor by configuration. See [operations](../docs/Service/operations.md#react-release-và-rollback-phase11). No database downgrade or external deployment is performed by these scripts.
 
 ## Prerequisites
 

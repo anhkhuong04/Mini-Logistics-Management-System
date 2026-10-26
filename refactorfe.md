@@ -722,6 +722,8 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 ## Phase 11 — Public pages, QA, release và loại bỏ Blazor
 
+**Checkpoint26/10/2026:** public pages/summary API/root hosting đang được kiểm chứng; [validation log](docs/Frontend/react-migration-validation.md#phase11--public-pages-root-cutover-và-cleanup-đang-chốt-checkpoint) ghi lượt chạy và rollback artifact. Checkboxes dưới đây chỉ được chốt sau full validation và cleanup; local rehearsal không phải deploy production.
+
 ### T11.01 — Public landing, FAQ và contact
 
 **Files:** tạo `Endpoints/Browser/BrowserPublicContentEndpoints.cs`; `features/public/HomePage.tsx`, `FaqPage.tsx`, `ContactPage.tsx`, tests; chuyển ảnh tĩnh cần dùng vào frontend public; `e2e/public-pages.spec.ts`.

@@ -1,26 +1,25 @@
 # Frontend migration — phạm vi, contract readiness và trạng thái
 
-Ngày đối chiếu: 26/10/2026. Tài liệu này sở hữu quyết định contract/readiness; [refactorfe.md](../../refactorfe.md) sở hữu thứ tự task và tiêu chí nghiệm thu. [Inventory](react-migration-inventory.md) sở hữu route/action, service/field bindings và adapter đích; [toolchain](react-migration-toolchain.md) sở hữu exact version pins. Phase 1–10 đã triển khai browser HTTP/auth/reference/Shop context, Shop dashboard/read/quote/mutation, CSV import/downloads, Operations và Shipper mobile; Administration/banner và integration portal đã có adapter; nghiệp vụ Phase11 vẫn là thiết kế. Kết quả kiểm chứng từng checkpoint nằm trong validation log.
+Ngày đối chiếu: 26/10/2026. Tài liệu này sở hữu contract/readiness; [refactorfe.md](../../refactorfe.md) sở hữu thứ tự/acceptance, [inventory](react-migration-inventory.md) sở hữu action/service/field bindings, [toolchain](react-migration-toolchain.md) sở hữu exact pins. Phase0–10 đã hoàn tất; Phase11 bổ sung public pages/summary tracking, QA, publish/root cutover và cleanup. **Kiểm chứng/checkpoint cuối Phase11 còn theo validation log và checkboxes plan; không suy ra deploy production từ trạng thái source.**
 
-## Hiện trạng so với đích
+## Hiện trạng
 
-| Nội dung | Hiện có trong source | Đích hoặc đề xuất |
+| Nội dung | Source sau Phase11 cleanup | Ranh giới giữ nguyên |
 | --- | --- | --- |
-| Frontend | Blazor Interactive Server trong MiniLogistics.Web | React + TypeScript + Ant Design đã được chọn; [ADR-004](decisions/adr-004-react-typescript-ant-design.md) |
-| Project layout | Bốn project .NET và React foundation/auth/context/dashboard/shipments/shipment-import/operations/shipper/shop-settings/administration/integrations `src/MiniLogistics.Frontend` | Feature còn lại theo Phase11 |
-| UI transport | JSON auth/reference/Shop/Operations/Shipper/Admin read/command adapters gọi Identity/Application; Blazor cũ giữ nguyên | Browser HTTP nghiệp vụ còn lại theo phase tương ứng |
-| Auth | Identity cookie, JSON `/api/v1/app/auth/*`, React login/register/session; form `/auth/*` cũ giữ nguyên | Cùng cookie trong coexist; use-case authorization vẫn là nguồn quyền |
-| API/contract | Partner giữ nguyên; browser auth/context/reference/Shop/Operations/Shipper/Admin/COD/banner có OpenAPI3.1.1 và generated TS types riêng; file routes cũ dùng cookie | Admin/banner/integration đã có; public cutover ở Phase11 |
-| Hosting | T01.02: opt-in `/app`, runtime config và `/frontend-assets`; HTTPS Vite proxy, conditional publish | Root cutover còn ở Phase 11; mặc định SPA tắt, route Blazor giữ nguyên |
-| Toolchain | .NET/xUnit/CI partner; React/Vite/Vitest/Playwright scaffold, npm lockfile và frontend CI | Node/npm target đã dùng dạng portable để kiểm chứng; chưa thay Node global |
-| Shell | AntD theme/layout, vi/en, Router basename runtime, navigation từ Session/Shop permission; unknown route NotFound | Feature chưa migrate dùng document navigation sang Blazor; root cutover Phase 11 |
+| Frontend | React + TypeScript strict + Ant Design, `src/MiniLogistics.Frontend`; public/workspace layouts và lazy feature routes | [ADR-004](decisions/adr-004-react-typescript-ant-design.md), design intent và parity |
+| HTTP | Browser auth/context/reference/Shop/Operations/Shipper/Admin/integration/public adapters gọi Identity/Application | Use-case authorization và Domain invariants |
+| Auth | Identity cookie + JSON `/api/v1/app/auth/*`, CSRF/session lifecycle | Legacy POST `/auth/*` giữ compatibility, không còn Razor renderer |
+| Contract | Browser OpenAPI3.1.1 + generated TS riêng, money decimal strings và enums theo tên | Partner API/schema/transport/idempotency không thay đổi |
+| Hosting | appsettings Enabled=true/ServeAtRoot=true; UI root, `/app/...` local redirect/query; `/frontend-assets` cố định | API/auth/culture/files/health/OpenAPI/images/data không nhận SPA fallback |
+| Runtime | Web chỉ host HTTP/static/workers; không đăng ký Razor/InteractiveServer/circuit | Application operation-scoped services, Identity/persistence/workers/Data Protection |
+| Source được bảo toàn | Chín file Operations người dùng đã sửa còn trong `Web/Components`, bị loại compile/publish | Không xóa/ghi đè thay đổi người dùng; không phải runtime UI |
 
-Lựa chọn React/TypeScript/Ant Design không làm thay đổi backend modular monolith. Các lựa chọn hỗ trợ dưới đây do người thực hiện chốt trong T00.02 theo phạm vi người dùng yêu cầu; không ghi chúng thành lựa chọn người dùng đã phát biểu. Chỉ cập nhật cột hiện trạng khi có source và evidence.
+Các ghi chú Phase0–10 bên dưới giữ thiết kế và bằng chứng của checkpoint tại thời điểm đó, gồm prefix `/app` và Blazor coexist lịch sử. Route/UI runtime hiện tại theo bảng trên và [Frontend README](README.md). Rollback Blazor sau cleanup phải dùng artifact trước cleanup, không chỉ đổi flag trong artifact cuối. Kết quả chạy thật và giới hạn môi trường nằm ở [validation log](react-migration-validation.md).
 
 ## Nguồn chính theo chủ đề
 
 - Kiến trúc/nghiệp vụ/quyền backend: [Backend](../Backend/README.md), [business rules](../Backend/business-rules.md), [.agents/project.md](../../.agents/project.md).
-- Quy tắc legacy Blazor và React migration: [.agents/standards.md](../../.agents/standards.md); không nhân bản toàn bộ quy tắc ở đây.
+- Quy tắc React UI và ranh giới renderer đã retire: [.agents/standards.md](../../.agents/standards.md); không nhân bản toàn bộ quy tắc ở đây.
 - Route hiện tại theo actor: [Frontend README](README.md#màn-hình-theo-actor). Route parity và API đích: plan mục 4 và 8.
 - Workflow/coexist/documentation updates: [.agents/workflows.md](../../.agents/workflows.md#frontend-migration).
 - Lệnh hiện đang hỗ trợ: [.agents/commands.md](../../.agents/commands.md); lệnh tương lai trong plan không phải bằng chứng npm đã chạy được.
@@ -51,6 +50,16 @@ Lựa chọn React/TypeScript/Ant Design không làm thay đổi backend modular
 Baseline đã đọc cả Operations chưa commit; HEAD không đại diện đầy đủ working tree. Phase 0 hoàn tất phân tích/baseline/thiết kế, không có nghĩa React đã chạy hoặc được phép deploy production. Node local hiện `22.18.0` không thỏa bộ pins mới; T01.01 phải chuẩn bị Node/npm theo toolchain trước khi install/build.
 
 ## Contract browser đã chốt để triển khai
+
+### Phase11 — Public/root và cleanup
+
+PublicLayout phục vụ `/`, `/faq`, `/contact`, `/tracking`, auth pages. Landing đọc GET `/api/v1/public/banners`, giữ ảnh root/external HTTP(S) hợp lệ, fallback an toàn, cycle3s/pause/manual navigation. FAQ/contact là nội dung/link thật, không thêm submit contact. Ảnh và administrative JSON hiện có tiếp tục được host tại `/images`, `/data`; không cần di chuyển asset làm đổi URL.
+
+GET `/api/v1/public/tracking/{trackingCode}` gọi `IGetPublicTrackingService.GetAsync(code, phoneLast4:null, cancellationToken)`. Response projection chỉ có trackingCode/accessLevel/currentStatus/provinces/timestamps/masked names/timeline và IANA serverTimeZoneId; không có phone/full address dù caller gửi phoneLast4 query. Draft/notfound trả404 cùng safe error. Limiter dùng RemoteIpAddress sau trusted-forwarded middleware, chuẩn hóa IPv4-mapped IPv6; không có IP trả503, không gom vào key unknown chung. Threshold/store hiện có giữ nguyên, 429 có Retry-After/no-store; atomicity multi-node vẫn là known issue. React abort/ignore lookup cũ, không auto retry, không render verification form.
+
+Runtime root config có basePath rỗng, assetBasePath `/frontend-assets/`. `/app/...` redirect local giữ query, không forward tới external URL; aliases/edit query/returnUrl và culture cookie được giữ. Root fallback chỉ cho browser navigation; API/auth/culture/file/health/OpenAPI/images/data/framework/content/lib paths giữ HTTP ownership. Index/runtime config không cache dài; hashed assets immutable, missing assets404. Feature lazy loading và root smoke kiểm không tải Admin/Integration chunks ở public route; vendor warning được ghi riêng, không đặt performance threshold tùy ý.
+
+Cleanup gỡ Razor/InteractiveServer/cascading circuit registration, Blazicons/Bootstrap/reconnect assets và helpers/resources chỉ còn UI caller sau checkpoint cutover/rollback. Chín Operations files có sửa đổi người dùng được giữ nguyên và excluded khỏi compile/publish; ApplicationOperationScopedServiceProxy và backend endpoints/Identity/worker/limiter/DataProtection giữ nguyên. [Retirement map](react-migration-inventory.md#retirement-map-cho-test-renderer-blazor) ghi React/API equivalents trước khi bỏ renderer tests. Release scripts chạy build/publish/smoke, không migrate/seed/deploy production. Rollback dùng artifact trước cleanup và cùng SQL/banner/key-ring config; xem [operations](../Service/operations.md#react-release-và-rollback-phase11).
 
 ### Phase 10 — Integration management portal
 
@@ -154,7 +163,7 @@ Phase 2 đã triển khai các auth/reference/context contracts ở trên. Brows
 - Login/logout/register đổi identity phải invalidate/refresh CSRF token; logout và 401 hủy request, clear Query cache và one-time secrets. 403 reload context/permission cho UX, không retry mutation. Client retry GET chỉ hữu hạn cho transport/5xx, không retry 4xx/429 tức thời; mutation retry=false.
 - Session/context/PII/secret/auth responses no-store; không persist query cache. Query key gồm userId, ShopId nếu có, canonical filter/sort/page; không keepPreviousData xuyên user/Shop. Abort/ignore response A về sau khi đã chọn B.
 - Shop permission: ViewShipments cho read/profile/notifications; ManageShipments cho create/edit/import/quote; ViewCod cho report; ExportData cho CSV; label cần ViewShipments + ViewFullPii; COD CSV cần ExportData + ViewCod. Staff CRUD owner-only. Field PII/COD vẫn masking ở use case.
-- Operations đọc ShipmentView, CodViewPending cho candidates; assign/retry/bulk/reassign/cancel/status/collect/settle theo OperationPermissions, Operator không settle. Thêm actor-aware authorized entry cho read không có actor trước HTTP exposure. Shipper chỉ self active assignment; IntegrationAdmin theo global/Shop/province management scope.
+- Operations đọc ShipmentView, CodSettle cho settlement candidates (Admin); assign/retry/bulk/reassign/cancel/status/collect/settle theo OperationPermissions, Operator không settle. Thêm actor-aware authorized entry cho read không có actor trước HTTP exposure. Shipper chỉ self active assignment; IntegrationAdmin theo global/Shop/province management scope.
 - Giữ threshold cấu hình hiện tại, chuyển vị trí kiểm tra sang ingress khi có API; không thay limiter store trong migration. Error mới 429 có Retry-After; IP tracking lấy trusted forwarded chain.
 
 ## Giá trị baseline cần giữ
@@ -172,7 +181,7 @@ Phase 2 đã triển khai các auth/reference/context contracts ở trên. Brows
 
 ## Route ownership và triển khai
 
-- Defaults thiết kế: BrowserSpa:Enabled=false, BrowserSpa:ServeAtRoot=false. Khi enabled và chưa root, React chiếm `/app` và `/app/*` navigation; Blazor giữ URL cũ. `/frontend-assets/*` chỉ asset fingerprinted, thiếu file trả404.
+- appsettings sau cutover: BrowserSpa:Enabled=true, BrowserSpa:ServeAtRoot=true. React sở hữu UI root; `/app/*` redirect sang root giữ query. Explicit ServeAtRoot=false chỉ phục vụ React dưới `/app` trong artifact cleanup; Blazor rollback cần artifact trước cleanup. `/frontend-assets/*` thiếu file trả404.
 - Root mode: chỉ map một UI route owner, không để fallback React và MapRazorComponents tranh cùng URL. APIs/auth/culture/files/health/openapi/images/data không được index fallback. Unknown browser navigation về React NotFound; API unknown và asset unknown giữ404 đúng content type.
 - Runtime config công khai chỉ `{basePath, assetBasePath}`, ví dụ `/app` và `/frontend-assets`; Vite base cho assets cố định, React Router basename theo runtime. Một routePaths.ts sinh link bằng basePath, không hard-code `/app` ở feature.
 - Route/query/alias mapping đầy đủ trong inventory. Giữ `shopId`, `shipmentId`, `code`, `fromUtc`, `toUtc`, `status`, `error` đúng trang hiện có; canonical `/admin` alias `/admin/dashboard`, `/operations/assignments` alias `/operations/assignment`. Edit vẫn `/shipments/create?shipmentId={id}&shopId={shopId}`.
@@ -192,7 +201,7 @@ Phase 2 đã triển khai các auth/reference/context contracts ở trên. Brows
 - Summary public tracking hiện chưa nối phone-last-four; verified flow là thay đổi riêng, không tự bật trong migration.
 - Giữ ngữ nghĩa timezone server và UTC query khi chuyển renderer; không tự đổi sang timezone browser.
 - Move limiter sang ingress không đồng nghĩa đã sửa atomicity nhiều instance; vấn đề store giữ ở [.agents/known-issues.md](../../.agents/known-issues.md).
-- Banner use-case authorization/storage phải được xử lý trong T09.04 trước khi mở browser admin endpoint.
+- Banner use-case authorization/storage đã được xử lý T09.04; giữ stable upload storage ngoài release.
 - Không đổi Partner API, migrations, transaction/outbox, audit hoặc worker lifecycle theo sở thích frontend.
 - Khi thêm browser API, cần hoàn thiện browser session/CSRF threat model và tests trong task tương ứng; threat model partner hiện tại không tự bao phủ đường gọi mới.
 

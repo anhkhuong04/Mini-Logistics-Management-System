@@ -1,6 +1,6 @@
 # Backend
 
-Backend chịu trách nhiệm quản lý vận đơn, điều phối, tính phí, COD, phân quyền và dữ liệu. Mini Logistics là **modular monolith .NET 10**: UI, HTTP endpoints và workers chạy trong cùng ứng dụng ASP.NET Core; SQL Server là nguồn dữ liệu chính.
+Backend chịu trách nhiệm quản lý vận đơn, điều phối, tính phí, COD, phân quyền và dữ liệu. Mini Logistics là **modular monolith .NET 10**: React bundle/static assets, HTTP endpoints và workers được host bởi cùng ứng dụng ASP.NET Core; SQL Server là nguồn dữ liệu chính.
 
 ## Đọc theo thứ tự
 
@@ -18,9 +18,9 @@ UI được mô tả tại [Frontend](../Frontend/README.md); hợp đồng tíc
 | `MiniLogistics.Domain` | Entity, value object, trạng thái, công thức phí và invariant | Không có |
 | `MiniLogistics.Application` | Use case, DTO, FluentValidation, authorization, repository/service ports | Domain |
 | `MiniLogistics.Infrastructure` | EF Core, Identity, repository, cache, bảo vệ secret, external I/O, workers | Application, Domain |
-| `MiniLogistics.Web` | Composition root, Razor, endpoints, HTTP mapping, localization | Application, Infrastructure |
+| `MiniLogistics.Web` | Composition root, React static hosting, endpoints, HTTP mapping, localization | Application, Infrastructure |
 
-Web tham chiếu Infrastructure để cấu hình host và adapter Identity. Component và endpoint nghiệp vụ gọi Application; không truy vấn DbContext trực tiếp. Application tổ chức theo feature/use case, không dùng generic repository hay mediator.
+Web tham chiếu Infrastructure để cấu hình host và adapter Identity. Browser HTTP adapters và endpoint nghiệp vụ gọi Application; không truy vấn DbContext trực tiếp. Application tổ chức theo feature/use case, không dùng generic repository hay mediator.
 
 Quyết định và trade-off: [ADR-002: Modular monolith](decisions/adr-002-modular-monolith.md).
 
@@ -56,7 +56,7 @@ Sau hàng đầu tiên, tên `Application/`, `Domain/`, `Infrastructure/`, `Web/
 
 ## Lifetime và lỗi
 
-`AddApplication` bọc các service interface bằng `OperationScopedServiceProxy`: mỗi lời gọi async tạo child scope, các lời gọi lồng nhau dùng lại scope của operation. Repository và DbContext trong một operation dùng chung scope; scope được dispose khi Task kết thúc. Blazor circuit có thể sống lâu hơn request, nhưng không vì thế giữ tracked entity/DbContext giữa các lần gọi use case.
+`AddApplication` bọc các service interface bằng `OperationScopedServiceProxy`: mỗi lời gọi async tạo child scope, các lời gọi lồng nhau dùng lại scope của operation. Repository và DbContext trong một operation dùng chung scope; scope được dispose khi Task kết thúc. Proxy được giữ sau khi retire Blazor; không giữ tracked entity/DbContext giữa các lần gọi use case.
 
 FluentValidation kiểm tra input; Domain giữ invariant; Application kiểm tra quyền và orchestration. Lỗi dự kiến dùng `Result`/typed error. Web chuyển lỗi thành thông báo UI hoặc HTTP envelope. Truyền `CancellationToken` và dùng `TimeProvider` cho thời gian nghiệp vụ.
 

@@ -12,14 +12,11 @@ export default defineConfig(({ command }) => {
   const proxy = command === 'serve' ? Object.fromEntries(
     [
       '/api', '/auth', '/culture', '/shop/files', '/health', '/openapi', '/frontend-config.js', '/frontend-assets',
-      '^/$', '/faq', '/contact', '/tracking', '/Error', '/not-found', '/login', '/register-shop', '/dashboard', '/shipments',
-      '/profile', '/shop/', '/operations', '/shipper', '/admin', '/partner/integrations',
-      '/images', '/data', '/lib', '/app.', '/MiniLogistics.Web', '/_framework', '/_content', '/_blazor',
+      '/images', '/data', '/app', '/_framework', '/_content', '/_blazor',
     ].map(path => [path, {
       target: process.env.MINILOGISTICS_BACKEND_URL ?? 'https://localhost:7195',
       secure: true,
       agent: new Agent({ ca: https!.cert }),
-      ws: path === '/_blazor',
     }]),
   ) : undefined;
 

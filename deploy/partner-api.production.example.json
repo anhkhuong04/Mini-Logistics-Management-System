@@ -1,4 +1,5 @@
 {
+  "BrowserSpa": { "Enabled": true, "ServeAtRoot": true },
   "PublicBaseUrl": "https://api.minilogistics.example",
   "AllowedHosts": "api.minilogistics.example",
   "PartnerApi": {

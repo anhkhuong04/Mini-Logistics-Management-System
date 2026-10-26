@@ -1,3 +1,0 @@
-.ui-metric-link { color: inherit; display: block; height: 100%; text-decoration: none; border-radius: var(--ui-radius); }
-.ui-metric-link:hover ::deep .ui-metric { border-color: var(--ui-primary); background: var(--ui-primary-soft); }
-.ui-metric-link:focus-visible { outline: 3px solid var(--ui-primary); outline-offset: 3px; }

@@ -98,17 +98,6 @@ public static class BrowserSpaHostingExtensions
         return endpoints;
     }
 
-    public static bool ShouldSkipStatusCodePage(PathString path) =>
-        path.StartsWithSegments("/api")
-        || path.StartsWithSegments("/auth")
-        || path.StartsWithSegments("/shop/files")
-        || path.StartsWithSegments("/culture")
-        || path.StartsWithSegments("/health")
-        || path.StartsWithSegments("/openapi")
-        || path.StartsWithSegments("/frontend-assets")
-        || path.StartsWithSegments("/app")
-        || path.Equals("/frontend-config.js");
-
     private static Task<IResult> ServeRootAsync(HttpContext context, IOptions<BrowserSpaOptions> options)
     {
         var reserved = new[] { "/api", "/auth", "/culture", "/shop/files", "/health", "/openapi", "/images", "/data", "/frontend-assets", "/_blazor", "/_framework", "/_content", "/lib" };

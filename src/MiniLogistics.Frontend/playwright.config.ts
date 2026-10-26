@@ -14,7 +14,7 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: 'list',
   use: {
-    baseURL: externalUrl ?? 'https://localhost:15173/app/',
+    baseURL: externalUrl ?? 'https://localhost:15173/',
     ignoreHTTPSErrors: true, // Isolated local browser-test certificates only; proxy TLS remains strict.
     trace: process.env.MINILOGISTICS_E2E_SENSITIVE ? 'off' : 'retain-on-failure',
   },
@@ -29,6 +29,7 @@ export default defineConfig({
       env: {
         ASPNETCORE_ENVIRONMENT: 'BrowserTests',
         BrowserSpa__Enabled: 'true',
+        BrowserSpa__ServeAtRoot: 'true',
         BannerImages__RootPath: `${root}.agent/browser-test-images`,
         BrowserSpa__DistPath: fileURLToPath(new URL('./dist/', import.meta.url)),
         ConnectionStrings__DefaultConnection: `Server=(localdb)\\MSSQLLocalDB;Database=MiniLogisticsBrowser_${randomUUID().replaceAll('-', '')};Trusted_Connection=True;TrustServerCertificate=True`,
@@ -38,7 +39,7 @@ export default defineConfig({
     },
     {
       command: 'npm run dev -- --port 15173',
-      url: 'https://localhost:15173/app/',
+      url: 'https://localhost:15173/',
       ignoreHTTPSErrors: true,
       reuseExistingServer: false,
       env: { MINILOGISTICS_BACKEND_URL: 'https://localhost:17195' },

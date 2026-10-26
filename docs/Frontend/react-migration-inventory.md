@@ -1,6 +1,6 @@
 # Frontend migration — inventory route/action và binding contract
 
-Đối chiếu baseline ngày 26/10/2026. Inventory bao gồm 28 routed page files/30 route declarations, 93 binding gọi service và các browser form/file/local action. Phase 1–10 đã triển khai auth/reference/Shop context, dashboard, shipment read/quote/mutation, CSV import và file downloads; Administration/banner/integration portal đã triển khai; nghiệp vụ Phase11 vẫn là **đặc tả adapter tương lai**. Trạng thái/evidence theo [migration contracts](react-migration-contracts.md) và [validation log](react-migration-validation.md), không suy ra endpoint đã có chỉ từ bảng. Shop adapters có prefix `/api/v1/app`; A049–A066, A074/A076 đã có, file routes giữ `/shop/files`, renderer tương ứng chạy dưới `/app`, URL Blazor cũ được giữ.
+Đối chiếu baseline ngày 26/10/2026: 28 routed Razor page files/30 route declarations, 93 binding gọi service và các form/file/local action. A001–A093 đã có browser adapters qua Phase1–11; bảng dưới giữ ID/service/permission để truy vết parity, không giữ renderer cũ. React hiện sở hữu UI root; file routes vẫn `/shop/files`, API prefix vẫn `/api/v1/app` hoặc public `/api/v1/public`. Prefix `/app` trong ghi chú checkpoint là lịch sử coexist, hiện redirect sang root. Kết quả chạy cuối theo [validation log](react-migration-validation.md), chưa đồng nghĩa deploy ngoài máy local.
 
 ## Quy ước đọc
 
@@ -8,12 +8,12 @@
 - Shop scope `{shopId}` phải được use case xác minh; permission tên ngắn Operations tham chiếu OperationPermissions; scope integration không chỉ là role.
 - Mỗi action dùng request/response binding ở bảng service contracts cuối file: bỏ actor fields và path IDs khỏi body, camelCase, decimal string theo migration contract; Result được unwrap. Void/Result success trả 204, DTO đọc/update 200; create resource 201; import confirm/bulk/test queue trả 200 DTO, không tự retry.
 - Filter/search/paging/refresh của cùng use case cùng một read endpoint. Modal/selection/preset/confirm/focus là interaction local; inventory handler được giữ để không quên parity, không tạo HTTP endpoint giả cho mỗi click.
-- Tên test trong bảng là **test dự kiến cần tạo** dưới Web.Tests/Browser hoặc frontend E2E, không phải bằng chứng đã có coverage.
-- Tests backend hiện có được cross-reference ở migration contract/status và validation log. Sources link là file hiện có, không phải scaffold path.
+- Tên test trong bảng là regression suite hiện có; kết quả chạy/skip/giới hạn theo validation log, không suy ra coverage cho từng nhánh chỉ từ tên suite. Bảng tổng hợp cuối file map toàn bộ A001–A093 và local interactions.
+- Source Razor là đường dẫn baseline lịch sử trước cleanup, ghi bằng code để không tạo link tới file đã retire. Source/test C# còn dùng được liên kết riêng. Các record bindings cuối file là nguồn use-case, không phải toàn bộ public DTO.
 
 ## AdminAuditLogs
 
-**Source:** [AdminAuditLogs.razor](../../src/MiniLogistics.Web/Components/Pages/Administration/AdminAuditLogs.razor). **Routes:** `/admin/audit-logs`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Administration/AdminAuditLogs.razor` (baseline lịch sử). **Routes:** `/admin/audit-logs`.
 
 **React page:** `administration/AdminAuditPage.tsx` (đã triển khai dưới `features/`).
 
@@ -27,7 +27,7 @@
 
 ## AdminBanners
 
-**Source:** [AdminBanners.razor](../../src/MiniLogistics.Web/Components/Pages/Administration/AdminBanners.razor). **Routes:** `/admin/banners`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Administration/AdminBanners.razor` (baseline lịch sử). **Routes:** `/admin/banners`.
 
 **React page:** `administration/AdminBannersPage.tsx` (đã triển khai dưới `features/`).
 
@@ -47,7 +47,7 @@
 
 ## AdminCod
 
-**Source:** [AdminCod.razor](../../src/MiniLogistics.Web/Components/Pages/Administration/AdminCod.razor). **Routes:** `/admin/cod`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Administration/AdminCod.razor` (baseline lịch sử). **Routes:** `/admin/cod`.
 
 **React page:** `administration/AdminCodPage.tsx` (đã triển khai dưới `features/`).
 
@@ -62,7 +62,7 @@
 
 ## AdminDashboard
 
-**Source:** [AdminDashboard.razor](../../src/MiniLogistics.Web/Components/Pages/Administration/AdminDashboard.razor). **Routes:** `/admin`, `/admin/dashboard`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Administration/AdminDashboard.razor` (baseline lịch sử). **Routes:** `/admin`, `/admin/dashboard`.
 
 **React page:** `administration/AdminDashboardPage.tsx` (đã triển khai dưới `features/`).
 
@@ -76,7 +76,7 @@
 
 ## AdminHubs
 
-**Source:** [AdminHubs.razor](../../src/MiniLogistics.Web/Components/Pages/Administration/AdminHubs.razor). **Routes:** `/admin/hubs`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Administration/AdminHubs.razor` (baseline lịch sử). **Routes:** `/admin/hubs`.
 
 **React page:** `administration/AdminHubsPage.tsx` (đã triển khai dưới `features/`).
 
@@ -93,7 +93,7 @@
 
 ## AdminShops
 
-**Source:** [AdminShops.razor](../../src/MiniLogistics.Web/Components/Pages/Administration/AdminShops.razor). **Routes:** `/admin/shops`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Administration/AdminShops.razor` (baseline lịch sử). **Routes:** `/admin/shops`.
 
 **React page:** `administration/AdminShopsPage.tsx` (đã triển khai dưới `features/`).
 
@@ -108,7 +108,7 @@
 
 ## AdminSystemConfig
 
-**Source:** [AdminSystemConfig.razor](../../src/MiniLogistics.Web/Components/Pages/Administration/AdminSystemConfig.razor). **Routes:** `/admin/system-config`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Administration/AdminSystemConfig.razor` (baseline lịch sử). **Routes:** `/admin/system-config`.
 
 **React page:** `administration/AdminSystemConfigPage.tsx` (đã triển khai dưới `features/`).
 
@@ -124,7 +124,7 @@
 
 ## AdminUsers
 
-**Source:** [AdminUsers.razor](../../src/MiniLogistics.Web/Components/Pages/Administration/AdminUsers.razor). **Routes:** `/admin/users`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Administration/AdminUsers.razor` (baseline lịch sử). **Routes:** `/admin/users`.
 
 **React page:** `administration/AdminUsersPage.tsx` (đã triển khai dưới `features/`).
 
@@ -144,7 +144,7 @@
 
 ## PartnerIntegrations
 
-**Source:** [PartnerIntegrations.razor](../../src/MiniLogistics.Web/Components/Pages/Integrations/PartnerIntegrations.razor). **Routes:** `/partner/integrations`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Integrations/PartnerIntegrations.razor` (baseline lịch sử). **Routes:** `/partner/integrations`.
 
 **React page:** `integrations/IntegrationClientsPage + WebhookSettingsPanel.tsx` (đã triển khai dưới `features/`).
 
@@ -168,9 +168,9 @@ Browser DTO tại [BrowserIntegrationContracts.cs](../../src/MiniLogistics.Web/E
 
 ## OperationsAssignments
 
-**Source:** [OperationsAssignments.razor](../../src/MiniLogistics.Web/Components/Pages/Operations/OperationsAssignments.razor). **Routes:** `/operations/assignments`, `/operations/assignment`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Operations/OperationsAssignments.razor` (baseline lịch sử). **Routes:** `/operations/assignments`, `/operations/assignment`.
 
-**React page:** `operations/OperationsPage.tsx` (đã triển khai T06.04, dưới `features/`), cùng hai alias dưới `/app`; xem validation log cho evidence.
+**React page:** `operations/OperationsPage.tsx` (đã triển khai T06.04, dưới `features/`), cùng hai alias tại root; xem validation log cho evidence.
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
@@ -193,9 +193,9 @@ Browser DTO tại [BrowserIntegrationContracts.cs](../../src/MiniLogistics.Web/E
 
 ## Contact
 
-**Source:** [Contact.razor](../../src/MiniLogistics.Web/Components/Pages/Public/Contact.razor). **Routes:** `/contact`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Public/Contact.razor` (baseline lịch sử). **Routes:** `/contact`.
 
-**React page:** `public/ContactPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `public/ContactPage.tsx` (đã triển khai dưới `features/`).
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
@@ -204,9 +204,9 @@ Static content/contact links; no current submit endpoint. T11.01 / public-pages.
 
 ## Faq
 
-**Source:** [Faq.razor](../../src/MiniLogistics.Web/Components/Pages/Public/Faq.razor). **Routes:** `/faq`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Public/Faq.razor` (baseline lịch sử). **Routes:** `/faq`.
 
-**React page:** `public/FaqPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `public/FaqPage.tsx` (đã triển khai dưới `features/`).
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
@@ -215,23 +215,23 @@ Static FAQ/expand interactions; no Application query. T11.01 / public-pages.spec
 
 ## Home
 
-**Source:** [Home.razor](../../src/MiniLogistics.Web/Components/Pages/Public/Home.razor). **Routes:** `/`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Public/Home.razor` (baseline lịch sử). **Routes:** `/`.
 
-**React page:** `public/HomePage.tsx` (dự kiến, dưới `features/`).
+**React page:** `public/HomePage.tsx` (đã triển khai dưới `features/`).
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
 | ID | Action/use case hiện tại | Endpoint đích | Quyền/ràng buộc | Task / regression dự kiến |
 | --- | --- | --- | --- | --- |
-| A047 | `BannerService.GetActiveBannersAsync` | `GET P/banners` | Anonymous/active only | T09.04 / `BrowserBannerTests` đã có API; renderer T11.01 còn kế hoạch |
+| A047 | `BannerService.GetActiveBannersAsync` | `GET P/banners` | Anonymous/active only | T09.04 / `BrowserBannerTests` API + `PublicPages.test.tsx`/`public-pages.spec.ts` cho renderer T11.01 |
 
 **Handler parity (local/lifecycle + orchestrations; không mặc định tạo endpoint):** `Dispose`, `NextBanner`, `OnInitializedAsync`, `PrevBanner`, `SetBanner`.
 
 ## Login
 
-**Source:** [Login.razor](../../src/MiniLogistics.Web/Components/Pages/Public/Login.razor). **Routes:** `/login`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Public/Login.razor` (baseline lịch sử). **Routes:** `/login`.
 
-**React page:** `auth/LoginPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `auth/LoginPage.tsx` (đã triển khai dưới `features/`).
 
 **Query bind hiện tại:** `error`.
 
@@ -240,9 +240,9 @@ POST /api/v1/app/auth/login; SignInManager + safe session; email/password/rememb
 
 ## RegisterShop
 
-**Source:** [RegisterShop.razor](../../src/MiniLogistics.Web/Components/Pages/Public/RegisterShop.razor). **Routes:** `/register-shop`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Public/RegisterShop.razor` (baseline lịch sử). **Routes:** `/register-shop`.
 
-**React page:** `auth/RegisterShopPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `auth/RegisterShopPage.tsx` (đã triển khai dưới `features/`).
 
 **Query bind hiện tại:** `error`.
 
@@ -253,9 +253,9 @@ POST /api/v1/app/auth/register-shop; IRegisterShopService + Identity sign-in; Re
 
 ## Tracking
 
-**Source:** [Tracking.razor](../../src/MiniLogistics.Web/Components/Pages/Public/Tracking.razor). **Routes:** `/tracking`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Public/Tracking.razor` (baseline lịch sử). **Routes:** `/tracking`.
 
-**React page:** `public/TrackingPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `public/TrackingPage.tsx` (đã triển khai dưới `features/`).
 
 **Query bind hiện tại:** `code`.
 
@@ -267,9 +267,9 @@ POST /api/v1/app/auth/register-shop; IRegisterShopService + Identity sign-in; Re
 
 ## Error
 
-**Source:** [Error.razor](../../src/MiniLogistics.Web/Components/Pages/Shared/Error.razor). **Routes:** `/Error`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Shared/Error.razor` (baseline lịch sử). **Routes:** `/Error`.
 
-**React page:** `public/ErrorPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `src/app/App.tsx` (ErrorPage nội bộ, không có feature file riêng).
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
@@ -280,9 +280,9 @@ Safe error page/correlation ID; do not show exception. T01.03 + T11.05 / root-cu
 
 ## NotFound
 
-**Source:** [NotFound.razor](../../src/MiniLogistics.Web/Components/Pages/Shared/NotFound.razor). **Routes:** `/not-found`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Shared/NotFound.razor` (baseline lịch sử). **Routes:** `/not-found`.
 
-**React page:** `public/NotFoundPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `src/app/App.tsx` (NotFoundPage nội bộ, không có feature file riêng).
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
@@ -291,9 +291,9 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 ## CreateShipment
 
-**Source:** [CreateShipment.razor](../../src/MiniLogistics.Web/Components/Pages/Shipments/CreateShipment.razor). **Routes:** `/shipments/create`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Shipments/CreateShipment.razor` (baseline lịch sử). **Routes:** `/shipments/create`.
 
-**React page:** `features/shipments/ShipmentFormPage.tsx` và `ShipmentForm.tsx` đã triển khai ở Phase 4. Route React `/app/shipments/create` giữ `shopId/shipmentId`; API quote và commands có prefix `/api/v1/app`. Tỉnh/phường dùng shared reference query. Update draft rồi submit là hai command tuần tự như Blazor; phí do server tính lại. Editing cần ViewFullPii + ViewCod để không ghi đè masked DTO; không nâng quyền đọc trong Application. Phase 5 thêm import/download trên list/detail, Blazor cũ giữ trong coexist.
+**React page:** `features/shipments/ShipmentFormPage.tsx` và `ShipmentForm.tsx` đã triển khai ở Phase 4. Route React `/shipments/create` giữ `shopId/shipmentId`; API quote và commands có prefix `/api/v1/app`. Tỉnh/phường dùng shared reference query. Update draft rồi submit là hai command tuần tự như Blazor; phí do server tính lại. Editing cần ViewFullPii + ViewCod để không ghi đè masked DTO; không nâng quyền đọc trong Application. Phase 5 thêm import/download trên list/detail, Root là React sau Phase11.
 
 **Query bind hiện tại:** `shopId`, `shipmentId`.
 
@@ -313,7 +313,7 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 ## ShipmentDetail
 
-**Source:** [ShipmentDetail.razor](../../src/MiniLogistics.Web/Components/Pages/Shipments/ShipmentDetail.razor). **Routes:** `/shipments/{Id:guid}`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Shipments/ShipmentDetail.razor` (baseline lịch sử). **Routes:** `/shipments/{Id:guid}`.
 
 **React page:** `features/shipments/ShipmentDetailPage.tsx` read/history từ Phase 3; `ShipmentActions.tsx` thêm edit/submit/cancel ở Phase 4. Submit/cancel có xác nhận, active/ManageShipments/status gate và server kiểm tra lại; edit còn cần snapshot không bị che. Assignment/proof projection chưa có, không dựng UI giả.
 
@@ -330,7 +330,7 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 ## Shipments
 
-**Source:** [Shipments.razor](../../src/MiniLogistics.Web/Components/Pages/Shipments/Shipments.razor). **Routes:** `/shipments`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Shipments/Shipments.razor` (baseline lịch sử). **Routes:** `/shipments`.
 
 **React page:** `features/shipments/ShipmentListPage.tsx` đã triển khai server paging/filter/sort và URL state ở Phase 3; Phase 4 thêm link tạo React. Phase 5 có `features/shipment-import/ShipmentImportPanel.tsx`, editable preview và polling2s/lookup Batch ID; chọn file rồi preview, confirm revalidate. CSV2MB/500 rows; numeric parse lỗi phải nhập lại; collapse giữ guard pending/unknown. Export filter theo URL list, bỏ paging; file routes giữ nguyên.
 
@@ -350,9 +350,9 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 ## ShipperShipments
 
-**Source:** [ShipperShipments.razor](../../src/MiniLogistics.Web/Components/Pages/Shipper/ShipperShipments.razor). **Routes:** `/shipper/shipments`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Shipper/ShipperShipments.razor` (baseline lịch sử). **Routes:** `/shipper/shipments`.
 
-**React page:** `features/shipper/ShipperWorkspacePage.tsx` đã triển khai tại `/app/shipper/shipments`; navigation/login/returnUrl dùng React, Blazor cũ vẫn tồn tại. Stage/search/COD/page/businessDate theo URL; cards390px, confirm, availability, status/failure note và thu COD. A067–A073 đã có dưới prefix `/api/v1/app`.
+**React page:** `features/shipper/ShipperWorkspacePage.tsx` đã triển khai tại `/shipper/shipments`; navigation/login/returnUrl dùng React. Stage/search/COD/page/businessDate theo URL; cards390px, confirm, availability, status/failure note và thu COD. A067–A073 đã có dưới prefix `/api/v1/app`.
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
@@ -370,7 +370,7 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 ## Dashboard
 
-**Source:** [Dashboard.razor](../../src/MiniLogistics.Web/Components/Pages/Shop/Dashboard.razor). **Routes:** `/dashboard`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Shop/Dashboard.razor` (baseline lịch sử). **Routes:** `/dashboard`.
 
 **React page:** `features/dashboard/ShopDashboardPage.tsx` đã triển khai KPI/status distribution/finance/latest và drill-down ở Phase 3.
 
@@ -386,9 +386,9 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 ## ShopAuditLogs
 
-**Source:** [ShopAuditLogs.razor](../../src/MiniLogistics.Web/Components/Pages/Shop/ShopAuditLogs.razor). **Routes:** `/shop/audit`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Shop/ShopAuditLogs.razor` (baseline lịch sử). **Routes:** `/shop/audit`.
 
-**React page:** `features/shop-settings/ShopAuditPage.tsx` - implemented under `/app`; legacy route retained. HTTP/browser evidence: migration validation log.
+**React page:** `features/shop-settings/ShopAuditPage.tsx` - implemented at root after Phase11; `/app` redirects retain compatibility. HTTP/browser evidence: migration validation log.
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
@@ -401,9 +401,9 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 ## ShopCodReport
 
-**Source:** [ShopCodReport.razor](../../src/MiniLogistics.Web/Components/Pages/Shop/ShopCodReport.razor). **Routes:** `/shop/cod-report`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Shop/ShopCodReport.razor` (baseline lịch sử). **Routes:** `/shop/cod-report`.
 
-**React page:** `features/shop-settings/ShopCodReportPage.tsx` - implemented under `/app`; legacy route retained. HTTP/browser evidence: migration validation log.
+**React page:** `features/shop-settings/ShopCodReportPage.tsx` - implemented at root after Phase11; `/app` redirects retain compatibility. HTTP/browser evidence: migration validation log.
 
 **Query bind hiện tại:** `shopId`, `fromUtc`, `toUtc`.
 
@@ -416,9 +416,9 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 ## ShopNotifications
 
-**Source:** [ShopNotifications.razor](../../src/MiniLogistics.Web/Components/Pages/Shop/ShopNotifications.razor). **Routes:** `/shop/notifications`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Shop/ShopNotifications.razor` (baseline lịch sử). **Routes:** `/shop/notifications`.
 
-**React page:** `features/shop-settings/ShopNotificationsPage.tsx` - implemented under `/app`; legacy route retained. HTTP/browser evidence: migration validation log.
+**React page:** `features/shop-settings/ShopNotificationsPage.tsx` - implemented at root after Phase11; `/app` redirects retain compatibility. HTTP/browser evidence: migration validation log.
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
@@ -434,9 +434,9 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 ## ShopProfile
 
-**Source:** [ShopProfile.razor](../../src/MiniLogistics.Web/Components/Pages/Shop/ShopProfile.razor). **Routes:** `/profile`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Shop/ShopProfile.razor` (baseline lịch sử). **Routes:** `/profile`.
 
-**React page:** `features/shop-settings/ShopProfilePage.tsx` - implemented under `/app`; legacy route retained. HTTP/browser evidence: migration validation log.
+**React page:** `features/shop-settings/ShopProfilePage.tsx` - implemented at root after Phase11; `/app` redirects retain compatibility. HTTP/browser evidence: migration validation log.
 
 **Query bind hiện tại:** `shopId`.
 
@@ -451,9 +451,9 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 
 ## ShopStaff
 
-**Source:** [ShopStaff.razor](../../src/MiniLogistics.Web/Components/Pages/Shop/ShopStaff.razor). **Routes:** `/shop/staff`.
+**Source:** `src/MiniLogistics.Web/Components/Pages/Shop/ShopStaff.razor` (baseline lịch sử). **Routes:** `/shop/staff`.
 
-**React page:** `features/shop-settings/ShopStaffPage.tsx` - implemented under `/app`; legacy route retained. HTTP/browser evidence: migration validation log.
+**React page:** `features/shop-settings/ShopStaffPage.tsx` - implemented at root after Phase11; `/app` redirects retain compatibility. HTTP/browser evidence: migration validation log.
 
 **Query bind hiện tại:** `shopId`.
 
@@ -480,6 +480,39 @@ NotFound navigation state; APIs/assets must retain HTTP 404. T01.02 + T11.05 / B
 | CSV batch errors | GET `/shop/files/import-batches/{batchId}/errors.csv?shopId` | Batch/Shop access trong IExportShipmentImportErrorsService; T05.03 / BrowserFileDownloadTests |
 | Home carousel/nav/local filter/confirm | Local React interactions; no new API | Không sửa dữ liệu để giả thành công; feature component tests |
 | Host/backend | `/health/live`, `/health/ready`, `/openapi/v1.json` non-production, `/api/v1/partner/*`, static/upload images | Giữ route ownership, HTTP status và partner contract; BrowserSpaHostingTests + PartnerApiContractTests |
+
+## Tổng hợp evidence cho A001–A093
+
+Các hàng action phía trên chỉ rõ endpoint/use case và suite HTTP. Bảng này bổ sung renderer/E2E; số pass và môi trường cuối cùng ở validation log. Không dùng UI mocks để khẳng định authorization hay SQL atomicity.
+
+| Binding IDs (đủ 93) | HTTP/application evidence | React/browser evidence |
+| --- | --- | --- |
+| A001–A025 | BrowserAdminTests, BrowserBannerTests, BrowserOperationsActionTests; BannerImageStorageTests/config/SQL regressions | Administration.test; admin-reporting/admin-users-shops/admin-config/admin-banners E2E |
+| A026–A034 | BrowserIntegrationTests; PartnerIntegrationP3Tests/PartnerApiServiceTests/SSRF/signing/queue tests | Integrations.test; integration-clients/integration-webhooks E2E |
+| A035–A046 | BrowserOperationsReadTests/AssignmentTests/ActionTests; capacity/settlement SQL tests | OperationsPage/models/dateFilters tests; operations E2E |
+| A047 | BrowserBannerTests (active-only safe public read) | PublicPages.test; public-pages E2E (assets/FAQ/contact/responsive/banner fallback) |
+| A048 | BrowserPublicTrackingTests + PublicTrackingService tests | PublicPages.test; public-tracking E2E (safe summary/notfound/429 and real HTTP fixture) |
+| A049–A061 | BrowserReferenceDataTests/ShopContextTests/ShippingQuoteTests/ShopShipmentCommandTests/ShopShipmentReadTests | ShipmentFormPage/Commands/Actions/mapping/quote tests; shipment-lifecycle-shop E2E |
+| A062–A066 | BrowserShipmentImportTests/ShopShipmentReadTests/ShopContextTests, import/download use-case tests | ShipmentImportPanel/polling/downloads tests; shipment-import/downloads E2E |
+| A067–A073 | BrowserShipperTests, ShipperWorkspaceRepositoryTests, lifecycle invariants | ShipperWorkspacePage/models tests; shipper/cross-role-lifecycle E2E |
+| A074–A076 | BrowserShopShipmentReadTests/ShopContextTests | ShopDashboardPage/statusDistribution tests; dashboard E2E |
+| A077–A093 | BrowserShopProfileTests/ShopSettingsTests/ShopContextTests | ShopSettings/useSettingsCommand tests; shop-profile/shop-staff/shop-settings E2E |
+
+Auth/register/logout/CSRF, language/session/context, route redirects/aliases, search/filter/paging/local selection/confirm/focus and download interactions are listed above beside their feature. Their cross-feature checks are BrowserAuthenticationTests/BrowserSpaHostingTests/BrowserRootRoutingTests plus auth/shell/coexist-routing/root-cutover E2E. Public contact has no submit use case; proof UI and verified tracking remain explicit scope exclusions, not missing migrated actions.
+
+## Retirement map cho test renderer Blazor
+
+Các suite dưới đây chỉ retire sau checkpoint parity/published/rollback, giữ backend auth/security/policy/SQL tests. Mapping xác định assertion nào được giữ; không coi tổng test count thay thế hành vi.
+
+| Suite/assertion cũ | Equivalent React/API/browser |
+| --- | --- |
+| DashboardRenderingTests: KPI failure không giả zero/empty; latest shipment failure vẫn giữ KPI | ShopDashboardPage.test: missing KPI + partial latest failure; AsyncContent.test error/loading/empty |
+| DashboardRenderingTests: staff không COD/create/context dư; owner real shipments; inactive Shop chỉ read history | ShopDashboardPage.test permission/inactive cases; BrowserShopShipmentReadTests safe projection/inactive history; dashboard.spec real-cookie restricted staff/real rows |
+| DashboardRenderingTests: empty distribution không vẽ chart/tỷ lệ giả | statusDistribution.test empty/zero/real proportions; ShopDashboardPage renderer sử dụng groups rỗng cho empty state |
+| DashboardPresentationTests: UTC query ticks, valid/invalid/open-ended/same-day date range, drilldown Shop/status/range | shipmentFilters.test exact ticks/invalid ranges/same-day/open-end; dashboard.spec observes actual scoped HTTP request; BrowserShopShipmentReadTests invalid queries |
+| DashboardPresentationTests: mọi state đúng một lần, proportion thật/zero omitted | statusDistribution.test enumerates every shipmentStatuses value and checks25/75/empty |
+| DashboardDrillDownTests: real status/date filters và unknown status không thành enum sai | dashboard.spec exact UTC URL/request; shipmentFilters.test invalid enum; BrowserShopShipmentReadTests invalid query rejection |
+| OperationsAssignmentUiModelsTests: normalize province, area match before override/load ordering | operations/models.test normalize administrative prefixes and rank matching available capacity before overrides; OperationsPage.test + operations.spec confirm/reread/capacity paths |
 
 ## Service input/response bindings
 

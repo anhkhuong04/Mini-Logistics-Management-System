@@ -4,7 +4,7 @@ Tài liệu dành cho developer hiểu và bảo trì **hệ thống hiện tạ
 
 ## Frontend migration
 
-React + TypeScript + Ant Design đã được chọn; runtime hiện tại vẫn là Blazor. Đọc [kế hoạch ở root](../refactorfe.md), [trạng thái/phạm vi migration](Frontend/react-migration-contracts.md), [ADR-004](Frontend/decisions/adr-004-react-typescript-ant-design.md) và [validation log](Frontend/react-migration-validation.md) khi thực hiện các task. Tài liệu runtime chỉ cập nhật theo phần đã triển khai; các đề xuất và roadmap nằm trong bộ migration này.
+React + TypeScript + Ant Design là frontend hiện tại; Web host HTTP/static assets và workers, root route ownership theo Phase11. Đọc [kế hoạch ở root](../refactorfe.md), [trạng thái/phạm vi migration](Frontend/react-migration-contracts.md), [ADR-004](Frontend/decisions/adr-004-react-typescript-ant-design.md) và [validation log](Frontend/react-migration-validation.md) khi thực hiện các task. Tài liệu runtime chỉ cập nhật theo phần đã triển khai; các đề xuất và roadmap nằm trong bộ migration này.
 
 ## Ba nhóm chính
 
@@ -14,7 +14,7 @@ React + TypeScript + Ant Design đã được chọn; runtime hiện tại vẫn
 | [Frontend](Frontend/README.md) | Render model, cấu trúc UI, route/actor, luồng tương tác và quy ước giao diện |
 | [Service](Service/README.md) | External dependency → [API contract](Service/partner-api.md) → [integration guide](Service/integration-guide.md) → [operations](Service/operations.md) / [security](Service/security.md) |
 
-`Service` chủ yếu nhóm tài liệu liên kết hệ thống ngoài; repository vẫn là modular monolith. Partner API schema và backend examples nằm cùng tài liệu Service; browser OpenAPI mới chỉ là artifact dự kiến trong kế hoạch. Load scenarios ở [test/load](../test/load/README.md); migration QA và bằng chứng thực tế ở [validation log](Frontend/react-migration-validation.md). Các manual report đã bị xóa trong working tree không phải nguồn kiểm chứng hiện hành.
+`Service` chủ yếu nhóm tài liệu liên kết hệ thống ngoài; repository vẫn là modular monolith. Partner API schema và backend examples nằm cùng tài liệu Service; browser OpenAPI và generated TypeScript types được sinh riêng, không thay Partner contract. Load scenarios ở [test/load](../test/load/README.md); migration QA và bằng chứng thực tế ở [validation log](Frontend/react-migration-validation.md). Các manual report đã bị xóa trong working tree không phải nguồn kiểm chứng hiện hành.
 
 ## Một chủ đề, một nguồn chính
 

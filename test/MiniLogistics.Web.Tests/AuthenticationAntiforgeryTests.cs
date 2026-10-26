@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Headers;
-using System.Text.RegularExpressions;
+using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -114,7 +115,7 @@ public sealed class AuthenticationAntiforgeryTests
     }
 
     [Fact]
-    public async Task RegisterShopPost_WithRenderedAntiforgeryTokenCompletesRegistration()
+    public async Task RegisterShopPost_WithBrowserAntiforgeryTokenCompletesRegistration()
     {
         await using var factory = new AuthenticationWebApplicationFactory();
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -123,7 +124,7 @@ public sealed class AuthenticationAntiforgeryTests
             HandleCookies = true
         });
         const string email = "valid-antiforgery-registration@example.test";
-        var token = await GetLoginAntiforgeryTokenAsync(client, "/register-shop");
+        var token = await GetLoginAntiforgeryTokenAsync(client);
 
         await using (var scope = factory.Services.CreateAsyncScope())
         {
@@ -199,7 +200,7 @@ public sealed class AuthenticationAntiforgeryTests
         using var noTokenResponse = await client.PostAsync("/auth/logout", new FormUrlEncodedContent([]));
         Assert.Equal(HttpStatusCode.BadRequest, noTokenResponse.StatusCode);
 
-        var logoutToken = await GetLoginAntiforgeryTokenAsync(client, "/");
+        var logoutToken = await GetLoginAntiforgeryTokenAsync(client);
         using var validTokenResponse = await client.PostAsync(
             "/auth/logout",
             new FormUrlEncodedContent(new Dictionary<string, string>
@@ -210,17 +211,12 @@ public sealed class AuthenticationAntiforgeryTests
         Assert.Equal("/login", validTokenResponse.Headers.Location?.OriginalString);
     }
 
-    private static async Task<string> GetLoginAntiforgeryTokenAsync(HttpClient client, string path = "/login")
+    private static async Task<string> GetLoginAntiforgeryTokenAsync(HttpClient client)
     {
-        using var response = await client.GetAsync(path);
+        using var response = await client.GetAsync("/api/v1/app/auth/csrf");
         response.EnsureSuccessStatusCode();
-        var html = await response.Content.ReadAsStringAsync();
-        var match = Regex.Match(
-            html,
-            "<input[^>]*name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"",
-            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-        Assert.True(match.Success, "The login form did not render an antiforgery token.");
-        return WebUtility.HtmlDecode(match.Groups[1].Value);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        return Assert.IsType<string>(body.GetProperty("requestToken").GetString());
     }
 
     private sealed class AuthenticationWebApplicationFactory : WebApplicationFactory<Program>

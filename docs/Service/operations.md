@@ -39,6 +39,27 @@ Webhook transport chỉ gửi HTTPS đến public address/allowed port, kiểm t
 
 `live` kiểm tra process; `ready` kiểm tra SQL, Data Protection và Redis khi bật Redis mode. Rollback application theo compatibility của schema. Không downgrade database tự động; dùng kế hoạch recovery/forward-fix đã review.
 
+## React release và rollback (Phase11)
+
+Frontend bundle và Web host là một release; giữ Node24.22.1/npm11.19.1 theo toolchain và không tải npm ngầm trong design-time OpenAPI host.
+
+```powershell
+pwsh -File scripts/Publish-WebWithFrontend.ps1 -OutputPath .agent/release
+pwsh -File scripts/Test-PublishedWeb.ps1 -ArtifactPath .agent/release -RootMode
+# Optional alternate React /app mode:
+pwsh -File scripts/Test-PublishedWeb.ps1 -ArtifactPath .agent/release
+```
+
+Publish script chạy install/typecheck/lint/unit/build rồi Web publish, ghi release manifest với revision/pins/time. Test script chạy process từ artifact trong BrowserTests và Playwright, không migrate/seed production. CI Windows chạy real-cookie fixture và published smoke; các log/ảnh/trace nhạy cảm không được upload. [Validation log](../Frontend/react-migration-validation.md) ghi artifact/config/commands/kết quả đã chạy. Local staging rehearsal không phải chứng nhận readiness hoặc deployment ở môi trường ngoài.
+
+Cấu hình mặc định final artifact là BrowserSpa Enabled=true/ServeAtRoot=true; basename rỗng, assets `/frontend-assets/`. Index/runtime config revalidate; hashed assets immutable; missing asset/API/file/health không nhận SPA HTML. Giữ aliases/query/culture/session và `/app/...` local redirect; không dùng proxy rewrite nuốt HTTP paths.
+
+Trước đổi release, cấu hình `BannerImages__RootPath` thành đường dẫn tuyệt đối trên persistent volume ngoài content root/release, giữ quyền/backup và chuyển ảnh legacy giữ tên/URL. Data Protection key ring, `ApplicationName`, certificate/private key và SQL/Redis environment config phải liên tục giữa hai bản. Không ghi đè/xóa upload store, key ring hoặc database khi publish/rollback. Production guard, trusted proxy, ready checks và workers vẫn hoạt động như backend trước refactor.
+
+Rollback renderer sau cleanup dùng **precleanup artifact** đã preserve tại checkpoint T11.05 (local rehearsal: `.agent/refactorfe-phase11/cutover-artifact`, revision và kết quả xem validation log). Artifact này còn Blazor; chạy với `BrowserSpa__Enabled=true`, `BrowserSpa__ServeAtRoot=false` để Blazor phục vụ URL cũ và React dưới `/app`. Trước chuyển traffic, kiểm live/ready, cookie login/reload, URL ảnh upload cũ và hash/nội dung. Dùng cùng SQL schema/banner/key-ring config; renderer migration không tạo migration và không cần downgrade DB. Bản cleanup đã bỏ Blazor; tắt root flag của **bản mới** chỉ chuyển React về `/app`, không rollback renderer.
+
+Không thực hiện production rollout hoặc rollback chỉ từ lệnh build này; người vận hành áp dụng canary/dependency/restore checks phía trên trong môi trường được đặt phạm vi. Public tracking limiter vẫn process-local/non-atomic; verified-phone UI và SSR/SEO server rendering không được bổ sung trong migration.
+
 ## Data Protection và rotation
 
 Các replica dùng cùng key directory read/write, cùng app name và certificate có private key để đọc key ring. Backup trước đổi key/certificate; giữ khả năng đọc keys cũ đến khi toàn bộ protected data/backup liên quan không còn cần chúng.

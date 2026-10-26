@@ -137,6 +137,8 @@ public sealed class BrowserIdentityFactory(bool enableFrontend = false, Action<I
     {
         builder.UseEnvironment("Development");
         builder.UseSetting("BannerImages:RootPath", bannerRoot ?? Path.Combine(RepositoryRoot(), ".agent", "banner-tests", Guid.NewGuid().ToString("N")));
+        builder.UseSetting("BrowserSpa:Enabled", enableFrontend.ToString());
+        builder.UseSetting("BrowserSpa:ServeAtRoot", (enableFrontend && serveAtRoot).ToString());
         if (enableFrontend)
         {
             builder.UseSetting("BrowserSpa:Enabled", "true");

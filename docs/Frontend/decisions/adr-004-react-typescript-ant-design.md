@@ -2,7 +2,7 @@
 
 - Ngày: 25/10/2026.
 - Trạng thái quyết định: **Accepted** cho React + TypeScript + Ant Design theo lựa chọn của người dùng.
-- Trạng thái triển khai: Phase 0 có inventory/baseline/contract/pins; Phase 1–6 có hosting opt-in `/app`, theme/layouts/locale, browser auth/CSRF/session/Shop context, typed transport, dashboard, shipment read/mutation/quote, CSV import/edit/batch polling và export/label downloads. API còn lại theo Phase 7+; Blazor được giữ trong coexist. Icon dùng thư viện `@ant-design/icons` đã pin.
+- Trạng thái triển khai: Phase0–10 đã hoàn tất; Phase11 có public pages/tracking summary, lazy routes, root hosting và cleanup. Kiểm chứng/checkpoint cuối theo [validation log](../react-migration-validation.md), không đồng nghĩa đã deploy môi trường ngoài.
 - Phạm vi: lựa chọn frontend; chi tiết hosting/auth/toolchain đã được người thực hiện chốt theo kế hoạch trong T00.02 và được ghi bên dưới.
 
 ## Bối cảnh
@@ -30,3 +30,11 @@ UI hiện nằm trong MiniLogistics.Web và dùng Blazor Interactive Server đ�
 ## Thiết kế và tiến triển triển khai
 
 [Kế hoạch](../../../refactorfe.md) dùng Vite, React Router, TanStack Query, cùng origin, Identity cookie và coexist dưới `/app`; T00.02 chốt browser DecimalString/error/actor/route contracts và [exact pins](../react-migration-toolchain.md). Phase 1–6 đã triển khai hosting/shell, JSON Identity/CSRF, auth/reference/Shop context, Shop dashboard/read/quote/commands/import/download và generated contracts. Các API nghiệp vụ còn lại theo Phase 7+. Readiness, Redis skip và scope corrections theo source ở [migration contract/status](../react-migration-contracts.md) và [validation log](../react-migration-validation.md). Đây là ghi chú tiến triển của ADR-004, không thay đổi lịch sử ADR-002.
+
+## Quyết định cutover bổ sung — 26/10/2026
+
+Quyết định này supersede **cơ chế frontend Blazor Interactive Server** ghi trong bối cảnh ADR-002, không supersede modular monolith hay dependency direction backend. React là UI duy nhất sau checkpoint Phase11; Web host HTTP/static/health/OpenAPI/workers, không circuit. appsettings bật root SPA; runtime config đổi basename từ `/app` sang rỗng và redirect deep links `/app/...` sang root giữ query. Các HTTP/system/file paths giữ route ownership riêng.
+
+Chỉ gỡ Blazor sau khi parity, published artifact và rollback checkpoint đạt; kết quả thực tế theo validation log. Chín Operations source files đang có thay đổi người dùng được giữ nguyên và excluded khỏi compile/publish, không giữ runtime. Application operation-scoped proxy, Identity/CSRF, SQL schema, Partner contracts, workers và Data Protection giữ nguyên.
+
+Sau cleanup, rollback về Blazor cần artifact trước cleanup với root flag false; không thể chỉ đổi cấu hình của artifact cuối. Giữ banner storage, key ring/certificate/ApplicationName và SQL/Redis config ổn định. Không có DB downgrade cho việc đổi renderer. Scripts publish/smoke chỉ tạo/kiểm artifact trong môi trường local được chỉ định; production rollout và readiness vẫn theo operations runbook. Đây là SPA không SSR; verified tracking UX và multi-node public limiter chưa thuộc phạm vi.

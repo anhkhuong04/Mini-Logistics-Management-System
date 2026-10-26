@@ -23,21 +23,15 @@ These are repository-specific rules. Match nearby code when a formatting/detail 
 
 ## Web and UI
 
-### Existing Blazor UI
+### Frontend runtime after Phase11
 
-These rules apply to maintenance of the current Blazor paths while they coexist with the new UI. They do not require React features to use Razor primitives.
+React is the runtime UI. Do not add Razor/Interactive Server components, Bootstrap or Blazicons. Nine pre-existing user-modified Operations source files are retained but excluded from compile/publish. Historical Blazor source references in the inventory describe the parity baseline; they are not instructions to restore that renderer. Keep Application operation-scoped services: HTTP migration does not authorize their removal.
 
-- Razor components handle presentation state, input and calls to Application services. They do not resolve repositories or `MiniLogisticsDbContext`.
-- Keep authorization in the use case even when a component/page has role gating.
-- Use `EditForm`, validation messages, loading/disabled states, accessible labels, keyboard focus, and text plus color for status.
-- Reuse CSS variables and shared primitives in `src/MiniLogistics.Web/wwwroot/app.css`; primary typography is Be Vietnam Pro and the existing sea-blue operational theme. Avoid one-off palettes, inline style systems, large decorative layouts, and premature component extraction.
-- Interactive Server services may outlive an HTTP request. Do not retain request-only state or assume `HttpContext` remains current throughout a circuit.
-
-### React migration work
+### React UI
 
 - Use React + TypeScript strict + Ant Design for migrated features. Follow the feature layout and dependency responsibilities in [the plan](../refactorfe.md); frontend toolchain versions are locked during T00.02 before installation.
 - Use named imports from the pinned `@ant-design/icons` library for interface icons. Do not hardcode SVG paths, emoji or Unicode glyphs as icons. Hide decorative icons from assistive technology and give icon-only controls an accessible name.
-- Use Ant Design Form/Table/Modal and its theme/locale providers. Map the existing sea-blue/Be Vietnam Pro design intent into Ant Design tokens; Bootstrap, Blazicons, `EditForm` and Razor scoped CSS remain specific to legacy UI.
+- Use Ant Design Form/Table/Modal and its theme/locale providers. Map the existing sea-blue/Be Vietnam Pro design intent into Ant Design tokens; Keep the AntD theme and React styles as the active UI system.
 - UI owns presentation and interaction state. Call browser HTTP adapters, not repositories, EF or server implementation types; keep business validation, fee calculation, authorization and tenant/assignment isolation in Application/Domain.
 - Keep list pagination/filter/sort on the server and navigation filters in the URL. Key server-state cache by user and Shop, cancel stale requests on context changes, and clear sensitive state on logout/session expiry. Do not display previous-tenant data while refetching.
 - Do not automatically retry mutations after timeouts. Re-read authoritative state before a user retries creation, COD, key rotation or webhook actions.
@@ -74,7 +68,7 @@ These rules apply to maintenance of the current Blazor paths while they coexist 
 - Application tests cover orchestration, validation, authorization/data isolation, side effects and failure paths.
 - Infrastructure tests cover mappings, constraints, transactions, query behavior, leases, security transports and migrations against SQL Server LocalDB where relevant.
 - Web tests cover endpoint contract/status/error shape, middleware/policy configuration and production guards. Use concurrency/integration tests for races; in-memory fakes cannot prove database atomicity.
-- Current dashboard tests also cover server-side Razor rendering with HtmlRenderer; those tests do not prove browser interaction. For migrated React features, add behavior tests and browser flows as the toolchain is introduced, and retain meaningful assertions when retiring Blazor tests.
+- React behavior tests and browser workflows cover UI interaction; browser HTTP tests cover adapters. The inventory records the retirement map for old HtmlRenderer/dashboard/helper assertions. Keep backend policy/security/SQL tests independent of renderer.
 - Every bug fix needs a regression test that fails for the root cause. Do not test framework getters or duplicate assertions solely to increase coverage.
 - Infrastructure tests currently require Windows LocalDB. State that limitation when they cannot run; do not silently replace them with weaker in-memory assertions.
 - For documentation-only work, verify local links, plan task references, implementation/status claims and the final diff. Do not record unrun application tests as passing.

@@ -54,6 +54,8 @@ public sealed class BrowserSpaHostingTests
     [InlineData("/openapi/missing")]
     [InlineData("/frontend-assets/missing.js")]
     [InlineData("/app/missing.js")]
+    [InlineData("/_blazor")]
+    [InlineData("/_framework/blazor.web.js")]
     public async Task ReservedAndMissingAssetPaths_NeverReturnAnHtmlFallback(string path)
     {
         using var factory = new BrowserSpaFactory(enabled: true);
@@ -157,6 +159,7 @@ public sealed class BrowserSpaHostingTests
                 new Dictionary<string, string?>
                 {
                     ["BrowserSpa:Enabled"] = _enabled.ToString(),
+                    ["BrowserSpa:ServeAtRoot"] = "false",
                     ["BrowserSpa:DistPath"] = _distPath
                 }));
             if (_environment != "BrowserTests")
