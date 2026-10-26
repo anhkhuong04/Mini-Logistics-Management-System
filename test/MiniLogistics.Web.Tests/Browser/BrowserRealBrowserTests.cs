@@ -47,6 +47,8 @@ public sealed class BrowserRealBrowserTests
                 services.AddScoped<IShipperAssignmentCapacityGuard, BrowserOperationsCapacityGuard>();
                 services.RemoveAll<MiniLogistics.Application.AdminSystemConfiguration.IConfigurationUpdateLock>();
                 services.AddScoped<MiniLogistics.Application.AdminSystemConfiguration.IConfigurationUpdateLock, BrowserConfigurationLock>();
+                services.RemoveAll<MiniLogistics.Infrastructure.PartnerApi.IWebhookDnsResolver>();
+                services.AddSingleton<MiniLogistics.Infrastructure.PartnerApi.IWebhookDnsResolver, BrowserIntegrationDns>();
             });
         factory.UseKestrel(options => options.Listen(IPAddress.Loopback, 0, listen => listen.UseHttps(certificate)));
         using var client = factory.Client();
@@ -142,6 +144,19 @@ public sealed class BrowserRealBrowserTests
                 ShopPermission.ViewShipments, DateTimeOffset.UtcNow));
             await db.SaveChangesAsync();
         }
+        var portalOwner=await factory.AddUser("browser-integration-owner@example.test","Shop");
+        var portalOther=await factory.AddUser("browser-integration-other@example.test","Shop");
+        var webhookOwner=await factory.AddUser("browser-webhook-owner@example.test","Shop");
+        var portalManager=await factory.AddUser("browser-integration-manager@example.test","IntegrationAdmin");
+        var portal=await BrowserIntegrationTests.Seed(factory,portalOwner,"Portal Shop","Portal Province");
+        var excludedPortal=await BrowserIntegrationTests.Seed(factory,portalOther,"Excluded Portal Shop","Elsewhere");
+        var webhookPortal=await BrowserIntegrationTests.Seed(factory,webhookOwner,"Webhook Shop","Webhook Province");
+        var recoveries=await BrowserIntegrationTests.SeedFailures(factory,webhookPortal.Client.Id);
+        using(var scope=factory.Services.CreateScope()) {
+            var db=scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            db.IntegrationManagementScopes.AddRange(new MiniLogistics.Domain.PartnerApi.IntegrationManagementScope(adminActor,DateTimeOffset.UtcNow,isGlobal:true),new MiniLogistics.Domain.PartnerApi.IntegrationManagementScope(portalManager,DateTimeOffset.UtcNow,province:"Portal Province"));
+            await db.SaveChangesAsync();
+        }
         var address = factory.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
         using var healthClient = new HttpClient(new HttpClientHandler { ServerCertificateCustomValidationCallback = (_, _, _, _) => true });
         Assert.Equal(HttpStatusCode.OK, (await healthClient.GetAsync(address + "/health/live")).StatusCode);
@@ -155,6 +170,8 @@ public sealed class BrowserRealBrowserTests
         start.ArgumentList.Add("e2e/admin-users-shops.spec.ts");
         start.ArgumentList.Add("e2e/admin-config.spec.ts");
         start.ArgumentList.Add("e2e/admin-banners.spec.ts");
+        start.ArgumentList.Add("e2e/integration-clients.spec.ts");
+        start.ArgumentList.Add("e2e/integration-webhooks.spec.ts");
         start.ArgumentList.Add("e2e/shop-shipments.spec.ts");
         start.ArgumentList.Add("e2e/dashboard.spec.ts");
         start.ArgumentList.Add("e2e/shipment-lifecycle-shop.spec.ts");
@@ -173,6 +190,7 @@ public sealed class BrowserRealBrowserTests
         start.Environment["MINILOGISTICS_E2E_BASE_URL"] = address + "/app/";
         start.Environment["MINILOGISTICS_E2E_IDENTITY_FIXTURE"] = "1";
         start.Environment["MINILOGISTICS_E2E_PASSWORD"] = BrowserIdentityFactory.Password;
+        start.Environment["MINILOGISTICS_E2E_FOREIGN_INTEGRATION_SHOP"] = excludedPortal.Shop.Id.ToString();
         // Prevent inherited diagnostics from placing cookie-bearing traces in artifacts.
         start.Environment["MINILOGISTICS_E2E_SENSITIVE"] = "1";
         using var process = Process.Start(start)!;
@@ -184,6 +202,18 @@ public sealed class BrowserRealBrowserTests
         var output = await stdout + await stderr;
         Assert.True(process.ExitCode == 0, output);
         var selected = Environment.GetEnvironmentVariable("MINILOGISTICS_E2E_GREP");
+        if(string.IsNullOrEmpty(selected)||selected.Contains("Integration client lifecycle",StringComparison.Ordinal)) {
+            using var scope=factory.Services.CreateScope();var db=scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            var created=await db.ApiClients.SingleAsync(item=>item.Name=="Browser Portal Client");
+            Assert.True(created.IsActive);Assert.Equal(MiniLogistics.Domain.PartnerApi.PartnerApiScope.Quote|MiniLogistics.Domain.PartnerApi.PartnerApiScope.TrackShipment,created.Scopes);
+            Assert.True(await db.PartnerApiCredentialAudits.AnyAsync(item=>item.ApiClientId==created.Id&&item.ActorUserId==portalOwner));
+        }
+        if(string.IsNullOrEmpty(selected)||selected.Contains("Integration webhook lifecycle",StringComparison.Ordinal)) {
+            using var scope=factory.Services.CreateScope();var db=scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            Assert.Equal(MiniLogistics.Domain.PartnerApi.WebhookDeliveryStatus.Pending,(await db.WebhookDeliveries.FindAsync(recoveries.Delivery))!.Status);
+            Assert.Equal(MiniLogistics.Domain.Outbox.OutboxMessageStatus.Pending,(await db.OutboxMessages.FindAsync(recoveries.Outbox))!.Status);
+            Assert.True(await db.PartnerApiCredentialAudits.AnyAsync(item=>item.ApiClientId==webhookPortal.Client.Id&&item.ActorUserId==webhookOwner));
+        }
         if (string.IsNullOrEmpty(selected) || selected.Contains("Admin reporting scopes", StringComparison.Ordinal))
         {
             using var scope=factory.Services.CreateScope();var db=scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();

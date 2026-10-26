@@ -10,7 +10,7 @@ import { LoginPage } from '../features/auth/LoginPage';
 import { RegisterShopPage } from '../features/auth/RegisterShopPage';
 import { useSession } from '../shared/auth/SessionContext';
 import { RequireSession } from '../shared/auth/RequireSession';
-import { LegacyFeatureRoute } from './router/LegacyFeatureRoute';
+import { IntegrationClientsPage } from '../features/integrations/IntegrationClientsPage';
 import { navigationFor } from './router/navigation';
 import { ShopContextProvider } from '../features/shop-context/ShopContextProvider';
 import { ShopContextSelector } from '../features/shop-context/ShopContextSelector';
@@ -90,7 +90,7 @@ function AppContent() {
     <Route path={routePaths.operationsAlias} element={<RequireSession roles={['Admin', 'Operator']}><OperationsPage /></RequireSession>} />
     <Route path={routePaths.shipper} element={<RequireSession roles={['Shipper']}><ShipperWorkspacePage /></RequireSession>} />
     <Route path="/admin/*" element={<RequireSession roles={['Admin']}><AdministrationRoutes /></RequireSession>} />
-    <Route path="/partner/integrations" element={<RequireSession roles={['Admin', 'Shop', 'IntegrationAdmin']}><LegacyFeatureRoute /></RequireSession>} />
+    <Route path="/partner/integrations" element={<RequireSession roles={['Admin', 'Shop', 'IntegrationAdmin']}><IntegrationClientsPage /></RequireSession>} />
     <Route path="*" element={<NotFound />} />
   </Routes></AppLayout>;
 }

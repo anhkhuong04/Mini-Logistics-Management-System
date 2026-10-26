@@ -45,7 +45,7 @@ describe('authentication pages', () => {
     expect(postLoginPath(['Shop', 'Shipper', 'Operator'])).toBe('/app/operations/assignments');
     expect(safeReturnUrl('/operations/assignments?view=operations')).toBe('/app/operations/assignments?view=operations');
     expect(safeReturnUrl('/app/operations/assignment?view=cod')).toBe('/app/operations/assignment?view=cod');
-    expect(postLoginPath(['IntegrationAdmin'])).toBe('/partner/integrations');
+    expect(postLoginPath(['IntegrationAdmin'])).toBe('/app/partner/integrations');
     expect(postLoginPath(['Shipper'])).toBe('/app/shipper/shipments');
     expect(safeReturnUrl('/shipper/shipments?stage=CodPending')).toBe('/app/shipper/shipments?stage=CodPending');
     for (const path of ['/profile', '/shop/staff', '/shop/notifications', '/shop/cod-report', '/shop/audit']) expect(safeReturnUrl(`${path}?shopId=abc`)).toBe(`/app${path}?shopId=abc`);
