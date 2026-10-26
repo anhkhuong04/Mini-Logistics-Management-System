@@ -7,17 +7,21 @@ const item = { shipmentId: 'id-1', trackingCode: 'ML-SHIPPER', senderName: 'Send
   pickupAddress: { fullAddress: 'Pickup', province: 'Province' }, deliveryAddress: { fullAddress: 'Delivery', province: 'Province' }, codAmount: '9007199254740993.01',
   codStatus: 'PendingCollection', shippingFeeAmount: '25000', currency: 'VND', status: 'Delivered', createdAtUtc: '2026-10-25T00:00:00Z', trackingHistory: [] };
 afterEach(() => vi.unstubAllGlobals());
+it.each(['-1', '1.234', '10000000000000000'])('rejects invalid actual COD %s before confirmation', async invalid => {
+  const fetch = setup(async () => new Response(null, { status: 204 }));
+  const { user } = renderWithProviders(<ShipperWorkspacePage />, { session });
+  const amount = await screen.findByRole('textbox', { name: 'Số thực thu' });
+  await user.clear(amount); await user.paste(invalid);
+  await user.click(screen.getByRole('button', { name: 'Thu COD ML-SHIPPER' }));
+  expect(await screen.findByText('Nhập số tiền không âm, tối đa 16 số nguyên và 2 số lẻ')).toBeInTheDocument();
+  expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  expect(fetch.mock.calls.filter(([, options]) => options?.method === 'POST')).toHaveLength(0);
+});
 it('requires a discrepancy note and submits exact actual COD only after confirmation', async () => {
   const fetch = setup(async () => new Response(null, { status: 204 }));
   const { user } = renderWithProviders(<ShipperWorkspacePage />, { session });
   const amount = await screen.findByRole('textbox', { name: 'Số thực thu' });
   expect(amount).toHaveValue('9007199254740993.01');
-  for (const invalid of ['-1', '1.234', '10000000000000000']) {
-    await user.clear(amount); await user.paste(invalid);
-    await user.click(screen.getByRole('button', { name: 'Thu COD ML-SHIPPER' }));
-    expect(await screen.findByText('Nhập số tiền không âm, tối đa 16 số nguyên và 2 số lẻ')).toBeInTheDocument();
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  }
   await user.clear(amount); await user.paste('9007199254740992.01');
   await user.click(screen.getByRole('button', { name: 'Thu COD ML-SHIPPER' }));
   expect(await screen.findByText('Nhập ghi chú khi lệch COD')).toBeInTheDocument();
