@@ -35,12 +35,12 @@ public sealed class BrowserBannerTests
     public async Task NonAdminUseCasesCannotEnumerateMutateOrUploadEvenWhenCalledWithoutHttpGate(string role,bool active) {
         await using var factory=new BrowserIdentityFactory(); var actor=await factory.AddUser("banner-denied@example.test",role,active:active);
         using var scope=factory.Services.CreateScope(); var service=scope.ServiceProvider.GetRequiredService<IBannerService>();
-        Assert.True((await service.GetAllBannersAsync(actor)).IsFailure);
-        Assert.True((await service.CreateBannerAsync(actor,"title","/x.png",null,0,true)).IsFailure);
-        Assert.True((await service.UpdateBannerAsync(actor,Guid.NewGuid(),"title","/x.png",null,0)).IsFailure);
-        Assert.True((await service.ToggleBannerStatusAsync(actor,Guid.NewGuid())).IsFailure);
-        Assert.True((await service.DeleteBannerAsync(actor,Guid.NewGuid())).IsFailure);
-        Assert.True((await scope.ServiceProvider.GetRequiredService<IUploadBannerImageService>().UploadAsync(actor,Stream.Null,"test.png","image/png")).IsFailure);
+        Assert.Equal("Application.Forbidden",(await service.GetAllBannersAsync(actor)).Error.Code);
+        Assert.Equal("Application.Forbidden",(await service.CreateBannerAsync(actor,"title","/x.png",null,0,true)).Error.Code);
+        Assert.Equal("Application.Forbidden",(await service.UpdateBannerAsync(actor,Guid.NewGuid(),"title","/x.png",null,0)).Error.Code);
+        Assert.Equal("Application.Forbidden",(await service.ToggleBannerStatusAsync(actor,Guid.NewGuid())).Error.Code);
+        Assert.Equal("Application.Forbidden",(await service.DeleteBannerAsync(actor,Guid.NewGuid())).Error.Code);
+        Assert.Equal("Application.Forbidden",(await scope.ServiceProvider.GetRequiredService<IUploadBannerImageService>().UploadAsync(actor,Stream.Null,"test.png","image/png")).Error.Code);
     }
     [Fact]
     public async Task AdminUploadLifecycleKeepsPublicActiveOnlyAndValidatesPayload() {

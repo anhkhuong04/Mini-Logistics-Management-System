@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AdministrationRoutes } from '../features/administration/AdministrationRoutes';
 import { Button, Modal, Result, Typography } from 'antd';
 import { Link, Route, Routes } from 'react-router';
 import { AppLayout } from './layouts/AppLayout';
@@ -88,7 +89,7 @@ function AppContent() {
     <Route path={routePaths.operations} element={<RequireSession roles={['Admin', 'Operator']}><OperationsPage /></RequireSession>} />
     <Route path={routePaths.operationsAlias} element={<RequireSession roles={['Admin', 'Operator']}><OperationsPage /></RequireSession>} />
     <Route path={routePaths.shipper} element={<RequireSession roles={['Shipper']}><ShipperWorkspacePage /></RequireSession>} />
-    <Route path="/admin/*" element={<RequireSession roles={['Admin']}><LegacyFeatureRoute /></RequireSession>} />
+    <Route path="/admin/*" element={<RequireSession roles={['Admin']}><AdministrationRoutes /></RequireSession>} />
     <Route path="/partner/integrations" element={<RequireSession roles={['Admin', 'Shop', 'IntegrationAdmin']}><LegacyFeatureRoute /></RequireSession>} />
     <Route path="*" element={<NotFound />} />
   </Routes></AppLayout>;

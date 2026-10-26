@@ -1,0 +1,9 @@
+.admin-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; min-width: 0; }
+.admin-workspace > *, .admin-workspace .ant-card-body { min-width: 0; overflow-wrap: anywhere; }
+.admin-workspace pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.admin-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr)); gap: 16px; }
+.admin-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0 16px; }
+.admin-workspace .ant-form { max-width: 100%; }
+.admin-workspace .admin-editor { max-width: 720px; }
+.admin-workspace .ant-btn { white-space: normal; height: auto; min-height: 36px; }
+@media(max-width:600px) { .admin-workspace .ant-btn { min-height: 44px; } .admin-filters { grid-template-columns: minmax(0,1fr); } .admin-workspace .ant-card-body { padding: 16px; } }

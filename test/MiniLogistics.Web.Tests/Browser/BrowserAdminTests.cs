@@ -50,9 +50,9 @@ public sealed class BrowserAdminTests
         var admin = await factory.AddUser("admin-allowed@example.test", "Admin"); var shipper = await factory.AddUser("admin-driver@example.test", "Shipper");
         var owner = await factory.AddUser("admin-shop@example.test", "Shop"); var shop = await BrowserShippingQuoteTests.Seed(factory, owner);
         using(var seed=factory.Services.CreateScope()) {
-            var db=seed.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
-            db.AdminAuditLogs.Add(new MiniLogistics.Domain.AdminAuditing.AdminAuditLog(admin,"Admin","SecretMaskRegression","User",shipper,DateTimeOffset.UtcNow,newValueJson:"{\"password\":\"must-not-leak\",\"secret\":\"private-secret\"}"));
-            await db.SaveChangesAsync();
+            var seedDb=seed.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            seedDb.AdminAuditLogs.Add(new MiniLogistics.Domain.AdminAuditing.AdminAuditLog(admin,"Admin","SecretMaskRegression","User",shipper,DateTimeOffset.UtcNow,newValueJson:"{\"password\":\"must-not-leak\",\"secret\":\"private-secret\"}"));
+            await seedDb.SaveChangesAsync();
         }
         await BrowserShopShipmentReadTests.Login(client, "admin-allowed@example.test");
         Assert.Equal(HttpStatusCode.BadRequest, (await client.PutAsJsonAsync($"/api/v1/app/admin/users/{shipper}/active", new { isActive = false })).StatusCode);
@@ -73,6 +73,6 @@ public sealed class BrowserAdminTests
         Assert.Equal(HttpStatusCode.NoContent, (await client.PutAsJsonAsync($"/api/v1/app/admin/shops/{shop.Id}/active", new { isActive = false })).StatusCode);
         using var scope = factory.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
         Assert.Equal(8, (await db.Users.FindAsync(shipper))!.MaxActiveShipments); Assert.False((await db.Shops.FindAsync(shop.Id))!.IsActive);
-        Assert.True(await db.AdminAuditLogs.AnyAsync(item => item.ActorUserId == admin && item.TargetId == shipper));
+        Assert.True(await db.AdminAuditLogs.AnyAsync(item => item.ActorUserId == admin && item.TargetId == shipper && item.Action == MiniLogistics.Application.AdminAuditing.AdminAuditActions.UserPasswordReset));
     }
 }

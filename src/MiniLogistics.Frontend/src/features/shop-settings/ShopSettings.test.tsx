@@ -61,14 +61,14 @@ it('maps staff edits to UserId and asks before applying permissions', async () =
 });
 it('validates staff password complexity and clears it before the confirmation request', async () => {
   const fetch = setup(async () => Response.json(staff)); const { user } = renderWithProviders(wrap(<ShopStaffPage />, full, true), { session });
-  await user.type(await screen.findByRole('textbox', { name: 'Họ tên', exact: true }), 'New Staff');
+  await user.type(await screen.findByRole('textbox', { name: 'Họ tên' }), 'New Staff');
   await user.type(screen.getByRole('textbox', { name: 'Email nhân viên' }), 'new@example.test');
   await user.type(screen.getByRole('textbox', { name: 'Điện thoại nhân viên' }), '0901234567');
   const password = screen.getByLabelText(/Mật khẩu khởi tạo/); await user.type(password, 'weak-pass1');
-  await user.click(screen.getByRole('button', { name: 'Tạo nhân viên', exact: true }));
+  await user.click(screen.getByRole('button', { name: 'Tạo nhân viên' }));
   expect(await screen.findByText('Mật khẩu cần chữ hoa, chữ thường, số và ký tự đặc biệt')).toBeInTheDocument();
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-  await user.clear(password); await user.type(password, 'GoodPass!1'); await user.click(screen.getByRole('button', { name: 'Tạo nhân viên', exact: true }));
+  await user.clear(password); await user.type(password, 'GoodPass!1'); await user.click(screen.getByRole('button', { name: 'Tạo nhân viên' }));
   const dialog = await screen.findByRole('dialog'); expect(password).toHaveValue(''); expect(dialog).not.toHaveTextContent('GoodPass!1');
   await user.click(within(dialog).getByRole('button', { name: 'Xác nhận' }));
   await waitFor(() => expect(fetch.mock.calls.some(([, options]) => options?.method === 'POST')).toBe(true));

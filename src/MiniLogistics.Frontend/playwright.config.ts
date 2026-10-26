@@ -29,6 +29,7 @@ export default defineConfig({
       env: {
         ASPNETCORE_ENVIRONMENT: 'BrowserTests',
         BrowserSpa__Enabled: 'true',
+        BannerImages__RootPath: `${root}.agent/browser-test-images`,
         BrowserSpa__DistPath: fileURLToPath(new URL('./dist/', import.meta.url)),
         ConnectionStrings__DefaultConnection: `Server=(localdb)\\MSSQLLocalDB;Database=MiniLogisticsBrowser_${randomUUID().replaceAll('-', '')};Trusted_Connection=True;TrustServerCertificate=True`,
         Kestrel__Certificates__Default__Path: `${root}.agent/https/localhost.pem`,
