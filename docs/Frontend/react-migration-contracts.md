@@ -1,16 +1,16 @@
 # Frontend migration — phạm vi, contract readiness và trạng thái
 
-Ngày đối chiếu: 26/10/2026. Tài liệu này sở hữu quyết định contract/readiness; [refactorfe.md](../../refactorfe.md) sở hữu thứ tự task và tiêu chí nghiệm thu. [Inventory](react-migration-inventory.md) sở hữu route/action, service/field bindings và adapter đích; [toolchain](react-migration-toolchain.md) sở hữu exact version pins. Phase 1–9 đã triển khai browser HTTP/auth/reference/Shop context, Shop dashboard/read/quote/mutation, CSV import/downloads, Operations và Shipper mobile; Administration/banner có adapter Phase 9; nghiệp vụ Phase 10+ vẫn là thiết kế. Kết quả kiểm chứng từng checkpoint nằm trong validation log.
+Ngày đối chiếu: 26/10/2026. Tài liệu này sở hữu quyết định contract/readiness; [refactorfe.md](../../refactorfe.md) sở hữu thứ tự task và tiêu chí nghiệm thu. [Inventory](react-migration-inventory.md) sở hữu route/action, service/field bindings và adapter đích; [toolchain](react-migration-toolchain.md) sở hữu exact version pins. Phase 1–10 đã triển khai browser HTTP/auth/reference/Shop context, Shop dashboard/read/quote/mutation, CSV import/downloads, Operations và Shipper mobile; Administration/banner và integration portal đã có adapter; nghiệp vụ Phase11 vẫn là thiết kế. Kết quả kiểm chứng từng checkpoint nằm trong validation log.
 
 ## Hiện trạng so với đích
 
 | Nội dung | Hiện có trong source | Đích hoặc đề xuất |
 | --- | --- | --- |
 | Frontend | Blazor Interactive Server trong MiniLogistics.Web | React + TypeScript + Ant Design đã được chọn; [ADR-004](decisions/adr-004-react-typescript-ant-design.md) |
-| Project layout | Bốn project .NET và React foundation/auth/context/dashboard/shipments/shipment-import/operations/shipper/shop-settings/administration `src/MiniLogistics.Frontend` | Feature còn lại theo Phase 10+ |
+| Project layout | Bốn project .NET và React foundation/auth/context/dashboard/shipments/shipment-import/operations/shipper/shop-settings/administration/integrations `src/MiniLogistics.Frontend` | Feature còn lại theo Phase11 |
 | UI transport | JSON auth/reference/Shop/Operations/Shipper/Admin read/command adapters gọi Identity/Application; Blazor cũ giữ nguyên | Browser HTTP nghiệp vụ còn lại theo phase tương ứng |
 | Auth | Identity cookie, JSON `/api/v1/app/auth/*`, React login/register/session; form `/auth/*` cũ giữ nguyên | Cùng cookie trong coexist; use-case authorization vẫn là nguồn quyền |
-| API/contract | Partner giữ nguyên; browser auth/context/reference/Shop/Operations/Shipper/Admin/COD/banner có OpenAPI3.1.1 và generated TS types riêng; file routes cũ dùng cookie | Admin/banner đã có; integration còn ở Phase 10+ |
+| API/contract | Partner giữ nguyên; browser auth/context/reference/Shop/Operations/Shipper/Admin/COD/banner có OpenAPI3.1.1 và generated TS types riêng; file routes cũ dùng cookie | Admin/banner/integration đã có; public cutover ở Phase11 |
 | Hosting | T01.02: opt-in `/app`, runtime config và `/frontend-assets`; HTTPS Vite proxy, conditional publish | Root cutover còn ở Phase 11; mặc định SPA tắt, route Blazor giữ nguyên |
 | Toolchain | .NET/xUnit/CI partner; React/Vite/Vitest/Playwright scaffold, npm lockfile và frontend CI | Node/npm target đã dùng dạng portable để kiểm chứng; chưa thay Node global |
 | Shell | AntD theme/layout, vi/en, Router basename runtime, navigation từ Session/Shop permission; unknown route NotFound | Feature chưa migrate dùng document navigation sang Blazor; root cutover Phase 11 |
@@ -54,7 +54,7 @@ Baseline đã đọc cả Operations chưa commit; HEAD không đại diện đ�
 
 ### Phase 10 — Integration management portal
 
-Checkpoint triển khai: browser adapters đã có, React portal đang kiểm chứng. `/api/v1/app/integrations/dashboard?shopId` gọi IWebhookManagementService/IntegrationScopeService, trả Shop/client trong phạm vi hiện có; GUID query không thuộc phạm vi trả403. POST `/clients`, POST `/clients/{id}/rotate-key`, PUT `/clients/{id}/active`, PUT `/clients/{id}/security`; PUT `/clients/{id}/webhook`, POST `/clients/{id}/webhook/test`, POST `/deliveries/{id}/retry`, POST `/outbox/{id}/retry`. Actor lấy principal, target lấy route. Cookie/CSRF/no-store giữ foundation; không dùng API key để đăng nhập portal.
+Đã triển khai và kiểm chứng browser adapters/React portal; evidence trong validation log. `/api/v1/app/integrations/dashboard?shopId` gọi IWebhookManagementService/IntegrationScopeService, trả Shop/client trong phạm vi hiện có; GUID query không thuộc phạm vi trả403. POST `/clients`, POST `/clients/{id}/rotate-key`, PUT `/clients/{id}/active`, PUT `/clients/{id}/security`; PUT `/clients/{id}/webhook`, POST `/clients/{id}/webhook/test`, POST `/deliveries/{id}/retry`, POST `/outbox/{id}/retry`. Actor lấy principal, target lấy route. Cookie/CSRF/no-store giữ foundation; không dùng API key để đăng nhập portal.
 
 Browser scopes dùng mảng tên Quote/CreateShipment/TrackShipment/CancelShipment/WebhookManage, không chấp nhận flags số/All/None/tên ghép/duplicate. Quyền quản lý giữ fallback global khi chưa có active management scope, sau đó áp dụng global/Shop/province records; Shop staff cần ManageIntegrations. Role đơn lẻ không vượt scope. Không thêm UI/API cấp management scope mới. Môi trường key mới do IApiCredentialPolicy trên host quyết định (Live/Sandbox); không có lựa chọn môi trường từng client. Thu hồi là active=false; rotate đổi key và kích hoạt lại như service cũ.
 

@@ -6,6 +6,8 @@ UI dùng Blazor Interactive Server; dữ liệu dùng EF Core/SQL Server và Ide
 
 ## Chuyển đổi frontend
 
+Phase10 bổ sung portal tại `/app/partner/integrations`: client/scopes/IP/hết hạn, key một lần, thu hồi/rotate và webhook/test/retry/audit theo phạm vi global/Shop/tỉnh. Staff cần ManageIntegrations; key mới chỉ hiện trong modal, signing secret chỉ nhập khi lưu. Môi trường key do host quyết định. Browser chỉ xếp hàng qua API, không gửi webhook trực tiếp; Partner API và URL Blazor cũ giữ nguyên.
+
 Phase 9 bổ sung quản trị tại `/app/admin`: tổng quan/COD/nhật ký, người dùng/Shop, Hub/cấu hình phiên bản và banner. Application kiểm active Admin; cấu hình giữ SQL lock/cache và snapshot vận đơn. Ảnh banner upload tối đa 5 MiB được lưu ngoài thư mục publish. Production cấu hình `BannerImages__RootPath` thành đường dẫn tuyệt đối trên volume bền vững, có quyền đọc/ghi và backup; chuyển ảnh legacy sang đó giữ nguyên tên trước khi xóa release cũ. Xem [contract lưu trữ và bảo mật](docs/Frontend/react-migration-contracts.md#phase-9--administration-và-banner-io).
 
 Phase 8 bổ sung hồ sơ/tạo thêm Shop, nhân viên và báo cáo COD/thông báo/nhật ký dưới `/app`. API kiểm owner/Shop permission, dữ liệu được che theo quyền; tạo Shop cập nhật context từ server, đổi quyền staff được server áp dụng cho cả tab cũ. Báo cáo và export giữ giới hạn/quyền hiện có, không cấp đối soát cho Shop.
@@ -14,7 +16,7 @@ Phase 7 bổ sung Shipper mobile tại `/app/shipper/shipments`: các nhóm đơ
 
 Phase 6 bổ sung Operations tại `/app/operations/assignments` và alias `/app/operations/assignment`: phân công/đổi/hủy, bulk retry từng kết quả, cập nhật trạng thái, thu COD và đối soát Admin. API kiểm quyền trong Application; giữ capacity SQL, audit/outbox và URL Blazor cũ.
 
-Đã chọn **React + TypeScript + Ant Design** làm frontend đích. Phase 1–9 có hosting opt-in `/app`, theme/layout, JSON Identity/CSRF, đăng nhập/đăng ký, Shop context theo quyền, dashboard, shipment read/mutation, CSV import có preview/edit/batch polling và tải export/label qua cookie. Quote và phí tính trên server. Icon dùng `@ant-design/icons`. Các chức năng chưa chuyển tiếp tục mở Blazor; URL cũ vẫn hoạt động trong coexist. Lệnh HTTPS dev, test và publish ở [Development](docs/Backend/development.md); xem [kế hoạch refactor](refactorfe.md) và [trạng thái migration](docs/Frontend/react-migration-contracts.md).
+Đã chọn **React + TypeScript + Ant Design** làm frontend đích. Phase 1–10 có hosting opt-in `/app`, theme/layout, JSON Identity/CSRF, đăng nhập/đăng ký, Shop context theo quyền, dashboard, shipment read/mutation, CSV import có preview/edit/batch polling và tải export/label qua cookie. Quote và phí tính trên server. Icon dùng `@ant-design/icons`. Các chức năng chưa chuyển tiếp tục mở Blazor; URL cũ vẫn hoạt động trong coexist. Lệnh HTTPS dev, test và publish ở [Development](docs/Backend/development.md); xem [kế hoạch refactor](refactorfe.md) và [trạng thái migration](docs/Frontend/react-migration-contracts.md).
 
 ## Bắt đầu
 

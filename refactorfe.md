@@ -693,15 +693,17 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 ## Phase 10 — Integration management portal
 
+**Hoàn tất 26/10/2026:** T10.01–T10.02,7/7 tiêu chí. Backend `92c152a`, UI/parity `89f8264`; React `/app/partner/integrations`, key một lần và webhook/history/audit theo scope. Frontend118/118, .NET495/495 (Redis và opt-in fixture skip trong baseline); fixture riêng30/30 Chromium, smoke dev/publish15/15 mỗi bộ. Giữ Partner/schema/transport, không triển khai Phase11. Xem [validation](docs/Frontend/react-migration-validation.md#phase-10--integration-management-portal-26102026).
+
 ### T10.01 — API clients, scopes và key lifecycle
 
 **Files:** tạo `BrowserIntegrationClientEndpoints.cs`, contracts; `features/integrations/IntegrationClientsPage.tsx`, `ClientScopeForm.tsx`, `OneTimeSecretModal.tsx`, tests; `e2e/integration-clients.spec.ts`.
 
 **Interfaces:** `/api/v1/app/integrations/...` gọi IApiClientManagementService và IIntegrationScopeService; giữ global/Shop/province management scope. Không dùng API key partner làm credential đăng nhập React.
 
-- [ ] Test Shop/Admin/IntegrationAdmin theo phạm vi quản lý thật, staff ManageIntegrations và cross-Shop/province denied; role đơn thuần chưa đủ.
-- [ ] Create/rotate/revoke/active/scope/env theo service hiện có; key chỉ hiện một lần trong modal, no-store, không đưa query cache/storage/log/URL.
-- [ ] Copy secret có confirmation feedback; đóng modal/logout/đổi scope phải clear secret; rotate timeout không tự retry làm mất key vừa tạo.
+- [x] Test Shop/Admin/IntegrationAdmin theo phạm vi quản lý thật, staff ManageIntegrations và cross-Shop/province denied; role đơn thuần chưa đủ.
+- [x] Create/rotate/revoke/active/scope/env theo service hiện có; key chỉ hiện một lần trong modal, no-store, không đưa query cache/storage/log/URL.
+- [x] Copy secret có confirmation feedback; đóng modal/logout/đổi scope phải clear secret; rotate timeout không tự retry làm mất key vừa tạo.
 
 **Verify:** Browser integration client + PartnerIntegrationP3Tests/PartnerApiServiceTests liên quan; E2E one-time display và authorization; partner endpoints không đổi.
 
@@ -711,10 +713,10 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** browser endpoints gọi IWebhookManagementService; URL/event/active/test/retry/secret actions đúng service; audit/dashboard data theo scope hiện có.
 
-- [ ] Test unauthorized/scope denied, invalid webhook URL, test/retry validation; không có fetch webhook URL từ browser để thay transport bảo mật server.
-- [ ] Giữ DNS/connect-time validation, signing, no redirect/no proxy, timeout/size và retry policy; UI chỉ gọi command rồi đọc kết quả.
-- [ ] SigningSecret chỉ là write-only input của upsert hiện có; không thêm reveal/rotate API cho secret đã lưu. Clear input sau save; error/delivery response chỉ hiển thị safe DTO, không raw body/PII không được phép. One-time reveal/rotate ở T10.01 áp dụng API client key.
-- [ ] Retry có confirmation và không client auto retry; refresh delivery/audit sau command không làm request gửi trùng.
+- [x] Test unauthorized/scope denied, invalid webhook URL, test/retry validation; không có fetch webhook URL từ browser để thay transport bảo mật server.
+- [x] Giữ DNS/connect-time validation, signing, no redirect/no proxy, timeout/size và retry policy; UI chỉ gọi command rồi đọc kết quả.
+- [x] SigningSecret chỉ là write-only input của upsert hiện có; không thêm reveal/rotate API cho secret đã lưu. Clear input sau save; error/delivery response chỉ hiển thị safe DTO, không raw body/PII không được phép. One-time reveal/rotate ở T10.01 áp dụng API client key.
+- [x] Retry có confirmation và không client auto retry; refresh delivery/audit sau command không làm request gửi trùng.
 
 **Verify:** Browser webhook + PartnerIntegrationP3Tests và Infrastructure webhook/security suites liên quan; E2E settings/test/retry/audit theo scope.
 

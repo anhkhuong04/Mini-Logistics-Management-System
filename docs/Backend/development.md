@@ -90,6 +90,12 @@ React quản trị tại `/app/admin` dùng cookie/CSRF và API `/api/v1/app/adm
 
 Kiểm tra một URL ảnh đã upload trước publish, publish SPA theo lệnh ở trên, xác nhận byte ảnh không đổi sau publish và restart host. HTTP/use-case test: `BrowserAdminTests`, `BrowserBannerTests`; storage: `BannerImageStorageTests`. Xem [contract](../Frontend/react-migration-contracts.md#phase-9--administration-và-banner-io) và [evidence](../Frontend/react-migration-validation.md).
 
+## Integration portal (Phase10)
+
+Portal opt-in tại `/app/partner/integrations` dùng Identity cookie/CSRF, gọi `/api/v1/app/integrations`. Không dùng partner key làm credential của UI. Quyền vẫn là global/Shop/province trong IntegrationScopeService và ManageIntegrations của staff. Host quyết định Live/Sandbox; không có environment override từng client. Rotate đổi key và kích hoạt lại client; thu hồi là active=false. New key chỉ hiển thị một lần; mất response cần kiểm tra prefix/audit rồi mới quyết định rotate lại, không tự retry.
+
+Webhook URL phải qua server URL/DNS policy; browser chỉ gọi upsert/test/retry. Signing secret write-only, tối thiểu32 byte UTF-8, tối đa200 ký tự ở browser; URL tối đa500 ký tự, IP whitelist tối đa2000 ký tự. Không có API reveal/rotate secret đã lưu hoặc deactivate endpoint riêng. Dashboard giữ10 delivery/audit gần nhất/client,100 outbox failures trước filter, usage aggregates hiện có; lỗi browser được redacted. Test queue/retry trong fixture không chứng minh external delivery. Transport signing/SSRF/leasing/retry/retention và Partner contracts không thay đổi. Xem [contracts](../Frontend/react-migration-contracts.md#phase-10--integration-management-portal) và [validation](../Frontend/react-migration-validation.md).
+
 ## Chẩn đoán thường gặp
 
 | Hiện tượng | Kiểm tra |

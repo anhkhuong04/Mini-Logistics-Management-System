@@ -1,6 +1,6 @@
 # Frontend migration — inventory route/action và binding contract
 
-Đối chiếu baseline ngày 26/10/2026. Inventory bao gồm 28 routed page files/30 route declarations, 93 binding gọi service và các browser form/file/local action. Phase 1–9 đã triển khai auth/reference/Shop context, dashboard, shipment read/quote/mutation, CSV import và file downloads; Administration/banner đã triển khai; nghiệp vụ Phase 10+ vẫn là **đặc tả adapter tương lai**. Trạng thái/evidence theo [migration contracts](react-migration-contracts.md) và [validation log](react-migration-validation.md), không suy ra endpoint đã có chỉ từ bảng. Shop adapters có prefix `/api/v1/app`; A049–A066, A074/A076 đã có, file routes giữ `/shop/files`, renderer tương ứng chạy dưới `/app`, URL Blazor cũ được giữ.
+Đối chiếu baseline ngày 26/10/2026. Inventory bao gồm 28 routed page files/30 route declarations, 93 binding gọi service và các browser form/file/local action. Phase 1–10 đã triển khai auth/reference/Shop context, dashboard, shipment read/quote/mutation, CSV import và file downloads; Administration/banner/integration portal đã triển khai; nghiệp vụ Phase11 vẫn là **đặc tả adapter tương lai**. Trạng thái/evidence theo [migration contracts](react-migration-contracts.md) và [validation log](react-migration-validation.md), không suy ra endpoint đã có chỉ từ bảng. Shop adapters có prefix `/api/v1/app`; A049–A066, A074/A076 đã có, file routes giữ `/shop/files`, renderer tương ứng chạy dưới `/app`, URL Blazor cũ được giữ.
 
 ## Quy ước đọc
 
@@ -146,23 +146,25 @@
 
 **Source:** [PartnerIntegrations.razor](../../src/MiniLogistics.Web/Components/Pages/Integrations/PartnerIntegrations.razor). **Routes:** `/partner/integrations`.
 
-**React page:** `integrations/IntegrationClientsPage + WebhookSettingsPanel.tsx` (dự kiến, dưới `features/`).
+**React page:** `integrations/IntegrationClientsPage + WebhookSettingsPanel.tsx` (đã triển khai dưới `features/`).
 
 **Query bind hiện tại:** `shopId`.
 
-| ID | Action/use case hiện tại | Endpoint đích | Quyền/ràng buộc | Task / regression dự kiến |
+| ID | Action/use case hiện tại | Endpoint hiện có (prefix `/api/v1/app`) | Quyền/ràng buộc | Task / regression |
 | --- | --- | --- | --- | --- |
-| A026 | `ApiClientManagementService.CreateApiClientAsync` | `POST /integrations/clients` | IntegrationScopeService + Shop ManageIntegrations | T10.01 / `BrowserIntegrationClientTests` |
-| A027 | `ApiClientManagementService.RotateApiClientKeyAsync` | `POST /integrations/clients/{apiClientId}/rotate-key` | Integration management scope | T10.01 / `BrowserIntegrationClientTests` |
-| A028 | `ApiClientManagementService.SetApiClientActiveStatusAsync` | `PUT /integrations/clients/{apiClientId}/active` | Integration management scope | T10.01 / `BrowserIntegrationClientTests` |
-| A029 | `ApiClientManagementService.UpdateApiClientSecurityAsync` | `PUT /integrations/clients/{apiClientId}/security` | Integration management scope | T10.01 / `BrowserIntegrationClientTests` |
-| A030 | `WebhookManagementService.GetDashboardAsync` | `GET /integrations/dashboard` | Integration management scope; projection | T10.01 / `BrowserIntegrationClientTests` |
-| A031 | `WebhookManagementService.RetryOutboxMessageAsync` | `POST /integrations/outbox/{outboxMessageId}/retry` | Integration management scope | T10.02 / `BrowserIntegrationWebhookTests` |
-| A032 | `WebhookManagementService.RetryWebhookDeliveryAsync` | `POST /integrations/deliveries/{deliveryId}/retry` | Integration management scope | T10.02 / `BrowserIntegrationWebhookTests` |
-| A033 | `WebhookManagementService.TestWebhookAsync` | `POST /integrations/clients/{apiClientId}/webhook/test` | Integration management scope | T10.02 / `BrowserIntegrationWebhookTests` |
-| A034 | `WebhookManagementService.UpsertWebhookEndpointAsync` | `PUT /integrations/clients/{apiClientId}/webhook` | Integration management scope | T10.02 / `BrowserIntegrationWebhookTests` |
+| A026 | `ApiClientManagementService.CreateApiClientAsync` | `POST /integrations/clients` | IntegrationScopeService + Shop ManageIntegrations | T10.01 / `BrowserIntegrationTests` |
+| A027 | `ApiClientManagementService.RotateApiClientKeyAsync` | `POST /integrations/clients/{apiClientId}/rotate-key` | Integration management scope | T10.01 / `BrowserIntegrationTests` |
+| A028 | `ApiClientManagementService.SetApiClientActiveStatusAsync` | `PUT /integrations/clients/{apiClientId}/active` | Integration management scope | T10.01 / `BrowserIntegrationTests` |
+| A029 | `ApiClientManagementService.UpdateApiClientSecurityAsync` | `PUT /integrations/clients/{apiClientId}/security` | Integration management scope | T10.01 / `BrowserIntegrationTests` |
+| A030 | `WebhookManagementService.GetDashboardAsync` | `GET /integrations/dashboard` | Integration management scope; projection | T10.01 / `BrowserIntegrationTests` |
+| A031 | `WebhookManagementService.RetryOutboxMessageAsync` | `POST /integrations/outbox/{outboxMessageId}/retry` | Integration management scope | T10.02 / `BrowserIntegrationTests` |
+| A032 | `WebhookManagementService.RetryWebhookDeliveryAsync` | `POST /integrations/deliveries/{deliveryId}/retry` | Integration management scope | T10.02 / `BrowserIntegrationTests` |
+| A033 | `WebhookManagementService.TestWebhookAsync` | `POST /integrations/clients/{apiClientId}/webhook/test` | Integration management scope | T10.02 / `BrowserIntegrationTests` |
+| A034 | `WebhookManagementService.UpsertWebhookEndpointAsync` | `PUT /integrations/clients/{apiClientId}/webhook` | Integration management scope | T10.02 / `BrowserIntegrationTests` |
 
 **Handler parity (local/lifecycle + orchestrations; không mặc định tạo endpoint):** `CopyGeneratedKeyAsync`, `CreateApiClientAsync`, `GetCurrentUserIdAsync`, `LoadAsync`, `OnParametersSetAsync`, `OnShopChangedAsync`, `RefreshAsync`, `RetryDeliveryAsync`, `RetryOutboxAsync`, `RotateClientAsync`, `SaveSecurityAsync`, `SaveWebhookAsync`, `SelectClient`, `SyncWebhookForm`, `TestWebhookAsync`, `ToggleClientAsync`, `ToggleCreateScope`, `ToggleSecurityScope`.
+
+Browser DTO tại [BrowserIntegrationContracts.cs](../../src/MiniLogistics.Web/Endpoints/Browser/BrowserIntegrationContracts.cs) chuyển flags scopes thành mảng tên và thay raw delivery/request errors bằng thông tin an toàn. API client key chỉ trong response create/rotate; signing secret chỉ vào request upsert. Read timestamp theo server timezone, usage buckets UTC; selector Shop dùng đúng ManageIntegrations, không dùng mặc định ViewShipments của workspace khác. Environment theo host; revoke=activefalse, rotate reactivates, upsert webhook reactivates; không thêm standalone deactivate/reveal/secret-rotate/event-subscription command ngoài service hiện có.
 
 ## OperationsAssignments
 

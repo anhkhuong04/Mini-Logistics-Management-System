@@ -54,6 +54,10 @@ Run .NET, Vitest and browser suites sequentially on constrained machines. `npm -
 
 Before runtime/publish validation, set `BannerImages__RootPath` to an absolute persistent directory outside the release; copy legacy uploads keeping their filenames, then verify an existing `/images/banners/...` URL after publish and host restart. Do not place uploads under `frontend` or release `wwwroot`. Secrets/cookies, files, certificates and test outputs stay ignored.
 
+## Phase10 integration validation
+
+`BrowserIntegrationTests` uses real Identity/Application with isolated InMemory persistence, replacing only webhook DNS resolution for deterministic URL-policy tests. Keep `PartnerIntegrationP3Tests`/`PartnerApiServiceTests` and Infrastructure webhook/SSRF/signing/lease/transaction regressions as separate evidence. The opt-in Identity fixture includes `integration-clients.spec.ts` (2 cases) and `integration-webhooks.spec.ts` (1 case),30 scenarios total. It uses separate owners/manager scopes and test-only public DNS, does not dispatch webhooks; DB assertions verify scope/activation/audit and queued retries. Shell smoke skips those30 data cases. Optional grep `Integration client lifecycle|Integration manager sees|Integration webhook lifecycle` filters the new slice; clear it for full validation. Sensitive traces remain disabled, no one-time keys in screenshots/artifacts.
+
 ## Prerequisites
 
 - .NET 10 SDK.
