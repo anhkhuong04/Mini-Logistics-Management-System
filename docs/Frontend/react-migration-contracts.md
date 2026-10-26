@@ -1,6 +1,6 @@
 # Frontend migration — phạm vi, contract readiness và trạng thái
 
-Ngày đối chiếu: 26/10/2026. Tài liệu này sở hữu contract/readiness; [refactorfe.md](../../refactorfe.md) sở hữu thứ tự/acceptance, [inventory](react-migration-inventory.md) sở hữu action/service/field bindings, [toolchain](react-migration-toolchain.md) sở hữu exact pins. Phase0–10 đã hoàn tất; Phase11 bổ sung public pages/summary tracking, QA, publish/root cutover và cleanup. **Kiểm chứng/checkpoint cuối Phase11 còn theo validation log và checkboxes plan; không suy ra deploy production từ trạng thái source.**
+Ngày đối chiếu: 26/10/2026. Tài liệu này sở hữu contract/readiness; [refactorfe.md](../../refactorfe.md) sở hữu thứ tự/acceptance, [inventory](react-migration-inventory.md) sở hữu action/service/field bindings, [toolchain](react-migration-toolchain.md) sở hữu exact pins. Phase0–11 đã hoàn tất, gồm public pages/summary tracking, QA, publish/root cutover và cleanup. Kết quả cuối ở [validation log](react-migration-validation.md#phase11-final-validation); chưa deploy production.
 
 ## Hiện trạng
 

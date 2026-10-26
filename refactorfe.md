@@ -1,6 +1,6 @@
 # React + TypeScript + Ant Design Frontend Refactor Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Dùng `superpowers:executing-plans` để triển khai tuần tự theo task. Chỉ dùng `superpowers:subagent-driven-development` nếu người dùng chọn cách thực thi bằng subagent. Phase 0–8 đã hoàn tất; Phase 9 chưa bắt đầu. Xem validation log cho evidence và giới hạn review; auth/context/dashboard/shipment read/form/actions/import/download/Operations/COD/Shipper/Shop-settings chạy React dưới `/app`, renderer chưa chuyển vẫn chạy Blazor.
+> **Trạng thái26/10/2026:** Hoàn tất Phase0–11. React + TypeScript + Ant Design phục vụ UI tại root; `/app/...` redirect local giữ query. Blazor runtime đã gỡ sau published/rollback checkpoint. Đọc [validation log](docs/Frontend/react-migration-validation.md#phase11-final-validation) và contracts cho evidence, giới hạn và artifact; chưa deploy production. Các phần baseline/thiết kế bên dưới giữ lịch sử kế hoạch, không thay thế source hiện tại.
 
 **Goal:** Thay toàn bộ frontend Blazor bằng React + TypeScript + Ant Design, giữ tương đương chức năng, quyền truy cập và các hợp đồng nghiệp vụ/tích hợp hiện tại.
 
@@ -79,6 +79,8 @@ T00.01–T00.02 đã có [inventory từng action và C# field binding](docs/Fro
 Các mô tả proof UI/assignment trong detail và reveal/rotate secret webhook đã được thu hẹp theo source: chúng không phải action UI hiện có. Giữ backend proof capability/tests; thêm chức năng ngoài parity cần task riêng, không đưa vào migration tự động.
 
 ## 2. Baseline đã khảo sát
+
+Snapshot Phase0 trước triển khai; các ranh giới dưới đây đã được thay đổi theo từng phase. Hiện trạng sau cleanup ở contracts và validation log.
 
 - `src` có bốn project .NET; Application tổ chức theo feature/use case, không theo mediator command/query.
 - Web dùng Interactive Server; component gọi trực tiếp Application service. Có 53 file `.razor`, 28 page có route, 30 khai báo route và 38 file CSS scoped tại thời điểm khảo sát.
@@ -722,7 +724,7 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 ## Phase 11 — Public pages, QA, release và loại bỏ Blazor
 
-**Checkpoint26/10/2026:** public pages/summary API/root hosting đang được kiểm chứng; [validation log](docs/Frontend/react-migration-validation.md#phase11--public-pages-root-cutover-và-cleanup-đang-chốt-checkpoint) ghi lượt chạy và rollback artifact. Checkboxes dưới đây chỉ được chốt sau full validation và cleanup; local rehearsal không phải deploy production.
+**Hoàn tất26/10/2026:** T11.01–T11.06 đạt acceptance; [validation log](docs/Frontend/react-migration-validation.md#phase11-final-validation) ghi các lượt chạy, artifact trước/sau cleanup và giới hạn. Active banners tái sử dụng endpoint Phase9; ảnh legacy giữ URL tại Web/wwwroot, không nhân bản frontend asset. Không có production deploy.
 
 ### T11.01 — Public landing, FAQ và contact
 
@@ -730,9 +732,9 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** GET `/api/v1/public/banners` gọi GetActiveBannersAsync, chỉ safe public fields; các route `/`, `/faq`, `/contact` qua PublicLayout.
 
-- [ ] Port nội dung/assets/links/responsive hiện có, dùng AntD phù hợp mà không ép landing vào dashboard layout.
-- [ ] Không thêm submit contact giả hoặc backend chức năng chưa có; metadata/title/link behavior giữ tương đương.
-- [ ] Banner active lấy từ API, fallback/error không làm crash landing; kiểm tra URL/static asset/image cũ và mới.
+- [x] Port nội dung/assets/links/responsive hiện có, dùng AntD phù hợp mà không ép landing vào dashboard layout.
+- [x] Không thêm submit contact giả hoặc backend chức năng chưa có; metadata/title/link behavior giữ tương đương.
+- [x] Banner active lấy từ API, fallback/error không làm crash landing; kiểm tra URL/static asset/image cũ và mới.
 
 **Verify:** public E2E anonymous và responsive; không ảnh hưởng auth/Shop route; ghi giới hạn SPA SEO, không ngầm thêm SSR.
 
@@ -742,10 +744,10 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** GET `/api/v1/public/tracking/{trackingCode}` trả summary + timeline safe + `serverTimeZoneId` cho hiển thị thời điểm; gọi GetAsync(trackingCode, phoneLast4: null, requestAborted).
 
-- [ ] Giữ behavior summary hiện tại: draft/not found không lộ đơn, tên mask, không phone/address đầy đủ; không đưa full payload xuống rồi ẩn bằng CSS.
-- [ ] Move public tracking limiter vào HTTP path với IP lấy từ trusted forwarded headers hiện có; giữ threshold/store, retry-after/error; không dùng `unknown-circuit` làm key chung.
-- [ ] Không render form phone-last-four chưa nối backend; verified flow là task chức năng riêng ngoài plan này, có acceptance/abuse tests riêng khi được yêu cầu.
-- [ ] AntD search/result/timeline, trạng thái/rate-limit/error/localized public message và keyboard/mobile hoạt động.
+- [x] Giữ behavior summary hiện tại: draft/not found không lộ đơn, tên mask, không phone/address đầy đủ; không đưa full payload xuống rồi ẩn bằng CSS.
+- [x] Move public tracking limiter vào HTTP path với IP lấy từ trusted forwarded headers hiện có; giữ threshold/store, retry-after/error; không dùng `unknown-circuit` làm key chung.
+- [x] Không render form phone-last-four chưa nối backend; verified flow là task chức năng riêng ngoài plan này, có acceptance/abuse tests riêng khi được yêu cầu.
+- [x] AntD search/result/timeline, trạng thái/rate-limit/error/localized public message và keyboard/mobile hoạt động.
 
 **Verify:** Public tracking Application tests + browser summary/rate-limit/no-PII tests và E2E found/not found/429; không nhận claim giả từ client.
 
@@ -755,12 +757,12 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** mỗi hàng inventory có test/QA evidence hoặc khoảng trống ghi rõ; không coi manual report mẫu là kết quả test thật.
 
-- [ ] Chạy role matrix Admin/Operator/Shop owner/Shop staff/Shipper/IntegrationAdmin; anonymous/expired session/inactive user/Shop, revoked permission và cross-Shop tampering.
-- [ ] Kiểm thử error/loading/empty/partial failure/429/409/network timeout, browser back/reload, stale request/Shop switch, download/upload và query persistence.
-- [ ] Kiểm tra 390/768/1024/1440px, zoom 200%, keyboard/focus/label/contrast/AntD portals; shipper mobile, bảng scroll đúng region, status có text.
-- [ ] Regression timezone/UTC cuối ngày/leap day và offset/DST; money scale/range và enum không hợp lệ. Không mở thêm timezone feature trong lúc sửa lỗi parity.
-- [ ] Lazy load feature theo route, kiểm tra request waterfall/duplicate/size từ build, không tải Admin/Integration bundle cho public route; không đặt ngưỡng hiệu năng tùy ý khi chưa có baseline.
-- [ ] Chuyển assertions có giá trị từ DashboardRenderingTests/DashboardDrillDownTests/OperationsAssignmentUiModelsTests sang React/API tests; giữ test backend chưa phụ thuộc Blazor.
+- [x] Chạy role matrix Admin/Operator/Shop owner/Shop staff/Shipper/IntegrationAdmin; anonymous/expired session/inactive user/Shop, revoked permission và cross-Shop tampering.
+- [x] Kiểm thử error/loading/empty/partial failure/429/409/network timeout, browser back/reload, stale request/Shop switch, download/upload và query persistence.
+- [x] Kiểm tra 390/768/1024/1440px, zoom 200%, keyboard/focus/label/contrast/AntD portals; shipper mobile, bảng scroll đúng region, status có text.
+- [x] Regression timezone/UTC cuối ngày/leap day và offset/DST; money scale/range và enum không hợp lệ. Không mở thêm timezone feature trong lúc sửa lỗi parity.
+- [x] Lazy load feature theo route, kiểm tra request waterfall/duplicate/size từ build, không tải Admin/Integration bundle cho public route; không đặt ngưỡng hiệu năng tùy ý khi chưa có baseline.
+- [x] Chuyển assertions có giá trị từ DashboardRenderingTests/DashboardDrillDownTests/OperationsAssignmentUiModelsTests sang React/API tests; giữ test backend chưa phụ thuộc Blazor.
 
 **Verify:** chạy toàn bộ mục 7 và đối chiếu inventory; không có P0/P1 regression chưa xử lý trước root cutover, giới hạn còn lại ghi rõ trong validation log.
 
@@ -770,11 +772,11 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** script build frontend rồi `dotnet publish` Web với `BrowserSpa:Enabled` tương ứng môi trường; runtime config quyết định basename, asset prefix cố định để cùng dist dùng được ở `/app` hoặc root.
 
-- [ ] Từ checkout sạch chạy npm ci/typecheck/lint/unit/build, .NET build/test + browser OpenAPI/types drift check; giữ nguyên partner drift/compatibility check.
-- [ ] Publish ra thư mục workspace riêng; start published process với môi trường test được chỉ định, không migrate/seed production; Playwright smoke trên process đó.
-- [ ] Cache policy: index/runtime config revalidate, hashed assets immutable; assets mất trả 404; gzip/compression theo host hiện có nếu được cấu hình, không thêm hạ tầng không cần thiết.
-- [ ] Kiểm tra release upload banner không bị ghi đè, health/worker/Data Protection/Redis configuration và design-time OpenAPI vẫn đúng; logs không chứa credential/PII.
-- [ ] CI E2E dùng LocalDB/test fixture và secret môi trường; install browser trong CI, artifacts trace/screenshot chỉ khi fail và không chứa key/password/storage state.
+- [x] Từ checkout sạch chạy npm ci/typecheck/lint/unit/build, .NET build/test + browser OpenAPI/types drift check; giữ nguyên partner drift/compatibility check.
+- [x] Publish ra thư mục workspace riêng; start published process với môi trường test được chỉ định, không migrate/seed production; Playwright smoke trên process đó.
+- [x] Cache policy: index/runtime config revalidate, hashed assets immutable; assets mất trả 404; gzip/compression theo host hiện có nếu được cấu hình, không thêm hạ tầng không cần thiết.
+- [x] Kiểm tra release upload banner không bị ghi đè, health/worker/Data Protection/Redis configuration và design-time OpenAPI vẫn đúng; logs không chứa credential/PII.
+- [x] CI E2E dùng LocalDB/test fixture và secret môi trường; install browser trong CI, artifacts trace/screenshot chỉ khi fail và không chứa key/password/storage state.
 
 **Verify:** full publish artifact phục vụ `/app` được, deep link refresh và file/API/health đúng; lockfile/contracts không drift. `dotnet publish` không phụ thuộc npm tải ngầm trong design-time host.
 
@@ -784,11 +786,11 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** `BrowserSpa:Enabled=true`, `BrowserSpa:ServeAtRoot=true`; chỉ một owner cho từng URL. Bản release chuyển route giữ Blazor code cho rollback, bản cleanup ở T11.06 mới xóa.
 
-- [ ] Khi root mode bật, không map Razor routes trùng React; giữ `/api`, `/auth` cũ còn cần, `/culture`, `/shop/files`, `/health`, `/openapi` riêng. Unknown navigation trả React NotFound; API/asset unknown giữ HTTP status đúng.
-- [ ] Chuyển routePaths về root qua runtime config; giữ `/admin/dashboard` và `/operations/assignment` alias, old shipment edit/query link và auth returnUrl. Redirect `/app/...` legacy sang route root có query được validate.
-- [ ] Chạy smoke mọi route cũ sau refresh/deep link và session cookie; không yêu cầu reset tài khoản/dữ liệu.
-- [ ] Rehearse rollback: tắt root mode để Blazor phục vụ URL cũ hoặc dùng artifact trước đó; xác nhận release trước/sau cùng schema, upload/Data Protection store, không cần rollback database.
-- [ ] Ghi exact artifact/config/commands và bằng chứng staging; deployment thực tế chỉ trong môi trường người dùng đặt trong phạm vi, không tự suy ra quyền production deploy từ yêu cầu lập plan.
+- [x] Khi root mode bật, không map Razor routes trùng React; giữ `/api`, `/auth` cũ còn cần, `/culture`, `/shop/files`, `/health`, `/openapi` riêng. Unknown navigation trả React NotFound; API/asset unknown giữ HTTP status đúng.
+- [x] Chuyển routePaths về root qua runtime config; giữ `/admin/dashboard` và `/operations/assignment` alias, old shipment edit/query link và auth returnUrl. Redirect `/app/...` legacy sang route root có query được validate.
+- [x] Chạy smoke mọi route cũ sau refresh/deep link và session cookie; không yêu cầu reset tài khoản/dữ liệu.
+- [x] Rehearse rollback: tắt root mode để Blazor phục vụ URL cũ hoặc dùng artifact trước đó; xác nhận release trước/sau cùng schema, upload/Data Protection store, không cần rollback database.
+- [x] Ghi exact artifact/config/commands và bằng chứng staging; deployment thực tế chỉ trong môi trường người dùng đặt trong phạm vi, không tự suy ra quyền production deploy từ yêu cầu lập plan.
 
 **Acceptance:** parity và publish checks pass trước khi switch; rollback đã thử được. Chưa xóa Blazor trong cùng checkpoint cutover.
 
@@ -798,12 +800,12 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** Web cuối cùng chỉ host HTTP/static/health/OpenAPI/workers; tất cả UI React. Giữ Application OperationScopedServiceProxy trừ task refactor riêng sau này.
 
-- [ ] Chỉ bắt đầu sau cutover validation/rollback checkpoint đạt; ghi bản release trước cleanup để rollback bằng artifact khi Blazor không còn source trong bản mới.
-- [ ] `rg` mọi caller trước khi xóa AddRazorComponents/InteractiveServer/CascadingAuthenticationState/Blazicons/Bootstrap/ReconnectModal và UI-only helpers/resources.
-- [ ] Giữ endpoint/Identity/persistence/worker/rate-limiter/Data Protection/static administrative JSON và upload runtime còn được dùng; UiDisplay/Resources/DashboardPresentation chỉ xóa khi đã có replacement và không còn caller backend.
-- [ ] Xóa HtmlRenderer tests chỉ sau khi assertion tương đương đã có ở React/API; giữ Partner/auth/security/Application/Infrastructure tests còn giá trị. Auth form endpoint cũ chỉ bỏ sau khi không còn form/caller và đã điều chỉnh regression liên quan.
-- [ ] Hoàn thiện tài liệu setup Node/npm + .NET, dev proxy, contracts/types, AntD guideline, testing/publish/rollback đã được cập nhật dần ở các task trước; không dồn cập nhật agent context đến cleanup. Dashboard review giữ lịch sử và link behavior mới, không tuyên bố visual QA nếu chưa chạy.
-- [ ] Chạy full validation mục 7; inspect final diff không migration/unrelated/user file/build output/secret; xác nhận no Blazor runtime dependency trong published UI bằng network smoke.
+- [x] Chỉ bắt đầu sau cutover validation/rollback checkpoint đạt; ghi bản release trước cleanup để rollback bằng artifact khi Blazor không còn source trong bản mới.
+- [x] `rg` mọi caller trước khi xóa AddRazorComponents/InteractiveServer/CascadingAuthenticationState/Blazicons/Bootstrap/ReconnectModal và UI-only helpers/resources.
+- [x] Giữ endpoint/Identity/persistence/worker/rate-limiter/Data Protection/static administrative JSON và upload runtime còn được dùng; UiDisplay/Resources/DashboardPresentation chỉ xóa khi đã có replacement và không còn caller backend.
+- [x] Xóa HtmlRenderer tests chỉ sau khi assertion tương đương đã có ở React/API; giữ Partner/auth/security/Application/Infrastructure tests còn giá trị. Auth form endpoint cũ chỉ bỏ sau khi không còn form/caller và đã điều chỉnh regression liên quan.
+- [x] Hoàn thiện tài liệu setup Node/npm + .NET, dev proxy, contracts/types, AntD guideline, testing/publish/rollback đã được cập nhật dần ở các task trước; không dồn cập nhật agent context đến cleanup. Dashboard review giữ lịch sử và link behavior mới, không tuyên bố visual QA nếu chưa chạy.
+- [x] Chạy full validation mục 7; inspect final diff không migration/unrelated/user file/build output/secret; xác nhận no Blazor runtime dependency trong published UI bằng network smoke.
 
 **Acceptance:** React phục vụ đủ inventory; backend guardrails không đổi; docs phản ánh source, solution/publish/tests pass có bằng chứng; không còn bundle/circuit Blazor được browser tải.
 
@@ -875,15 +877,15 @@ Mọi route sau giữ cùng ý nghĩa ở root sau T11.05; trong coexist có pre
 
 ## 9. Definition of Done cho toàn bộ refactor
 
-- [ ] 40 task có trạng thái/bằng chứng rõ; inventory action/route không còn chức năng bị mất hoặc chỉ mock.
-- [ ] React + TypeScript strict + Ant Design là frontend duy nhất; deep link/refresh/back/query/alias và mobile đều hoạt động.
-- [ ] Identity/session/CSRF/401/403, Shop permission/isolation và PII masking được kiểm tra bằng HTTP/Application/browser phù hợp.
-- [ ] Shipment lifecycle, capacity, COD, fee snapshot, import worker, audit/outbox/webhook và Partner contracts giữ nguyên.
-- [ ] Không còn file I/O ở UI; banner upload qua use case/Infrastructure, không mất upload khi publish.
-- [ ] Error/loading/empty/concurrency/timeout không gây sai số liệu hoặc mutation retry ngầm; cache không lẫn user/Shop.
-- [ ] Browser OpenAPI/types sinh lại tái lập được; Partner OpenAPI không drift ngoài thay đổi được yêu cầu.
-- [ ] Frontend/backend tests, publish smoke và visual/browser QA có kết quả thực tế; giới hạn môi trường được ghi chính xác.
-- [ ] CI/development/publish/runbook/agent context đã cập nhật; không có secret/build output/unrelated diff; rollback artifact đã xác định.
+- [x] 40 task có trạng thái/bằng chứng rõ; inventory action/route không còn chức năng bị mất hoặc chỉ mock.
+- [x] React + TypeScript strict + Ant Design là frontend duy nhất; deep link/refresh/back/query/alias và mobile đều hoạt động.
+- [x] Identity/session/CSRF/401/403, Shop permission/isolation và PII masking được kiểm tra bằng HTTP/Application/browser phù hợp.
+- [x] Shipment lifecycle, capacity, COD, fee snapshot, import worker, audit/outbox/webhook và Partner contracts giữ nguyên.
+- [x] Không còn file I/O ở UI; banner upload qua use case/Infrastructure, không mất upload khi publish.
+- [x] Error/loading/empty/concurrency/timeout không gây sai số liệu hoặc mutation retry ngầm; cache không lẫn user/Shop.
+- [x] Browser OpenAPI/types sinh lại tái lập được; Partner OpenAPI không drift ngoài thay đổi được yêu cầu.
+- [x] Frontend/backend tests, publish smoke và visual/browser QA có kết quả thực tế; giới hạn môi trường được ghi chính xác.
+- [x] CI/development/publish/runbook/agent context đã cập nhật; không có secret/build output/unrelated diff; rollback artifact đã xác định.
 
 ## 10. Tài liệu tham chiếu kỹ thuật
 

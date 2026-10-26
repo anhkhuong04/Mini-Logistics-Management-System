@@ -6,7 +6,7 @@ Frontend dùng **React + TypeScript + Ant Design** tại `src/MiniLogistics.Fron
 
 ## Frontend và trạng thái refactor
 
-Phases 0–10 đã hoàn thành các lát cắt nền tảng/auth/Shop context, dashboard, vận đơn và quote, CSV import/export/label, Operations, Shipper mobile, Shop settings/reporting, Administration/banner và Integration portal. Phase11 bổ sung public landing/FAQ/contact, tracking summary, lazy routes, QA và root cutover; trạng thái kiểm chứng cuối cùng nằm trong [kế hoạch](refactorfe.md) và [validation log](docs/Frontend/react-migration-validation.md).
+Phases 0–11 đã hoàn thành các lát cắt nền tảng/auth/Shop context, dashboard, vận đơn và quote, CSV import/export/label, Operations, Shipper mobile, Shop settings/reporting, Administration/banner và Integration portal. Phase11 đã hoàn tất phần public landing/FAQ/contact, tracking summary, lazy routes, QA và root cutover; trạng thái kiểm chứng cuối cùng nằm trong [kế hoạch](refactorfe.md) và [validation log](docs/Frontend/react-migration-validation.md).
 
 React sở hữu các route UI tại root, gồm `/login`, `/dashboard`, `/shipments`, `/operations/assignments`, `/shipper/shipments`, `/admin`, `/partner/integrations`; các deep link `/app/...` được chuyển sang root và giữ query. `/api`, `/auth`, `/culture`, `/shop/files`, `/health`, `/openapi` giữ chủ sở hữu HTTP riêng. Default host config là `BrowserSpa:Enabled=true`, `ServeAtRoot=true`. Bản cleanup không chạy circuit/bundle Blazor. Chín file Operations đang có thay đổi của người dùng được giữ nguyên dưới `Web/Components` nhưng bị loại khỏi compile/publish; chúng không phải UI đang chạy.
 
