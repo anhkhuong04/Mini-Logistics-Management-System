@@ -13,12 +13,12 @@ it('requires a discrepancy note and submits exact actual COD only after confirma
   const amount = await screen.findByRole('textbox', { name: 'Số thực thu' });
   expect(amount).toHaveValue('9007199254740993.01');
   for (const invalid of ['-1', '1.234', '10000000000000000']) {
-    await user.clear(amount); await user.type(amount, invalid);
+    await user.clear(amount); await user.paste(invalid);
     await user.click(screen.getByRole('button', { name: 'Thu COD ML-SHIPPER' }));
     expect(await screen.findByText('Nhập số tiền không âm, tối đa 16 số nguyên và 2 số lẻ')).toBeInTheDocument();
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   }
-  await user.clear(amount); await user.type(amount, '9007199254740992.01');
+  await user.clear(amount); await user.paste('9007199254740992.01');
   await user.click(screen.getByRole('button', { name: 'Thu COD ML-SHIPPER' }));
   expect(await screen.findByText('Nhập ghi chú khi lệch COD')).toBeInTheDocument();
   expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
