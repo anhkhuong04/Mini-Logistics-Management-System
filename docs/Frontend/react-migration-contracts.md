@@ -1,16 +1,16 @@
 # Frontend migration — phạm vi, contract readiness và trạng thái
 
-Ngày đối chiếu: 25/10/2026. Tài liệu này sở hữu quyết định contract/readiness; [refactorfe.md](../../refactorfe.md) sở hữu thứ tự task và tiêu chí nghiệm thu. [Inventory](react-migration-inventory.md) sở hữu route/action, service/field bindings và adapter đích; [toolchain](react-migration-toolchain.md) sở hữu exact version pins. Phase 1–8 đã triển khai browser HTTP/auth/reference/Shop context, Shop dashboard/read/quote/mutation, CSV import/downloads, Operations và Shipper mobile; nghiệp vụ Phase 9+ vẫn là thiết kế. Kết quả kiểm chứng từng checkpoint nằm trong validation log.
+Ngày đối chiếu: 26/10/2026. Tài liệu này sở hữu quyết định contract/readiness; [refactorfe.md](../../refactorfe.md) sở hữu thứ tự task và tiêu chí nghiệm thu. [Inventory](react-migration-inventory.md) sở hữu route/action, service/field bindings và adapter đích; [toolchain](react-migration-toolchain.md) sở hữu exact version pins. Phase 1–9 đã triển khai browser HTTP/auth/reference/Shop context, Shop dashboard/read/quote/mutation, CSV import/downloads, Operations và Shipper mobile; Administration/banner có adapter Phase 9; nghiệp vụ Phase 10+ vẫn là thiết kế. Kết quả kiểm chứng từng checkpoint nằm trong validation log.
 
 ## Hiện trạng so với đích
 
 | Nội dung | Hiện có trong source | Đích hoặc đề xuất |
 | --- | --- | --- |
 | Frontend | Blazor Interactive Server trong MiniLogistics.Web | React + TypeScript + Ant Design đã được chọn; [ADR-004](decisions/adr-004-react-typescript-ant-design.md) |
-| Project layout | Bốn project .NET và React foundation/auth/context/dashboard/shipments/shipment-import/operations/shipper/shop-settings `src/MiniLogistics.Frontend` | Feature còn lại theo Phase 9+ |
+| Project layout | Bốn project .NET và React foundation/auth/context/dashboard/shipments/shipment-import/operations/shipper/shop-settings/administration `src/MiniLogistics.Frontend` | Feature còn lại theo Phase 10+ |
 | UI transport | JSON auth/reference/Shop/Operations/Shipper read/command adapters gọi Identity/Application; Blazor cũ giữ nguyên | Browser HTTP nghiệp vụ còn lại theo phase tương ứng |
 | Auth | Identity cookie, JSON `/api/v1/app/auth/*`, React login/register/session; form `/auth/*` cũ giữ nguyên | Cùng cookie trong coexist; use-case authorization vẫn là nguồn quyền |
-| API/contract | Partner giữ nguyên; browser auth/context/reference/Shop/Operations/Shipper/COD có OpenAPI3.1.1 và generated TS types riêng; file routes cũ dùng cookie | Endpoint admin/integration còn ở Phase 9+ |
+| API/contract | Partner giữ nguyên; browser auth/context/reference/Shop/Operations/Shipper/COD có OpenAPI3.1.1 và generated TS types riêng; file routes cũ dùng cookie | Admin/banner đã có; integration còn ở Phase 10+ |
 | Hosting | T01.02: opt-in `/app`, runtime config và `/frontend-assets`; HTTPS Vite proxy, conditional publish | Root cutover còn ở Phase 11; mặc định SPA tắt, route Blazor giữ nguyên |
 | Toolchain | .NET/xUnit/CI partner; React/Vite/Vitest/Playwright scaffold, npm lockfile và frontend CI | Node/npm target đã dùng dạng portable để kiểm chứng; chưa thay Node global |
 | Shell | AntD theme/layout, vi/en, Router basename runtime, navigation từ Session/Shop permission; unknown route NotFound | Feature chưa migrate dùng document navigation sang Blazor; root cutover Phase 11 |
@@ -51,6 +51,14 @@ Lựa chọn React/TypeScript/Ant Design không làm thay đổi backend modular
 Baseline đã đọc cả Operations chưa commit; HEAD không đại diện đầy đủ working tree. Phase 0 hoàn tất phân tích/baseline/thiết kế, không có nghĩa React đã chạy hoặc được phép deploy production. Node local hiện `22.18.0` không thỏa bộ pins mới; T01.01 phải chuẩn bị Node/npm theo toolchain trước khi install/build.
 
 ## Contract browser đã chốt để triển khai
+
+### Phase 9 — Administration và banner I/O
+
+Browser adapters hiện có dưới `/api/v1/app/admin`: GET dashboard/cod-report/audit/users/shops/hubs/configuration/banners; POST users/hubs/banners/configuration/fees, PUT users/{id}/active/password/capacity/working-areas, shops/{id}/active, hubs/{id} và /active, configuration/routes, banners/{id}; POST banners/{id}/toggle, DELETE banners/{id}. Actor lấy từ principal; Application kiểm active Admin, không cấp quyền cho Operator/IntegrationAdmin. COD settlement dùng command Operations hiện có. Dashboard giữ scope thời gian riêng từng metric; audit giới hạn SQL500 và che trường nhạy cảm bằng PiiMaskingService trước khi trả DTO. Users giữ paging tại Application theo implementation Identity hiện có; không tuyên bố SQL paging. Hubs/shops giữ list semantics cũ. Cấu hình vẫn dùng SQL application lock/version/audit/cache invalidation, không sửa snapshot vận đơn.
+
+POST `/api/v1/app/admin/banners/images` nhận multipart một file tối đa5MiB, request cap5MiB+64KiB; six extensions PNG/JPG/JPEG/WEBP/SVG/GIF và MIME tương ứng. Infrastructure kiểm tên/path, chữ ký raster và SVG XML allowlist (không DTD/script/event/external resource/style); đây không phải full codec decode. SVG phức tạp ngoài allowlist bị từ chối rõ ràng, định dạng SVG vẫn hỗ trợ. Upload lỗi không trả image URL và UI không lưu metadata. Mọi caller Razor admin đã truyền actor; không còn overload bỏ qua quyền. GET `/api/v1/public/banners` chỉ active, anonymous/no-store.
+
+`BannerImages:RootPath` phải là đường dẫn tuyệt đối ngoài content root/release; mặc định LocalApplicationData/MiniLogistics/banner-images theo account chạy host. Production phải cấu hình volume/thư mục bền vững dùng chung giữa releases, có quyền đọc/ghi và backup. `/images/banners/...` phục vụ từ storage với nosniff/CSP sandbox; fallback ảnh legacy trong wwwroot vẫn đọc được. Trước khi bỏ release cũ, copy ảnh runtime legacy vào storage giữ nguyên tên/URL; không xóa upload khi publish. Xóa banner chỉ xóa metadata, giữ file như hành vi cũ. Không có cloud storage hay thay schema. Kiểm chứng UI/publish và trạng thái hoàn tất xem validation log và checklist Phase9.
 
 ### Phase 8 — Shop settings và reporting
 

@@ -345,6 +345,7 @@ app.UseWhen(
     uiApp => uiApp.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true));
 app.UseHttpsRedirection();
 app.UseBrowserSpaAssets();
+app.UseBannerImages();
 
 app.UseRouting();
 app.UseRateLimiter();

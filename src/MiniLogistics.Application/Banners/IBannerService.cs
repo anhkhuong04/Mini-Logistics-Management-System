@@ -1,4 +1,5 @@
 using MiniLogistics.Domain.Banners;
+using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Application.Banners;
 
@@ -14,9 +15,9 @@ public record BannerDto(
 public interface IBannerService
 {
     Task<IReadOnlyList<BannerDto>> GetActiveBannersAsync(CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<BannerDto>> GetAllBannersAsync(CancellationToken cancellationToken = default);
-    Task<BannerDto> CreateBannerAsync(string title, string imageUrl, string? linkUrl, int sortOrder, bool isActive, CancellationToken cancellationToken = default);
-    Task<BannerDto> UpdateBannerAsync(Guid id, string title, string imageUrl, string? linkUrl, int sortOrder, CancellationToken cancellationToken = default);
-    Task ToggleBannerStatusAsync(Guid id, CancellationToken cancellationToken = default);
-    Task DeleteBannerAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Result<IReadOnlyList<BannerDto>>> GetAllBannersAsync(Guid actorUserId, CancellationToken cancellationToken = default);
+    Task<Result<BannerDto>> CreateBannerAsync(Guid actorUserId, string title, string imageUrl, string? linkUrl, int sortOrder, bool isActive, CancellationToken cancellationToken = default);
+    Task<Result<BannerDto>> UpdateBannerAsync(Guid actorUserId, Guid id, string title, string imageUrl, string? linkUrl, int sortOrder, CancellationToken cancellationToken = default);
+    Task<Result> ToggleBannerStatusAsync(Guid actorUserId, Guid id, CancellationToken cancellationToken = default);
+    Task<Result> DeleteBannerAsync(Guid actorUserId, Guid id, CancellationToken cancellationToken = default);
 }

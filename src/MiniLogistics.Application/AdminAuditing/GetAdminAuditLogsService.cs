@@ -9,13 +9,16 @@ public sealed class GetAdminAuditLogsService : IGetAdminAuditLogsService
 {
     private readonly IIdentityService _identityService;
     private readonly IAdminAuditLogRepository _auditLogRepository;
+    private readonly IPiiMaskingService _masking;
 
     public GetAdminAuditLogsService(
         IIdentityService identityService,
-        IAdminAuditLogRepository auditLogRepository)
+        IAdminAuditLogRepository auditLogRepository,
+        IPiiMaskingService? masking = null)
     {
         _identityService = identityService;
         _auditLogRepository = auditLogRepository;
+        _masking = masking ?? new PiiMaskingService();
     }
 
     public async Task<Result<IReadOnlyList<AdminAuditLogResponse>>> GetAsync(
@@ -49,9 +52,9 @@ public sealed class GetAdminAuditLogsService : IGetAdminAuditLogsService
                 auditLog.Action,
                 auditLog.TargetType,
                 auditLog.TargetId,
-                auditLog.OldValueJson,
-                auditLog.NewValueJson,
-                auditLog.Reason,
+                _masking.MaskSensitiveJson(auditLog.OldValueJson),
+                _masking.MaskSensitiveJson(auditLog.NewValueJson),
+                _masking.MaskSensitiveText(auditLog.Reason),
                 auditLog.IpAddress,
                 auditLog.UserAgent,
                 auditLog.CreatedAtUtc))

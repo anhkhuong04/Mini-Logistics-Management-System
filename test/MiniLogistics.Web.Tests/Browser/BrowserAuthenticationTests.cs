@@ -130,12 +130,13 @@ public sealed class BrowserAuthenticationTests
     }
 }
 
-public sealed class BrowserIdentityFactory(bool enableFrontend = false, Action<IServiceCollection>? configureServices = null) : WebApplicationFactory<Program>
+public sealed class BrowserIdentityFactory(bool enableFrontend = false, Action<IServiceCollection>? configureServices = null, string? bannerRoot = null) : WebApplicationFactory<Program>
 {
     public static string Password { get; } = $"BrowserTest!{Guid.NewGuid():N}";
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Development");
+        builder.UseSetting("BannerImages:RootPath", bannerRoot ?? Path.Combine(RepositoryRoot(), ".agent", "banner-tests", Guid.NewGuid().ToString("N")));
         if (enableFrontend)
         {
             builder.UseSetting("BrowserSpa:Enabled", "true");

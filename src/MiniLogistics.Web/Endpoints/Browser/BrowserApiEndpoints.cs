@@ -58,7 +58,14 @@ public static class BrowserApiEndpoints
         group.MapBrowserShopStaff();
         group.MapBrowserShopSettingsReads();
         group.MapBrowserShopNotifications();
+        group.MapBrowserAdminReporting();
+        group.MapBrowserAdminUsers();
+        group.MapBrowserAdminShops();
+        group.MapBrowserAdminHubs();
+        group.MapBrowserAdminConfiguration();
+        group.MapBrowserAdminBanners();
         endpoints.MapBrowserReferenceData();
+        endpoints.MapBrowserPublicBanners();
         return group;
     }
 }

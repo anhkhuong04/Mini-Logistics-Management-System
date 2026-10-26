@@ -6,7 +6,9 @@
 @using Microsoft.AspNetCore.Hosting
 @using MiniLogistics.Application.Banners
 @inject IBannerService BannerService
-@inject IWebHostEnvironment Environment
+@using System.Security.Claims
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject IUploadBannerImageService UploadBannerImageService
 
 <PageTitle>Quản lý Banner - LAK Logistics</PageTitle>
 
@@ -266,6 +268,7 @@
                      OnCancel="CancelBannerAction" />
 
 @code {
+    private async Task<Guid> ActorAsync() => Guid.TryParse((await AuthenticationStateProvider.GetAuthenticationStateAsync()).User.FindFirstValue(ClaimTypes.NameIdentifier), out var id) ? id : Guid.Empty;
     private const long MaxFileSize = 5 * 1024 * 1024; // 5 MB
 
     private bool IsLoading;
@@ -304,12 +307,13 @@
 
         try
         {
-            var result = await BannerService.GetAllBannersAsync();
-            Banners = result.ToList();
+            var result = await BannerService.GetAllBannersAsync(await ActorAsync());
+            if (result.IsFailure) { ErrorMessage = "Access or validation failed."; return; }
+            Banners = result.Value.ToList();
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            ErrorMessage = "Lỗi khi tải danh sách banner: " + ex.Message;
+            ErrorMessage = "Lỗi khi tải danh sách banner: ";
         }
         finally
         {
@@ -324,6 +328,9 @@
 
         var file = e.File;
         if (file is null) return;
+        ImageUrl = string.Empty;
+        SelectedFileName = null;
+        SelectedFileSize = 0;
 
         if (file.Size > MaxFileSize)
         {
@@ -344,20 +351,10 @@
 
         try
         {
-            var uploadsFolder = Path.Combine(Environment.WebRootPath, "images", "banners");
-            if (!Directory.Exists(uploadsFolder))
-            {
-                Directory.CreateDirectory(uploadsFolder);
-            }
-
-            var uniqueFileName = $"banner_{DateTime.UtcNow:yyyyMMdd_HHmmss}_{Guid.NewGuid().ToString("N")[..8]}{extension}";
-            var destinationPath = Path.Combine(uploadsFolder, uniqueFileName);
-
             await using var stream = file.OpenReadStream(MaxFileSize);
-            await using var targetStream = File.Create(destinationPath);
-            await stream.CopyToAsync(targetStream);
-
-            ImageUrl = $"/images/banners/{uniqueFileName}";
+            var result = await UploadBannerImageService.UploadAsync(await ActorAsync(), stream, file.Name, file.ContentType);
+            if (result.IsFailure) { ErrorMessage = "Không thể tải ảnh lên. Vui lòng chọn lại ảnh trước khi lưu."; return; }
+            ImageUrl = result.Value.ImageUrl;
             SelectedFileName = file.Name;
             SelectedFileSize = file.Size;
             SuccessMessage = "Đã tải ảnh lên thành công.";
@@ -367,9 +364,9 @@
                 Title = Path.GetFileNameWithoutExtension(file.Name);
             }
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            ErrorMessage = "Lỗi khi tải ảnh lên: " + ex.Message;
+            ErrorMessage = "Không thể tải ảnh lên. Vui lòng thử lại.";
         }
         finally
         {
@@ -432,21 +429,23 @@
         {
             if (EditingBannerId.HasValue)
             {
-                await BannerService.UpdateBannerAsync(EditingBannerId.Value, Title.Trim(), ImageUrl.Trim(), string.IsNullOrWhiteSpace(LinkUrl) ? null : LinkUrl.Trim(), SortOrder);
+                var operationResult = await BannerService.UpdateBannerAsync(await ActorAsync(), EditingBannerId.Value, Title.Trim(), ImageUrl.Trim(), string.IsNullOrWhiteSpace(LinkUrl) ? null : LinkUrl.Trim(), SortOrder);
+            if (operationResult.IsFailure) { ErrorMessage = "Access or validation failed."; return; }
                 SuccessMessage = "Cập nhật banner thành công.";
             }
             else
             {
-                await BannerService.CreateBannerAsync(Title.Trim(), ImageUrl.Trim(), string.IsNullOrWhiteSpace(LinkUrl) ? null : LinkUrl.Trim(), SortOrder, IsActive);
+                var operationResult = await BannerService.CreateBannerAsync(await ActorAsync(), Title.Trim(), ImageUrl.Trim(), string.IsNullOrWhiteSpace(LinkUrl) ? null : LinkUrl.Trim(), SortOrder, IsActive);
+            if (operationResult.IsFailure) { ErrorMessage = "Access or validation failed."; return; }
                 SuccessMessage = "Tạo banner mới thành công.";
             }
 
             await LoadAsync(clearMessages: false);
             ClearForm(clearMessages: false);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            ErrorMessage = "Lỗi khi lưu banner: " + ex.Message;
+            ErrorMessage = "Lỗi khi lưu banner: ";
         }
         finally
         {
@@ -458,13 +457,14 @@
     {
         try
         {
-            await BannerService.ToggleBannerStatusAsync(id);
+            var operationResult = await BannerService.ToggleBannerStatusAsync(await ActorAsync(), id);
+            if (operationResult.IsFailure) { ErrorMessage = "Access or validation failed."; return; }
             SuccessMessage = "Đã cập nhật trạng thái hiển thị của banner.";
             await LoadAsync(clearMessages: false);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            ErrorMessage = "Lỗi khi cập nhật trạng thái: " + ex.Message;
+            ErrorMessage = "Lỗi khi cập nhật trạng thái: ";
         }
     }
 
@@ -472,7 +472,8 @@
     {
         try
         {
-            await BannerService.DeleteBannerAsync(id);
+            var operationResult = await BannerService.DeleteBannerAsync(await ActorAsync(), id);
+            if (operationResult.IsFailure) { ErrorMessage = "Access or validation failed."; return; }
             SuccessMessage = "Xóa banner thành công.";
             if (EditingBannerId == id)
             {
@@ -480,9 +481,9 @@
             }
             await LoadAsync(clearMessages: false);
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            ErrorMessage = "Lỗi khi xóa banner: " + ex.Message;
+            ErrorMessage = "Lỗi khi xóa banner: ";
         }
     }
 

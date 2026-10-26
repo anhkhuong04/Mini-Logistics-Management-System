@@ -45,6 +45,8 @@ public static class DependencyInjection
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+        services.Configure<MiniLogistics.Infrastructure.Persistence.Storage.BannerImageStorageOptions>(configuration.GetSection("BannerImages"));
+        services.AddScoped<IBannerImageStorage,MiniLogistics.Infrastructure.Persistence.Storage.LocalBannerImageStorage>();
 
         services.AddDbContext<MiniLogisticsDbContext>(options =>
         {
