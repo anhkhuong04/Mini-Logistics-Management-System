@@ -17,7 +17,8 @@ try {
     if ((npm --version) -ne '11.19.1') { throw 'Use pinned npm 11.19.1.' }
     if (-not $SkipInstall) { npm --prefix $frontend ci; if ($LASTEXITCODE) { throw 'npm ci failed.' } }
     foreach ($step in @('typecheck', 'lint', 'test', 'build')) {
-        npm --prefix $frontend run $step
+        if ($step -eq 'test') { npm --prefix $frontend run test -- --maxWorkers=1 }
+        else { npm --prefix $frontend run $step }
         if ($LASTEXITCODE) { throw "Frontend $step failed." }
     }
     dotnet publish src/MiniLogistics.Web/MiniLogistics.Web.csproj -c Release -p:PublishBrowserSpa=true -o $output
