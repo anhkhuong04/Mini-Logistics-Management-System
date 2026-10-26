@@ -44,6 +44,16 @@ Coexistence is opt-in: set `BrowserSpa__Enabled=true` when running Web, then run
 
 After frontend build, publish with `dotnet publish src/MiniLogistics.Web/MiniLogistics.Web.csproj -c Release -p:PublishBrowserSpa=true -o <output>`. This copies dist into `<output>/frontend`; it fails if index.html is absent. Enable `BrowserSpa__Enabled=true` separately at runtime. Default publish/build/test do not require Node or dist. `BrowserSpa__ServeAtRoot=true` is rejected until the later root cutover; legacy routes stay owned by Blazor.
 
+## Phase 9 administration validation
+
+`BrowserAdminTests` and `BrowserBannerTests` cover browser adapters and direct banner use-case authorization. `BannerImageStorageTests` covers bounded streams/content/path/storage failure; existing `AdminDashboardMetricsRepositoryTests` and `SystemConfigurationConcurrencyTests` remain SQL evidence. Keep `SystemConfigurationP3Tests` and optional Redis integration tests.
+
+The Identity browser fixture now includes `admin-reporting.spec.ts`, `admin-users-shops.spec.ts`, `admin-config.spec.ts`, `admin-banners.spec.ts`: five scenarios,27 total. It uses a test-only configuration lock adapter for InMemory; production SQL locking is unchanged. Ordinary shell smoke intentionally skips27 data scenarios. Clear grep for full validation. On constrained Windows machines set `$env:DOTNET_PROCESSOR_COUNT='2'` before .NET tests to reduce parallel resource pressure; this is local test configuration, not a production setting.
+
+Run .NET, Vitest and browser suites sequentially on constrained machines. `npm --prefix src/MiniLogistics.Frontend test -- --maxWorkers=1` reduces Vitest worker contention without increasing test timeouts or disabling isolation.
+
+Before runtime/publish validation, set `BannerImages__RootPath` to an absolute persistent directory outside the release; copy legacy uploads keeping their filenames, then verify an existing `/images/banners/...` URL after publish and host restart. Do not place uploads under `frontend` or release `wwwroot`. Secrets/cookies, files, certificates and test outputs stay ignored.
+
 ## Prerequisites
 
 - .NET 10 SDK.

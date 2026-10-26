@@ -8,9 +8,9 @@ Ngày đối chiếu: 26/10/2026. Tài liệu này sở hữu quyết định co
 | --- | --- | --- |
 | Frontend | Blazor Interactive Server trong MiniLogistics.Web | React + TypeScript + Ant Design đã được chọn; [ADR-004](decisions/adr-004-react-typescript-ant-design.md) |
 | Project layout | Bốn project .NET và React foundation/auth/context/dashboard/shipments/shipment-import/operations/shipper/shop-settings/administration `src/MiniLogistics.Frontend` | Feature còn lại theo Phase 10+ |
-| UI transport | JSON auth/reference/Shop/Operations/Shipper read/command adapters gọi Identity/Application; Blazor cũ giữ nguyên | Browser HTTP nghiệp vụ còn lại theo phase tương ứng |
+| UI transport | JSON auth/reference/Shop/Operations/Shipper/Admin read/command adapters gọi Identity/Application; Blazor cũ giữ nguyên | Browser HTTP nghiệp vụ còn lại theo phase tương ứng |
 | Auth | Identity cookie, JSON `/api/v1/app/auth/*`, React login/register/session; form `/auth/*` cũ giữ nguyên | Cùng cookie trong coexist; use-case authorization vẫn là nguồn quyền |
-| API/contract | Partner giữ nguyên; browser auth/context/reference/Shop/Operations/Shipper/COD có OpenAPI3.1.1 và generated TS types riêng; file routes cũ dùng cookie | Admin/banner đã có; integration còn ở Phase 10+ |
+| API/contract | Partner giữ nguyên; browser auth/context/reference/Shop/Operations/Shipper/Admin/COD/banner có OpenAPI3.1.1 và generated TS types riêng; file routes cũ dùng cookie | Admin/banner đã có; integration còn ở Phase 10+ |
 | Hosting | T01.02: opt-in `/app`, runtime config và `/frontend-assets`; HTTPS Vite proxy, conditional publish | Root cutover còn ở Phase 11; mặc định SPA tắt, route Blazor giữ nguyên |
 | Toolchain | .NET/xUnit/CI partner; React/Vite/Vitest/Playwright scaffold, npm lockfile và frontend CI | Node/npm target đã dùng dạng portable để kiểm chứng; chưa thay Node global |
 | Shell | AntD theme/layout, vi/en, Router basename runtime, navigation từ Session/Shop permission; unknown route NotFound | Feature chưa migrate dùng document navigation sang Blazor; root cutover Phase 11 |
@@ -151,7 +151,7 @@ Phase 2 đã triển khai các auth/reference/context contracts ở trên. Brows
 
 | Hạng mục | Giá trị hiện tại và source |
 | --- | --- |
-| Banner upload | 5 * 1024 * 1024 = 5,242,880 byte; .png/.jpg/.jpeg/.webp/.svg/.gif; AdminBanners.razor. Guard authorization/storage ở T09.04, không mặc định coi SVG an toàn chỉ do extension |
+| Banner upload | 5 * 1024 * 1024 = 5,242,880 byte; .png/.jpg/.jpeg/.webp/.svg/.gif; AdminBanners.razor. Authorization/Infrastructure storage đã có ở T09.04; SVG dùng safe subset, không coi extension là đủ |
 | CSV import | UI stream <=2,000,000 byte; validator CsvContent <=2,000,000 ký tự; row max500; confirm revalidate; UTF-8 và invalid text errors theo parser hiện có |
 | Batch polling | 2 giây; dừng terminal/unmount/logout/đổi Shop, không thêm background poll vô hạn |
 | Bulk retry | Max50 IDs duy nhất; RequestedByUserId lấy principal; giữ partial result từng shipment |

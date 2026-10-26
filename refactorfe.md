@@ -639,15 +639,17 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 ## Phase 9 — Administration và banner I/O
 
+**Hoàn tất 26/10/2026:** T09.01–T09.04,14/14 tiêu chí. Backend `8ad254a`, giao diện/parity `63e702a`. React8 màn hình + alias `/admin`; active Admin tại Application; banner upload/storage xuyên release. Frontend110/110, Identity27/27, smoke dev/publish15/15 mỗi bộ; SQL regression giữ nguyên, Redis skip theo môi trường. Chi tiết và giới hạn ở [validation log](docs/Frontend/react-migration-validation.md#phase-9--administration-và-banner-io-26102026). Phase10 chưa triển khai.
+
 ### T09.01 — Admin dashboard, COD và audit
 
 **Files:** tạo `BrowserAdminReportingEndpoints.cs`, contracts; `features/administration/AdminDashboardPage.tsx`, `AdminCodPage.tsx`, `AdminAuditPage.tsx`, API/queries/tests; `e2e/admin-reporting.spec.ts`.
 
 **Interfaces:** GET `/api/v1/app/admin/dashboard`, `/cod-report`, `/audit`; settle dùng command đã bảo vệ ở T06.03; IGetAdminDashboardService/IGetAdminCodReportService/IGetAdminAuditLogsService.
 
-- [ ] Test Admin allowed, Operator/Shop/IntegrationAdmin denied đúng quyền; dashboard scopes tài chính/capacity/webhook không bị trộn số liệu khác thời gian.
-- [ ] Port KPI/COD/capacity/integration summary, error/empty đúng dashboard review; audit filter/page, settle confirmation và server conflict.
-- [ ] Giữ regression query translation của AdminDashboardMetricsRepository; không thay SQL bằng tính toàn bảng trên React.
+- [x] Test Admin allowed, Operator/Shop/IntegrationAdmin denied đúng quyền; dashboard scopes tài chính/capacity/webhook không bị trộn số liệu khác thời gian.
+- [x] Port KPI/COD/capacity/integration summary, error/empty đúng dashboard review; audit filter/page, settle confirmation và server conflict.
+- [x] Giữ regression query translation của AdminDashboardMetricsRepository; không thay SQL bằng tính toàn bảng trên React.
 
 **Verify:** Browser admin reporting + AdminDashboardAndCodReportServiceTests + AdminDashboardMetricsRepositoryTests khi cần, E2E alias `/admin`/`/admin/dashboard`.
 
@@ -657,9 +659,9 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** admin users list/create/active/password-reset/capacity/working-area và shops list/active map đúng IGetAdminUsers/ICreateInternalUser/IResetUserPassword/ISetUserActiveStatus/ISetShipperCapacity/ISetShipperWorkingAreas/IGetAdminShops/ISetShopActiveStatus services.
 
-- [ ] Test Admin-only tại HTTP và Application; validation role/password/capacity/area, inactive user/Shop và cross-scope action.
-- [ ] Không trả password/hash/security stamp; password reset input không giữ trong cache/log/form sau success. Giữ thông báo lỗi safe, không hiển thị raw exception.
-- [ ] Confirmation cho active/reset/capacity, refresh đúng danh sách; không thay capacity locking hoặc assignment guard.
+- [x] Test Admin-only tại HTTP và Application; validation role/password/capacity/area, inactive user/Shop và cross-scope action.
+- [x] Không trả password/hash/security stamp; password reset input không giữ trong cache/log/form sau success. Giữ thông báo lỗi safe, không hiển thị raw exception.
+- [x] Confirmation cho active/reset/capacity, refresh đúng danh sách; không thay capacity locking hoặc assignment guard.
 
 **Verify:** Browser admin user/shop tests + Application admin action/audit tests và E2E negative role paths.
 
@@ -669,9 +671,9 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** hub CRUD/active theo AdminHubs services; configuration read/write theo IAdminSystemConfigurationService. Request giữ province/route/fee version semantics hiện có.
 
-- [ ] Test Admin-only, invalid ranges/duplicate active/conflict; server khóa và version active vẫn authoritative.
-- [ ] UI trình bày version/phạm vi áp dụng, confirm cập nhật và reload khi stale; không thay snapshot shipment đã tạo.
-- [ ] Giữ invalidation route/fee/hub cache hiện có và configuration-generation Redis; không cache cấu hình vô thời hạn ở frontend.
+- [x] Test Admin-only, invalid ranges/duplicate active/conflict; server khóa và version active vẫn authoritative.
+- [x] UI trình bày version/phạm vi áp dụng, confirm cập nhật và reload khi stale; không thay snapshot shipment đã tạo.
+- [x] Giữ invalidation route/fee/hub cache hiện có và configuration-generation Redis; không cache cấu hình vô thời hạn ở frontend.
 
 **Verify:** Browser config + SystemConfigurationP3Tests; LocalDB SystemConfigurationConcurrencyTests; Redis cache test chạy khi có môi trường quy định.
 
@@ -681,11 +683,11 @@ Session fields chỉ phục vụ hiển thị/UX, không dùng như quyền auth
 
 **Interfaces:** giữ GetActiveBannersAsync anonymous-safe; thêm `Guid actorUserId` và CancellationToken vào các thao tác GetAll/Create/Update/Toggle/Delete; upload `UploadAsync(Guid actorUserId, Stream content, string fileName, string contentType, CancellationToken)` trả Result DTO chứa image URL. Storage port có nhu cầu cụ thể là chuyển I/O khỏi Razor.
 
-- [ ] Thêm regression test mutation/list-admin/upload từ non-Admin bị từ chối tại use case; cập nhật toàn bộ caller cũ để coexist vẫn compile, không giữ overload bypass authorization.
-- [ ] Tách ghi stream/file name/path khỏi component và endpoint vào Infrastructure adapter; endpoint chỉ nhận multipart giới hạn, derive actor, gọi use case. Giữ 5MB và định dạng hiện có đã inventory, validate nội dung/path/name ở server.
-- [ ] File upload runtime nằm ở storage có persistence xuyên release; giữ URL ảnh cũ. Copy static frontend không được ghi đè/xóa upload; không đổi sang external cloud service trong migration.
-- [ ] UI dùng AntD Upload/Form/Table, preview/order/active/delete confirmation; không tạo backend metadata thành công khi upload thất bại.
-- [ ] Test lỗi size/extension/path traversal/storage failure/unauthorized và restart/publish giữ ảnh; public endpoint chỉ trả active banners.
+- [x] Thêm regression test mutation/list-admin/upload từ non-Admin bị từ chối tại use case; cập nhật toàn bộ caller cũ để coexist vẫn compile, không giữ overload bypass authorization.
+- [x] Tách ghi stream/file name/path khỏi component và endpoint vào Infrastructure adapter; endpoint chỉ nhận multipart giới hạn, derive actor, gọi use case. Giữ 5MB và định dạng hiện có đã inventory, validate nội dung/path/name ở server.
+- [x] File upload runtime nằm ở storage có persistence xuyên release; giữ URL ảnh cũ. Copy static frontend không được ghi đè/xóa upload; không đổi sang external cloud service trong migration.
+- [x] UI dùng AntD Upload/Form/Table, preview/order/active/delete confirmation; không tạo backend metadata thành công khi upload thất bại.
+- [x] Test lỗi size/extension/path traversal/storage failure/unauthorized và restart/publish giữ ảnh; public endpoint chỉ trả active banners.
 
 **Verify:** banner Application authorization, storage integration và browser tests; E2E upload/create/update/toggle/delete. Nếu format hiện có không thể phục vụ an toàn theo policy hiện tại, ghi thành vấn đề cần giải quyết riêng trước khi mở upload, không tự âm thầm đổi định dạng.
 

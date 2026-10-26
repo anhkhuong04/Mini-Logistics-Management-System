@@ -82,6 +82,14 @@ Review cả migration, designer và snapshot: default/backfill, destructive chan
 
 Cập nhật endpoint/DTO, generated OpenAPI, [API reference](../Service/partner-api.md), [changelog](../Service/partner-api-changelog.md), Postman và example khi hợp đồng đổi. CI kiểm tra artifact drift và breaking change; không hand-edit OpenAPI.
 
+## Administration và ảnh banner (Phase 9)
+
+React quản trị tại `/app/admin` dùng cookie/CSRF và API `/api/v1/app/admin`; active Admin được kiểm trong Application. Giữ các URL Blazor trong coexist. Cấu hình route/fee vẫn tạo version và invalidation cache trên server; khi bắt đầu cấu hình vùng tuyến, phải chuẩn bị đủ danh sách tỉnh phục vụ vì bản đồ cấu hình thay thế toàn bộ fallback mặc định.
+
+Đặt `BannerImages__RootPath` thành đường dẫn tuyệt đối ngoài thư mục release, trỏ đến storage bền vững có quyền đọc/ghi và backup. Mặc định dùng LocalApplicationData của account chạy host, không dùng release wwwroot. Trước khi bỏ release cũ, copy các ảnh runtime cũ từ `wwwroot/images/banners` vào storage giữ nguyên tên; `/images/banners/...` vẫn giữ URL. Không đưa storage vào bước xóa/copy frontend khi publish. Upload giới hạn5MiB, sáu extension cũ; SVG chỉ nhận subset an toàn, không script/style/event/external resource. Xóa metadata không xóa file ảnh.
+
+Kiểm tra một URL ảnh đã upload trước publish, publish SPA theo lệnh ở trên, xác nhận byte ảnh không đổi sau publish và restart host. HTTP/use-case test: `BrowserAdminTests`, `BrowserBannerTests`; storage: `BannerImageStorageTests`. Xem [contract](../Frontend/react-migration-contracts.md#phase-9--administration-và-banner-io) và [evidence](../Frontend/react-migration-validation.md).
+
 ## Chẩn đoán thường gặp
 
 | Hiện tượng | Kiểm tra |

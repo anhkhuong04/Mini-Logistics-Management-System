@@ -87,3 +87,7 @@ These rules apply to maintenance of the current Blazor paths while they coexist 
 - Rate-limit public/auth/partner abuse paths with a store and atomicity appropriate to the deployment topology. Do not assume an in-memory cache coordinates multiple instances.
 - Treat CSV/spreadsheet exports, file names, URLs and log fields as untrusted output as well as input.
 - Use structured `ILogger<T>` messages. Include identifiers/trace IDs useful for operations, but exclude secrets and unnecessary PII.
+
+## Phase 9 administration boundary
+
+Use active-Admin Application use cases for every admin/browser operation, including banner list, mutations and uploads; anonymous banner reads expose active DTOs only. Banner file I/O belongs to Infrastructure, outside release content root, with bounded streams, generated filenames and MIME/content/SVG checks. Preserve old URLs and deployed storage through publish. Admin configuration versions/locks/audit/cache invalidation remain server authoritative. Never cache bootstrap/reset passwords or automatically retry admin mutations; require authoritative refresh after uncertain outcomes. Keep date filters in the session server time zone and API bounds in UTC; money stays decimal strings.

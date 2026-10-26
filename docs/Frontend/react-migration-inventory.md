@@ -1,6 +1,6 @@
 # Frontend migration — inventory route/action và binding contract
 
-Đối chiếu baseline ngày 25/10/2026. Inventory bao gồm 28 routed page files/30 route declarations, 93 binding gọi service và các browser form/file/local action. Phase 1–8 đã triển khai auth/reference/Shop context, dashboard, shipment read/quote/mutation, CSV import và file downloads; nghiệp vụ Phase 9+ vẫn là **đặc tả adapter tương lai**. Trạng thái/evidence theo [migration contracts](react-migration-contracts.md) và [validation log](react-migration-validation.md), không suy ra endpoint đã có chỉ từ bảng. Shop adapters có prefix `/api/v1/app`; A049–A066, A074/A076 đã có, file routes giữ `/shop/files`, renderer tương ứng chạy dưới `/app`, URL Blazor cũ được giữ.
+Đối chiếu baseline ngày 26/10/2026. Inventory bao gồm 28 routed page files/30 route declarations, 93 binding gọi service và các browser form/file/local action. Phase 1–9 đã triển khai auth/reference/Shop context, dashboard, shipment read/quote/mutation, CSV import và file downloads; Administration/banner đã triển khai; nghiệp vụ Phase 10+ vẫn là **đặc tả adapter tương lai**. Trạng thái/evidence theo [migration contracts](react-migration-contracts.md) và [validation log](react-migration-validation.md), không suy ra endpoint đã có chỉ từ bảng. Shop adapters có prefix `/api/v1/app`; A049–A066, A074/A076 đã có, file routes giữ `/shop/files`, renderer tương ứng chạy dưới `/app`, URL Blazor cũ được giữ.
 
 ## Quy ước đọc
 
@@ -15,13 +15,13 @@
 
 **Source:** [AdminAuditLogs.razor](../../src/MiniLogistics.Web/Components/Pages/Administration/AdminAuditLogs.razor). **Routes:** `/admin/audit-logs`.
 
-**React page:** `administration/AdminAuditPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `administration/AdminAuditPage.tsx` (đã triển khai dưới `features/`).
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
-| ID | Action/use case hiện tại | Endpoint đích | Quyền/ràng buộc | Task / regression dự kiến |
+| ID | Action/use case hiện tại | Endpoint hiện có (prefix `/api/v1/app`) | Quyền/ràng buộc | Task / regression |
 | --- | --- | --- | --- | --- |
-| A001 | `GetAdminAuditLogsService.GetAsync` | `GET /admin/audit` | Admin | T09.01 / `BrowserAdminReportingTests` |
+| A001 | `GetAdminAuditLogsService.GetAsync` | `GET /admin/audit` | Admin | T09.01 / `BrowserAdminTests` |
 
 **Handler parity (local/lifecycle + orchestrations; không mặc định tạo endpoint):** `GetCurrentUserIdAsync`, `LoadAsync`, `OnFromDateChanged`, `OnInitializedAsync`, `OnToDateChanged`.
 
@@ -29,19 +29,19 @@
 
 **Source:** [AdminBanners.razor](../../src/MiniLogistics.Web/Components/Pages/Administration/AdminBanners.razor). **Routes:** `/admin/banners`.
 
-**React page:** `administration/AdminBannersPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `administration/AdminBannersPage.tsx` (đã triển khai dưới `features/`).
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
-| ID | Action/use case hiện tại | Endpoint đích | Quyền/ràng buộc | Task / regression dự kiến |
+| ID | Action/use case hiện tại | Endpoint hiện có (prefix `/api/v1/app`) | Quyền/ràng buộc | Task / regression |
 | --- | --- | --- | --- | --- |
-| A002 | `BannerService.CreateBannerAsync` | `POST /admin/banners` | Admin; add use-case guard | T09.04 / `BrowserBannerTests` |
-| A003 | `BannerService.DeleteBannerAsync` | `DELETE /admin/banners/{bannerId}` | Admin; add use-case guard | T09.04 / `BrowserBannerTests` |
-| A004 | `BannerService.GetAllBannersAsync` | `GET /admin/banners` | Admin; add use-case guard | T09.04 / `BrowserBannerTests` |
+| A002 | `BannerService.CreateBannerAsync` | `POST /admin/banners` | Admin; actor guard tại Application | T09.04 / `BrowserBannerTests` |
+| A003 | `BannerService.DeleteBannerAsync` | `DELETE /admin/banners/{bannerId}` | Admin; actor guard tại Application | T09.04 / `BrowserBannerTests` |
+| A004 | `BannerService.GetAllBannersAsync` | `GET /admin/banners` | Admin; actor guard tại Application | T09.04 / `BrowserBannerTests` |
 | A005 | `BannerService.ToggleBannerStatusAsync` | `POST /admin/banners/{bannerId}/toggle` | Admin; preserve toggle semantics, no automatic retry | T09.04 / `BrowserBannerTests` |
-| A006 | `BannerService.UpdateBannerAsync` | `PUT /admin/banners/{bannerId}` | Admin; add use-case guard | T09.04 / `BrowserBannerTests` |
+| A006 | `BannerService.UpdateBannerAsync` | `PUT /admin/banners/{bannerId}` | Admin; actor guard tại Application | T09.04 / `BrowserBannerTests` |
 
-**Upload bổ sung:** `POST /admin/banner-images` multipart file; Admin use-case guard + Infrastructure storage, max 5,242,880 bytes; T09.04 / BrowserBannerTests. Không lấy ghi file trong Razor làm lý do để đưa I/O vào endpoint.
+**Upload bổ sung:** `POST /admin/banners/images` multipart file; Admin use-case guard + Infrastructure storage, max 5,242,880 bytes; T09.04 / BrowserBannerTests. Không lấy ghi file trong Razor làm lý do để đưa I/O vào endpoint.
 
 **Handler parity (local/lifecycle + orchestrations; không mặc định tạo endpoint):** `CancelBannerAction`, `ClearForm`, `ConfirmBannerActionAsync`, `DeleteBannerAsync`, `EditBanner`, `HandleFileSelected`, `LoadAsync`, `OnInitializedAsync`, `RemoveImage`, `RequestDeleteBanner`, `RequestToggleStatus`, `SaveBannerAsync`, `ToggleStatusAsync`.
 
@@ -49,13 +49,13 @@
 
 **Source:** [AdminCod.razor](../../src/MiniLogistics.Web/Components/Pages/Administration/AdminCod.razor). **Routes:** `/admin/cod`.
 
-**React page:** `administration/AdminCodPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `administration/AdminCodPage.tsx` (đã triển khai dưới `features/`).
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
-| ID | Action/use case hiện tại | Endpoint đích | Quyền/ràng buộc | Task / regression dự kiến |
+| ID | Action/use case hiện tại | Endpoint hiện có (prefix `/api/v1/app`) | Quyền/ràng buộc | Task / regression |
 | --- | --- | --- | --- | --- |
-| A007 | `GetAdminCodReportService.GetAsync` | `GET /admin/cod-report` | Admin | T09.01 / `BrowserAdminReportingTests` |
+| A007 | `GetAdminCodReportService.GetAsync` | `GET /admin/cod-report` | Admin | T09.01 / `BrowserAdminTests` |
 | A008 | `MarkCodSettledService.MarkSettledAsync` | `POST /operations/shipments/{shipmentId}/cod/settle` | Admin/CodSettle; collected | T06.03 / `BrowserOperationsActionTests` |
 
 **Handler parity (local/lifecycle + orchestrations; không mặc định tạo endpoint):** `GetCurrentUserIdAsync`, `LoadAsync`, `OnFromDateChanged`, `OnInitializedAsync`, `OnToDateChanged`, `SelectTabAsync`, `SetSettlementNote`, `SettleAsync`.
@@ -64,13 +64,13 @@
 
 **Source:** [AdminDashboard.razor](../../src/MiniLogistics.Web/Components/Pages/Administration/AdminDashboard.razor). **Routes:** `/admin`, `/admin/dashboard`.
 
-**React page:** `administration/AdminDashboardPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `administration/AdminDashboardPage.tsx` (đã triển khai dưới `features/`).
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
-| ID | Action/use case hiện tại | Endpoint đích | Quyền/ràng buộc | Task / regression dự kiến |
+| ID | Action/use case hiện tại | Endpoint hiện có (prefix `/api/v1/app`) | Quyền/ràng buộc | Task / regression |
 | --- | --- | --- | --- | --- |
-| A009 | `GetAdminDashboardService.GetAsync` | `GET /admin/dashboard` | Admin | T09.01 / `BrowserAdminReportingTests` |
+| A009 | `GetAdminDashboardService.GetAsync` | `GET /admin/dashboard` | Admin | T09.01 / `BrowserAdminTests` |
 
 **Handler parity (local/lifecycle + orchestrations; không mặc định tạo endpoint):** `ApplyPresetAsync`, `GetCurrentUserIdAsync`, `LoadAsync`, `OnFromDateChanged`, `OnInitializedAsync`, `OnToDateChanged`.
 
@@ -78,16 +78,16 @@
 
 **Source:** [AdminHubs.razor](../../src/MiniLogistics.Web/Components/Pages/Administration/AdminHubs.razor). **Routes:** `/admin/hubs`.
 
-**React page:** `administration/AdminHubsPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `administration/AdminHubsPage.tsx` (đã triển khai dưới `features/`).
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
-| ID | Action/use case hiện tại | Endpoint đích | Quyền/ràng buộc | Task / regression dự kiến |
+| ID | Action/use case hiện tại | Endpoint hiện có (prefix `/api/v1/app`) | Quyền/ràng buộc | Task / regression |
 | --- | --- | --- | --- | --- |
-| A010 | `CreateHubService.CreateAsync` | `POST /admin/hubs` | Admin | T09.03 / `BrowserAdminConfigurationTests` |
-| A011 | `GetAdminHubsService.GetAsync` | `GET /admin/hubs` | Admin | T09.03 / `BrowserAdminConfigurationTests` |
-| A012 | `SetHubActiveStatusService.SetAsync` | `PUT /admin/hubs/{hubId}/active` | Admin | T09.03 / `BrowserAdminConfigurationTests` |
-| A013 | `UpdateHubService.UpdateAsync` | `PUT /admin/hubs/{hubId}` | Admin | T09.03 / `BrowserAdminConfigurationTests` |
+| A010 | `CreateHubService.CreateAsync` | `POST /admin/hubs` | Admin | T09.03 / `BrowserAdminTests` |
+| A011 | `GetAdminHubsService.GetAsync` | `GET /admin/hubs` | Admin | T09.03 / `BrowserAdminTests` |
+| A012 | `SetHubActiveStatusService.SetAsync` | `PUT /admin/hubs/{hubId}/active` | Admin | T09.03 / `BrowserAdminTests` |
+| A013 | `UpdateHubService.UpdateAsync` | `PUT /admin/hubs/{hubId}` | Admin | T09.03 / `BrowserAdminTests` |
 
 **Handler parity (local/lifecycle + orchestrations; không mặc định tạo endpoint):** `CancelToggleHub`, `ClearForm`, `ConfirmToggleHubAsync`, `EditHub`, `GetCurrentUserIdAsync`, `LoadAsync`, `OnInitializedAsync`, `RefreshAsync`, `RequestToggleHub`, `SaveHubAsync`, `SetHubReason`, `ToggleHubAsync`.
 
@@ -95,14 +95,14 @@
 
 **Source:** [AdminShops.razor](../../src/MiniLogistics.Web/Components/Pages/Administration/AdminShops.razor). **Routes:** `/admin/shops`.
 
-**React page:** `administration/AdminShopsPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `administration/AdminShopsPage.tsx` (đã triển khai dưới `features/`).
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
-| ID | Action/use case hiện tại | Endpoint đích | Quyền/ràng buộc | Task / regression dự kiến |
+| ID | Action/use case hiện tại | Endpoint hiện có (prefix `/api/v1/app`) | Quyền/ràng buộc | Task / regression |
 | --- | --- | --- | --- | --- |
-| A014 | `GetAdminShopsService.GetAsync` | `GET /admin/shops` | Admin | T09.02 / `BrowserAdminShopsTests` |
-| A015 | `SetShopActiveStatusService.SetAsync` | `PUT /admin/shops/{shopId}/active` | Admin | T09.02 / `BrowserAdminShopsTests` |
+| A014 | `GetAdminShopsService.GetAsync` | `GET /admin/shops` | Admin | T09.02 / `BrowserAdminTests` |
+| A015 | `SetShopActiveStatusService.SetAsync` | `PUT /admin/shops/{shopId}/active` | Admin | T09.02 / `BrowserAdminTests` |
 
 **Handler parity (local/lifecycle + orchestrations; không mặc định tạo endpoint):** `CancelToggleShop`, `ConfirmToggleShopAsync`, `GetCurrentUserIdAsync`, `LoadAsync`, `OnInitializedAsync`, `RefreshAsync`, `RequestToggleShop`, `ToggleShopAsync`.
 
@@ -110,15 +110,15 @@
 
 **Source:** [AdminSystemConfig.razor](../../src/MiniLogistics.Web/Components/Pages/Administration/AdminSystemConfig.razor). **Routes:** `/admin/system-config`.
 
-**React page:** `administration/AdminSystemConfigPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `administration/AdminSystemConfigPage.tsx` (đã triển khai dưới `features/`).
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
-| ID | Action/use case hiện tại | Endpoint đích | Quyền/ràng buộc | Task / regression dự kiến |
+| ID | Action/use case hiện tại | Endpoint hiện có (prefix `/api/v1/app`) | Quyền/ràng buộc | Task / regression |
 | --- | --- | --- | --- | --- |
-| A016 | `AdminSystemConfigurationService.CreateFeeRuleVersionAsync` | `POST /admin/system-config/fee-rules` | Admin; serialized version | T09.03 / `BrowserAdminConfigurationTests` |
-| A017 | `AdminSystemConfigurationService.GetAsync` | `GET /admin/system-config` | Admin | T09.03 / `BrowserAdminConfigurationTests` |
-| A018 | `AdminSystemConfigurationService.UpsertRouteRegionAsync` | `PUT /admin/system-config/route-regions` | Admin; serialized version | T09.03 / `BrowserAdminConfigurationTests` |
+| A016 | `AdminSystemConfigurationService.CreateFeeRuleVersionAsync` | `POST /admin/configuration/fees` | Admin; serialized version | T09.03 / `BrowserAdminTests` |
+| A017 | `AdminSystemConfigurationService.GetAsync` | `GET /admin/configuration` | Admin | T09.03 / `BrowserAdminTests` |
+| A018 | `AdminSystemConfigurationService.UpsertRouteRegionAsync` | `PUT /admin/configuration/routes` | Admin; serialized version | T09.03 / `BrowserAdminTests` |
 
 **Handler parity (local/lifecycle + orchestrations; không mặc định tạo endpoint):** `GetCurrentUserIdAsync`, `LoadAsync`, `OnInitializedAsync`, `SaveFeeRuleAsync`, `SaveRouteRegionAsync`.
 
@@ -126,19 +126,19 @@
 
 **Source:** [AdminUsers.razor](../../src/MiniLogistics.Web/Components/Pages/Administration/AdminUsers.razor). **Routes:** `/admin/users`.
 
-**React page:** `administration/AdminUsersPage.tsx` (dự kiến, dưới `features/`).
+**React page:** `administration/AdminUsersPage.tsx` (đã triển khai dưới `features/`).
 
 **Query bind hiện tại:** không có SupplyParameterFromQuery.
 
-| ID | Action/use case hiện tại | Endpoint đích | Quyền/ràng buộc | Task / regression dự kiến |
+| ID | Action/use case hiện tại | Endpoint hiện có (prefix `/api/v1/app`) | Quyền/ràng buộc | Task / regression |
 | --- | --- | --- | --- | --- |
-| A019 | `CreateInternalUserService.CreateAsync` | `POST /admin/users` | Admin | T09.02 / `BrowserAdminUsersTests` |
-| A020 | `GetAdminUsersService.SearchAsync` | `GET /admin/users` | Admin | T09.02 / `BrowserAdminUsersTests` |
-| A021 | `GetLogisticsHubsService.GetAsync` | `GET /admin/hub-options` | Admin; add actor guard for lookup | T09.02 / `BrowserAdminUsersTests` |
-| A022 | `ResetUserPasswordService.ResetAsync` | `POST /admin/users/{userId}/reset-password` | Admin; userId is target, not actor | T09.02 / `BrowserAdminUsersTests` |
-| A023 | `SetShipperCapacityService.SetAsync` | `PUT /admin/users/{userId}/shipper-capacity` | Admin; target shipper | T09.02 / `BrowserAdminUsersTests` |
-| A024 | `SetShipperWorkingAreasService.SetAsync` | `PUT /admin/users/{userId}/working-areas` | Admin; target shipper | T09.02 / `BrowserAdminUsersTests` |
-| A025 | `SetUserActiveStatusService.SetAsync` | `PUT /admin/users/{userId}/active` | Admin; userId is target, not actor | T09.02 / `BrowserAdminUsersTests` |
+| A019 | `CreateInternalUserService.CreateAsync` | `POST /admin/users` | Admin | T09.02 / `BrowserAdminTests` |
+| A020 | `GetAdminUsersService.SearchAsync` | `GET /admin/users` | Admin | T09.02 / `BrowserAdminTests` |
+| A021 | `GetAdminHubsService.GetAsync` | `GET /admin/hubs` | Admin; thay lookup không actor trước HTTP | T09.02 / `BrowserAdminTests` |
+| A022 | `ResetUserPasswordService.ResetAsync` | `PUT /admin/users/{userId}/password` | Admin; userId is target, not actor | T09.02 / `BrowserAdminTests` |
+| A023 | `SetShipperCapacityService.SetAsync` | `PUT /admin/users/{userId}/capacity` | Admin; target shipper | T09.02 / `BrowserAdminTests` |
+| A024 | `SetShipperWorkingAreasService.SetAsync` | `PUT /admin/users/{userId}/working-areas` | Admin; target shipper | T09.02 / `BrowserAdminTests` |
+| A025 | `SetUserActiveStatusService.SetAsync` | `PUT /admin/users/{userId}/active` | Admin; userId is target, not actor | T09.02 / `BrowserAdminTests` |
 
 **Handler parity (local/lifecycle + orchestrations; không mặc định tạo endpoint):** `ApplyUserFiltersAsync`, `CancelPendingUserAction`, `ClearCreateForm`, `ConfirmPendingUserActionAsync`, `CreateUserAsync`, `GetCurrentUserIdAsync`, `LoadAsync`, `NextUserPageAsync`, `OnInitializedAsync`, `PreviousUserPageAsync`, `RefreshAsync`, `RequestPasswordReset`, `RequestToggleUser`, `ResetUserPasswordAsync`, `SaveCapacityAsync`, `SaveWorkingAreasAsync`, `SelectAreaShipper`, `SetResetPassword`, `SetToggleReason`, `SyncSelectedAreaShipper`, `SyncSelectedCapacity`, `SyncSelectedWorkingAreaHubIds`, `ToggleHubSelection`, `ToggleUserAsync`.
 
@@ -221,7 +221,7 @@ Static FAQ/expand interactions; no Application query. T11.01 / public-pages.spec
 
 | ID | Action/use case hiện tại | Endpoint đích | Quyền/ràng buộc | Task / regression dự kiến |
 | --- | --- | --- | --- | --- |
-| A047 | `BannerService.GetActiveBannersAsync` | `GET P/banners` | Anonymous/active only | T11.01 / `BrowserPublicContentTests` |
+| A047 | `BannerService.GetActiveBannersAsync` | `GET P/banners` | Anonymous/active only | T09.04 / `BrowserBannerTests` đã có API; renderer T11.01 còn kế hoạch |
 
 **Handler parity (local/lifecycle + orchestrations; không mặc định tạo endpoint):** `Dispose`, `NextBanner`, `OnInitializedAsync`, `PrevBanner`, `SetBanner`.
 
@@ -496,12 +496,13 @@ Với input `XCommand`/`XQuery`, request browser gồm các field không phải 
 | `IApiClientManagementService.UpdateApiClientSecurityAsync` | [IApiClientManagementService.cs](../../src/MiniLogistics.Application/PartnerApi/IApiClientManagementService.cs) | `UpdatePartnerApiClientSecurityCommand command, CancellationToken cancellationToken = default` | `Result` |
 | `IAssignShipperToShipmentService.AssignAsync` | [IAssignShipperToShipmentService.cs](../../src/MiniLogistics.Application/Shipments/AssignShipperToShipment/IAssignShipperToShipmentService.cs) | `AssignShipperCommand command, CancellationToken cancellationToken = default` | `Result` |
 | `IAutoAssignShipmentService.AutoAssignAsync` | [IAutoAssignShipmentService.cs](../../src/MiniLogistics.Application/Shipments/AutoAssignShipment/IAutoAssignShipmentService.cs) | `Guid shipmentId, CancellationToken cancellationToken = default, Guid? requestedByUserId = null` | `AutoAssignShipmentResult` |
-| `IBannerService.CreateBannerAsync` | [IBannerService.cs](../../src/MiniLogistics.Application/Banners/IBannerService.cs) | `string title, string imageUrl, string? linkUrl, int sortOrder, bool isActive, CancellationToken cancellationToken = default` | `BannerDto` |
-| `IBannerService.DeleteBannerAsync` | [IBannerService.cs](../../src/MiniLogistics.Application/Banners/IBannerService.cs) | `Guid id, CancellationToken cancellationToken = default` | `void` |
+| `IBannerService.CreateBannerAsync` | [IBannerService.cs](../../src/MiniLogistics.Application/Banners/IBannerService.cs) | `Guid actorUserId, string title, string imageUrl, string? linkUrl, int sortOrder, bool isActive, CancellationToken cancellationToken = default` | `BannerDto` |
+| `IBannerService.DeleteBannerAsync` | [IBannerService.cs](../../src/MiniLogistics.Application/Banners/IBannerService.cs) | `Guid actorUserId, Guid id, CancellationToken cancellationToken = default` | `Result` |
 | `IBannerService.GetActiveBannersAsync` | [IBannerService.cs](../../src/MiniLogistics.Application/Banners/IBannerService.cs) | `CancellationToken cancellationToken = default` | `IReadOnlyList<BannerDto>` |
-| `IBannerService.GetAllBannersAsync` | [IBannerService.cs](../../src/MiniLogistics.Application/Banners/IBannerService.cs) | `CancellationToken cancellationToken = default` | `IReadOnlyList<BannerDto>` |
-| `IBannerService.ToggleBannerStatusAsync` | [IBannerService.cs](../../src/MiniLogistics.Application/Banners/IBannerService.cs) | `Guid id, CancellationToken cancellationToken = default` | `void` |
-| `IBannerService.UpdateBannerAsync` | [IBannerService.cs](../../src/MiniLogistics.Application/Banners/IBannerService.cs) | `Guid id, string title, string imageUrl, string? linkUrl, int sortOrder, CancellationToken cancellationToken = default` | `BannerDto` |
+| `IBannerService.GetAllBannersAsync` | [IBannerService.cs](../../src/MiniLogistics.Application/Banners/IBannerService.cs) | `Guid actorUserId, CancellationToken cancellationToken = default` | `IReadOnlyList<BannerDto>` |
+| `IBannerService.ToggleBannerStatusAsync` | [IBannerService.cs](../../src/MiniLogistics.Application/Banners/IBannerService.cs) | `Guid actorUserId, Guid id, CancellationToken cancellationToken = default` | `Result` |
+| `IBannerService.UpdateBannerAsync` | [IBannerService.cs](../../src/MiniLogistics.Application/Banners/IBannerService.cs) | `Guid actorUserId, Guid id, string title, string imageUrl, string? linkUrl, int sortOrder, CancellationToken cancellationToken = default` | `BannerDto` |
+| `IUploadBannerImageService.UploadAsync` | [UploadBannerImageService.cs](../../src/MiniLogistics.Application/Banners/UploadBannerImageService.cs) | `Guid actorUserId, Stream content, string fileName, string contentType, CancellationToken cancellationToken = default` | `BannerImageResponse` |
 | `IBulkRetryAutoAssignmentService.RetryAsync` | [IBulkRetryAutoAssignmentService.cs](../../src/MiniLogistics.Application/Shipments/BulkRetryAutoAssignment/IBulkRetryAutoAssignmentService.cs) | `BulkRetryAutoAssignmentCommand command, CancellationToken cancellationToken = default` | `BulkRetryAutoAssignmentResult` |
 | `ICancelShipmentAssignmentService.CancelAsync` | [ICancelShipmentAssignmentService.cs](../../src/MiniLogistics.Application/Shipments/CancelShipmentAssignment/ICancelShipmentAssignmentService.cs) | `CancelShipmentAssignmentCommand command, CancellationToken cancellationToken = default` | `Result` |
 | `ICancelShipmentForCurrentShopService.CancelAsync` | [ICancelShipmentForCurrentShopService.cs](../../src/MiniLogistics.Application/Shipments/CancelShipmentForCurrentShop/ICancelShipmentForCurrentShopService.cs) | `CancelShipmentCommand command, CancellationToken cancellationToken = default` | `Result` |
