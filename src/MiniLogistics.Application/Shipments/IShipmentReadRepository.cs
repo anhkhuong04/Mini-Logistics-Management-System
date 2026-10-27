@@ -35,57 +35,17 @@ public interface IShipmentReadRepository
     /// <param name="statusFilter">Optional shipment status filter.</param>
     /// <param name="trackingCodeSearch">Optional tracking code or receiver-name search text.</param>
     /// <param name="cancellationToken">A token used to cancel the asynchronous operation.</param>
-    async Task<PagedResult<Shipment>> GetByShopIdPagedAsync(
+    Task<PagedResult<Shipment>> GetByShopIdPagedAsync(
         Guid shopId,
         int pageNumber,
         int pageSize,
         ShipmentStatus? statusFilter = null,
         string? trackingCodeSearch = null,
-        CancellationToken cancellationToken = default)
-    {
-        var normalizedPageNumber = NormalizePageNumber(pageNumber);
-        var normalizedPageSize = NormalizePageSize(pageSize);
-        var shipments = await GetByShopIdAsync(shopId, cancellationToken);
-        var query = shipments.AsEnumerable();
+        CancellationToken cancellationToken = default);
 
-        if (statusFilter.HasValue)
-        {
-            query = query.Where(shipment => shipment.Status == statusFilter.Value);
-        }
-
-        if (!string.IsNullOrWhiteSpace(trackingCodeSearch))
-        {
-            var keyword = trackingCodeSearch.Trim();
-            query = query.Where(shipment =>
-                shipment.TrackingCode.Value.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                || shipment.ReceiverName.Contains(keyword, StringComparison.OrdinalIgnoreCase));
-        }
-
-        var filtered = query.ToList();
-        var items = filtered
-            .Skip((normalizedPageNumber - 1) * normalizedPageSize)
-            .Take(normalizedPageSize)
-            .ToList();
-
-        return new PagedResult<Shipment>(
-            items,
-            normalizedPageNumber,
-            normalizedPageSize,
-            filtered.Count);
-    }
-
-    async Task<PagedResult<Shipment>> SearchByShopAsync(
+    Task<PagedResult<Shipment>> SearchByShopAsync(
         ShopShipmentSearchCriteria criteria,
-        CancellationToken cancellationToken = default)
-    {
-        return await GetByShopIdPagedAsync(
-            criteria.ShopId,
-            criteria.PageNumber,
-            criteria.PageSize,
-            criteria.StatusFilter,
-            criteria.TrackingCodeSearch,
-            cancellationToken);
-    }
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns all shipments currently in the specified status.
@@ -96,63 +56,9 @@ public interface IShipmentReadRepository
         ShipmentStatus status,
         CancellationToken cancellationToken = default);
 
-    async Task<PagedResult<Shipment>> SearchPendingPickupAsync(
+    Task<PagedResult<Shipment>> SearchPendingPickupAsync(
         PendingPickupShipmentSearchCriteria criteria,
-        CancellationToken cancellationToken = default)
-    {
-        var normalizedPageNumber = NormalizePageNumber(criteria.PageNumber);
-        var normalizedPageSize = NormalizePageSize(criteria.PageSize);
-        var shipments = await GetByStatusAsync(ShipmentStatus.PendingPickup, cancellationToken);
-        var query = shipments.AsEnumerable();
-
-        if (!string.IsNullOrWhiteSpace(criteria.SearchText))
-        {
-            var keyword = criteria.SearchText.Trim();
-            query = query.Where(shipment =>
-                shipment.TrackingCode.Value.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                || shipment.ReceiverName.Contains(keyword, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (!string.IsNullOrWhiteSpace(criteria.Province))
-        {
-            var province = criteria.Province.Trim();
-            query = query.Where(shipment =>
-                string.Equals(shipment.PickupAddress.Province, province, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (criteria.FromUtc.HasValue)
-        {
-            query = query.Where(shipment => shipment.CreatedAtUtc >= criteria.FromUtc.Value);
-        }
-
-        if (criteria.ToUtc.HasValue)
-        {
-            query = query.Where(shipment => shipment.CreatedAtUtc <= criteria.ToUtc.Value);
-        }
-
-        if (criteria.MinCodAmount.HasValue)
-        {
-            query = query.Where(shipment => shipment.CodAmount.Amount >= criteria.MinCodAmount.Value);
-        }
-
-        if (criteria.MaxCodAmount.HasValue)
-        {
-            query = query.Where(shipment => shipment.CodAmount.Amount <= criteria.MaxCodAmount.Value);
-        }
-
-        if (criteria.SlaCutoffUtc.HasValue)
-        {
-            query = query.Where(shipment => shipment.CreatedAtUtc <= criteria.SlaCutoffUtc.Value);
-        }
-
-        var filtered = query.ToList();
-        var items = filtered
-            .Skip((normalizedPageNumber - 1) * normalizedPageSize)
-            .Take(normalizedPageSize)
-            .ToList();
-
-        return new PagedResult<Shipment>(items, normalizedPageNumber, normalizedPageSize, filtered.Count);
-    }
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns a bounded page of shipments currently in the specified status.
@@ -161,26 +67,11 @@ public interface IShipmentReadRepository
     /// <param name="pageNumber">The one-based page number. Values lower than one are normalized to one.</param>
     /// <param name="pageSize">The requested page size. Implementations clamp this to a bounded maximum.</param>
     /// <param name="cancellationToken">A token used to cancel the asynchronous operation.</param>
-    async Task<PagedResult<Shipment>> GetByStatusPagedAsync(
+    Task<PagedResult<Shipment>> GetByStatusPagedAsync(
         ShipmentStatus status,
         int pageNumber,
         int pageSize,
-        CancellationToken cancellationToken = default)
-    {
-        var normalizedPageNumber = NormalizePageNumber(pageNumber);
-        var normalizedPageSize = NormalizePageSize(pageSize);
-        var shipments = await GetByStatusAsync(status, cancellationToken);
-        var items = shipments
-            .Skip((normalizedPageNumber - 1) * normalizedPageSize)
-            .Take(normalizedPageSize)
-            .ToList();
-
-        return new PagedResult<Shipment>(
-            items,
-            normalizedPageNumber,
-            normalizedPageSize,
-            shipments.Count);
-    }
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns shipments whose status is in the provided set.
@@ -191,66 +82,9 @@ public interface IShipmentReadRepository
         IReadOnlyCollection<ShipmentStatus> statuses,
         CancellationToken cancellationToken = default);
 
-    async Task<PagedResult<Shipment>> SearchOperationsAsync(
+    Task<PagedResult<Shipment>> SearchOperationsAsync(
         OperationsShipmentSearchCriteria criteria,
-        CancellationToken cancellationToken = default)
-    {
-        var normalizedPageNumber = NormalizePageNumber(criteria.PageNumber);
-        var normalizedPageSize = NormalizePageSize(criteria.PageSize);
-        var shipments = await GetByStatusesAsync(criteria.Statuses, cancellationToken);
-        var query = shipments.AsEnumerable();
-
-        if (criteria.ShipperId.HasValue)
-        {
-            query = query.Where(shipment =>
-                shipment.Assignments.FirstOrDefault(assignment => assignment.IsActive)?.ShipperId == criteria.ShipperId.Value);
-        }
-
-        if (!string.IsNullOrWhiteSpace(criteria.SearchText))
-        {
-            var keyword = criteria.SearchText.Trim();
-            query = query.Where(shipment =>
-                shipment.TrackingCode.Value.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                || shipment.ReceiverName.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                || shipment.ReceiverPhone.Value.Contains(keyword, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (!string.IsNullOrWhiteSpace(criteria.Province))
-        {
-            var province = criteria.Province.Trim();
-            query = query.Where(shipment =>
-                string.Equals(shipment.PickupAddress.Province, province, StringComparison.OrdinalIgnoreCase)
-                || string.Equals(shipment.DeliveryAddress.Province, province, StringComparison.OrdinalIgnoreCase));
-        }
-
-        if (criteria.FromUtc.HasValue)
-        {
-            query = query.Where(shipment => shipment.CreatedAtUtc >= criteria.FromUtc.Value);
-        }
-
-        if (criteria.ToUtc.HasValue)
-        {
-            query = query.Where(shipment => shipment.CreatedAtUtc <= criteria.ToUtc.Value);
-        }
-
-        if (criteria.MinCodAmount.HasValue)
-        {
-            query = query.Where(shipment => shipment.CodAmount.Amount >= criteria.MinCodAmount.Value);
-        }
-
-        if (criteria.MaxCodAmount.HasValue)
-        {
-            query = query.Where(shipment => shipment.CodAmount.Amount <= criteria.MaxCodAmount.Value);
-        }
-
-        var filtered = query.ToList();
-        var items = filtered
-            .Skip((normalizedPageNumber - 1) * normalizedPageSize)
-            .Take(normalizedPageSize)
-            .ToList();
-
-        return new PagedResult<Shipment>(items, normalizedPageNumber, normalizedPageSize, filtered.Count);
-    }
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns shipments by their identifiers.
@@ -270,37 +104,9 @@ public interface IShipmentReadRepository
         Guid shipperId,
         CancellationToken cancellationToken = default);
 
-    async Task<PagedResult<Shipment>> SearchAssignedToShipperAsync(
+    Task<PagedResult<Shipment>> SearchAssignedToShipperAsync(
         AssignedShipmentsForShipperSearchCriteria criteria,
-        CancellationToken cancellationToken = default)
-    {
-        var normalizedPageNumber = NormalizePageNumber(criteria.PageNumber);
-        var normalizedPageSize = NormalizePageSize(criteria.PageSize);
-        var shipments = await GetAssignedToShipperAsync(criteria.ShipperId, cancellationToken);
-        var query = shipments.AsEnumerable();
-
-        if (criteria.Statuses is { Count: > 0 })
-        {
-            query = query.Where(shipment => criteria.Statuses.Contains(shipment.Status));
-        }
-
-        if (!string.IsNullOrWhiteSpace(criteria.SearchText))
-        {
-            var keyword = criteria.SearchText.Trim();
-            query = query.Where(shipment =>
-                shipment.TrackingCode.Value.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                || shipment.ReceiverName.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                || shipment.ReceiverPhone.Value.Contains(keyword, StringComparison.OrdinalIgnoreCase));
-        }
-
-        var filtered = query.ToList();
-        var items = filtered
-            .Skip((normalizedPageNumber - 1) * normalizedPageSize)
-            .Take(normalizedPageSize)
-            .ToList();
-
-        return new PagedResult<Shipment>(items, normalizedPageNumber, normalizedPageSize, filtered.Count);
-    }
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Returns active assignment counts for each requested shipper.
@@ -323,26 +129,6 @@ public interface IShipmentReadRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Returns a tracked shipment owned by a specific shop for domain mutation.
-    /// </summary>
-    /// <param name="shipmentId">The shipment identifier.</param>
-    /// <param name="shopId">The expected owner shop identifier.</param>
-    /// <param name="cancellationToken">A token used to cancel the asynchronous operation.</param>
-    Task<Shipment?> GetTrackedByIdAndShopIdAsync(
-        Guid shipmentId,
-        Guid shopId,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Returns a tracked shipment by identifier for back-office mutation.
-    /// </summary>
-    /// <param name="shipmentId">The shipment identifier.</param>
-    /// <param name="cancellationToken">A token used to cancel the asynchronous operation.</param>
-    Task<Shipment?> GetTrackedByIdAsync(
-        Guid shipmentId,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Returns a read-only shipment by tracking code.
     /// </summary>
     /// <param name="trackingCode">The normalized tracking code to load.</param>
@@ -362,29 +148,4 @@ public interface IShipmentReadRepository
         Guid shopId,
         CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Returns a tracked shipment by tracking code and owner shop for domain mutation.
-    /// </summary>
-    /// <param name="trackingCode">The normalized tracking code to load.</param>
-    /// <param name="shopId">The expected owner shop identifier.</param>
-    /// <param name="cancellationToken">A token used to cancel the asynchronous operation.</param>
-    Task<Shipment?> GetTrackedByTrackingCodeAndShopIdAsync(
-        TrackingCode trackingCode,
-        Guid shopId,
-        CancellationToken cancellationToken = default);
-
-    private static int NormalizePageNumber(int pageNumber)
-    {
-        return Math.Max(1, pageNumber);
-    }
-
-    private static int NormalizePageSize(int pageSize)
-    {
-        if (pageSize == int.MaxValue)
-        {
-            return int.MaxValue;
-        }
-
-        return Math.Clamp(pageSize, 1, 100);
-    }
 }

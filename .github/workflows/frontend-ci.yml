@@ -27,6 +27,8 @@ jobs:
         run: |
           npm run api:generate
           git diff --exit-code -- src/shared/api/generated/browser-api.d.ts
+      - run: npm run format:check
+      - run: npm run test:architecture
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test -- --maxWorkers=1

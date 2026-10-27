@@ -164,7 +164,7 @@
 
 **Handler parity (local/lifecycle + orchestrations; không mặc định tạo endpoint):** `CopyGeneratedKeyAsync`, `CreateApiClientAsync`, `GetCurrentUserIdAsync`, `LoadAsync`, `OnParametersSetAsync`, `OnShopChangedAsync`, `RefreshAsync`, `RetryDeliveryAsync`, `RetryOutboxAsync`, `RotateClientAsync`, `SaveSecurityAsync`, `SaveWebhookAsync`, `SelectClient`, `SyncWebhookForm`, `TestWebhookAsync`, `ToggleClientAsync`, `ToggleCreateScope`, `ToggleSecurityScope`.
 
-Browser DTO tại [BrowserIntegrationContracts.cs](../../src/MiniLogistics.Web/Endpoints/Browser/BrowserIntegrationContracts.cs) chuyển flags scopes thành mảng tên và thay raw delivery/request errors bằng thông tin an toàn. API client key chỉ trong response create/rotate; signing secret chỉ vào request upsert. Read timestamp theo server timezone, usage buckets UTC; selector Shop dùng đúng ManageIntegrations, không dùng mặc định ViewShipments của workspace khác. Environment theo host; revoke=activefalse, rotate reactivates, upsert webhook reactivates; không thêm standalone deactivate/reveal/secret-rotate/event-subscription command ngoài service hiện có.
+Browser DTO tại [BrowserIntegrationContracts.cs](../../src/MiniLogistics.Web/Endpoints/Browser/Integrations/BrowserIntegrationContracts.cs) chuyển flags scopes thành mảng tên và thay raw delivery/request errors bằng thông tin an toàn. API client key chỉ trong response create/rotate; signing secret chỉ vào request upsert. Read timestamp theo server timezone, usage buckets UTC; selector Shop dùng đúng ManageIntegrations, không dùng mặc định ViewShipments của workspace khác. Environment theo host; revoke=activefalse, rotate reactivates, upsert webhook reactivates; không thêm standalone deactivate/reveal/secret-rotate/event-subscription command ngoài service hiện có.
 
 ## OperationsAssignments
 
@@ -600,7 +600,7 @@ Với input `XCommand`/`XQuery`, request browser gồm các field không phải 
 | `IWebhookManagementService.RetryWebhookDeliveryAsync` | [IWebhookManagementService.cs](../../src/MiniLogistics.Application/PartnerApi/IWebhookManagementService.cs) | `RetryPartnerWebhookDeliveryCommand command, CancellationToken cancellationToken = default` | `Result` |
 | `IWebhookManagementService.TestWebhookAsync` | [IWebhookManagementService.cs](../../src/MiniLogistics.Application/PartnerApi/IWebhookManagementService.cs) | `TestPartnerWebhookCommand command, CancellationToken cancellationToken = default` | `PartnerWebhookTestResponse` |
 | `IWebhookManagementService.UpsertWebhookEndpointAsync` | [IWebhookManagementService.cs](../../src/MiniLogistics.Application/PartnerApi/IWebhookManagementService.cs) | `UpsertPartnerWebhookEndpointCommand command, CancellationToken cancellationToken = default` | `PartnerWebhookEndpointResponse` |
-| `VietnamAdministrativeDivisionService.GetProvincesAsync` | [VietnamAdministrativeDivisionService.cs](../../src/MiniLogistics.Web/Services/VietnamAdministrativeDivisionService.cs) | `CancellationToken` | `IReadOnlyList<ProvinceOption>` |
+| `VietnamAdministrativeDivisionService.GetProvincesAsync` | [VietnamAdministrativeDivisionService.cs](../../src/MiniLogistics.Infrastructure/ReferenceData/VietnamAdministrativeDivisionService.cs) | `CancellationToken` | `IReadOnlyList<ProvinceOption>` |
 
 ## Khác biệt đã xác minh và giới hạn parity
 

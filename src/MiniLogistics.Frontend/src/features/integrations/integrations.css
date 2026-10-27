@@ -1,7 +1,36 @@
-.integrations-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; min-width: 0; }
-.integrations-workspace > *, .integrations-workspace .ant-card-body { min-width: 0; overflow-wrap: anywhere; }
-.integrations-workspace .ant-form { max-width: 720px; }
-.integrations-workspace .ant-checkbox-group { display: flex; flex-wrap: wrap; gap: 12px; }
-.integrations-workspace .ant-btn { min-height: 40px; height: auto; white-space: normal; }
-.integrations-workspace pre { white-space: pre-wrap; overflow-wrap: anywhere; }
-@media(max-width:600px) { .integrations-workspace .ant-btn { min-height: 44px; } .integrations-workspace .ant-card-body { padding: 16px; } }
+.integrations-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  min-width: 0;
+}
+.integrations-workspace > *,
+.integrations-workspace .ant-card-body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.integrations-workspace .ant-form {
+  max-width: 720px;
+}
+.integrations-workspace .ant-checkbox-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.integrations-workspace .ant-btn {
+  min-height: 40px;
+  height: auto;
+  white-space: normal;
+}
+.integrations-workspace pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .integrations-workspace .ant-btn {
+    min-height: 44px;
+  }
+  .integrations-workspace .ant-card-body {
+    padding: 16px;
+  }
+}

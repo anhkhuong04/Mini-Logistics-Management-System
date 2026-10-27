@@ -30,13 +30,6 @@
     <ProjectReference Include="..\MiniLogistics.Infrastructure\MiniLogistics.Infrastructure.csproj" />
   </ItemGroup>
 
-  <!-- Preserve pre-existing user edits as inactive source, outside compilation and publish. -->
-  <ItemGroup>
-    <RazorComponent Remove="Components/**" />
-    <Content Remove="Components/**" />
-    <None Remove="Components/**" />
-  </ItemGroup>
-
   <Target Name="RenamePartnerOpenApiDocument" AfterTargets="GenerateOpenApiDocuments">
     <Move SourceFiles="$(OpenApiDocumentsDirectory)\partner-api.json"
           DestinationFiles="$(OpenApiDocumentsDirectory)\partner-api.openapi.json"

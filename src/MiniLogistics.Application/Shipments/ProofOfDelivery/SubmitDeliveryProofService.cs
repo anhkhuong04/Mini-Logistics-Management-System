@@ -13,7 +13,7 @@ namespace MiniLogistics.Application.Shipments.ProofOfDelivery;
 public sealed class SubmitDeliveryProofService : ISubmitDeliveryProofService
 {
     private readonly IValidator<SubmitDeliveryProofCommand> _validator;
-    private readonly IShipmentReadRepository _shipmentRepository;
+    private readonly IShipmentWriteRepository _shipmentRepository;
     private readonly IDeliveryProofRepository _proofRepository;
     private readonly IIdentityService _identityService;
     private readonly IOperationAuthorizationService _operationAuthorizationService;
@@ -22,7 +22,7 @@ public sealed class SubmitDeliveryProofService : ISubmitDeliveryProofService
 
     public SubmitDeliveryProofService(
         IValidator<SubmitDeliveryProofCommand> validator,
-        IShipmentReadRepository shipmentRepository,
+        IShipmentWriteRepository shipmentRepository,
         IDeliveryProofRepository proofRepository,
         IIdentityService identityService,
         TimeProvider timeProvider,

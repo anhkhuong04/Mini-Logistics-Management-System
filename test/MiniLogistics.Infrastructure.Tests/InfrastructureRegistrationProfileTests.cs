@@ -1,3 +1,4 @@
+using MiniLogistics.Infrastructure.Shipments.Import;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;

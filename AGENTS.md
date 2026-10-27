@@ -9,7 +9,7 @@ This repository is a .NET 10 modular monolith for shipment operations. Treat thi
 3. Use [`.agents/workflows.md`](.agents/workflows.md) for implementation, bug-fix, refactor, review, and Definition of Done.
 4. Use [`.agents/commands.md`](.agents/commands.md) for supported commands.
 5. Check [`.agents/known-issues.md`](.agents/known-issues.md) before broad or cross-cutting work.
-6. For frontend migration or browser API work, read [`refactorfe.md`](refactorfe.md) and the [migration contract/status](docs/Frontend/react-migration-contracts.md). Follow the current task scope; planned files, commands and endpoints are not implemented until verified in source.
+6. For frontend migration or browser API work, read [the archived frontend plan](docs/Frontend/history/refactorfe.md) and the [migration contract/status](docs/Frontend/react-migration-contracts.md). Follow the current task scope; planned files, commands and endpoints are not implemented until verified in source.
 
 ## Non-negotiable rules
 
@@ -22,7 +22,9 @@ This repository is a .NET 10 modular monolith for shipment operations. Treat thi
 - Do not manually rewrite existing migration history or the EF model snapshot. Generate schema changes through EF tooling and review all generated files.
 - Preserve partner API contracts, idempotency behavior, outbox atomicity, webhook signing/SSRF controls, audit trails, and PII masking unless the task explicitly changes them.
 - Never commit secrets, demo passwords, generated binaries, downloaded packages, build output, logs, or local connection details.
-- Do not use the stray root `Mini-logistics-manegemant-system.csproj`; build and test `Mini-logistics-manegemant-system.slnx` or a specific project.
+- Build and test `Mini-logistics-manegemant-system.slnx` or a specific project. The unused root `.csproj` has been removed.
+
+See [source organization](docs/Backend/source-organization.md) for current ownership, import boundaries, formatting and archived source.
 
 ## Validation baseline
 

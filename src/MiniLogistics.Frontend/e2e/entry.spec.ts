@@ -2,7 +2,9 @@ import { test, expect } from '@playwright/test';
 
 test('support is accessible by keyboard and points to the contact page', async ({ page }) => {
   await page.goto('./');
-  await expect(page.getByRole('heading', { name: 'LAK | Nền tảng quản lý logistics', exact: true })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'LAK | Nền tảng quản lý logistics', exact: true }),
+  ).toBeVisible();
   const contact = page.getByRole('navigation').getByRole('link', { name: 'Liên hệ', exact: true });
   await expect(contact).toHaveAttribute('href', /\/(?:app\/)?contact$/);
   await contact.focus();

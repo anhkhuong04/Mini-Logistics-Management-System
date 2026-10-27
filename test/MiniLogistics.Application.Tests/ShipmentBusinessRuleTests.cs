@@ -1,4 +1,5 @@
-﻿using FluentValidation;
+using MiniLogistics.Application.Tests.TestDoubles;
+using FluentValidation;
 using MiniLogistics.Application.AdminUsers.CreateInternalUser;
 using MiniLogistics.Application.AdminUsers.GetAdminUsers;
 using MiniLogistics.Application.AdminUsers.SetShipperCapacity;
@@ -1346,7 +1347,10 @@ public sealed class ShipmentBusinessRuleTests
             shipmentRepository,
             codTransactionRepository);
         var validRow = CreateImportRowDraft(2, "ORD-1001");
-        var invalidRow = CreateImportRowDraft(3, "ORD-1002") with { ReceiverPhone = "bad-phone" };
+        var invalidRow = CreateImportRowDraft(3, "ORD-1002") with
+        {
+            ReceiverPhone = "bad-phone"
+        };
 
         var result = await service.ConfirmAsync(new ConfirmShipmentImportCommand(
             _shopUserId,
@@ -2338,23 +2342,50 @@ public sealed class ShipmentBusinessRuleTests
                 CreatedAtUtc = createdAtUtc;
             }
 
-            public Guid UserId { get; }
+            public Guid UserId
+            {
+                get;
+            }
 
-            public string FullName { get; }
+            public string FullName
+            {
+                get;
+            }
 
-            public string Email { get; }
+            public string Email
+            {
+                get;
+            }
 
-            public string? PhoneNumber { get; }
+            public string? PhoneNumber
+            {
+                get;
+            }
 
-            public bool IsActive { get; set; }
+            public bool IsActive
+            {
+                get; set;
+            }
 
-            public bool IsAvailableForAssignment { get; set; }
+            public bool IsAvailableForAssignment
+            {
+                get; set;
+            }
 
-            public int MaxActiveShipments { get; set; }
+            public int MaxActiveShipments
+            {
+                get; set;
+            }
 
-            public HashSet<string> Roles { get; }
+            public HashSet<string> Roles
+            {
+                get;
+            }
 
-            public DateTimeOffset CreatedAtUtc { get; }
+            public DateTimeOffset CreatedAtUtc
+            {
+                get;
+            }
         }
     }
 
@@ -2425,7 +2456,10 @@ public sealed class ShipmentBusinessRuleTests
             _workingAreas = workingAreas.ToList();
         }
 
-        public int SaveChangesCount { get; private set; }
+        public int SaveChangesCount
+        {
+            get; private set;
+        }
 
         public IReadOnlyList<ShipperWorkingArea> WorkingAreas => _workingAreas.AsReadOnly();
 
@@ -2489,9 +2523,15 @@ public sealed class ShipmentBusinessRuleTests
 
     private sealed class FakeWebhookEventPublisher : IWebhookEventPublisher
     {
-        public int PublishCount { get; private set; }
+        public int PublishCount
+        {
+            get; private set;
+        }
 
-        public string? LastEventType { get; private set; }
+        public string? LastEventType
+        {
+            get; private set;
+        }
 
         public Task PublishShipmentAsync(
             Shipment shipment,
@@ -2513,7 +2553,7 @@ public sealed class ShipmentBusinessRuleTests
         }
     }
 
-    private sealed class FakeShipmentRepository : IShipmentRepository
+    private sealed class FakeShipmentRepository : ShipmentReadRepositoryFake, IShipmentRepository
     {
         private readonly List<Shipment> _shipments;
 
@@ -2522,46 +2562,49 @@ public sealed class ShipmentBusinessRuleTests
             _shipments = shipments.ToList();
         }
 
-        public int SaveChangesCount { get; private set; }
+        public int SaveChangesCount
+        {
+            get; private set;
+        }
 
         public IReadOnlyList<Shipment> Shipments => _shipments.AsReadOnly();
 
-        public Task<bool> ExistsByTrackingCodeAsync(
+        public override Task<bool> ExistsByTrackingCodeAsync(
             TrackingCode trackingCode,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(_shipments.Any(shipment => shipment.TrackingCode == trackingCode));
         }
 
-        public Task<IReadOnlyList<Shipment>> GetByShopIdAsync(
+        public override Task<IReadOnlyList<Shipment>> GetByShopIdAsync(
             Guid shopId,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<Shipment>>(_shipments.Where(shipment => shipment.ShopId == shopId).ToList());
         }
 
-        public Task<IReadOnlyList<Shipment>> GetByStatusAsync(
+        public override Task<IReadOnlyList<Shipment>> GetByStatusAsync(
             ShipmentStatus status,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<Shipment>>(_shipments.Where(shipment => shipment.Status == status).ToList());
         }
 
-        public Task<IReadOnlyList<Shipment>> GetByStatusesAsync(
+        public override Task<IReadOnlyList<Shipment>> GetByStatusesAsync(
             IReadOnlyCollection<ShipmentStatus> statuses,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<Shipment>>(_shipments.Where(shipment => statuses.Contains(shipment.Status)).ToList());
         }
 
-        public Task<IReadOnlyList<Shipment>> GetByIdsAsync(
+        public override Task<IReadOnlyList<Shipment>> GetByIdsAsync(
             IReadOnlyCollection<Guid> shipmentIds,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<Shipment>>(_shipments.Where(shipment => shipmentIds.Contains(shipment.Id)).ToList());
         }
 
-        public Task<IReadOnlyList<Shipment>> GetAssignedToShipperAsync(
+        public override Task<IReadOnlyList<Shipment>> GetAssignedToShipperAsync(
             Guid shipperId,
             CancellationToken cancellationToken = default)
         {
@@ -2571,7 +2614,7 @@ public sealed class ShipmentBusinessRuleTests
                 .ToList());
         }
 
-        public Task<IReadOnlyDictionary<Guid, int>> GetActiveAssignmentCountsByShipperIdsAsync(
+        public override Task<IReadOnlyDictionary<Guid, int>> GetActiveAssignmentCountsByShipperIdsAsync(
             IReadOnlyCollection<Guid> shipperIds,
             CancellationToken cancellationToken = default)
         {
@@ -2585,7 +2628,7 @@ public sealed class ShipmentBusinessRuleTests
             return Task.FromResult(counts);
         }
 
-        public Task<Shipment?> GetByIdAndShopIdAsync(
+        public override Task<Shipment?> GetByIdAndShopIdAsync(
             Guid shipmentId,
             Guid shopId,
             CancellationToken cancellationToken = default)
@@ -2608,14 +2651,14 @@ public sealed class ShipmentBusinessRuleTests
             return Task.FromResult(_shipments.FirstOrDefault(shipment => shipment.Id == shipmentId));
         }
 
-        public Task<Shipment?> GetByTrackingCodeAsync(
+        public override Task<Shipment?> GetByTrackingCodeAsync(
             TrackingCode trackingCode,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(_shipments.FirstOrDefault(shipment => shipment.TrackingCode == trackingCode));
         }
 
-        public Task<Shipment?> GetByTrackingCodeAndShopIdAsync(
+        public override Task<Shipment?> GetByTrackingCodeAndShopIdAsync(
             TrackingCode trackingCode,
             Guid shopId,
             CancellationToken cancellationToken = default)
@@ -2654,7 +2697,10 @@ public sealed class ShipmentBusinessRuleTests
             _codTransactions = codTransactions.ToList();
         }
 
-        public int SaveChangesCount { get; private set; }
+        public int SaveChangesCount
+        {
+            get; private set;
+        }
 
         public IReadOnlyList<CodTransaction> CodTransactions => _codTransactions.AsReadOnly();
 
@@ -2703,7 +2749,10 @@ public sealed class ShipmentBusinessRuleTests
             _shops = shops.ToList();
         }
 
-        public int SaveChangesCount { get; private set; }
+        public int SaveChangesCount
+        {
+            get; private set;
+        }
 
         public Task<Shop?> GetByIdAsync(
             Guid shopId,

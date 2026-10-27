@@ -1,3 +1,10 @@
+using MiniLogistics.Application.Shipments.GenerateShipmentLabel;
+using MiniLogistics.Infrastructure.Documents.Labels;
+using MiniLogistics.Infrastructure.Auditing;
+using MiniLogistics.Infrastructure.Shipments.Import;
+using MiniLogistics.Infrastructure.Storage.Banners;
+using MiniLogistics.Infrastructure.Persistence.Seeding;
+using MiniLogistics.Infrastructure.Caching;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
@@ -45,8 +52,10 @@ public static class DependencyInjection
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
-        services.Configure<MiniLogistics.Infrastructure.Persistence.Storage.BannerImageStorageOptions>(configuration.GetSection("BannerImages"));
-        services.AddScoped<IBannerImageStorage,MiniLogistics.Infrastructure.Persistence.Storage.LocalBannerImageStorage>();
+        services.Configure<MiniLogistics.Infrastructure.Storage.Banners.BannerImageStorageOptions>(configuration.GetSection("BannerImages"));
+        services.AddScoped<IBannerImageStorage, MiniLogistics.Infrastructure.Storage.Banners.LocalBannerImageStorage>();
+
+        services.AddScoped<IShipmentLabelRenderer, PdfShipmentLabelRenderer>();
 
         services.AddDbContext<MiniLogisticsDbContext>(options =>
         {

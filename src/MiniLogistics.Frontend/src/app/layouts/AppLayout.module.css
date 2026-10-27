@@ -1,23 +1,86 @@
-.shell { min-height: 100dvh; }
-.header { display: flex; align-items: center; gap: 12px; height: auto; min-height: 76px; line-height: 1.5; padding: 16px 24px; border-bottom: 1px solid var(--ui-border); flex-wrap: wrap; }
-.brand { color: var(--ui-text-strong); font-weight: 750; font-size: 19px; letter-spacing: -.4px; text-decoration: none; display: inline-flex; gap: 10px; align-items: center; }
-.brand svg { color: var(--ui-primary); font-size: 26px; }
-.headerTools { margin-left: auto; }
-.body { flex: 1; }
-.sider { border-right: 1px solid var(--ui-border); padding: 24px 12px; }
-.content { min-width: 0; padding: 36px; }
-.main { max-width: 1200px; margin: 0 auto; }
-.footer { color: var(--ui-muted); background: transparent; padding: 24px 36px; font-size: 13px; }
-.mobileToggle { display: none; }
+.shell {
+  min-height: 100dvh;
+}
+.header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: auto;
+  min-height: 76px;
+  line-height: 1.5;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--ui-border);
+  flex-wrap: wrap;
+}
+.brand {
+  color: var(--ui-text-strong);
+  font-weight: 750;
+  font-size: 19px;
+  letter-spacing: -0.4px;
+  text-decoration: none;
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+}
+.brand svg {
+  color: var(--ui-primary);
+  font-size: 26px;
+}
+.headerTools {
+  margin-left: auto;
+}
+.body {
+  flex: 1;
+}
+.sider {
+  border-right: 1px solid var(--ui-border);
+  padding: 24px 12px;
+}
+.content {
+  min-width: 0;
+  padding: 36px;
+}
+.main {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.footer {
+  color: var(--ui-muted);
+  background: transparent;
+  padding: 24px 36px;
+  font-size: 13px;
+}
+.mobileToggle {
+  display: none;
+}
 @media (max-width: 991px) {
-  .sider { display: none; }
-  .mobileToggle { display: inline-flex; }
-  .content { padding: 24px; }
+  .sider {
+    display: none;
+  }
+  .mobileToggle {
+    display: inline-flex;
+  }
+  .content {
+    padding: 24px;
+  }
 }
 @media (max-width: 575px) {
-  .header { padding: 16px; gap: 8px; }
-  .brand { font-size: 17px; }
-  .headerTools { width: 100%; margin-left: 0; padding-top: 4px; }
-  .content { padding: 24px 16px; }
-  .footer { padding: 20px 16px; }
+  .header {
+    padding: 16px;
+    gap: 8px;
+  }
+  .brand {
+    font-size: 17px;
+  }
+  .headerTools {
+    width: 100%;
+    margin-left: 0;
+    padding-top: 4px;
+  }
+  .content {
+    padding: 24px 16px;
+  }
+  .footer {
+    padding: 20px 16px;
+  }
 }

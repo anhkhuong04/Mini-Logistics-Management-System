@@ -1,3 +1,4 @@
+using MiniLogistics.Infrastructure.RateLimiting;
 using System.Collections.Concurrent;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
@@ -136,7 +137,10 @@ public sealed class PartnerApiRateLimiterTests
 
     private sealed class CountingThrowingRedisRateLimitStore : IRedisRateLimitStore
     {
-        public int CallCount { get; private set; }
+        public int CallCount
+        {
+            get; private set;
+        }
 
         public Task<RedisRateLimitIncrementResult> IncrementAsync(
             string key,

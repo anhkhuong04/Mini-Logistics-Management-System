@@ -1,0 +1,151 @@
+<section class="content-card operations-filter-panel" aria-label="Lọc danh sách điều phối">
+    <form @onsubmit="ApplyFilters" @onsubmit:preventDefault="true">
+        <fieldset disabled="@IsLoading">
+            <legend class="sr-only">Bộ lọc đơn hàng</legend>
+            <div class="filter-primary">
+                <label class="filter-field search-field" for="operations-search">
+                    <span>Tìm đơn hàng</span>
+                    <input id="operations-search" type="search" placeholder="Mã vận đơn, người nhận, số điện thoại" value="@SearchText" @oninput="e => SearchTextChanged.InvokeAsync(ToText(e))" />
+                </label>
+                <label class="filter-field" for="operations-province">
+                    <span>Tỉnh / thành phố</span>
+                    <input id="operations-province" placeholder="Tất cả khu vực" value="@Province" @oninput="e => ProvinceChanged.InvokeAsync(ToText(e))" />
+                </label>
+                @if (IsOperationsView)
+                {
+                    <label class="filter-field" for="operations-status">
+                        <span>Trạng thái đơn</span>
+                        <select id="operations-status" value="@Status" @onchange="e => StatusChanged.InvokeAsync(ToText(e))">
+                            <option value="All">Tất cả trạng thái</option>
+                            @foreach (var status in StatusOptions) { <option value="@status">@OperationsDisplay.FormatStatus(status)</option> }
+                        </select>
+                    </label>
+                }
+                <div class="filter-buttons">
+                    <button type="submit" class="assign-button"><AppIcon Name="search" Size="16" /> Tìm kiếm</button>
+                    <button type="button" class="text-button" @onclick="ResetFilters">Đặt lại</button>
+                </div>
+            </div>
+            <details class="advanced-filters">
+                <summary><AppIcon Name="settings" Size="16" /> Bộ lọc nâng cao @if (AdvancedFilterCount > 0) { <span class="count-badge">@AdvancedFilterCount</span> }</summary>
+                <div class="filter-grid">
+                    @if (IsOperationsView)
+                    {
+                        <label class="filter-field" for="operations-shipper">
+                            <span>Shipper phụ trách</span>
+                            <select id="operations-shipper" value="@ShipperIdText" @onchange="e => ShipperIdTextChanged.InvokeAsync(ToText(e))">
+                                <option value="">Tất cả shipper</option>
+                                @foreach (var shipper in ActiveShippers) { <option value="@shipper.UserId">@shipper.FullName</option> }
+                            </select>
+                        </label>
+                        <label class="filter-field" for="operations-cod-status">
+                            <span>Trạng thái COD</span>
+                            <select id="operations-cod-status" value="@CodStatus" @onchange="e => CodStatusChanged.InvokeAsync(ToText(e))">
+                                <option value="All">Tất cả</option>
+                                <option value="@MiniLogistics.Domain.CashOnDelivery.CodStatus.PendingCollection">Chờ thu</option>
+                                <option value="@MiniLogistics.Domain.CashOnDelivery.CodStatus.Collected">Đã thu</option>
+                                <option value="@MiniLogistics.Domain.CashOnDelivery.CodStatus.Settled">Đã đối soát</option>
+                            </select>
+                        </label>
+                    }
+                    <label class="filter-field" for="operations-from"><span>Tạo từ ngày</span><input id="operations-from" type="date" value="@FromDateText" @onchange="e => FromDateTextChanged.InvokeAsync(ToText(e))" /></label>
+                    <label class="filter-field" for="operations-to"><span>Đến ngày</span><input id="operations-to" type="date" value="@ToDateText" @onchange="e => ToDateTextChanged.InvokeAsync(ToText(e))" /></label>
+                    <label class="filter-field" for="operations-min-cod"><span>COD tối thiểu</span><input id="operations-min-cod" inputmode="decimal" placeholder="VND" value="@MinCodText" @oninput="e => MinCodTextChanged.InvokeAsync(ToText(e))" /></label>
+                    <label class="filter-field" for="operations-max-cod"><span>COD tối đa</span><input id="operations-max-cod" inputmode="decimal" placeholder="VND" value="@MaxCodText" @oninput="e => MaxCodTextChanged.InvokeAsync(ToText(e))" /></label>
+                    <label class="sla-toggle" for="operations-sla-only"><input id="operations-sla-only" type="checkbox" checked="@SlaOnly" @onchange="e => SlaOnlyChanged.InvokeAsync(ToBool(e))" /><span>Chỉ đơn quá hạn xử lý</span></label>
+                </div>
+            </details>
+        </fieldset>
+    </form>
+</section>
+
+@code {
+    [Parameter] public bool IsOperationsView { get; set; }
+    [Parameter] public IReadOnlyList<GetActiveShipperResponse> ActiveShippers { get; set; } = [];
+    [Parameter] public EventCallback ResetFilters { get; set; }
+
+    private int AdvancedFilterCount =>
+        new[] { FromDateText, ToDateText, MinCodText, MaxCodText }.Count(value => !string.IsNullOrWhiteSpace(value))
+        + (SlaOnly ? 1 : 0)
+        + (IsOperationsView && !string.IsNullOrWhiteSpace(ShipperIdText) ? 1 : 0)
+        + (IsOperationsView && CodStatus != "All" ? 1 : 0);
+
+    [Parameter]
+    public bool IsLoading { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<ShipmentStatus> StatusOptions { get; set; } = [];
+
+    [Parameter]
+    public string SearchText { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> SearchTextChanged { get; set; }
+
+    [Parameter]
+    public string Province { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> ProvinceChanged { get; set; }
+
+    [Parameter]
+    public string Status { get; set; } = "All";
+
+    [Parameter]
+    public EventCallback<string> StatusChanged { get; set; }
+
+    [Parameter]
+    public string CodStatus { get; set; } = "All";
+
+    [Parameter]
+    public EventCallback<string> CodStatusChanged { get; set; }
+
+    [Parameter]
+    public string ShipperIdText { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> ShipperIdTextChanged { get; set; }
+
+    [Parameter]
+    public string FromDateText { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> FromDateTextChanged { get; set; }
+
+    [Parameter]
+    public string ToDateText { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> ToDateTextChanged { get; set; }
+
+    [Parameter]
+    public string MinCodText { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> MinCodTextChanged { get; set; }
+
+    [Parameter]
+    public string MaxCodText { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> MaxCodTextChanged { get; set; }
+
+    [Parameter]
+    public bool SlaOnly { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> SlaOnlyChanged { get; set; }
+
+    [Parameter]
+    public EventCallback ApplyFilters { get; set; }
+
+    private static string ToText(ChangeEventArgs eventArgs)
+    {
+        return eventArgs.Value?.ToString() ?? string.Empty;
+    }
+
+    private static bool ToBool(ChangeEventArgs eventArgs)
+    {
+        return eventArgs.Value is bool value && value;
+    }
+}

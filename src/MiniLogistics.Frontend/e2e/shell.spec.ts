@@ -10,7 +10,8 @@ for (const path of ['login', 'register-shop']) {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(`./${path}`);
     await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-    if (path === 'register-shop') await expect(page.getByRole('combobox', { name: 'Tỉnh / Thành phố' })).toBeEnabled();
+    if (path === 'register-shop')
+      await expect(page.getByRole('combobox', { name: 'Tỉnh / Thành phố' })).toBeEnabled();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
     await page.screenshot({ path: resolve(screenshots, `auth-${path}-390.png`), fullPage: true });
   });
@@ -44,7 +45,10 @@ test('mobile drawer traps keyboard focus, closes with Escape and restores focus'
   for (let index = 0; index < 8; index++) {
     await page.keyboard.press('Tab');
     // Include the drawer layer's own focus target as well as its dialog panel.
-    const focus = await page.evaluate(() => ({ inDrawer: Boolean(document.activeElement?.closest('.ant-drawer')), element: document.activeElement?.outerHTML }));
+    const focus = await page.evaluate(() => ({
+      inDrawer: Boolean(document.activeElement?.closest('.ant-drawer')),
+      element: document.activeElement?.outerHTML,
+    }));
     expect(focus, `Tab ${index}`).toMatchObject({ inDrawer: true });
   }
   for (let index = 0; index < 8; index++) {
@@ -81,7 +85,9 @@ test('skip link and route navigation move focus to the intended content', async 
   await expect(page.getByRole('heading', { level: 1, name: 'Không tìm thấy trang' })).toBeFocused();
 });
 
-test('choosing a mobile drawer link preserves focus on the destination after the drawer closes', async ({ page }) => {
+test('choosing a mobile drawer link preserves focus on the destination after the drawer closes', async ({
+  page,
+}) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('./missing');
   await page.getByRole('button', { name: 'Mở menu' }).click();
@@ -91,13 +97,16 @@ test('choosing a mobile drawer link preserves focus on the destination after the
   await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
 });
 
-test('culture cookie switches copy, survives reload and preserves route and query', async ({ page, context }) => {
+test('culture cookie switches copy, survives reload and preserves route and query', async ({
+  page,
+  context,
+}) => {
   await page.goto('./missing?status=ready');
   await page.getByRole('link', { name: 'English', exact: true }).click();
   await expect(page).toHaveURL(/^https:\/\/[^/]+\/(?:app\/)?missing\?status=ready$/);
   await expect(page.getByRole('heading', { level: 1, name: 'Page not found' })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
-  const culture = (await context.cookies()).find(cookie => cookie.name === '.AspNetCore.Culture');
+  const culture = (await context.cookies()).find((cookie) => cookie.name === '.AspNetCore.Culture');
   expect(culture?.httpOnly).toBe(true);
   expect(culture?.secure).toBe(true);
   await page.reload();
@@ -109,7 +118,9 @@ test('culture cookie switches copy, survives reload and preserves route and quer
 test('layout remains usable at 200 percent CSS zoom', async ({ page }) => {
   await page.setViewportSize({ width: 1024, height: 900 });
   await page.goto('./missing');
-  await page.evaluate(() => { document.documentElement.style.zoom = '2'; });
+  await page.evaluate(() => {
+    document.documentElement.style.zoom = '2';
+  });
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   // CSS zoom leaves media-query width unchanged; also exercise the mobile breakpoint.

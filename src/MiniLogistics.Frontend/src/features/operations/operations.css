@@ -1,9 +1,31 @@
-.operations-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0 16px; margin-block: 16px; }
-.operations-filters .ant-input-number { width: 100%; }
-.operations-filters > .ant-collapse { grid-column: 1 / -1; margin-block-end: 16px; }
-.operations-advanced { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0 16px; }
-.operations-filters > .ant-space { align-self: end; margin-block-end: 24px; }
+.operations-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0 16px;
+  margin-block: 16px;
+}
+.operations-filters .ant-input-number {
+  width: 100%;
+}
+.operations-filters > .ant-collapse {
+  grid-column: 1 / -1;
+  margin-block-end: 16px;
+}
+.operations-advanced {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0 16px;
+}
+.operations-filters > .ant-space {
+  align-self: end;
+  margin-block-end: 24px;
+}
 @media (max-width: 600px) {
-  .operations-filters, .operations-advanced { grid-template-columns: 1fr; }
-  .operations-filters .ant-btn { min-height: 44px; }
+  .operations-filters,
+  .operations-advanced {
+    grid-template-columns: 1fr;
+  }
+  .operations-filters .ant-btn {
+    min-height: 44px;
+  }
 }

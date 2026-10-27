@@ -1,0 +1,189 @@
+<section class="content-card workspace-section" aria-label="Theo dõi vận hành">
+    <div class="section-heading"><div><h2>Theo dõi vận hành</h2><p>Mở từng đơn để xem liên hệ, cập nhật trạng thái hoặc điều phối lại.</p></div><span class="section-count">@TotalCount.ToString("N0") đơn</span></div>
+    @if (Shipments.Count == 0)
+    {
+        <div class="state-card compact"><AppIcon Name="package" Size="24" /><strong>Không có đơn phù hợp</strong><p>Thử điều chỉnh bộ lọc hoặc làm mới danh sách.</p></div>
+    }
+    else
+    {
+        <div class="shipment-list">
+            @foreach (var shipment in Shipments)
+            {
+                var nextStatuses = OperationsDisplay.GetNextStatuses(shipment.Status);
+                <article class="shipment-card" @key="shipment.ShipmentId">
+                    <div class="shipment-overview operations-overview">
+                        <div class="shipment-identity"><strong class="tracking-code">@shipment.TrackingCode</strong><span>@shipment.ReceiverName</span></div>
+                        <div class="route-summary"><span>@shipment.PickupAddress.Province</span><AppIcon Name="arrow-right" Size="14" /><span>@shipment.DeliveryAddress.Province</span></div>
+                        <div class="shipper-summary"><small>Shipper phụ trách</small><span>@OperationsDisplay.FormatAssignedShipper(shipment)</span></div>
+                        <div class="money-summary"><strong>@OperationsDisplay.FormatMoney(shipment.CodAmount, shipment.Currency)</strong><small>@OperationsDisplay.FormatCodStatus(shipment.CodStatus)</small></div>
+                        <div class="shipment-signals"><span class="status-pill @OperationsDisplay.GetStatusClass(shipment.Status)">@OperationsDisplay.FormatStatus(shipment.Status)</span><SlaIndicatorBadge Visible="shipment.IsSlaOverdue" Text="Quá hạn xử lý" /></div>
+                    </div>
+                    <details class="shipment-details" name="operations-shipment-details">
+                        <summary><AppIcon Name="chevron-down" Size="16" /> Chi tiết và thao tác @if (OperationsDisplay.CanMarkCodCollected(shipment)) { <span class="attention-label">Cần xác nhận thu COD</span> }</summary>
+                        <div class="detail-grid">
+                            <div class="detail-information">
+                                <h3>Thông tin giao nhận</h3>
+                                <dl>
+                                    <div><dt>Người nhận</dt><dd>@shipment.ReceiverName · @shipment.ReceiverPhone</dd></div>
+                                    <div><dt>Địa chỉ lấy</dt><dd>@shipment.PickupAddress.FullAddress</dd></div>
+                                    <div><dt>Địa chỉ giao</dt><dd>@shipment.DeliveryAddress.FullAddress</dd></div>
+                                    <div><dt>Shipper</dt><dd>@OperationsDisplay.FormatAssignedShipper(shipment) @if (!string.IsNullOrWhiteSpace(shipment.ActiveShipperPhone)) { <span>· @shipment.ActiveShipperPhone</span> }</dd></div>
+                                    <div><dt>Ngày tạo</dt><dd>@OperationsDisplay.FormatDate(shipment.CreatedAtUtc)</dd></div>
+                                    <div><dt>Phí vận chuyển</dt><dd>@OperationsDisplay.FormatMoney(shipment.ShippingFeeAmount, shipment.Currency)</dd></div>
+                                </dl>
+                            </div>
+                            <div class="operations-actions">
+                                @if (OperationsDisplay.CanMarkCodCollected(shipment))
+                                {
+                                    <div class="cod-confirm"><h3>Xác nhận tiền thu hộ</h3><p>Chỉ xác nhận sau khi đã nhận đủ @OperationsDisplay.FormatMoney(shipment.CodAmount, shipment.Currency).</p><button type="button" class="cod-button" disabled="@IsCollectingCod(shipment.ShipmentId)" @onclick="() => MarkCodCollected.InvokeAsync(shipment)">@(IsCollectingCod(shipment.ShipmentId) ? "Đang xác nhận..." : "Xác nhận COD đã thu")</button></div>
+                                }
+                                @if (nextStatuses.Count > 0)
+                                {
+                                    <form class="operations-status-form" @onsubmit="() => UpdateStatus.InvokeAsync(shipment)" @onsubmit:preventDefault="true">
+                                        <h3>Cập nhật tiến độ</h3>
+                                        <label for="@($"next-status-{shipment.ShipmentId}")">Trạng thái tiếp theo</label>
+                                        <select id="@($"next-status-{shipment.ShipmentId}")" value="@GetSelectedStatusValue(shipment, nextStatuses)" disabled="@IsUpdating(shipment.ShipmentId)" @onchange="e => SelectStatus.InvokeAsync(new ShipmentStatusSelectionChanged(shipment.ShipmentId, e.Value?.ToString()))">
+                                            @foreach (var status in nextStatuses) { <option value="@status">@OperationsDisplay.FormatStatus(status)</option> }
+                                        </select>
+                                        <label for="@($"status-note-{shipment.ShipmentId}")">Ghi chú @(IsSelectedStatusNoteRequired(shipment) ? "(bắt buộc)" : "(tùy chọn)")</label>
+                                        <textarea id="@($"status-note-{shipment.ShipmentId}")" rows="2" maxlength="500" required="@IsSelectedStatusNoteRequired(shipment)" disabled="@IsUpdating(shipment.ShipmentId)" placeholder="Nội dung cập nhật hoặc lý do xử lý" value="@GetStatusNote(shipment.ShipmentId)" @oninput="e => StatusNoteChanged.InvokeAsync(new ShipmentTextChanged(shipment.ShipmentId, ToText(e)))"></textarea>
+                                        @if (IsSelectedStatusNoteRequired(shipment)) { <small class="field-hint danger">Giao thất bại cần có lý do.</small> }
+                                        <button type="submit" disabled="@IsUpdating(shipment.ShipmentId)">@(IsUpdating(shipment.ShipmentId) ? "Đang cập nhật..." : "Lưu trạng thái")</button>
+                                    </form>
+                                }
+                                <ReassignCancelDialog Shipment="shipment" ActiveShippers="ActiveShippers" ReassignShipperIds="ReassignShipperIds" ReassignReasons="ReassignReasons" CancelAssignmentReasons="CancelAssignmentReasons" ReassigningShipmentId="ReassigningShipmentId" CancellingAssignmentShipmentId="CancellingAssignmentShipmentId" ActiveShipmentCountResolver="ActiveShipmentCountResolver" SelectShipper="SelectReassignShipper" ReassignReasonChanged="ReassignReasonChanged" ReassignShipment="ReassignShipment" CancelReasonChanged="CancelReasonChanged" CancelAssignment="CancelAssignment" />
+                                @if (nextStatuses.Count == 0 && !OperationsDisplay.CanMarkCodCollected(shipment)) { <p class="muted-note">Đơn đã hoàn tất các thao tác vận hành.</p> }
+                            </div>
+                        </div>
+                    </details>
+                    @if (RowMessages.TryGetValue(shipment.ShipmentId, out var message)) { <p class="row-message row-feedback @message.Kind" role="status">@message.Text</p> }
+                </article>
+            }
+        </div>
+        <div class="pagination-bar"><span>@Shipments.Count.ToString("N0") / @TotalCount.ToString("N0") đơn · Trang @PageNumber / @TotalPages</span><div><button type="button" class="retry-button" disabled="@(PageNumber <= 1)" @onclick="PreviousPage">Trước</button><button type="button" class="retry-button" disabled="@(PageNumber >= TotalPages)" @onclick="NextPage">Sau</button></div></div>
+    }
+</section>
+
+@code {
+    [Parameter] public int TotalCount { get; set; }
+
+    [Parameter]
+    public IReadOnlyList<GetOperationsShipmentResponse> Shipments { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyList<GetActiveShipperResponse> ActiveShippers { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, ShipmentStatus> SelectedStatuses { get; set; } = new Dictionary<Guid, ShipmentStatus>();
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, string> StatusNotes { get; set; } = new Dictionary<Guid, string>();
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, Guid> ReassignShipperIds { get; set; } = new Dictionary<Guid, Guid>();
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, string> ReassignReasons { get; set; } = new Dictionary<Guid, string>();
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, string> CancelAssignmentReasons { get; set; } = new Dictionary<Guid, string>();
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, OperationsRowMessage> RowMessages { get; set; } = new Dictionary<Guid, OperationsRowMessage>();
+
+    [Parameter]
+    public Guid? UpdatingShipmentId { get; set; }
+
+    [Parameter]
+    public Guid? ReassigningShipmentId { get; set; }
+
+    [Parameter]
+    public Guid? CancellingAssignmentShipmentId { get; set; }
+
+    [Parameter]
+    public Guid? CollectingCodShipmentId { get; set; }
+
+    [Parameter]
+    public int PageNumber { get; set; } = 1;
+
+    [Parameter]
+    public int TotalPages { get; set; } = 1;
+
+    [Parameter]
+    public Func<Guid, int> ActiveShipmentCountResolver { get; set; } = _ => 0;
+
+    [Parameter]
+    public EventCallback<GetOperationsShipmentResponse> MarkCodCollected { get; set; }
+
+    [Parameter]
+    public EventCallback<GetOperationsShipmentResponse> UpdateStatus { get; set; }
+
+    [Parameter]
+    public EventCallback<ShipmentStatusSelectionChanged> SelectStatus { get; set; }
+
+    [Parameter]
+    public EventCallback<ShipmentTextChanged> StatusNoteChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<ReassignShipperSelectionChanged> SelectReassignShipper { get; set; }
+
+    [Parameter]
+    public EventCallback<ShipmentTextChanged> ReassignReasonChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<GetOperationsShipmentResponse> ReassignShipment { get; set; }
+
+    [Parameter]
+    public EventCallback<ShipmentTextChanged> CancelReasonChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<GetOperationsShipmentResponse> CancelAssignment { get; set; }
+
+    [Parameter]
+    public EventCallback PreviousPage { get; set; }
+
+    [Parameter]
+    public EventCallback NextPage { get; set; }
+
+    private string GetSelectedStatusValue(
+        GetOperationsShipmentResponse shipment,
+        IReadOnlyList<ShipmentStatus> nextStatuses)
+    {
+        if (SelectedStatuses.TryGetValue(shipment.ShipmentId, out var status))
+        {
+            return status.ToString();
+        }
+
+        return nextStatuses.Count > 0
+            ? nextStatuses[0].ToString()
+            : string.Empty;
+    }
+
+    private string GetStatusNote(Guid shipmentId)
+    {
+        return StatusNotes.TryGetValue(shipmentId, out var note)
+            ? note
+            : string.Empty;
+    }
+
+    private bool IsSelectedStatusNoteRequired(GetOperationsShipmentResponse shipment)
+    {
+        return GetSelectedStatusValue(shipment, OperationsDisplay.GetNextStatuses(shipment.Status))
+            == ShipmentStatus.DeliveryFailed.ToString();
+    }
+
+    private bool IsUpdating(Guid shipmentId)
+    {
+        return UpdatingShipmentId == shipmentId;
+    }
+
+    private bool IsCollectingCod(Guid shipmentId)
+    {
+        return CollectingCodShipmentId == shipmentId;
+    }
+
+    private static string ToText(ChangeEventArgs eventArgs)
+    {
+        return eventArgs.Value?.ToString() ?? string.Empty;
+    }
+}

@@ -11,4 +11,5 @@ export type Preferences = components['schemas']['ShopNotificationPreferenceRespo
 export type Audit = components['schemas']['ShopAuditLogResponse'];
 export const settingsKey = (user: string, shop: string) => ['user', user, 'shop-settings', shop] as const;
 export const shopPath = (shop: string) => `/api/v1/app/shops/${encodeURIComponent(shop)}`;
-export const readSettings = <T,>(shop: string, part: string, signal: AbortSignal) => requestJson<T>(`${shopPath(shop)}/${part}`, { signal });
+export const readSettings = <T>(shop: string, part: string, signal: AbortSignal) =>
+  requestJson<T>(`${shopPath(shop)}/${part}`, { signal });

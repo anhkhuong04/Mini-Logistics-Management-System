@@ -1,7 +1,12 @@
 import { test, expect } from '@playwright/test';
-test.skip(!process.env.MINILOGISTICS_E2E_IDENTITY_FIXTURE, 'Requires the isolated .NET Identity browser fixture.');
+test.skip(
+  !process.env.MINILOGISTICS_E2E_IDENTITY_FIXTURE,
+  'Requires the isolated .NET Identity browser fixture.',
+);
 
-test('owner switches Shop via URL, then staff login receives masked data and limited navigation', async ({ page }) => {
+test('owner switches Shop via URL, then staff login receives masked data and limited navigation', async ({
+  page,
+}) => {
   await page.goto('./login');
   await page.getByLabel('Email', { exact: true }).fill('browser-owner@example.test');
   await page.getByLabel('Mật khẩu', { exact: true }).fill(process.env.MINILOGISTICS_E2E_PASSWORD!);
@@ -27,7 +32,7 @@ test('owner switches Shop via URL, then staff login receives masked data and lim
   await expect(page.getByRole('region', { name: 'Shop hiện tại' })).not.toContainText('0901234567');
   await expect(menu.getByRole('link', { name: 'Nhân viên Shop' })).toHaveCount(0);
   await expect(menu.getByRole('link', { name: 'Báo cáo COD' })).toHaveCount(0);
-  const denied = page.waitForResponse(response => {
+  const denied = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return url.pathname === '/api/v1/app/shop-context' && url.searchParams.get('shopId') === selected;
   });

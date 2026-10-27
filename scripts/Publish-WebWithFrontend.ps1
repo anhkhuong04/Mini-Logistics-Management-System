@@ -16,7 +16,7 @@ try {
     if ((node --version) -ne 'v24.22.1') { throw 'Use pinned Node 24.22.1.' }
     if ((npm --version) -ne '11.19.1') { throw 'Use pinned npm 11.19.1.' }
     if (-not $SkipInstall) { npm --prefix $frontend ci; if ($LASTEXITCODE) { throw 'npm ci failed.' } }
-    foreach ($step in @('typecheck', 'lint', 'test', 'build')) {
+    foreach ($step in @('format:check', 'test:architecture', 'typecheck', 'lint', 'test', 'build')) {
         if ($step -eq 'test') { npm --prefix $frontend run test -- --maxWorkers=1 }
         else { npm --prefix $frontend run $step }
         if ($LASTEXITCODE) { throw "Frontend $step failed." }

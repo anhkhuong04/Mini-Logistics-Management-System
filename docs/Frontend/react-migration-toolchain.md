@@ -1,6 +1,6 @@
 # Frontend migration — toolchain pins Phase 0
 
-Ngày chốt: 25/10/2026. T01.01 đã dùng exact pins này để tạo frontend package.json/lockfile và cài dependency; Node/npm target chạy portable, không thay runtime global. [Contract/status](react-migration-contracts.md) và [plan](../../refactorfe.md) xác định phạm vi. Các kết quả dry-run Phase 0 dưới đây là lịch sử; validation thực thi được ghi riêng trong validation log.
+Ngày chốt: 25/10/2026. T01.01 đã dùng exact pins này để tạo frontend package.json/lockfile và cài dependency; Node/npm target chạy portable, không thay runtime global. [Contract/status](react-migration-contracts.md) và [plan lưu trữ](history/refactorfe.md) xác định phạm vi. Các kết quả dry-run Phase 0 dưới đây là lịch sử; validation thực thi được ghi riêng trong validation log.
 
 ## Runtime đích và môi trường hiện tại
 
@@ -64,3 +64,7 @@ Node release được đối chiếu từ [index chính thức](https://nodejs.o
 ## Nguồn hướng dẫn
 
 [Ant Design với Vite](https://ant.design/docs/react/use-with-vite/), [Vite guide](https://vite.dev/guide/), [Vitest guide](https://vitest.dev/guide/), [React Router](https://reactrouter.com/start/declarative/installation) và [openapi-typescript](https://openapi-ts.dev/introduction). Version pins lấy registry theo từng version ở bảng; không suy ra compatibility từ trang docs đang dùng latest.
+
+## Source organization checkpoint — 26/10/2026
+
+Migration pins above are historical. Source cleanup adds one exact-pinned development tool, Prettier3.6.2 (Node>=14), for reproducible `format`/`format:check`; runtime dependencies are unchanged. Node24.22.1/npm11.19.1 remain required. ESLint architecture rules use the existing ESLint dependency, without another package.

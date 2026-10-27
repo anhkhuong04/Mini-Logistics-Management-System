@@ -16,7 +16,7 @@ Phase 9 configuration note: `RouteRegionConfigRepository` uses the built-in prov
 
 ## Migration preparation status
 
-- React/TypeScript/Ant Design is the runtime frontend after Phase11 root cutover. appsettings enables root hosting; `/app/...` redirects to root. No Blazor runtime is registered after cleanup. Nine pre-existing user-modified Operations files remain excluded source. Read [migration contract/status](../docs/Frontend/react-migration-contracts.md) and validation evidence for checkpoint status.
+- React/TypeScript/Ant Design is the runtime frontend after Phase11 root cutover. appsettings enables root hosting; `/app/...` redirects to root. No Blazor runtime is registered after cleanup. Nine pre-existing user-modified Operations files are preserved outside runtime source in `archive/legacy-blazor`. Read [migration contract/status](../docs/Frontend/react-migration-contracts.md) and validation evidence for checkpoint status.
 - Manual-report files under `test/manual` are deleted in the working tree. Their old links have been removed from current guides; do not restore those user deletions during this work. Migration evidence belongs in [the validation log](../docs/Frontend/react-migration-validation.md).
 - Keep the summary-only public tracking behavior and current server-timezone semantics until an explicit behavior change is scoped. Moving browser rate-limit checks from components to ingress does not itself solve multi-instance limiter atomicity.
 - Direct Shop create navigation without `shopId` can briefly render before ShopContextProvider normalizes the URL, then remount during its second context read. Phase 7 browser QA observed receiver input clearing in that window. Cross-role tests preserve selected `shopId`, matching normal navigation; a general Shop form/context lifecycle correction remains outside Phase 7.
@@ -60,5 +60,5 @@ Changes in these areas require an explicit task, end-to-end tracing and focused 
 
 - Target deployment topology and whether multiple web/worker instances are required.
 - Production SLOs, throughput/data-volume assumptions, retention/legal requirements and observability backend.
-- Whether the stray root `.csproj` should be deleted and the retention policy for historical reports under `docs/Backend/history` and `docs/Service/history`.
+- The retention policy for historical reports under `docs/Backend/history` and `docs/Service/history`. The unused root `.csproj` was removed during source organization cleanup.
 - The desired public-tracking verification UX.

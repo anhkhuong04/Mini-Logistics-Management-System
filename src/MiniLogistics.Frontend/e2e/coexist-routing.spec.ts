@@ -4,8 +4,10 @@ test('refreshing a frontend deep link loads React assets and runtime paths', asy
   await page.goto('./dashboard');
   await page.reload();
   await expect(page.locator('#root')).not.toBeEmpty();
-  expect(await page.evaluate(() => Object.keys(window.__MINI_LOGISTICS_CONFIG__ ?? {}).sort()))
-    .toEqual(['assetBasePath', 'basePath']);
+  expect(await page.evaluate(() => Object.keys(window.__MINI_LOGISTICS_CONFIG__ ?? {}).sort())).toEqual([
+    'assetBasePath',
+    'basePath',
+  ]);
   await expect(page.locator('script[src*="blazor.web.js"]')).toHaveCount(0);
 });
 
@@ -40,7 +42,9 @@ test('health OpenAPI and public navigation keep separate route ownership', async
     expect(response.headers()['content-type'] ?? '').not.toContain('text/html');
   }
   for (const path of ['/tracking?code=', '/Error', '/not-found']) {
-    const response = await request.get(new URL(path.replace(/^\//, ''), baseURL).href, { headers: { Accept: 'text/html' } });
+    const response = await request.get(new URL(path.replace(/^\//, ''), baseURL).href, {
+      headers: { Accept: 'text/html' },
+    });
     expect(response.status()).toBe(200);
     expect(await response.text()).not.toContain('blazor.web.js');
     expect(await response.text()).toContain('<div id="root">');

@@ -7,7 +7,9 @@ export async function adminLogin(page: Page, path: string) {
   await expect(page).toHaveURL(new RegExp(`^https://[^/]+(?:/app)?${path.split('?')[0]}`));
 }
 export async function confirmAdmin(page: Page, suffix: string, method: string) {
-  const response = page.waitForResponse(r => new URL(r.url()).pathname.endsWith(suffix) && r.request().method() === method);
+  const response = page.waitForResponse(
+    (r) => new URL(r.url()).pathname.endsWith(suffix) && r.request().method() === method,
+  );
   await page.getByRole('dialog').getByRole('button', { name: 'Xác nhận', exact: true }).click();
   expect((await response).ok()).toBe(true);
 }

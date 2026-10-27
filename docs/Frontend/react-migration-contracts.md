@@ -1,6 +1,6 @@
 # Frontend migration — phạm vi, contract readiness và trạng thái
 
-Ngày đối chiếu: 26/10/2026. Tài liệu này sở hữu contract/readiness; [refactorfe.md](../../refactorfe.md) sở hữu thứ tự/acceptance, [inventory](react-migration-inventory.md) sở hữu action/service/field bindings, [toolchain](react-migration-toolchain.md) sở hữu exact pins. Phase0–11 đã hoàn tất, gồm public pages/summary tracking, QA, publish/root cutover và cleanup. Kết quả cuối ở [validation log](react-migration-validation.md#phase11-final-validation); chưa deploy production.
+Ngày đối chiếu: 26/10/2026. Tài liệu này sở hữu contract/readiness; [refactorfe.md lưu trữ](history/refactorfe.md) sở hữu thứ tự/acceptance, [inventory](react-migration-inventory.md) sở hữu action/service/field bindings, [toolchain](react-migration-toolchain.md) sở hữu exact pins. Phase0–11 đã hoàn tất, gồm public pages/summary tracking, QA, publish/root cutover và cleanup. Kết quả cuối ở [validation log](react-migration-validation.md#phase11-final-validation); chưa deploy production.
 
 ## Hiện trạng
 
@@ -12,7 +12,7 @@ Ngày đối chiếu: 26/10/2026. Tài liệu này sở hữu contract/readiness
 | Contract | Browser OpenAPI3.1.1 + generated TS riêng, money decimal strings và enums theo tên | Partner API/schema/transport/idempotency không thay đổi |
 | Hosting | appsettings Enabled=true/ServeAtRoot=true; UI root, `/app/...` local redirect/query; `/frontend-assets` cố định | API/auth/culture/files/health/OpenAPI/images/data không nhận SPA fallback |
 | Runtime | Web chỉ host HTTP/static/workers; không đăng ký Razor/InteractiveServer/circuit | Application operation-scoped services, Identity/persistence/workers/Data Protection |
-| Source được bảo toàn | Chín file Operations người dùng đã sửa còn trong `Web/Components`, bị loại compile/publish | Không xóa/ghi đè thay đổi người dùng; không phải runtime UI |
+| Source được bảo toàn | Chín file Operations người dùng đã sửa được bảo toàn tại `archive/legacy-blazor/Operations`, ngoài runtime source | Không xóa/ghi đè thay đổi người dùng; không phải runtime UI |
 
 Các ghi chú Phase0–10 bên dưới giữ thiết kế và bằng chứng của checkpoint tại thời điểm đó, gồm prefix `/app` và Blazor coexist lịch sử. Route/UI runtime hiện tại theo bảng trên và [Frontend README](README.md). Rollback Blazor sau cleanup phải dùng artifact trước cleanup, không chỉ đổi flag trong artifact cuối. Kết quả chạy thật và giới hạn môi trường nằm ở [validation log](react-migration-validation.md).
 

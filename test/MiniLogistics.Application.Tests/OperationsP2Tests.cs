@@ -1,3 +1,4 @@
+using MiniLogistics.Application.Tests.TestDoubles;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
 using MiniLogistics.Application.Shipments;
@@ -125,7 +126,7 @@ public sealed class OperationsP2Tests
         }
     }
 
-    private sealed class FakeShipmentRepository : IShipmentRepository
+    private sealed class FakeShipmentRepository : ShipmentReadRepositoryFake, IShipmentRepository
     {
         private readonly List<Shipment> _shipments;
 
@@ -134,39 +135,39 @@ public sealed class OperationsP2Tests
             _shipments = shipments.ToList();
         }
 
-        public Task<bool> ExistsByTrackingCodeAsync(TrackingCode trackingCode, CancellationToken cancellationToken = default)
+        public override Task<bool> ExistsByTrackingCodeAsync(TrackingCode trackingCode, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(_shipments.Any(shipment => shipment.TrackingCode == trackingCode));
         }
 
-        public Task<IReadOnlyList<Shipment>> GetByShopIdAsync(Guid shopId, CancellationToken cancellationToken = default)
+        public override Task<IReadOnlyList<Shipment>> GetByShopIdAsync(Guid shopId, CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<Shipment>>(_shipments.Where(shipment => shipment.ShopId == shopId).ToList());
         }
 
-        public Task<IReadOnlyList<Shipment>> GetByStatusAsync(ShipmentStatus status, CancellationToken cancellationToken = default)
+        public override Task<IReadOnlyList<Shipment>> GetByStatusAsync(ShipmentStatus status, CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<Shipment>>(_shipments.Where(shipment => shipment.Status == status).ToList());
         }
 
-        public Task<IReadOnlyList<Shipment>> GetByStatusesAsync(IReadOnlyCollection<ShipmentStatus> statuses, CancellationToken cancellationToken = default)
+        public override Task<IReadOnlyList<Shipment>> GetByStatusesAsync(IReadOnlyCollection<ShipmentStatus> statuses, CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<Shipment>>(_shipments.Where(shipment => statuses.Contains(shipment.Status)).ToList());
         }
 
-        public Task<IReadOnlyList<Shipment>> GetByIdsAsync(IReadOnlyCollection<Guid> shipmentIds, CancellationToken cancellationToken = default)
+        public override Task<IReadOnlyList<Shipment>> GetByIdsAsync(IReadOnlyCollection<Guid> shipmentIds, CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<Shipment>>(_shipments.Where(shipment => shipmentIds.Contains(shipment.Id)).ToList());
         }
 
-        public Task<IReadOnlyList<Shipment>> GetAssignedToShipperAsync(Guid shipperId, CancellationToken cancellationToken = default)
+        public override Task<IReadOnlyList<Shipment>> GetAssignedToShipperAsync(Guid shipperId, CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<Shipment>>(_shipments
                 .Where(shipment => shipment.Assignments.Any(assignment => assignment.IsActive && assignment.ShipperId == shipperId))
                 .ToList());
         }
 
-        public Task<IReadOnlyDictionary<Guid, int>> GetActiveAssignmentCountsByShipperIdsAsync(
+        public override Task<IReadOnlyDictionary<Guid, int>> GetActiveAssignmentCountsByShipperIdsAsync(
             IReadOnlyCollection<Guid> shipperIds,
             CancellationToken cancellationToken = default)
         {
@@ -179,7 +180,7 @@ public sealed class OperationsP2Tests
             return Task.FromResult(counts);
         }
 
-        public Task<Shipment?> GetByIdAndShopIdAsync(Guid shipmentId, Guid shopId, CancellationToken cancellationToken = default)
+        public override Task<Shipment?> GetByIdAndShopIdAsync(Guid shipmentId, Guid shopId, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(_shipments.FirstOrDefault(shipment => shipment.Id == shipmentId && shipment.ShopId == shopId));
         }
@@ -194,12 +195,12 @@ public sealed class OperationsP2Tests
             return Task.FromResult(_shipments.FirstOrDefault(shipment => shipment.Id == shipmentId));
         }
 
-        public Task<Shipment?> GetByTrackingCodeAsync(TrackingCode trackingCode, CancellationToken cancellationToken = default)
+        public override Task<Shipment?> GetByTrackingCodeAsync(TrackingCode trackingCode, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(_shipments.FirstOrDefault(shipment => shipment.TrackingCode == trackingCode));
         }
 
-        public Task<Shipment?> GetByTrackingCodeAndShopIdAsync(
+        public override Task<Shipment?> GetByTrackingCodeAndShopIdAsync(
             TrackingCode trackingCode,
             Guid shopId,
             CancellationToken cancellationToken = default)

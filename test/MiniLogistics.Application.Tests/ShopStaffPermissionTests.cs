@@ -1,3 +1,4 @@
+using MiniLogistics.Application.Tests.TestDoubles;
 using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.Common;
 using MiniLogistics.Application.Identity;
@@ -223,30 +224,30 @@ public sealed class ShopStaffPermissionTests
         public Task SaveChangesAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
     }
 
-    private sealed class SingleShipmentReadRepository(Shipment shipment) : IShipmentReadRepository
+    private sealed class SingleShipmentReadRepository(Shipment shipment) : ShipmentReadRepositoryFake
     {
-        public Task<bool> ExistsByTrackingCodeAsync(TrackingCode trackingCode, CancellationToken cancellationToken = default) =>
+        public override Task<bool> ExistsByTrackingCodeAsync(TrackingCode trackingCode, CancellationToken cancellationToken = default) =>
             Task.FromResult(shipment.TrackingCode == trackingCode);
 
-        public Task<IReadOnlyList<Shipment>> GetByShopIdAsync(Guid shopId, CancellationToken cancellationToken = default) =>
+        public override Task<IReadOnlyList<Shipment>> GetByShopIdAsync(Guid shopId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<Shipment>>(shipment.ShopId == shopId ? [shipment] : []);
 
-        public Task<IReadOnlyList<Shipment>> GetByStatusAsync(ShipmentStatus status, CancellationToken cancellationToken = default) =>
+        public override Task<IReadOnlyList<Shipment>> GetByStatusAsync(ShipmentStatus status, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<Shipment>>(shipment.Status == status ? [shipment] : []);
 
-        public Task<IReadOnlyList<Shipment>> GetByStatusesAsync(IReadOnlyCollection<ShipmentStatus> statuses, CancellationToken cancellationToken = default) =>
+        public override Task<IReadOnlyList<Shipment>> GetByStatusesAsync(IReadOnlyCollection<ShipmentStatus> statuses, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<Shipment>>(statuses.Contains(shipment.Status) ? [shipment] : []);
 
-        public Task<IReadOnlyList<Shipment>> GetByIdsAsync(IReadOnlyCollection<Guid> shipmentIds, CancellationToken cancellationToken = default) =>
+        public override Task<IReadOnlyList<Shipment>> GetByIdsAsync(IReadOnlyCollection<Guid> shipmentIds, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<Shipment>>(shipmentIds.Contains(shipment.Id) ? [shipment] : []);
 
-        public Task<IReadOnlyList<Shipment>> GetAssignedToShipperAsync(Guid shipperId, CancellationToken cancellationToken = default) =>
+        public override Task<IReadOnlyList<Shipment>> GetAssignedToShipperAsync(Guid shipperId, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<Shipment>>([]);
 
-        public Task<IReadOnlyDictionary<Guid, int>> GetActiveAssignmentCountsByShipperIdsAsync(IReadOnlyCollection<Guid> shipperIds, CancellationToken cancellationToken = default) =>
+        public override Task<IReadOnlyDictionary<Guid, int>> GetActiveAssignmentCountsByShipperIdsAsync(IReadOnlyCollection<Guid> shipperIds, CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyDictionary<Guid, int>>(new Dictionary<Guid, int>());
 
-        public Task<Shipment?> GetByIdAndShopIdAsync(Guid shipmentId, Guid shopId, CancellationToken cancellationToken = default) =>
+        public override Task<Shipment?> GetByIdAndShopIdAsync(Guid shipmentId, Guid shopId, CancellationToken cancellationToken = default) =>
             Task.FromResult<Shipment?>(shipment.Id == shipmentId && shipment.ShopId == shopId ? shipment : null);
 
         public Task<Shipment?> GetTrackedByIdAndShopIdAsync(Guid shipmentId, Guid shopId, CancellationToken cancellationToken = default) =>
@@ -255,10 +256,10 @@ public sealed class ShopStaffPermissionTests
         public Task<Shipment?> GetTrackedByIdAsync(Guid shipmentId, CancellationToken cancellationToken = default) =>
             Task.FromResult<Shipment?>(shipment.Id == shipmentId ? shipment : null);
 
-        public Task<Shipment?> GetByTrackingCodeAsync(TrackingCode trackingCode, CancellationToken cancellationToken = default) =>
+        public override Task<Shipment?> GetByTrackingCodeAsync(TrackingCode trackingCode, CancellationToken cancellationToken = default) =>
             Task.FromResult<Shipment?>(shipment.TrackingCode == trackingCode ? shipment : null);
 
-        public Task<Shipment?> GetByTrackingCodeAndShopIdAsync(TrackingCode trackingCode, Guid shopId, CancellationToken cancellationToken = default) =>
+        public override Task<Shipment?> GetByTrackingCodeAndShopIdAsync(TrackingCode trackingCode, Guid shopId, CancellationToken cancellationToken = default) =>
             Task.FromResult<Shipment?>(shipment.TrackingCode == trackingCode && shipment.ShopId == shopId ? shipment : null);
 
         public Task<Shipment?> GetTrackedByTrackingCodeAndShopIdAsync(TrackingCode trackingCode, Guid shopId, CancellationToken cancellationToken = default) =>

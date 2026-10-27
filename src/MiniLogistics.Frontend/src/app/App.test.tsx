@@ -14,12 +14,14 @@ it('renders the public landing without loading workspace navigation', async () =
 it('keeps the system error route distinct from missing pages without reflecting error details', async () => {
   renderWithProviders(<App />, { path: '/Error?detail=private-stack-trace', locale: 'en-US' });
   expect(await screen.findByRole('heading', { level: 1, name: 'An error occurred' })).toHaveFocus();
-  expect(screen.getByText('We could not process this request. Try again or return to the home page.')).toBeVisible();
+  expect(
+    screen.getByText('We could not process this request. Try again or return to the home page.'),
+  ).toBeVisible();
   expect(screen.getByRole('link', { name: 'Back to home' })).toHaveAttribute('href', '/');
   expect(screen.queryByText(/private-stack-trace/)).not.toBeInTheDocument();
 });
 
-it.each(['/FAQ', '/faq/', '/error/'])('keeps public layout for router-equivalent path %s', async path => {
+it.each(['/FAQ', '/faq/', '/error/'])('keeps public layout for router-equivalent path %s', async (path) => {
   renderWithProviders(<App />, { path, locale: 'en-US' });
   expect(screen.getByRole('navigation', { name: 'Public navigation' })).toBeInTheDocument();
   expect(screen.queryByRole('menu')).not.toBeInTheDocument();

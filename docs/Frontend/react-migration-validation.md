@@ -347,6 +347,23 @@ Cleanup xóa96 legacy files và registrations AddRazor/InteractiveServer/Cascadi
 
 Giới hạn giữ nguyên: Redis integration chưa chạy vì thiếu `MINILOGISTICS_TEST_REDIS`; BrowserTests không chạy Infrastructure dispatch workers và dùng local connection không seeded, do đó public banner read có thể500 để kiểm tra fallback. InMemory fixture không chứng minh SQL atomicity; LocalDB93 tests là evidence riêng. Chưa chứng nhận production SQL/Redis topology, backup/restore, workers, external webhook hay remote rollout. Public tracking summary-only, limiter public/Shop process-local/non-atomic, verified-phone UX và SSR/SEO server rendering vẫn ngoài scope. Các điểm này được ghi rõ thay vì coi là đã xác minh ở production.
 
+## 26/10/2026 — Source organization after migration
+
+The follow-up source cleanup restores the complete plan at
+[history/refactorfe.md](history/refactorfe.md), retains the root compatibility pointer,
+and archives the9 user-modified Operations files byte for byte outside `src`.
+Current ownership, implementation changes, commands and detailed evidence are in
+[source organization](../Backend/source-organization.md). Historical paths/counts above
+remain the evidence of their original checkpoints.
+
+Final local checks: Release build0 warnings/errors; backend project results503 pass
+(Domain24/Application162/Infrastructure97/Web220), Redis1 and browser opt-in1 baseline
+skips; the opt-in Identity root fixture separately passes37 Chromium scenarios.
+Frontend clean install/format/architecture/typecheck/lint/build succeed and136 Vitest
+tests pass. Published root15 and `/app`21 smoke tests pass (41 app-mode cases skipped
+because data/root cases run separately). Generated Browser/Partner schemas/types do
+not drift. This is source restructuring/local verification, not production rollout.
+
 ## Cách ghi evidence cho task tiếp theo
 
 Mỗi task ghi: ngày/task ID, working tree hoặc commit được kiểm chứng, môi trường/dependency, command chính xác, exit code/kết quả, scenario/actor/Shop, failure/skip/blocker và artifact an toàn nếu có. Test mock, render server, HTTP test và browser test phải được phân biệt.

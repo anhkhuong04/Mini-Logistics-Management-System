@@ -13,7 +13,11 @@ describe('application shell', () => {
     renderWithProviders(<App />);
     expect(screen.getByRole('link', { name: 'Đến nội dung chính' })).toHaveAttribute('href', '#main-content');
     expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
-    expect(within(screen.getByRole('navigation', { name: 'Điều hướng công khai' })).getByRole('link', { name: 'Đăng nhập' })).toHaveAttribute('href', '/login');
+    expect(
+      within(screen.getByRole('navigation', { name: 'Điều hướng công khai' })).getByRole('link', {
+        name: 'Đăng nhập',
+      }),
+    ).toHaveAttribute('href', '/login');
     expect(screen.queryByText('Admin')).not.toBeInTheDocument();
   });
 
@@ -36,16 +40,28 @@ describe('application shell', () => {
   });
 
   it('renders only navigation supplied by its caller', () => {
-    renderWithProviders(<AppLayout navigation={[{ key: 'reports', label: 'Báo cáo được cấp quyền', to: '/reports' }]}>
-      <PageHeader title="Báo cáo" />
-    </AppLayout>);
+    renderWithProviders(
+      <AppLayout navigation={[{ key: 'reports', label: 'Báo cáo được cấp quyền', to: '/reports' }]}>
+        <PageHeader title="Báo cáo" />
+      </AppLayout>,
+    );
     expect(screen.getByRole('menuitem', { name: 'Báo cáo được cấp quyền' })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: 'Admin' })).not.toBeInTheDocument();
   });
 
   it('uses English app and Ant Design date-control copy together', async () => {
-    const { user } = renderWithProviders(<><App /><DatePicker /></>, { locale: 'en-US' });
-    expect(within(screen.getByRole('navigation', { name: 'Public navigation' })).getByRole('link', { name: 'Sign in' })).toHaveAttribute('href', '/login');
+    const { user } = renderWithProviders(
+      <>
+        <App />
+        <DatePicker />
+      </>,
+      { locale: 'en-US' },
+    );
+    expect(
+      within(screen.getByRole('navigation', { name: 'Public navigation' })).getByRole('link', {
+        name: 'Sign in',
+      }),
+    ).toHaveAttribute('href', '/login');
     const input = screen.getByPlaceholderText('Select date');
     await user.click(input);
     expect(await screen.findByText('Today')).toBeInTheDocument();

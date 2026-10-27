@@ -12,7 +12,7 @@ dotnet run --project src/MiniLogistics.Web --launch-profile https
 npm --prefix src/MiniLogistics.Frontend run dev
 ```
 
-Mở `https://localhost:5173/`: Vite phục vụ React/HMR và proxy HTTP/static/system tới Web7195, kiểm TLS. Override `MINILOGISTICS_BACKEND_URL`, `MINILOGISTICS_HTTPS_CERT`/`MINILOGISTICS_HTTPS_KEY` khi cần; key/certificate chỉ ở ignored storage. Root host mặc định `BrowserSpa:Enabled=true`, `ServeAtRoot=true`; build frontend trước khi mở UI trực tiếp từ Web. `/app/...` redirect local sang root giữ query. Các endpoint `/api`, `/auth`, `/culture`, `/shop/files`, `/health`, `/openapi` không bị SPA fallback chiếm. Sau cleanup không có Blazor/circuit; chín file Operations đã sửa của người dùng được giữ nguyên nhưng loại compile/publish.
+Mở `https://localhost:5173/`: Vite phục vụ React/HMR và proxy HTTP/static/system tới Web7195, kiểm TLS. Override `MINILOGISTICS_BACKEND_URL`, `MINILOGISTICS_HTTPS_CERT`/`MINILOGISTICS_HTTPS_KEY` khi cần; key/certificate chỉ ở ignored storage. Root host mặc định `BrowserSpa:Enabled=true`, `ServeAtRoot=true`; build frontend trước khi mở UI trực tiếp từ Web. `/app/...` redirect local sang root giữ query. Các endpoint `/api`, `/auth`, `/culture`, `/shop/files`, `/health`, `/openapi` không bị SPA fallback chiếm. Sau cleanup không có Blazor/circuit; chín file Operations đã sửa của người dùng được giữ nguyên tại `archive/legacy-blazor`, ngoài source runtime.
 
 ```powershell
 npm --prefix src/MiniLogistics.Frontend run typecheck

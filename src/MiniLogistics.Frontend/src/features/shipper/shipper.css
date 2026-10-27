@@ -1,23 +1,93 @@
-.shipper-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; min-width: 0; }
-.shipper-workspace > * { min-width: 0; }
-.shipper-workspace .ant-typography { overflow-wrap: anywhere; }
-.shipper-profile { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.shipper-summary-grid, .shipper-task-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 16px; }
-.shipper-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 0 16px; }
-.shipper-task, .shipper-task .ant-card, .shipper-task .ant-card-body { min-width: 0; overflow-wrap: anywhere; }
-.shipper-task .ant-card-head-wrapper { flex-wrap: wrap; gap: 8px; }
-.shipper-task .ant-card-head-title { white-space: normal; }
-.shipper-task h2 { font-size: 18px; margin-block: 0; }
-.shipper-route { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-block-end: 16px; }
-.shipper-task-actions { display: grid; gap: 12px; margin-block: 20px; }
-.shipper-task-actions .ant-btn { width: 100%; min-height: 44px; height: auto; white-space: normal; padding-block: 10px; }
-.shipper-timeline { padding-inline-start: 20px; }
-.shipper-timeline li { margin-block-end: 16px; }
-.shipper-timeline time { display: block; }
-.shipper-pagination { flex-wrap: wrap; row-gap: 12px; }
+.shipper-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  min-width: 0;
+}
+.shipper-workspace > * {
+  min-width: 0;
+}
+.shipper-workspace .ant-typography {
+  overflow-wrap: anywhere;
+}
+.shipper-profile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.shipper-summary-grid,
+.shipper-task-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 16px;
+}
+.shipper-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0 16px;
+}
+.shipper-task,
+.shipper-task .ant-card,
+.shipper-task .ant-card-body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.shipper-task .ant-card-head-wrapper {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.shipper-task .ant-card-head-title {
+  white-space: normal;
+}
+.shipper-task h2 {
+  font-size: 18px;
+  margin-block: 0;
+}
+.shipper-route {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-block-end: 16px;
+}
+.shipper-task-actions {
+  display: grid;
+  gap: 12px;
+  margin-block: 20px;
+}
+.shipper-task-actions .ant-btn {
+  width: 100%;
+  min-height: 44px;
+  height: auto;
+  white-space: normal;
+  padding-block: 10px;
+}
+.shipper-timeline {
+  padding-inline-start: 20px;
+}
+.shipper-timeline li {
+  margin-block-end: 16px;
+}
+.shipper-timeline time {
+  display: block;
+}
+.shipper-pagination {
+  flex-wrap: wrap;
+  row-gap: 12px;
+}
 @media (max-width: 600px) {
-  .shipper-route, .shipper-filters { grid-template-columns: 1fr; }
-  .shipper-workspace .ant-card-body { padding: 16px; }
-  .shipper-workspace .ant-btn { min-height: 44px; }
-  .shipper-summary-grid { grid-template-columns: 1fr; }
+  .shipper-route,
+  .shipper-filters {
+    grid-template-columns: 1fr;
+  }
+  .shipper-workspace .ant-card-body {
+    padding: 16px;
+  }
+  .shipper-workspace .ant-btn {
+    min-height: 44px;
+  }
+  .shipper-summary-grid {
+    grid-template-columns: 1fr;
+  }
 }

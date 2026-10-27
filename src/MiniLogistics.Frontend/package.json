@@ -13,6 +13,9 @@
     "dev:cert": "node scripts/prepare-dev-https.mjs",
     "typecheck": "tsc --noEmit",
     "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test:architecture": "node --test eslint/architecture.test.mjs",
     "test": "vitest run",
     "build": "npm run typecheck && vite build",
     "api:generate": "node scripts/generate-api.mjs",
@@ -28,6 +31,7 @@
     "@tanstack/react-query": "5.104.5"
   },
   "devDependencies": {
+    "prettier": "3.6.2",
     "vite": "8.3.5",
     "@vitejs/plugin-react": "6.1.2",
     "typescript": "5.9.3",

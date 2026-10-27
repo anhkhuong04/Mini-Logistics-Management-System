@@ -19,30 +19,33 @@ export default defineConfig({
     trace: process.env.MINILOGISTICS_E2E_SENSITIVE ? 'off' : 'retain-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: externalUrl ? undefined : [
-    {
-      command: 'dotnet run --project ../MiniLogistics.Web --no-launch-profile --no-build -c Release --urls https://localhost:17195',
-      url: 'https://localhost:17195/health/live',
-      ignoreHTTPSErrors: true,
-      reuseExistingServer: false,
-      timeout: 60_000,
-      env: {
-        ASPNETCORE_ENVIRONMENT: 'BrowserTests',
-        BrowserSpa__Enabled: 'true',
-        BrowserSpa__ServeAtRoot: 'true',
-        BannerImages__RootPath: `${root}.agent/browser-test-images`,
-        BrowserSpa__DistPath: fileURLToPath(new URL('./dist/', import.meta.url)),
-        ConnectionStrings__DefaultConnection: `Server=(localdb)\\MSSQLLocalDB;Database=MiniLogisticsBrowser_${randomUUID().replaceAll('-', '')};Trusted_Connection=True;TrustServerCertificate=True`,
-        Kestrel__Certificates__Default__Path: `${root}.agent/https/localhost.pem`,
-        Kestrel__Certificates__Default__KeyPath: `${root}.agent/https/localhost.key`,
-      },
-    },
-    {
-      command: 'npm run dev -- --port 15173',
-      url: 'https://localhost:15173/',
-      ignoreHTTPSErrors: true,
-      reuseExistingServer: false,
-      env: { MINILOGISTICS_BACKEND_URL: 'https://localhost:17195' },
-    },
-  ],
+  webServer: externalUrl
+    ? undefined
+    : [
+        {
+          command:
+            'dotnet run --project ../MiniLogistics.Web --no-launch-profile --no-build -c Release --urls https://localhost:17195',
+          url: 'https://localhost:17195/health/live',
+          ignoreHTTPSErrors: true,
+          reuseExistingServer: false,
+          timeout: 60_000,
+          env: {
+            ASPNETCORE_ENVIRONMENT: 'BrowserTests',
+            BrowserSpa__Enabled: 'true',
+            BrowserSpa__ServeAtRoot: 'true',
+            BannerImages__RootPath: `${root}.agent/browser-test-images`,
+            BrowserSpa__DistPath: fileURLToPath(new URL('./dist/', import.meta.url)),
+            ConnectionStrings__DefaultConnection: `Server=(localdb)\\MSSQLLocalDB;Database=MiniLogisticsBrowser_${randomUUID().replaceAll('-', '')};Trusted_Connection=True;TrustServerCertificate=True`,
+            Kestrel__Certificates__Default__Path: `${root}.agent/https/localhost.pem`,
+            Kestrel__Certificates__Default__KeyPath: `${root}.agent/https/localhost.key`,
+          },
+        },
+        {
+          command: 'npm run dev -- --port 15173',
+          url: 'https://localhost:15173/',
+          ignoreHTTPSErrors: true,
+          reuseExistingServer: false,
+          env: { MINILOGISTICS_BACKEND_URL: 'https://localhost:17195' },
+        },
+      ],
 });

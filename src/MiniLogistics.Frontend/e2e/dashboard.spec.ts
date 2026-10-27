@@ -14,10 +14,15 @@ test('KPI drill-down issues a real scoped shipment request with exact UTC filter
   await login(page, 'browser-owner@example.test');
   await expect(page.getByRole('link', { name: 'Chờ lấy hàng: 1', exact: true })).toBeVisible();
   const shop = new URL(page.url()).searchParams.get('shopId')!;
-  await page.goto(`./dashboard?shopId=${shop}&fromUtc=2026-10-01T00:00:00Z&toUtc=2026-10-01T23:59:59.9999999Z`);
-  const request = page.waitForRequest(request => {
+  await page.goto(
+    `./dashboard?shopId=${shop}&fromUtc=2026-10-01T00:00:00Z&toUtc=2026-10-01T23:59:59.9999999Z`,
+  );
+  const request = page.waitForRequest((request) => {
     const url = new URL(request.url());
-    return url.pathname === `/api/v1/app/shops/${shop}/shipments` && url.searchParams.get('status') === 'PendingPickup';
+    return (
+      url.pathname === `/api/v1/app/shops/${shop}/shipments` &&
+      url.searchParams.get('status') === 'PendingPickup'
+    );
   });
   await page.getByRole('link', { name: 'Chờ lấy hàng: 1', exact: true }).click();
   const url = new URL((await request).url());
@@ -41,6 +46,9 @@ test('limited staff dashboard keeps masking and fits mobile tablet and desktop',
   for (const width of [390, 768, 1024, 1440]) {
     await page.setViewportSize({ width, height: 900 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-    await page.screenshot({ path: `../../.agent/refactorfe-phase3/screenshots/dashboard-${width}.png`, fullPage: true });
+    await page.screenshot({
+      path: `../../.agent/refactorfe-phase3/screenshots/dashboard-${width}.png`,
+      fullPage: true,
+    });
   }
 });

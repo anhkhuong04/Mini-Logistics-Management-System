@@ -3,4 +3,8 @@ import { requestJson } from '../../../shared/api/httpClient';
 export type ShippingQuoteRequest = components['schemas']['BrowserShippingQuoteRequest'];
 export type ShippingQuote = components['schemas']['ShopShippingQuoteResponse'];
 export const getShippingQuote = (shopId: string, body: ShippingQuoteRequest, signal: AbortSignal) =>
-  requestJson<ShippingQuote>(`/api/v1/app/shops/${encodeURIComponent(shopId)}/shipping/quote`, { method: 'POST', body, signal });
+  requestJson<ShippingQuote>(`/api/v1/app/shops/${encodeURIComponent(shopId)}/shipping/quote`, {
+    method: 'POST',
+    body,
+    signal,
+  });

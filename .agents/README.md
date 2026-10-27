@@ -9,7 +9,7 @@ The files in this directory contain only repository-specific context that is cos
 | [`workflows.md`](workflows.md) | Implementing a feature, fixing a bug, refactoring, reviewing, or preparing handoff |
 | [`commands.md`](commands.md) | Restoring, building, running, testing, or creating migrations |
 | [`known-issues.md`](known-issues.md) | Any cross-cutting change or when validation fails unexpectedly |
-| [`../refactorfe.md`](../refactorfe.md) | Frontend migration task order, proposed interfaces and acceptance checks |
+| [`../docs/Frontend/history/refactorfe.md`](../docs/Frontend/history/refactorfe.md) | Archived frontend migration task order, interfaces and acceptance evidence |
 | [Migration contract/status](../docs/Frontend/react-migration-contracts.md) | Frontend/browser API work: accepted direction, current implementation and remaining preparation |
 
 ## Source-of-truth order

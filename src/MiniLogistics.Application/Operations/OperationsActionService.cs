@@ -7,14 +7,6 @@ using MiniLogistics.Domain.Common;
 
 namespace MiniLogistics.Application.Operations;
 
-public interface IOperationsActionService
-{
-    Task<Result<AutoAssignShipmentResult>> AutoAssignAsync(Guid actor, Guid shipmentId, CancellationToken token);
-    Task<Result> StatusAsync(UpdateShipmentStatusCommand command, CancellationToken token);
-    Task<Result> CollectAsync(MarkCodCollectedCommand command, CancellationToken token);
-    Task<Result> SettleAsync(MarkCodSettledCommand command, CancellationToken token);
-}
-
 // Shared status/COD services also serve Shipper; this Operations entry point must require operational permission.
 public sealed class OperationsActionService(IOperationAuthorizationService authorization,
     IUpdateShipmentStatusService status, IMarkCodCollectedService collect, IMarkCodSettledService settle,

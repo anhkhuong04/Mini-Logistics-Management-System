@@ -1,10 +1,14 @@
 import { expect, test } from '@playwright/test';
 import { adminLogin, confirmAdmin } from './admin-helpers';
 test.skip(!process.env.MINILOGISTICS_E2E_IDENTITY_FIXTURE, 'Requires isolated Identity/Application fixture.');
-test('Admin creates internal user, changes capacity, password and Shop activity with confirmation', async ({ page }) => {
+test('Admin creates internal user, changes capacity, password and Shop activity with confirmation', async ({
+  page,
+}) => {
   test.setTimeout(90000);
   await adminLogin(page, '/admin/users');
-  const form = page.locator('form').filter({ has: page.getByRole('textbox', { name: 'Họ tên', exact: true }) });
+  const form = page
+    .locator('form')
+    .filter({ has: page.getByRole('textbox', { name: 'Họ tên', exact: true }) });
   await form.getByRole('textbox', { name: 'Họ tên', exact: true }).fill('Phase9 Created Driver');
   await form.getByRole('textbox', { name: 'Email', exact: true }).fill('phase9-created@example.test');
   await form.getByRole('textbox', { name: 'Điện thoại', exact: true }).fill('0901234567');

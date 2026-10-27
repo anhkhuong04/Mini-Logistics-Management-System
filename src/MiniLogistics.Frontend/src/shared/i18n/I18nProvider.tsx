@@ -9,5 +9,9 @@ export function I18nProvider({ locale, children }: { locale: Locale; children: R
     document.documentElement.lang = locale === 'en-US' ? 'en' : 'vi';
     dayjs.locale(locale === 'en-US' ? 'en' : 'vi');
   }, [locale]);
-  return <I18nContext.Provider value={{ locale, t: (key: MessageKey) => messages[locale][key] }}>{children}</I18nContext.Provider>;
+  return (
+    <I18nContext.Provider value={{ locale, t: (key: MessageKey) => messages[locale][key] }}>
+      {children}
+    </I18nContext.Provider>
+  );
 }

@@ -13,7 +13,11 @@ await import(/* @vite-ignore */ runtimeConfigUrl);
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <AppProviders locale={document.documentElement.lang === 'en' ? 'en-US' : 'vi-VN'}>
-      <BrowserRouter basename={window.__MINI_LOGISTICS_CONFIG__!.basePath}><SessionProvider><App /></SessionProvider></BrowserRouter>
+      <BrowserRouter basename={window.__MINI_LOGISTICS_CONFIG__!.basePath}>
+        <SessionProvider>
+          <App />
+        </SessionProvider>
+      </BrowserRouter>
     </AppProviders>
   </StrictMode>,
 );

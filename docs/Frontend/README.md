@@ -14,9 +14,15 @@ Frontend hiện tại là React + TypeScript strict + Ant Design, build bằng V
 | `Web/Endpoints/Browser`, `Web/Services/BrowserSpa*` | HTTP adapters và static/root host |
 | `Web/wwwroot/images`, `Web/wwwroot/data` | Ảnh hiện có và administrative JSON còn dùng |
 
-Không có Blazor runtime trong UI sau cleanup. Chín file Operations đã có thay đổi người dùng được giữ nguyên dưới `Web/Components` và loại khỏi Razor compile/content publish. Không dùng các file này làm hướng dẫn triển khai mới. Các path Razor trong inventory là nguồn baseline lịch sử, không phải link runtime.
+Không có Blazor runtime trong UI sau cleanup. Chín file Operations đã có thay đổi người dùng được giữ nguyên tại `archive/legacy-blazor/Operations`, ngoài source runtime. Không dùng các file này làm hướng dẫn triển khai mới. Các path Razor trong inventory là nguồn baseline lịch sử, không phải link runtime.
 
 `PublicLayout` dành cho landing/FAQ/contact/tracking/login/register; `AppLayout` dành cho workspace. PageHeader quản lý title/focus; AsyncContent phân biệt loading/error/empty. Route lazy loading tách code feature; public navigation không cần tải Admin/Integration feature chunks. AntD vendor vẫn có cảnh báo bundle lớn; xem validation thay vì suy ra mọi dependency đã nhỏ.
+
+## Dependency và formatting
+
+`app` ghép các feature; `features` gọi public API `index.ts` của feature khác; `shared` không phụ thuộc `app` hoặc `features`. ESLint kiểm các ranh giới này, gồm dynamic imports. Routing helpers ở `shared/routing`, shipment filter contracts ở `shared/model`, ngày UTC/server-time-zone ở `shared/lib`, download transport ở `shared/api`. Shop-scoped command/download controls ở `features/shop-context`.
+
+Prettier được pin ở devDependencies; dùng `npm run format` và `npm run format:check`. Generated browser types không qua formatter. `npm run test:architecture` kiểm rule bằng cả ca được phép và ca vi phạm. Xem [source organization](../Backend/source-organization.md) và [kế hoạch lịch sử](history/refactorfe.md).
 
 ## Màn hình theo actor
 

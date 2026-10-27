@@ -1,3 +1,5 @@
+using MiniLogistics.Infrastructure.ReferenceData;
+using MiniLogistics.Infrastructure.Shipments.Import;
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using System.Net;
@@ -40,8 +42,9 @@ public sealed class BrowserRealBrowserTests
         using var pemCertificate = X509Certificate2.CreateFromPemFile(Path.Combine(certDirectory, "localhost.pem"), Path.Combine(certDirectory, "localhost.key"));
         // Windows Schannel needs a persisted key handle; do not write the PFX or its key to disk.
         using var certificate = X509CertificateLoader.LoadPkcs12(pemCertificate.Export(X509ContentType.Pfx), null);
-        await using var factory = new BrowserIdentityFactory(enableFrontend: true, serveAtRoot: Environment.GetEnvironmentVariable("MINILOGISTICS_E2E_ROOT")=="1",
-            configureServices: services => {
+        await using var factory = new BrowserIdentityFactory(enableFrontend: true, serveAtRoot: Environment.GetEnvironmentVariable("MINILOGISTICS_E2E_ROOT") == "1",
+            configureServices: services =>
+            {
                 services.AddHostedService<ShipmentImportWorker>();
                 services.RemoveAll<IShipperAssignmentCapacityGuard>();
                 services.AddScoped<IShipperAssignmentCapacityGuard, BrowserOperationsCapacityGuard>();
@@ -78,11 +81,12 @@ public sealed class BrowserRealBrowserTests
             var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
             // A nonempty configured map replaces the built-in fallback. Keep a complete map while Admin edits a distinct province.
             db.RouteRegionConfigs.AddRange(MiniLogistics.Application.Routing.DefaultRouteRegionConfigSource.Instance.GetProvinceRegionSnapshot()
-                .Select(item=>new RouteRegionConfig(item.Province,item.Region,DateTimeOffset.UtcNow)));
+                .Select(item => new RouteRegionConfig(item.Province, item.Region, DateTimeOffset.UtcNow)));
             var province = (await scope.ServiceProvider.GetRequiredService<VietnamAdministrativeDivisionService>().GetProvincesAsync()).First(item => item.Name.Contains("Hà Nội"));
             Shop New(string name, Guid? ownerId = null) => new(ownerId ?? owner, name, new PhoneNumber("0901234567"),
                 new Address("Private test address", province.Wards[0].Name, province.Name, "Vietnam"), DateTimeOffset.UtcNow);
-            var first = New("Browser Shop A"); var second = New("Browser Shop B");
+            var first = New("Browser Shop A");
+            var second = New("Browser Shop B");
             db.Shops.Add(New("Phase9 Admin Shop", adminShopOwner));
             db.Shops.AddRange(first, second);
             db.Shops.Add(New("Browser Mutation Shop", mutationOwner));
@@ -93,18 +97,23 @@ public sealed class BrowserRealBrowserTests
             (await db.Users.FindAsync(mobileShipper))!.FullName = "Mobile Driver";
             (await db.Users.FindAsync(crossShipper))!.FullName = "Cross Driver";
             db.Shops.Add(New("Browser Cross Shop", crossOwner));
-            var profileShop = New("Browser Profile Shop", profileOwner); db.Shops.Add(profileShop);
+            var profileShop = New("Browser Profile Shop", profileOwner);
+            db.Shops.Add(profileShop);
             db.Shipments.Add(BrowserShopShipmentReadTests.NewShipment(profileShop.Id, profileOwner, "ML-PROFILE-E2E-SNAPSHOT", 0));
-            var staffShop = New("Browser Staff Shop", staffOwner); db.Shops.Add(staffShop);
+            var staffShop = New("Browser Staff Shop", staffOwner);
+            db.Shops.Add(staffShop);
             (await db.Users.FindAsync(settingsStaff))!.FullName = "Settings Staff";
             db.ShopStaffMemberships.Add(new ShopStaffMembership(staffShop.Id, settingsStaff, staffOwner, ShopStaffRole.Viewer, ShopPermission.ViewShipments, DateTimeOffset.UtcNow));
-            var reportShop = New("Browser Report Shop", reportOwner); db.Shops.Add(reportShop);
+            var reportShop = New("Browser Report Shop", reportOwner);
+            db.Shops.Add(reportShop);
             db.ShopStaffMemberships.Add(new ShopStaffMembership(reportShop.Id, reportReader, reportOwner, ShopStaffRole.Viewer, ShopPermission.ViewShipments, DateTimeOffset.UtcNow));
-            var reportShipment = BrowserShopShipmentReadTests.NewShipment(reportShop.Id, reportOwner, "ML-SETTINGS-COD", 100000); db.Shipments.Add(reportShipment);
+            var reportShipment = BrowserShopShipmentReadTests.NewShipment(reportShop.Id, reportOwner, "ML-SETTINGS-COD", 100000);
+            db.Shipments.Add(reportShipment);
             db.CodTransactions.Add(CodTransaction.Create(reportShipment.Id, reportShipment.CodAmount, DateTimeOffset.UtcNow));
             db.ShopNotifications.Add(new ShopNotification(Guid.NewGuid(), reportShop.Id, reportOwner, "shipment.delivered", "Settings delivery notice", "Synthetic delivery notification", DateTimeOffset.UtcNow, reportShipment.Id));
             db.AdminAuditLogs.Add(new MiniLogistics.Domain.AdminAuditing.AdminAuditLog(reportOwner, "Shop", "FixtureSettingsAudit", "Shop", reportShop.Id, DateTimeOffset.UtcNow, newValueJson: "{\"password\":\"settings-secret-fixture\"}"));
-            var mobileShop = New("Browser Mobile Shop", operationsOwner); db.Shops.Add(mobileShop);
+            var mobileShop = New("Browser Mobile Shop", operationsOwner);
+            db.Shops.Add(mobileShop);
             var mobile = BrowserShopShipmentReadTests.NewShipment(mobileShop.Id, operationsOwner, "ML-SHIPPER-MOBILE-1", 100000);
             var noCod = BrowserShopShipmentReadTests.NewShipment(mobileShop.Id, operationsOwner, "ML-SHIPPER-NOCOD", 0);
             var pendingCod = BrowserShopShipmentReadTests.NewShipment(mobileShop.Id, operationsOwner, "ML-SHIPPER-COD", 25000);
@@ -113,14 +122,18 @@ public sealed class BrowserRealBrowserTests
             {
                 var assignedShipper = task == otherTask ? otherShipper : mobileShipper;
                 Assert.True(task.AssignShipper(assignedShipper, operationsActor, DateTimeOffset.UtcNow, "seed").IsSuccess);
-                if (task == pendingCod) foreach (var status in new[] { ShipmentStatus.PickingUp, ShipmentStatus.PickedUp, ShipmentStatus.InTransit, ShipmentStatus.Delivering, ShipmentStatus.Delivered })
-                    Assert.True(task.UpdateStatus(status, mobileShipper, DateTimeOffset.UtcNow, "seed").IsSuccess);
-                db.Shipments.Add(task); db.CodTransactions.Add(CodTransaction.Create(task.Id, task.CodAmount, DateTimeOffset.UtcNow));
+                if (task == pendingCod)
+                    foreach (var status in new[] { ShipmentStatus.PickingUp, ShipmentStatus.PickedUp, ShipmentStatus.InTransit, ShipmentStatus.Delivering, ShipmentStatus.Delivered })
+                        Assert.True(task.UpdateStatus(status, mobileShipper, DateTimeOffset.UtcNow, "seed").IsSuccess);
+                db.Shipments.Add(task);
+                db.CodTransactions.Add(CodTransaction.Create(task.Id, task.CodAmount, DateTimeOffset.UtcNow));
             }
             // Distinct synthetic area preserves the existing no-eligible-shipper and cross-role manual-assignment fixtures.
             var mobileHub = new Hub("MOBILE-TEST", "Mobile Hub", "Mobile Fixture Province", DateTimeOffset.UtcNow);
-            db.Hubs.Add(mobileHub); db.ShipperWorkingAreas.Add(new ShipperWorkingArea(mobileShipper, mobileHub.Id, mobileHub.Province, DateTimeOffset.UtcNow));
-            var operationsShop = New("Browser Operations Shop", operationsOwner); db.Shops.Add(operationsShop);
+            db.Hubs.Add(mobileHub);
+            db.ShipperWorkingAreas.Add(new ShipperWorkingArea(mobileShipper, mobileHub.Id, mobileHub.Province, DateTimeOffset.UtcNow));
+            var operationsShop = New("Browser Operations Shop", operationsOwner);
+            db.Shops.Add(operationsShop);
             var opsPending = BrowserShopShipmentReadTests.NewShipment(operationsShop.Id, operationsOwner, "ML-OPS-PENDING");
             db.Shipments.Add(opsPending);
             db.CodTransactions.Add(CodTransaction.Create(opsPending.Id, opsPending.CodAmount, DateTimeOffset.UtcNow));
@@ -131,7 +144,8 @@ public sealed class BrowserRealBrowserTests
             var settledCod = CodTransaction.Create(settlement.Id, settlement.CodAmount, DateTimeOffset.UtcNow);
             Assert.True(settledCod.MarkCollected(ShipmentStatus.Delivered, adminActor, DateTimeOffset.UtcNow).IsSuccess);
             Assert.True(settlement.CompleteCodCollection(DateTimeOffset.UtcNow).IsSuccess);
-            db.Shipments.Add(settlement); db.CodTransactions.Add(settledCod);
+            db.Shipments.Add(settlement);
+            db.CodTransactions.Add(settledCod);
             var adminSettlement = BrowserShopShipmentReadTests.NewShipment(operationsShop.Id, operationsOwner, "ML-ADMIN-SETTLE");
             Assert.True(adminSettlement.AssignShipper(driverA, operationsActor, DateTimeOffset.UtcNow, "seed").IsSuccess);
             foreach (var status in new[] { ShipmentStatus.PickingUp, ShipmentStatus.PickedUp, ShipmentStatus.InTransit, ShipmentStatus.Delivering, ShipmentStatus.Delivered })
@@ -139,34 +153,46 @@ public sealed class BrowserRealBrowserTests
             var adminCod = CodTransaction.Create(adminSettlement.Id, adminSettlement.CodAmount, DateTimeOffset.UtcNow);
             Assert.True(adminCod.MarkCollected(ShipmentStatus.Delivered, adminActor, DateTimeOffset.UtcNow).IsSuccess);
             Assert.True(adminSettlement.CompleteCodCollection(DateTimeOffset.UtcNow).IsSuccess);
-            db.Shipments.Add(adminSettlement); db.CodTransactions.Add(adminCod);
+            db.Shipments.Add(adminSettlement);
+            db.CodTransactions.Add(adminCod);
             db.ShopStaffMemberships.Add(new ShopStaffMembership(first.Id, staff, owner, ShopStaffRole.Viewer,
                 ShopPermission.ViewShipments, DateTimeOffset.UtcNow));
             await db.SaveChangesAsync();
         }
-        var portalOwner=await factory.AddUser("browser-integration-owner@example.test","Shop");
-        var portalOther=await factory.AddUser("browser-integration-other@example.test","Shop");
-        var webhookOwner=await factory.AddUser("browser-webhook-owner@example.test","Shop");
-        var portalManager=await factory.AddUser("browser-integration-manager@example.test","IntegrationAdmin");
-        var portal=await BrowserIntegrationTests.Seed(factory,portalOwner,"Portal Shop","Portal Province");
-        var excludedPortal=await BrowserIntegrationTests.Seed(factory,portalOther,"Excluded Portal Shop","Elsewhere");
-        var webhookPortal=await BrowserIntegrationTests.Seed(factory,webhookOwner,"Webhook Shop","Webhook Province");
-        var recoveries=await BrowserIntegrationTests.SeedFailures(factory,webhookPortal.Client.Id);
-        using(var scope=factory.Services.CreateScope()) {
-            var db=scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
-            db.IntegrationManagementScopes.AddRange(new MiniLogistics.Domain.PartnerApi.IntegrationManagementScope(adminActor,DateTimeOffset.UtcNow,isGlobal:true),new MiniLogistics.Domain.PartnerApi.IntegrationManagementScope(portalManager,DateTimeOffset.UtcNow,province:"Portal Province"));
+        var portalOwner = await factory.AddUser("browser-integration-owner@example.test", "Shop");
+        var portalOther = await factory.AddUser("browser-integration-other@example.test", "Shop");
+        var webhookOwner = await factory.AddUser("browser-webhook-owner@example.test", "Shop");
+        var portalManager = await factory.AddUser("browser-integration-manager@example.test", "IntegrationAdmin");
+        var portal = await BrowserIntegrationTests.Seed(factory, portalOwner, "Portal Shop", "Portal Province");
+        var excludedPortal = await BrowserIntegrationTests.Seed(factory, portalOther, "Excluded Portal Shop", "Elsewhere");
+        var webhookPortal = await BrowserIntegrationTests.Seed(factory, webhookOwner, "Webhook Shop", "Webhook Province");
+        var recoveries = await BrowserIntegrationTests.SeedFailures(factory, webhookPortal.Client.Id);
+        using (var scope = factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            db.IntegrationManagementScopes.AddRange(new MiniLogistics.Domain.PartnerApi.IntegrationManagementScope(adminActor, DateTimeOffset.UtcNow, isGlobal: true), new MiniLogistics.Domain.PartnerApi.IntegrationManagementScope(portalManager, DateTimeOffset.UtcNow, province: "Portal Province"));
             await db.SaveChangesAsync();
         }
         var address = factory.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single();
         using var healthClient = new HttpClient(new HttpClientHandler { ServerCertificateCustomValidationCallback = (_, _, _, _) => true });
         Assert.Equal(HttpStatusCode.OK, (await healthClient.GetAsync(address + "/health/live")).StatusCode);
         var node = Environment.GetEnvironmentVariable("MINILOGISTICS_NODE") ?? "node";
-        var start = new ProcessStartInfo(node) { WorkingDirectory = Path.Combine(root, "src", "MiniLogistics.Frontend"),
-            RedirectStandardOutput = true, RedirectStandardError = true, StandardOutputEncoding = System.Text.Encoding.UTF8,
-            StandardErrorEncoding = System.Text.Encoding.UTF8, UseShellExecute = false, CreateNoWindow = true };
-        start.ArgumentList.Add("node_modules/@playwright/test/cli.js"); start.ArgumentList.Add("test");
-        start.ArgumentList.Add("e2e/public-pages.spec.ts"); start.ArgumentList.Add("e2e/public-tracking.spec.ts");
-        start.ArgumentList.Add("e2e/auth.spec.ts"); start.ArgumentList.Add("e2e/shop-context.spec.ts");
+        var start = new ProcessStartInfo(node)
+        {
+            WorkingDirectory = Path.Combine(root, "src", "MiniLogistics.Frontend"),
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            StandardOutputEncoding = System.Text.Encoding.UTF8,
+            StandardErrorEncoding = System.Text.Encoding.UTF8,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        start.ArgumentList.Add("node_modules/@playwright/test/cli.js");
+        start.ArgumentList.Add("test");
+        start.ArgumentList.Add("e2e/public-pages.spec.ts");
+        start.ArgumentList.Add("e2e/public-tracking.spec.ts");
+        start.ArgumentList.Add("e2e/auth.spec.ts");
+        start.ArgumentList.Add("e2e/shop-context.spec.ts");
         start.ArgumentList.Add("e2e/admin-reporting.spec.ts");
         start.ArgumentList.Add("e2e/admin-users-shops.spec.ts");
         start.ArgumentList.Add("e2e/admin-config.spec.ts");
@@ -186,55 +212,70 @@ public sealed class BrowserRealBrowserTests
         start.ArgumentList.Add("e2e/shop-settings.spec.ts");
         if (Environment.GetEnvironmentVariable("MINILOGISTICS_E2E_GREP") is { Length: > 0 } grep)
         {
-            start.ArgumentList.Add("--grep"); start.ArgumentList.Add(grep);
+            start.ArgumentList.Add("--grep");
+            start.ArgumentList.Add(grep);
         }
-        start.Environment["MINILOGISTICS_E2E_BASE_URL"] = address + (Environment.GetEnvironmentVariable("MINILOGISTICS_E2E_ROOT")=="1" ? "/" : "/app/");
+        start.Environment["MINILOGISTICS_E2E_BASE_URL"] = address + (Environment.GetEnvironmentVariable("MINILOGISTICS_E2E_ROOT") == "1" ? "/" : "/app/");
         start.Environment["MINILOGISTICS_E2E_IDENTITY_FIXTURE"] = "1";
         start.Environment["MINILOGISTICS_E2E_PASSWORD"] = BrowserIdentityFactory.Password;
         start.Environment["MINILOGISTICS_E2E_FOREIGN_INTEGRATION_SHOP"] = excludedPortal.Shop.Id.ToString();
         // Prevent inherited diagnostics from placing cookie-bearing traces in artifacts.
         start.Environment["MINILOGISTICS_E2E_SENSITIVE"] = "1";
         using var process = Process.Start(start)!;
-        var stdout = process.StandardOutput.ReadToEndAsync(); var stderr = process.StandardError.ReadToEndAsync();
+        var stdout = process.StandardOutput.ReadToEndAsync();
+        var stderr = process.StandardError.ReadToEndAsync();
         // Phase 9 adds five complete administration workflows to the existing 22 scenarios.
         using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(5));
-        try { await process.WaitForExitAsync(timeout.Token); }
+        try
+        {
+            await process.WaitForExitAsync(timeout.Token);
+        }
         catch { process.Kill(entireProcessTree: true); throw; }
         var output = await stdout + await stderr;
         Assert.True(process.ExitCode == 0, output);
         var selected = Environment.GetEnvironmentVariable("MINILOGISTICS_E2E_GREP");
-        if(string.IsNullOrEmpty(selected)||selected.Contains("Integration client lifecycle",StringComparison.Ordinal)) {
-            using var scope=factory.Services.CreateScope();var db=scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
-            var created=await db.ApiClients.SingleAsync(item=>item.Name=="Browser Portal Client");
-            Assert.True(created.IsActive);Assert.Equal(MiniLogistics.Domain.PartnerApi.PartnerApiScope.Quote|MiniLogistics.Domain.PartnerApi.PartnerApiScope.TrackShipment,created.Scopes);
-            Assert.True(await db.PartnerApiCredentialAudits.AnyAsync(item=>item.ApiClientId==created.Id&&item.ActorUserId==portalOwner));
+        if (string.IsNullOrEmpty(selected) || selected.Contains("Integration client lifecycle", StringComparison.Ordinal))
+        {
+            using var scope = factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            var created = await db.ApiClients.SingleAsync(item => item.Name == "Browser Portal Client");
+            Assert.True(created.IsActive);
+            Assert.Equal(MiniLogistics.Domain.PartnerApi.PartnerApiScope.Quote | MiniLogistics.Domain.PartnerApi.PartnerApiScope.TrackShipment, created.Scopes);
+            Assert.True(await db.PartnerApiCredentialAudits.AnyAsync(item => item.ApiClientId == created.Id && item.ActorUserId == portalOwner));
         }
-        if(string.IsNullOrEmpty(selected)||selected.Contains("Integration webhook lifecycle",StringComparison.Ordinal)) {
-            using var scope=factory.Services.CreateScope();var db=scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
-            Assert.Equal(MiniLogistics.Domain.PartnerApi.WebhookDeliveryStatus.Pending,(await db.WebhookDeliveries.FindAsync(recoveries.Delivery))!.Status);
-            Assert.Equal(MiniLogistics.Domain.Outbox.OutboxMessageStatus.Pending,(await db.OutboxMessages.FindAsync(recoveries.Outbox))!.Status);
-            Assert.True(await db.PartnerApiCredentialAudits.AnyAsync(item=>item.ApiClientId==webhookPortal.Client.Id&&item.ActorUserId==webhookOwner));
+        if (string.IsNullOrEmpty(selected) || selected.Contains("Integration webhook lifecycle", StringComparison.Ordinal))
+        {
+            using var scope = factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            Assert.Equal(MiniLogistics.Domain.PartnerApi.WebhookDeliveryStatus.Pending, (await db.WebhookDeliveries.FindAsync(recoveries.Delivery))!.Status);
+            Assert.Equal(MiniLogistics.Domain.Outbox.OutboxMessageStatus.Pending, (await db.OutboxMessages.FindAsync(recoveries.Outbox))!.Status);
+            Assert.True(await db.PartnerApiCredentialAudits.AnyAsync(item => item.ApiClientId == webhookPortal.Client.Id && item.ActorUserId == webhookOwner));
         }
         if (string.IsNullOrEmpty(selected) || selected.Contains("Admin reporting scopes", StringComparison.Ordinal))
         {
-            using var scope=factory.Services.CreateScope();var db=scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
-            var shipment=await db.Shipments.SingleAsync(item=>item.TrackingCode==new TrackingCode("ML-ADMIN-SETTLE"));
-            var cod=await db.CodTransactions.SingleAsync(item=>item.ShipmentId==shipment.Id);
-            Assert.Equal(CodStatus.Settled,cod.Status);Assert.Equal(adminActor,cod.SettledByUserId);
-            Assert.True(await db.AdminAuditLogs.AnyAsync(item=>item.TargetId==cod.Id&&item.ActorUserId==adminActor));
+            using var scope = factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            var shipment = await db.Shipments.SingleAsync(item => item.TrackingCode == new TrackingCode("ML-ADMIN-SETTLE"));
+            var cod = await db.CodTransactions.SingleAsync(item => item.ShipmentId == shipment.Id);
+            Assert.Equal(CodStatus.Settled, cod.Status);
+            Assert.Equal(adminActor, cod.SettledByUserId);
+            Assert.True(await db.AdminAuditLogs.AnyAsync(item => item.TargetId == cod.Id && item.ActorUserId == adminActor));
         }
         if (string.IsNullOrEmpty(selected) || selected.Contains("Admin creates internal user", StringComparison.Ordinal))
         {
-            using var scope=factory.Services.CreateScope();var db=scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
-            var user=await db.Users.SingleAsync(item=>item.Email=="phase9-created@example.test");
-            Assert.False(user.IsActive);Assert.Equal(9,user.MaxActiveShipments);
-            Assert.True(await db.ShipperWorkingAreas.AnyAsync(item=>item.ShipperId==user.Id&&item.IsActive));
-            Assert.False((await db.Shops.SingleAsync(item=>item.OwnerUserId==adminShopOwner)).IsActive);
-            Assert.True(await db.AdminAuditLogs.AnyAsync(item=>item.TargetId==user.Id&&item.ActorUserId==adminActor));
+            using var scope = factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            var user = await db.Users.SingleAsync(item => item.Email == "phase9-created@example.test");
+            Assert.False(user.IsActive);
+            Assert.Equal(9, user.MaxActiveShipments);
+            Assert.True(await db.ShipperWorkingAreas.AnyAsync(item => item.ShipperId == user.Id && item.IsActive));
+            Assert.False((await db.Shops.SingleAsync(item => item.OwnerUserId == adminShopOwner)).IsActive);
+            Assert.True(await db.AdminAuditLogs.AnyAsync(item => item.TargetId == user.Id && item.ActorUserId == adminActor));
         }
         if (string.IsNullOrEmpty(selected) || selected.Contains("Shop profile edit", StringComparison.Ordinal))
         {
-            using var scope = factory.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            using var scope = factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
             var profile = await db.Shops.SingleAsync(item => item.OwnerUserId == profileOwner && item.Name == "Updated Profile Shop");
             Assert.Equal("Updated profile street", profile.Address.Street);
             Assert.Equal(profileOwner, (await db.Shops.SingleAsync(item => item.Name == "Additional Profile Shop")).OwnerUserId);
@@ -244,16 +285,20 @@ public sealed class BrowserRealBrowserTests
         }
         if (string.IsNullOrEmpty(selected) || selected.Contains("Shop staff owner", StringComparison.Ordinal))
         {
-            using var scope = factory.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            using var scope = factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
             var membership = await db.ShopStaffMemberships.SingleAsync(item => item.UserId == settingsStaff);
-            Assert.False(membership.IsActive); Assert.Equal(ShopStaffRole.Viewer, membership.Role); Assert.Equal(ShopPermission.ViewShipments, membership.Permissions);
+            Assert.False(membership.IsActive);
+            Assert.Equal(ShopStaffRole.Viewer, membership.Role);
+            Assert.Equal(ShopPermission.ViewShipments, membership.Permissions);
             Assert.True(await db.AdminAuditLogs.CountAsync(item => item.TargetId == membership.Id && item.ActorUserId == staffOwner) >= 3);
             var createdStaff = await db.Users.SingleAsync(item => item.Email == "browser-created-settings-staff@example.test");
             Assert.True(await db.ShopStaffMemberships.AnyAsync(item => item.UserId == createdStaff.Id && item.ShopId == membership.ShopId && item.IsActive));
         }
         if (string.IsNullOrEmpty(selected) || selected.Contains("Shop reporting notifications", StringComparison.Ordinal))
         {
-            using var scope = factory.Services.CreateScope(); var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
+            using var scope = factory.Services.CreateScope();
+            var db = scope.ServiceProvider.GetRequiredService<MiniLogisticsDbContext>();
             Assert.True((await db.ShopNotifications.SingleAsync(item => item.UserId == reportOwner)).IsRead);
             Assert.DoesNotContain("cod.collected", (await db.ShopNotificationPreferences.SingleAsync(item => item.UserId == reportOwner)).EnabledEventTypes);
         }
@@ -273,8 +318,11 @@ public sealed class BrowserRealBrowserTests
             Assert.Equal("Cross-role receiver unavailable", failure.Note);
             Assert.Equal(2, shipment.StatusHistory.Count(item => item.Status == ShipmentStatus.Delivering));
             var cod = await db.CodTransactions.SingleAsync(item => item.ShipmentId == shipment.Id);
-            Assert.Equal(CodStatus.Settled, cod.Status); Assert.Equal(crossShipper, cod.CollectedByUserId); Assert.Equal(adminActor, cod.SettledByUserId);
-            Assert.Equal(99000m, cod.CollectedAmount!.Amount); Assert.Equal(1000m, cod.DiscrepancyAmount!.Amount);
+            Assert.Equal(CodStatus.Settled, cod.Status);
+            Assert.Equal(crossShipper, cod.CollectedByUserId);
+            Assert.Equal(adminActor, cod.SettledByUserId);
+            Assert.Equal(99000m, cod.CollectedAmount!.Amount);
+            Assert.Equal(1000m, cod.DiscrepancyAmount!.Amount);
             Assert.Equal("Cross-role COD shortfall", cod.CollectionNote);
             Assert.True(await db.AdminAuditLogs.AnyAsync(item => item.TargetId == shipment.Id && item.ActorUserId == crossShipper));
             Assert.True(await db.AdminAuditLogs.AnyAsync(item => item.TargetId == cod.Id && item.ActorUserId == crossShipper));

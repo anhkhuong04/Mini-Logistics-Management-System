@@ -1,3 +1,4 @@
+using MiniLogistics.Application.Tests.TestDoubles;
 using System.Text.Json;
 using System.Text;
 using MiniLogistics.Application.AdminAuditing;
@@ -1611,7 +1612,10 @@ public sealed class PartnerApiServiceTests
 
         public IReadOnlyList<PartnerApiCredentialAudit> Audits => _audits.AsReadOnly();
 
-        public int SaveChangesCount { get; private set; }
+        public int SaveChangesCount
+        {
+            get; private set;
+        }
 
         public Task<IReadOnlyList<PartnerApiCredentialAudit>> GetRecentByApiClientIdsAsync(
             IReadOnlyCollection<Guid> apiClientIds,
@@ -1675,7 +1679,10 @@ public sealed class PartnerApiServiceTests
 
         public IReadOnlyList<OutboxMessage> Messages => _messages.AsReadOnly();
 
-        public int SaveChangesCount { get; private set; }
+        public int SaveChangesCount
+        {
+            get; private set;
+        }
 
         public Task<OutboxMessage?> GetByIdAsync(
             Guid outboxMessageId,
@@ -1732,7 +1739,10 @@ public sealed class PartnerApiServiceTests
 
         public IReadOnlyList<ApiClient> ApiClients => _apiClients.AsReadOnly();
 
-        public int SaveChangesCount { get; private set; }
+        public int SaveChangesCount
+        {
+            get; private set;
+        }
 
         public Task<ApiClient?> GetByIdAsync(
             Guid apiClientId,
@@ -1835,7 +1845,10 @@ public sealed class PartnerApiServiceTests
             _shops = shops.ToList();
         }
 
-        public int SaveChangesCount { get; private set; }
+        public int SaveChangesCount
+        {
+            get; private set;
+        }
 
         public Task<Shop?> GetByIdAsync(
             Guid shopId,
@@ -1885,7 +1898,7 @@ public sealed class PartnerApiServiceTests
         }
     }
 
-    private sealed class FakeShipmentRepository : IShipmentRepository
+    private sealed class FakeShipmentRepository : ShipmentReadRepositoryFake, IShipmentRepository
     {
         private readonly List<Shipment> _shipments;
 
@@ -1894,46 +1907,49 @@ public sealed class PartnerApiServiceTests
             _shipments = shipments.ToList();
         }
 
-        public int SaveChangesCount { get; private set; }
+        public int SaveChangesCount
+        {
+            get; private set;
+        }
 
         public IReadOnlyList<Shipment> Shipments => _shipments.AsReadOnly();
 
-        public Task<bool> ExistsByTrackingCodeAsync(
+        public override Task<bool> ExistsByTrackingCodeAsync(
             TrackingCode trackingCode,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(_shipments.Any(shipment => shipment.TrackingCode == trackingCode));
         }
 
-        public Task<IReadOnlyList<Shipment>> GetByShopIdAsync(
+        public override Task<IReadOnlyList<Shipment>> GetByShopIdAsync(
             Guid shopId,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<Shipment>>(_shipments.Where(shipment => shipment.ShopId == shopId).ToList());
         }
 
-        public Task<IReadOnlyList<Shipment>> GetByStatusAsync(
+        public override Task<IReadOnlyList<Shipment>> GetByStatusAsync(
             ShipmentStatus status,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<Shipment>>(_shipments.Where(shipment => shipment.Status == status).ToList());
         }
 
-        public Task<IReadOnlyList<Shipment>> GetByStatusesAsync(
+        public override Task<IReadOnlyList<Shipment>> GetByStatusesAsync(
             IReadOnlyCollection<ShipmentStatus> statuses,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<Shipment>>(_shipments.Where(shipment => statuses.Contains(shipment.Status)).ToList());
         }
 
-        public Task<IReadOnlyList<Shipment>> GetByIdsAsync(
+        public override Task<IReadOnlyList<Shipment>> GetByIdsAsync(
             IReadOnlyCollection<Guid> shipmentIds,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult<IReadOnlyList<Shipment>>(_shipments.Where(shipment => shipmentIds.Contains(shipment.Id)).ToList());
         }
 
-        public Task<IReadOnlyList<Shipment>> GetAssignedToShipperAsync(
+        public override Task<IReadOnlyList<Shipment>> GetAssignedToShipperAsync(
             Guid shipperId,
             CancellationToken cancellationToken = default)
         {
@@ -1943,7 +1959,7 @@ public sealed class PartnerApiServiceTests
                 .ToList());
         }
 
-        public Task<IReadOnlyDictionary<Guid, int>> GetActiveAssignmentCountsByShipperIdsAsync(
+        public override Task<IReadOnlyDictionary<Guid, int>> GetActiveAssignmentCountsByShipperIdsAsync(
             IReadOnlyCollection<Guid> shipperIds,
             CancellationToken cancellationToken = default)
         {
@@ -1957,7 +1973,7 @@ public sealed class PartnerApiServiceTests
             return Task.FromResult(counts);
         }
 
-        public Task<Shipment?> GetByIdAndShopIdAsync(
+        public override Task<Shipment?> GetByIdAndShopIdAsync(
             Guid shipmentId,
             Guid shopId,
             CancellationToken cancellationToken = default)
@@ -1980,14 +1996,14 @@ public sealed class PartnerApiServiceTests
             return Task.FromResult(_shipments.FirstOrDefault(shipment => shipment.Id == shipmentId));
         }
 
-        public Task<Shipment?> GetByTrackingCodeAsync(
+        public override Task<Shipment?> GetByTrackingCodeAsync(
             TrackingCode trackingCode,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(_shipments.FirstOrDefault(shipment => shipment.TrackingCode == trackingCode));
         }
 
-        public Task<Shipment?> GetByTrackingCodeAndShopIdAsync(
+        public override Task<Shipment?> GetByTrackingCodeAndShopIdAsync(
             TrackingCode trackingCode,
             Guid shopId,
             CancellationToken cancellationToken = default)
@@ -2152,7 +2168,10 @@ public sealed class PartnerApiServiceTests
             _deliveries = deliveries.ToList();
         }
 
-        public int SaveChangesCount { get; private set; }
+        public int SaveChangesCount
+        {
+            get; private set;
+        }
 
         public IReadOnlyList<WebhookDelivery> Deliveries => _deliveries.AsReadOnly();
 

@@ -1,3 +1,4 @@
+using MiniLogistics.Application.Tests.TestDoubles;
 using MiniLogistics.Application.AdminAuditing;
 using MiniLogistics.Application.AdminUsers.SetUserActiveStatus;
 using MiniLogistics.Application.AdminUsers.ResetUserPassword;
@@ -341,7 +342,10 @@ public sealed class AdminAuditActionTests
     {
         public List<AdminAuditEntry> Entries { get; } = [];
 
-        public int SaveChangesCount { get; private set; }
+        public int SaveChangesCount
+        {
+            get; private set;
+        }
 
         public Task RecordAsync(AdminAuditEntry entry, CancellationToken cancellationToken = default)
         {
@@ -358,9 +362,15 @@ public sealed class AdminAuditActionTests
 
     private sealed class FakeUserPasswordService : IUserPasswordService
     {
-        public Guid? ResetUserId { get; private set; }
+        public Guid? ResetUserId
+        {
+            get; private set;
+        }
 
-        public string? NewPassword { get; private set; }
+        public string? NewPassword
+        {
+            get; private set;
+        }
 
         public Task<Result> ResetPasswordAsync(
             Guid userId,
@@ -413,7 +423,10 @@ public sealed class AdminAuditActionTests
             bool isActive,
             CancellationToken cancellationToken = default)
         {
-            _users[userId] = _users[userId] with { IsActive = isActive };
+            _users[userId] = _users[userId] with
+            {
+                IsActive = isActive
+            };
             return Task.FromResult(Result.Success());
         }
 
@@ -539,7 +552,7 @@ public sealed class AdminAuditActionTests
         }
     }
 
-    private sealed class FakeShipmentRepository : IShipmentRepository
+    private sealed class FakeShipmentRepository : ShipmentReadRepositoryFake, IShipmentRepository
     {
         private readonly List<Shipment> _shipments;
 
@@ -548,16 +561,19 @@ public sealed class AdminAuditActionTests
             _shipments = shipments.ToList();
         }
 
-        public int SaveChangesCount { get; private set; }
+        public int SaveChangesCount
+        {
+            get; private set;
+        }
 
-        public Task<bool> ExistsByTrackingCodeAsync(
+        public override Task<bool> ExistsByTrackingCodeAsync(
             TrackingCode trackingCode,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(_shipments.Any(shipment => shipment.TrackingCode == trackingCode));
         }
 
-        public Task<IReadOnlyList<Shipment>> GetByShopIdAsync(
+        public override Task<IReadOnlyList<Shipment>> GetByShopIdAsync(
             Guid shopId,
             CancellationToken cancellationToken = default)
         {
@@ -566,7 +582,7 @@ public sealed class AdminAuditActionTests
                 .ToList());
         }
 
-        public Task<IReadOnlyList<Shipment>> GetByStatusAsync(
+        public override Task<IReadOnlyList<Shipment>> GetByStatusAsync(
             ShipmentStatus status,
             CancellationToken cancellationToken = default)
         {
@@ -575,7 +591,7 @@ public sealed class AdminAuditActionTests
                 .ToList());
         }
 
-        public Task<IReadOnlyList<Shipment>> GetByStatusesAsync(
+        public override Task<IReadOnlyList<Shipment>> GetByStatusesAsync(
             IReadOnlyCollection<ShipmentStatus> statuses,
             CancellationToken cancellationToken = default)
         {
@@ -584,7 +600,7 @@ public sealed class AdminAuditActionTests
                 .ToList());
         }
 
-        public Task<IReadOnlyList<Shipment>> GetByIdsAsync(
+        public override Task<IReadOnlyList<Shipment>> GetByIdsAsync(
             IReadOnlyCollection<Guid> shipmentIds,
             CancellationToken cancellationToken = default)
         {
@@ -593,7 +609,7 @@ public sealed class AdminAuditActionTests
                 .ToList());
         }
 
-        public Task<IReadOnlyList<Shipment>> GetAssignedToShipperAsync(
+        public override Task<IReadOnlyList<Shipment>> GetAssignedToShipperAsync(
             Guid shipperId,
             CancellationToken cancellationToken = default)
         {
@@ -603,7 +619,7 @@ public sealed class AdminAuditActionTests
                 .ToList());
         }
 
-        public Task<IReadOnlyDictionary<Guid, int>> GetActiveAssignmentCountsByShipperIdsAsync(
+        public override Task<IReadOnlyDictionary<Guid, int>> GetActiveAssignmentCountsByShipperIdsAsync(
             IReadOnlyCollection<Guid> shipperIds,
             CancellationToken cancellationToken = default)
         {
@@ -617,7 +633,7 @@ public sealed class AdminAuditActionTests
             return Task.FromResult(counts);
         }
 
-        public Task<Shipment?> GetByIdAndShopIdAsync(
+        public override Task<Shipment?> GetByIdAndShopIdAsync(
             Guid shipmentId,
             Guid shopId,
             CancellationToken cancellationToken = default)
@@ -641,14 +657,14 @@ public sealed class AdminAuditActionTests
             return Task.FromResult(_shipments.FirstOrDefault(shipment => shipment.Id == shipmentId));
         }
 
-        public Task<Shipment?> GetByTrackingCodeAsync(
+        public override Task<Shipment?> GetByTrackingCodeAsync(
             TrackingCode trackingCode,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(_shipments.FirstOrDefault(shipment => shipment.TrackingCode == trackingCode));
         }
 
-        public Task<Shipment?> GetByTrackingCodeAndShopIdAsync(
+        public override Task<Shipment?> GetByTrackingCodeAndShopIdAsync(
             TrackingCode trackingCode,
             Guid shopId,
             CancellationToken cancellationToken = default)

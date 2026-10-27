@@ -3,15 +3,25 @@ import { mkdir } from 'node:fs/promises';
 import { adminLogin, confirmAdmin } from './admin-helpers';
 test.skip(!process.env.MINILOGISTICS_E2E_IDENTITY_FIXTURE, 'Requires isolated Identity/Application fixture.');
 test('Admin reporting scopes, filters and masked audit use real Application reads', async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 }); await adminLogin(page, '/admin/dashboard');
+  await page.setViewportSize({ width: 390, height: 844 });
+  await adminLogin(page, '/admin/dashboard');
   await expect(page.getByRole('heading', { name: 'Tổng quan quản trị', exact: true })).toBeVisible();
   await expect(page.getByText('Shipper hiện tại', { exact: true })).toBeVisible();
   await mkdir('../../.agent/refactorfe-phase9/screenshots', { recursive: true });
-  await page.screenshot({ path: '../../.agent/refactorfe-phase9/screenshots/admin-390.png', fullPage: true, mask: [page.locator('.session-tools')] });
-  await page.setViewportSize({ width: 1280, height: 900 }); await page.goto('./admin');
+  await page.screenshot({
+    path: '../../.agent/refactorfe-phase9/screenshots/admin-390.png',
+    fullPage: true,
+    mask: [page.locator('.session-tools')],
+  });
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('./admin');
   await expect(page.getByRole('heading', { name: 'Tổng quan quản trị', exact: true })).toBeVisible();
   await expect(page.getByText('Shipper hiện tại', { exact: true })).toBeVisible();
-  await page.screenshot({ path: '../../.agent/refactorfe-phase9/screenshots/admin-1280.png', fullPage: true, mask: [page.locator('.session-tools')] });
+  await page.screenshot({
+    path: '../../.agent/refactorfe-phase9/screenshots/admin-1280.png',
+    fullPage: true,
+    mask: [page.locator('.session-tools')],
+  });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole('link', { name: 'COD', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'COD quản trị', exact: true })).toBeVisible();
@@ -33,8 +43,20 @@ test('Operator cannot open Admin pages or call administrative endpoints', async 
   await page.getByLabel('Email', { exact: true }).fill('browser-operator@example.test');
   await page.getByLabel('Mật khẩu', { exact: true }).fill(process.env.MINILOGISTICS_E2E_PASSWORD!);
   await page.getByRole('button', { name: 'Đăng nhập', exact: true }).click();
-  await expect(page).toHaveURL(url => /^\/(?:app\/)?admin\/users$/.test(url.pathname));
+  await expect(page).toHaveURL((url) => /^\/(?:app\/)?admin\/users$/.test(url.pathname));
   await expect(page.getByText('Kh\u00f4ng c\u00f3 quy\u1ec1n truy c\u1eadp', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Tạo người dùng', exact: true })).toHaveCount(0);
-  for (const part of ['dashboard', 'cod-report', 'audit', 'users', 'shops', 'hubs', 'configuration', 'banners']) expect((await page.request.get(new URL(`/api/v1/app/admin/${part}`, page.url()).href)).status()).toBe(403);
+  for (const part of [
+    'dashboard',
+    'cod-report',
+    'audit',
+    'users',
+    'shops',
+    'hubs',
+    'configuration',
+    'banners',
+  ])
+    expect((await page.request.get(new URL(`/api/v1/app/admin/${part}`, page.url()).href)).status()).toBe(
+      403,
+    );
 });

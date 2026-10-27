@@ -1,0 +1,119 @@
+<section class="content-card workspace-section" aria-label="Đơn chờ phân công">
+    <div class="section-heading"><div><h2>Chờ phân công</h2><p>Chọn đơn để phân công tự động hoặc mở từng đơn để chọn shipper.</p></div><span class="section-count">@TotalCount.ToString("N0") đơn</span></div>
+    @if (Shipments.Count == 0)
+    {
+        <div class="state-card compact"><AppIcon Name="circle-check" Size="24" /><strong>Không có đơn chờ phân công</strong><p>Thử điều chỉnh bộ lọc hoặc làm mới danh sách.</p></div>
+    }
+    else
+    {
+        <BulkRetryPanel PendingShipmentCount="Shipments.Count" SelectedCount="SelectedShipmentIds.Count" IsBulkRetrying="IsBulkRetrying" Message="BulkRetryMessage" SelectVisible="SelectVisible" ClearSelection="ClearSelection" RetrySelected="BulkRetry" />
+        @if (ActiveShippers.Count == 0) { <div class="alert-box warning" role="status">Chưa có shipper đang hoạt động. Bạn có thể thử phân công lại sau.</div> }
+        <div class="shipment-list">
+            @foreach (var shipment in Shipments)
+            {
+                var insight = GetPendingInsight(shipment);
+                var options = OperationsAssignmentUiModels.BuildShipperOptions(shipment, insight, ActiveShippers, ActiveShipmentCountResolver);
+                <article class="shipment-card" @key="shipment.ShipmentId">
+                    <div class="shipment-overview pending-overview">
+                        <label class="selection-control" title="Chọn đơn @shipment.TrackingCode"><input type="checkbox" aria-label="Chọn đơn @shipment.TrackingCode" checked="@SelectedShipmentIds.Contains(shipment.ShipmentId)" disabled="@IsBulkRetrying" @onchange="e => ToggleSelection.InvokeAsync(new PendingShipmentSelectionChanged(shipment.ShipmentId, e.Value is true))" /></label>
+                        <div class="shipment-identity"><strong class="tracking-code">@shipment.TrackingCode</strong><span>@shipment.ReceiverName</span></div>
+                        <div class="route-summary"><span>@shipment.PickupProvince</span><AppIcon Name="arrow-right" Size="14" /><span>@shipment.DeliveryProvince</span></div>
+                        <div class="money-summary"><small>Thu hộ COD</small><strong>@OperationsDisplay.FormatMoney(shipment.CodAmount, shipment.Currency)</strong></div>
+                        <div class="shipment-signals"><span class="status-pill @(insight.HasMatchedShippers ? "info" : "warning")">@(insight.HasMatchedShippers ? "Có shipper phù hợp" : "Cần chọn shipper")</span><SlaIndicatorBadge Visible="shipment.IsSlaOverdue" Text="Quá hạn lấy hàng" /></div>
+                    </div>
+                    <details class="shipment-details" name="pending-shipment-details">
+                        <summary><AppIcon Name="chevron-down" Size="16" /> Phân công và chi tiết <span class="details-caption">@OperationsDisplay.FormatDate(shipment.CreatedAtUtc)</span></summary>
+                        <div class="detail-grid">
+                            <div class="detail-information"><h3>Thông tin phân công</h3><p>@insight.FallbackReason</p><dl><div><dt>Phí vận chuyển</dt><dd>@OperationsDisplay.FormatMoney(shipment.ShippingFeeAmount, shipment.Currency)</dd></div><div><dt>Ngày tạo</dt><dd>@OperationsDisplay.FormatDate(shipment.CreatedAtUtc)</dd></div></dl></div>
+                            <AssignShipperDialog Shipment="shipment" Insight="insight" ShipperOptions="options" ActiveShippers="ActiveShippers" SelectedShipperIds="SelectedShipperIds" RowMessages="RowMessages" AssigningShipmentId="AssigningShipmentId" RetryingShipmentId="RetryingShipmentId" ActiveShipmentCountResolver="ActiveShipmentCountResolver" SelectShipper="SelectShipper" RetryAutoAssign="RetryAutoAssign" AssignShipment="AssignShipment" />
+                        </div>
+                    </details>
+                    @if (RowMessages.TryGetValue(shipment.ShipmentId, out var message)) { <p class="row-message row-feedback @message.Kind" role="status">@message.Text</p> }
+                </article>
+            }
+        </div>
+        <div class="pagination-bar"><span>@Shipments.Count.ToString("N0") / @TotalCount.ToString("N0") đơn · Trang @PageNumber / @TotalPages</span><div><button type="button" class="retry-button" disabled="@(PageNumber <= 1)" @onclick="PreviousPage">Trước</button><button type="button" class="retry-button" disabled="@(PageNumber >= TotalPages)" @onclick="NextPage">Sau</button></div></div>
+    }
+</section>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<GetPendingPickupShipmentResponse> Shipments { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyList<GetActiveShipperResponse> ActiveShippers { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, OperationsPendingAssignmentInsight> PendingAssignmentInsights { get; set; }
+        = new Dictionary<Guid, OperationsPendingAssignmentInsight>();
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, Guid> SelectedShipperIds { get; set; } = new Dictionary<Guid, Guid>();
+
+    [Parameter]
+    public IReadOnlySet<Guid> SelectedShipmentIds { get; set; } = new HashSet<Guid>();
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, OperationsRowMessage> RowMessages { get; set; } = new Dictionary<Guid, OperationsRowMessage>();
+
+    [Parameter]
+    public int TotalCount { get; set; }
+
+    [Parameter]
+    public int PageNumber { get; set; } = 1;
+
+    [Parameter]
+    public int TotalPages { get; set; } = 1;
+
+    [Parameter]
+    public bool IsBulkRetrying { get; set; }
+
+    [Parameter]
+    public string? BulkRetryMessage { get; set; }
+
+    [Parameter]
+    public Guid? AssigningShipmentId { get; set; }
+
+    [Parameter]
+    public Guid? RetryingShipmentId { get; set; }
+
+    [Parameter]
+    public Func<Guid, int> ActiveShipmentCountResolver { get; set; } = _ => 0;
+
+    [Parameter]
+    public EventCallback SelectVisible { get; set; }
+
+    [Parameter]
+    public EventCallback ClearSelection { get; set; }
+
+    [Parameter]
+    public EventCallback BulkRetry { get; set; }
+
+    [Parameter]
+    public EventCallback<PendingShipperSelectionChanged> SelectShipper { get; set; }
+
+    [Parameter]
+    public EventCallback<PendingShipmentSelectionChanged> ToggleSelection { get; set; }
+
+    [Parameter]
+    public EventCallback<GetPendingPickupShipmentResponse> RetryAutoAssign { get; set; }
+
+    [Parameter]
+    public EventCallback<GetPendingPickupShipmentResponse> AssignShipment { get; set; }
+
+    [Parameter]
+    public EventCallback PreviousPage { get; set; }
+
+    [Parameter]
+    public EventCallback NextPage { get; set; }
+
+    private OperationsPendingAssignmentInsight GetPendingInsight(GetPendingPickupShipmentResponse shipment)
+    {
+        if (PendingAssignmentInsights.TryGetValue(shipment.ShipmentId, out var insight))
+        {
+            return insight;
+        }
+
+        return OperationsAssignmentUiModels.BuildPendingInsights([shipment], ActiveShippers)[shipment.ShipmentId];
+    }
+}

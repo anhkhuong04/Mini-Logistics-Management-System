@@ -1,0 +1,33 @@
+<div class="bulk-toolbar">
+    <span><strong>@SelectedCount.ToString("N0")</strong> đơn đã chọn</span>
+    <button type="button" class="text-button" disabled="@(PendingShipmentCount == 0 || IsBulkRetrying)" @onclick="SelectVisible">Chọn trang này</button>
+    @if (SelectedCount > 0)
+    {
+        <button type="button" class="text-button" disabled="@IsBulkRetrying" @onclick="ClearSelection">Bỏ chọn</button>
+        <button type="button" class="assign-button" disabled="@IsBulkRetrying" @onclick="RetrySelected">@(IsBulkRetrying ? "Đang phân công..." : "Phân công tự động")</button>
+    }
+</div>
+@if (!string.IsNullOrWhiteSpace(Message)) { <div class="alert-box warning" role="status">@Message</div> }
+
+@code {
+    [Parameter]
+    public int PendingShipmentCount { get; set; }
+
+    [Parameter]
+    public int SelectedCount { get; set; }
+
+    [Parameter]
+    public bool IsBulkRetrying { get; set; }
+
+    [Parameter]
+    public string? Message { get; set; }
+
+    [Parameter]
+    public EventCallback SelectVisible { get; set; }
+
+    [Parameter]
+    public EventCallback ClearSelection { get; set; }
+
+    [Parameter]
+    public EventCallback RetrySelected { get; set; }
+}

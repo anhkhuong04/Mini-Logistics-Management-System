@@ -1,6 +1,6 @@
 # Development Commands
 
-Run commands from the repository root. Use the solution file, not the stray root `.csproj`.
+Run commands from the repository root. Use the solution file or an explicit project; the unused root `.csproj` has been removed.
 
 ## Frontend, contracts and release
 
@@ -8,6 +8,8 @@ Use Node **24.22.1**, npm **11.19.1** from the [toolchain pins](../docs/Frontend
 
 ```powershell
 npm --prefix src/MiniLogistics.Frontend ci
+npm --prefix src/MiniLogistics.Frontend run format:check
+npm --prefix src/MiniLogistics.Frontend run test:architecture
 npm --prefix src/MiniLogistics.Frontend run typecheck
 npm --prefix src/MiniLogistics.Frontend run lint
 npm --prefix src/MiniLogistics.Frontend test
@@ -49,9 +51,11 @@ pwsh -File scripts/Test-PublishedWeb.ps1 -ArtifactPath .agent/release -RootMode
 pwsh -File scripts/Test-PublishedWeb.ps1 -ArtifactPath .agent/release
 ```
 
-The publish script enforces pins, runs npm ci/typecheck/lint/test/build (Vitest uses one worker) and `dotnet publish -p:PublishBrowserSpa=true`, then writes a release manifest in the separate output directory. `-SkipInstall` is for an already installed matching lockfile. Normal .NET build/test/publish do not download npm dependencies; the conditional bundle target fails when explicitly requested without dist/index.html. `Test-PublishedWeb.ps1` starts a local BrowserTests process, not a production deploy, and exercises the published bundle with strict local certificate trust. Prepare dev certificate/browser first. To test a separately running host, set `MINILOGISTICS_E2E_BASE_URL=https://localhost:<port>/` and `MINILOGISTICS_E2E_ROOT=1`; `/app/` is the alternate-mode base URL.
+The publish script enforces pins, runs npm ci/format:check/test:architecture/typecheck/lint/test/build (Vitest uses one worker) and `dotnet publish -p:PublishBrowserSpa=true`, then writes a release manifest in the separate output directory. `-SkipInstall` is for an already installed matching lockfile. Normal .NET build/test/publish do not download npm dependencies; the conditional bundle target fails when explicitly requested without dist/index.html. `Test-PublishedWeb.ps1` starts a local BrowserTests process, not a production deploy, and exercises the published bundle with strict local certificate trust. Prepare dev certificate/browser first. To test a separately running host, set `MINILOGISTICS_E2E_BASE_URL=https://localhost:<port>/` and `MINILOGISTICS_E2E_ROOT=1`; `/app/` is the alternate-mode base URL.
 
 Before release, configure absolute persistent `BannerImages__RootPath` outside releases and copy legacy uploads preserving names/URLs. Keep SQL/Redis, Data Protection keys/ApplicationName/certificate stable across releases. Never publish files over the upload store. Phase11 rollback after cleanup requires the recorded **precleanup artifact**, with root mode false for its Blazor UI; the final artifact cannot re-enable Blazor by configuration. See [operations](../docs/Service/operations.md#react-release-và-rollback-phase11). No database downgrade or external deployment is performed by these scripts.
+
+For source organization and targeted C# formatting, see [source organization](../docs/Backend/source-organization.md). Use `npm --prefix src/MiniLogistics.Frontend run format` to apply frontend formatting; generated API declarations are excluded.
 
 ## Prerequisites
 

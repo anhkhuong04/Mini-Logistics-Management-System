@@ -4,7 +4,9 @@ Tài liệu dành cho developer hiểu và bảo trì **hệ thống hiện tạ
 
 ## Frontend migration
 
-React + TypeScript + Ant Design là frontend hiện tại; Web host HTTP/static assets và workers, root route ownership theo Phase11. Đọc [kế hoạch ở root](../refactorfe.md), [trạng thái/phạm vi migration](Frontend/react-migration-contracts.md), [ADR-004](Frontend/decisions/adr-004-react-typescript-ant-design.md) và [validation log](Frontend/react-migration-validation.md) khi thực hiện các task. Tài liệu runtime chỉ cập nhật theo phần đã triển khai; các đề xuất và roadmap nằm trong bộ migration này.
+React + TypeScript + Ant Design là frontend hiện tại; Web host HTTP/static assets và workers, root route ownership theo Phase11. Đọc [kế hoạch lưu trữ](Frontend/history/refactorfe.md), [trạng thái/phạm vi migration](Frontend/react-migration-contracts.md), [ADR-004](Frontend/decisions/adr-004-react-typescript-ant-design.md) và [validation log](Frontend/react-migration-validation.md) khi thực hiện các task. Tài liệu runtime chỉ cập nhật theo phần đã triển khai; các đề xuất và roadmap nằm trong bộ migration này.
+
+Xem [tổ chức source](Backend/source-organization.md) để tra ownership, dependency và formatting hiện tại.
 
 ## Ba nhóm chính
 

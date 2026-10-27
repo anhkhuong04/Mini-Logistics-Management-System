@@ -1,3 +1,4 @@
+using MiniLogistics.Infrastructure.Caching;
 using MiniLogistics.Infrastructure.PartnerApi;
 using MiniLogistics.Infrastructure.Persistence;
 

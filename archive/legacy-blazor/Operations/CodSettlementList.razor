@@ -1,0 +1,45 @@
+<section class="content-card workspace-section" aria-label="Đối soát COD">
+    <div class="section-heading"><div><h2>COD chờ đối soát</h2><p>Các khoản đã thu, chờ Admin xác nhận đối soát. Danh sách này không áp dụng bộ lọc đơn hàng.</p></div><span class="section-count">@Candidates.Count.ToString("N0") khoản</span></div>
+    @if (Candidates.Count == 0)
+    {
+        <div class="state-card compact"><AppIcon Name="receipt" Size="24" /><strong>Không có COD chờ đối soát</strong><p>Các khoản đã thu sẽ xuất hiện tại đây.</p></div>
+    }
+    else
+    {
+        <div class="table-shell" role="region" aria-label="Danh sách COD chờ đối soát" tabindex="0">
+            <table class="settlement-table"><caption class="sr-only">Các khoản COD đã thu chờ Admin đối soát</caption>
+                <thead><tr><th scope="col">Đơn hàng</th><th scope="col">Tiền thu hộ</th><th scope="col">Người thu / ngày thu</th><th scope="col">Thao tác</th></tr></thead>
+                <tbody>
+                    @foreach (var cod in Candidates)
+                    {
+                        <tr @key="cod.ShipmentId">
+                            <td><strong class="tracking-code">@cod.TrackingCode</strong><span>@cod.ReceiverName</span><details class="contact-details"><summary>Thông tin liên hệ</summary><p>@cod.ReceiverPhone</p>@if (!string.IsNullOrWhiteSpace(cod.CollectedByEmail)) { <p>@cod.CollectedByEmail</p> }</details></td>
+                            <td><strong>@OperationsDisplay.FormatMoney(cod.CodAmount, cod.Currency)</strong><small>@OperationsDisplay.FormatCodStatus(cod.CodStatus)</small></td>
+                            <td><span>@OperationsDisplay.FormatCollectedBy(cod)</span><small>@OperationsDisplay.FormatNullableDate(cod.CollectedAtUtc)</small></td>
+                            <td><button type="button" class="settlement-button" disabled="@IsSettlingCod(cod.ShipmentId)" @onclick="() => MarkCodSettled.InvokeAsync(cod)">@(IsSettlingCod(cod.ShipmentId) ? "Đang đối soát..." : "Đối soát COD")</button>@if (RowMessages.TryGetValue(cod.ShipmentId, out var message)) { <p class="row-message @message.Kind" role="status">@message.Text</p> }</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter]
+    public IReadOnlyList<GetCodSettlementCandidateResponse> Candidates { get; set; } = [];
+
+    [Parameter]
+    public IReadOnlyDictionary<Guid, OperationsRowMessage> RowMessages { get; set; } = new Dictionary<Guid, OperationsRowMessage>();
+
+    [Parameter]
+    public Guid? SettlingCodShipmentId { get; set; }
+
+    [Parameter]
+    public EventCallback<GetCodSettlementCandidateResponse> MarkCodSettled { get; set; }
+
+    private bool IsSettlingCod(Guid shipmentId)
+    {
+        return SettlingCodShipmentId == shipmentId;
+    }
+}

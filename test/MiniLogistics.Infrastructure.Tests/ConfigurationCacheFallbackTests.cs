@@ -1,3 +1,4 @@
+using MiniLogistics.Infrastructure.Caching;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;

@@ -23,7 +23,12 @@ class ResizeObserverMock {
   unobserve() {}
   disconnect() {}
 }
-Object.defineProperty(window, 'ResizeObserver', { configurable: true, writable: true, value: ResizeObserverMock });
-window.getComputedStyle = ((original) => (element: Element) => original(element))(
-  window.getComputedStyle,
-);
+Object.defineProperty(window, 'ResizeObserver', {
+  configurable: true,
+  writable: true,
+  value: ResizeObserverMock,
+});
+window.getComputedStyle = (
+  (original) => (element: Element) =>
+    original(element)
+)(window.getComputedStyle);

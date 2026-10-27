@@ -1,3 +1,6 @@
+using MiniLogistics.Infrastructure.ReferenceData;
+using MiniLogistics.Infrastructure.Persistence.Seeding;
+using MiniLogistics.Infrastructure.RateLimiting;
 using System.Net;
 using System.Diagnostics;
 using System.Reflection;
@@ -162,8 +165,10 @@ builder.Services.ConfigureApplicationCookie(options =>
         {
             var users = context.HttpContext.RequestServices.GetRequiredService<Microsoft.AspNetCore.Identity.UserManager<MiniLogistics.Infrastructure.Identity.ApplicationUser>>();
             var user = await users.GetUserAsync(context.Principal);
-            if (user is null) context.RejectPrincipal();
-            else context.ReplacePrincipal(await context.HttpContext.RequestServices
+            if (user is null)
+                context.RejectPrincipal();
+            else
+                context.ReplacePrincipal(await context.HttpContext.RequestServices
                 .GetRequiredService<Microsoft.AspNetCore.Identity.SignInManager<MiniLogistics.Infrastructure.Identity.ApplicationUser>>().CreateUserPrincipalAsync(user));
         }
     };
@@ -192,9 +197,8 @@ builder.Services.AddAuthorization(options =>
         OperationPermissions.ShipmentView,
         policy => policy.RequireRole("Admin", "Operator"));
 });
-builder.Services.AddSingleton<VietnamAdministrativeDivisionService>();
-builder.Services.AddSingleton<MiniLogistics.Application.Common.IAdministrativeDivisionService>(provider =>
-    provider.GetRequiredService<VietnamAdministrativeDivisionService>());
+builder.Services.AddAdministrativeDivisionReferenceData(Path.Combine(
+    builder.Environment.WebRootPath, "data", "vietnam-administrative-divisions.json"));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.Configure<PublicTrackingRateLimitOptions>(
@@ -342,7 +346,10 @@ app.UseBannerImages();
 app.Use(async (context, next) =>
 {
     if (context.Request.Path.StartsWithSegments("/_blazor") || context.Request.Path.StartsWithSegments("/_framework"))
-    { context.Response.StatusCode = StatusCodes.Status404NotFound; return; }
+    {
+        context.Response.StatusCode = StatusCodes.Status404NotFound;
+        return;
+    }
     await next(context);
 });
 

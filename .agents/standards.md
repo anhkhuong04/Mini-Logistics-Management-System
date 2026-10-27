@@ -25,11 +25,11 @@ These are repository-specific rules. Match nearby code when a formatting/detail 
 
 ### Frontend runtime after Phase11
 
-React is the runtime UI. Do not add Razor/Interactive Server components, Bootstrap or Blazicons. Nine pre-existing user-modified Operations source files are retained but excluded from compile/publish. Historical Blazor source references in the inventory describe the parity baseline; they are not instructions to restore that renderer. Keep Application operation-scoped services: HTTP migration does not authorize their removal.
+React is the runtime UI. Do not add Razor/Interactive Server components, Bootstrap or Blazicons. Nine pre-existing user-modified Operations source files are preserved in `archive/legacy-blazor`, outside runtime source. Historical Blazor source references in the inventory describe the parity baseline; they are not instructions to restore that renderer. Keep Application operation-scoped services: HTTP migration does not authorize their removal.
 
 ### React UI
 
-- Use React + TypeScript strict + Ant Design for migrated features. Follow the feature layout and dependency responsibilities in [the plan](../refactorfe.md); frontend toolchain versions are locked during T00.02 before installation.
+- Use React + TypeScript strict + Ant Design for migrated features. Follow the feature layout and dependency responsibilities in [the archived plan](../docs/Frontend/history/refactorfe.md); frontend toolchain versions are locked during T00.02 before installation.
 - Use named imports from the pinned `@ant-design/icons` library for interface icons. Do not hardcode SVG paths, emoji or Unicode glyphs as icons. Hide decorative icons from assistive technology and give icon-only controls an accessible name.
 - Use Ant Design Form/Table/Modal and its theme/locale providers. Map the existing sea-blue/Be Vietnam Pro design intent into Ant Design tokens; Keep the AntD theme and React styles as the active UI system.
 - UI owns presentation and interaction state. Call browser HTTP adapters, not repositories, EF or server implementation types; keep business validation, fee calculation, authorization and tenant/assignment isolation in Application/Domain.
@@ -37,6 +37,13 @@ React is the runtime UI. Do not add Razor/Interactive Server components, Bootstr
 - Do not automatically retry mutations after timeouts. Re-read authoritative state before a user retries creation, COD, key rotation or webhook actions.
 - Preserve error/loading/empty distinctions, real chart counts, permission-aware drill-down, keyboard focus, accessible labels and mobile actions. Reuse focused primitives without building a generic CRUD framework.
 - Do not use partner API keys as the browser application's authentication credential. Authorized management portals may show newly issued keys once; do not persist those secrets in query cache, URLs, storage, logs or test artifacts.
+
+### Source boundaries and formatting
+
+- `.editorconfig` owns text/C# conventions. Apply `dotnet format whitespace` to changed C# files; exclude EF migrations and archived user source.
+- Frontend uses exact-pinned Prettier (`format`/`format:check`) and ESLint architecture rules. `shared` cannot import `app`/`features`; features cannot import `app`; cross-feature imports use public `index.ts` exports. App is the composition layer. Keep generated API declarations generator-owned.
+- Shipment read ports declare required queries without default implementations. Tracked mutation loads belong to `IShipmentWriteRepository`; in-memory fallback logic belongs to test doubles only.
+- PDF rendering, storage, Redis I/O and authoritative reference-data reading belong in Infrastructure. Application retains authorization/use-case orchestration and their focused ports.
 
 ## HTTP/API conventions
 

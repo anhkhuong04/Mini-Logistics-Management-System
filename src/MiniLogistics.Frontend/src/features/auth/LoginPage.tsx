@@ -16,25 +16,60 @@ export function LoginPage() {
   const [search] = useSearchParams();
   async function submit(values: LoginRequest) {
     if (pending) return;
-    setPending(true); setError('');
+    setPending(true);
+    setError('');
     try {
-      const session = await login(values); await signedIn(session);
+      const session = await login(values);
+      await signedIn(session);
       window.location.assign(safeReturnUrl(search.get('returnUrl')) ?? postLoginPath(session.roles ?? []));
     } catch (failure) {
       form.setFieldValue('password', '');
-      setError(failure instanceof ApiError && failure.code === 'Auth.LockedOut'
-        ? copy.locked : failure instanceof ApiError && failure.status === 401 ? copy.credentials
-        : failure instanceof ApiError && failure.status === 403 ? copy.inactive : copy.loginFailure);
-    } finally { setPending(false); }
+      setError(
+        failure instanceof ApiError && failure.code === 'Auth.LockedOut'
+          ? copy.locked
+          : failure instanceof ApiError && failure.status === 401
+            ? copy.credentials
+            : failure instanceof ApiError && failure.status === 403
+              ? copy.inactive
+              : copy.loginFailure,
+      );
+    } finally {
+      setPending(false);
+    }
   }
-  return <><PageHeader title={copy.login} /><section className="auth-panel">
-    {error && <Alert type="error" role="alert" title={error} />}
-    <Form form={form} layout="vertical" onFinish={submit} disabled={pending} initialValues={{ rememberMe: false }}>
-      <Form.Item label={copy.email} name="email" rules={[{ required: true }, { type: 'email' }, { max: 256 }]}><Input autoComplete="username" /></Form.Item>
-      <Form.Item label={copy.password} name="password" rules={[{ required: true }, { max: 100 }]}><Input.Password autoComplete="current-password" /></Form.Item>
-      <Form.Item name="rememberMe" valuePropName="checked"><Checkbox>{copy.remember}</Checkbox></Form.Item>
-      <Button type="primary" htmlType="submit" loading={pending}>{copy.login}</Button>
-    </Form>
-    <p><Link to="/register-shop">{copy.register}</Link></p>
-  </section></>;
+  return (
+    <>
+      <PageHeader title={copy.login} />
+      <section className="auth-panel">
+        {error && <Alert type="error" role="alert" title={error} />}
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={submit}
+          disabled={pending}
+          initialValues={{ rememberMe: false }}
+        >
+          <Form.Item
+            label={copy.email}
+            name="email"
+            rules={[{ required: true }, { type: 'email' }, { max: 256 }]}
+          >
+            <Input autoComplete="username" />
+          </Form.Item>
+          <Form.Item label={copy.password} name="password" rules={[{ required: true }, { max: 100 }]}>
+            <Input.Password autoComplete="current-password" />
+          </Form.Item>
+          <Form.Item name="rememberMe" valuePropName="checked">
+            <Checkbox>{copy.remember}</Checkbox>
+          </Form.Item>
+          <Button type="primary" htmlType="submit" loading={pending}>
+            {copy.login}
+          </Button>
+        </Form>
+        <p>
+          <Link to="/register-shop">{copy.register}</Link>
+        </p>
+      </section>
+    </>
+  );
 }
